@@ -123,6 +123,7 @@ function saveDatabase(db) {
     if (isFirebaseConnected && currentFirebaseUser && !preventFirestoreSync) {
         syncToFirestore(db);
     }
+    updateNotifications();
 }
 
 // ----------------------------------------------------
@@ -7850,4 +7851,132 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Bind notifications click and close logic
+    const bellBtn = document.getElementById('notifications-bell-btn');
+    const dropdown = document.getElementById('notifications-dropdown');
+    const clearBtn = document.getElementById('btn-clear-notifications');
+
+    if (bellBtn && dropdown) {
+        bellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('active');
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && e.target !== bellBtn && !bellBtn.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const items = document.querySelectorAll('.notification-item');
+            items.forEach(item => {
+                const id = item.getAttribute('data-id');
+                if (!dismissedNotifications.includes(id)) {
+                    dismissedNotifications.push(id);
+                }
+            });
+            updateNotifications();
+        });
+    }
+
+    // Initial load of notifications
+    updateNotifications();
 });
+
+// Dismissed notifications list (stored in memory)
+let dismissedNotifications = [];
+
+function updateNotifications() {
+    const db = getDatabase();
+    if (!db) return;
+
+    const notifications = [];
+
+    // 1. Check for low stock products (quantity <= 3)
+    if (db.productos) {
+        db.productos.forEach(p => {
+            const stock = p.Minimos || 0;
+            if (stock <= 3) {
+                const id = `stock-${p['ID_ Producto']}-${stock}`;
+                if (!dismissedNotifications.includes(id)) {
+                    notifications.push({
+                        id: id,
+                        type: 'warning',
+                        icon: '<i class="fa-solid fa-triangle-exclamation" style="color: var(--warning);"></i>',
+                        title: 'Stock Bajo',
+                        desc: `El repuesto "${p.Descripcion}" tiene stock bajo (${stock} unidades).`,
+                        time: 'Inventario'
+                    });
+                }
+            }
+        });
+    }
+
+    // 2. Check for pending budgets (Estado === 1 / "Creado")
+    if (db.presupuestos) {
+        db.presupuestos.forEach(p => {
+            if (p.Estado == 1 || p.Estado == '1') {
+                const id = `budget-pending-${p['ID Presupuesto']}`;
+                if (!dismissedNotifications.includes(id)) {
+                    notifications.push({
+                        id: id,
+                        type: 'info',
+                        icon: '<i class="fa-solid fa-file-signature" style="color: var(--primary);"></i>',
+                        title: 'Presupuesto Creado',
+                        desc: `Presupuesto ${p['ID Presupuesto']} de ${p.Nombre} está pendiente de aprobación.`,
+                        time: 'Operaciones'
+                    });
+                }
+            }
+        });
+    }
+
+    // Update UI elements
+    const badge = document.getElementById('alert-badge');
+    const dropdownBody = document.getElementById('notifications-dropdown-body');
+
+    if (badge) {
+        badge.textContent = notifications.length;
+        if (notifications.length > 0) {
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    if (dropdownBody) {
+        if (notifications.length === 0) {
+            dropdownBody.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
+                    <i class="fa-regular fa-bell-slash" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
+                    No tienes notificaciones pendientes
+                </div>
+            `;
+        } else {
+            dropdownBody.innerHTML = notifications.map(n => `
+                <div class="notification-item" data-id="${n.id}" style="cursor: pointer;">
+                    <div class="notification-item-icon">${n.icon}</div>
+                    <div class="notification-item-info">
+                        <span class="notification-item-title">${n.title}</span>
+                        <span class="notification-item-desc">${n.desc}</span>
+                        <span class="notification-item-time">${n.time}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Add click event to dismiss individual notifications
+            dropdownBody.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const id = item.getAttribute('data-id');
+                    dismissedNotifications.push(id);
+                    updateNotifications();
+                });
+            });
+        }
+    }
+}

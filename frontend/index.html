@@ -122,9 +122,20 @@
                     <div class="date-time" id="live-clock">
                         12 Jun, 2026 10:56 PM
                     </div>
-                    <div class="notifications-bell">
+                    <div class="notifications-bell" id="notifications-bell-btn">
                         <i class="fa-regular fa-bell"></i>
                         <span class="badge" id="alert-badge">3</span>
+                    </div>
+                    
+                    <!-- Notifications Dropdown -->
+                    <div id="notifications-dropdown" class="notifications-dropdown glass-card">
+                        <div class="notifications-dropdown-header">
+                            <h3>Notificaciones</h3>
+                            <button id="btn-clear-notifications" style="background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; text-decoration: underline;">Limpiar</button>
+                        </div>
+                        <div class="notifications-dropdown-body" id="notifications-dropdown-body">
+                            <!-- Injected dynamically -->
+                        </div>
                     </div>
                 </div>
             </header>
