@@ -2068,6 +2068,7 @@ function renderBudgetEditor(container, budget) {
                 ` : ''}
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
+                    ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
                     <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado == 3 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
@@ -2443,6 +2444,14 @@ function renderBudgetEditor(container, budget) {
         showToast("Presupuesto guardado correctamente", "success");
         window.location.hash = '#presupuestos';
     });
+
+    const approveBtn = document.getElementById('approve-budget-shortcut-btn');
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => {
+            document.getElementById('editor-state').value = "2";
+            document.getElementById('save-budget-btn').click();
+        });
+    }
 
     if (document.getElementById('facturar-budget-shortcut-btn')) {
         document.getElementById('facturar-budget-shortcut-btn').addEventListener('click', () => {
