@@ -508,6 +508,8 @@ function getWorkshopConfig(db) {
     if (!db.config_taller) {
         db.config_taller = {
             nombre: 'GRUPO GEMA, S.A. DE C.V.',
+            alias: 'Grupo Gema',
+            nombre_comercial: 'Grupo Gema Taller',
             giro: 'Servicio de Mantenimiento al Transporte Terrestre',
             direccion: 'Carr. Sonsonate, col. Cuyagualo #16, Colon, La Libertad',
             telefono: '7625-0906',
@@ -515,7 +517,17 @@ function getWorkshopConfig(db) {
             nit: '0614-111111-101-1',
             nrc: '123456-7',
             logoText: 'GRUPO GEMA',
-            logoTagline: 'Mantenimiento de Flotas y Vehículos'
+            logoTagline: 'Mantenimiento de Flotas y Vehículos',
+            tipo_persona: 'Jurídica',
+            clasificacion_tributaria: 'Otros',
+            sujeto_excluido: 'No',
+            tipo_documento: 'NIT',
+            num_documento: '0614-111111-101-1',
+            actividad_economica: 'Servicio de Mantenimiento al Transporte Terrestre',
+            pais: 'El Salvador',
+            departamento: 'La Libertad',
+            municipio: 'Colón',
+            logo: ''
         };
     }
     return db.config_taller;
@@ -3754,44 +3766,140 @@ function renderConfiguracion(container) {
     // Helper functions for layouts
     function getTallerHtml() {
         return `
-            <div class="view-split">
+            <div class="view-split" style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:1.5rem;">
                 <div style="display:flex; flex-direction:column; gap:1.5rem;">
-                    <div class="glass-card">
-                        <h3>Datos de la Empresa / Taller</h3>
-                        <form id="config-taller-form" style="margin-top:1rem; display:flex; flex-direction:column; gap:1.25rem;">
+                    <div class="glass-card" style="padding:2rem;">
+                        <h3 style="font-size:1.2rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1.25rem; font-weight:700;">Datos de la Empresa / Taller</h3>
+                        <form id="config-taller-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                            <!-- General -->
                             <div class="form-group">
-                                <label>Nombre Legal / Comercial de la Empresa</label>
+                                <label>Nombre o Razón Social</label>
                                 <input type="text" id="cfg-taller-nombre" value="${ws.nombre || ''}" required style="padding:0.6rem;">
                             </div>
-                            <div class="form-group">
-                                <label>Giro / Actividad Económica</label>
-                                <input type="text" id="cfg-taller-giro" value="${ws.giro || ''}" required style="padding:0.6rem;">
-                            </div>
-                            <div class="form-group">
-                                <label>Dirección Comercial Completa</label>
-                                <input type="text" id="cfg-taller-direccion" value="${ws.direccion || ''}" required style="padding:0.6rem;">
-                            </div>
-                            <div class="form-row">
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div class="form-group">
-                                    <label>Teléfono de Contacto</label>
-                                    <input type="text" id="cfg-taller-telefono" value="${ws.telefono || ''}" required style="padding:0.6rem;">
+                                    <label>Alias (Nombre Corto)</label>
+                                    <input type="text" id="cfg-taller-alias" value="${ws.alias || ''}" required style="padding:0.6rem;">
                                 </div>
+                                <div class="form-group">
+                                    <label>Nombre Comercial</label>
+                                    <input type="text" id="cfg-taller-nombre-comercial" value="${ws.nombre_comercial || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div class="form-group">
                                     <label>Correo Electrónico</label>
                                     <input type="email" id="cfg-taller-correo" value="${ws.correo || ''}" required style="padding:0.6rem;">
                                 </div>
-                            </div>
-                            <div class="form-row">
                                 <div class="form-group">
-                                    <label>NIT (Número de Identificación Tributaria)</label>
-                                    <input type="text" id="cfg-taller-nit" value="${ws.nit || ''}" required style="padding:0.6rem;">
+                                    <label>Teléfono de Contacto</label>
+                                    <input type="text" id="cfg-taller-telefono" value="${ws.telefono || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Tipo Persona</label>
+                                    <select id="cfg-taller-tipo-persona" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="Natural" ${ws.tipo_persona === 'Natural' ? 'selected' : ''}>Natural</option>
+                                        <option value="Jurídica" ${ws.tipo_persona === 'Jurídica' ? 'selected' : ''}>Jurídica</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>NRC (Número de Registro de Contribuyente)</label>
+                                    <label>Clasificación Tributaria</label>
+                                    <select id="cfg-taller-clasificacion" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="Otros" ${ws.clasificacion_tributaria === 'Otros' ? 'selected' : ''}>Otros</option>
+                                        <option value="Pequeño contribuyente" ${ws.clasificacion_tributaria === 'Pequeño contribuyente' ? 'selected' : ''}>Pequeño contribuyente</option>
+                                        <option value="Mediano contribuyente" ${ws.clasificacion_tributaria === 'Mediano contribuyente' ? 'selected' : ''}>Mediano contribuyente</option>
+                                        <option value="Gran contribuyente" ${ws.clasificacion_tributaria === 'Gran contribuyente' ? 'selected' : ''}>Gran contribuyente</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>¿Es sujeto excluido?</label>
+                                    <select id="cfg-taller-sujeto-excluido" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="No" ${ws.sujeto_excluido === 'No' ? 'selected' : ''}>No</option>
+                                        <option value="Sí" ${ws.sujeto_excluido === 'Sí' ? 'selected' : ''}>Sí</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Fiscal -->
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Tipo Documento</label>
+                                    <select id="cfg-taller-tipo-doc" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="NIT" ${ws.tipo_documento === 'NIT' ? 'selected' : ''}>NIT</option>
+                                        <option value="DUI" ${ws.tipo_documento === 'DUI' ? 'selected' : ''}>DUI</option>
+                                        <option value="Pasaporte" ${ws.tipo_documento === 'Pasaporte' ? 'selected' : ''}>Pasaporte</option>
+                                        <option value="Carnet de Extranjería" ${ws.tipo_documento === 'Carnet de Extranjería' ? 'selected' : ''}>Carnet de Extranjería</option>
+                                        <option value="Otro" ${ws.tipo_documento === 'Otro' ? 'selected' : ''}>Otro</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Número Documento</label>
+                                    <input type="text" id="cfg-taller-num-doc" value="${ws.num_documento || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>NRC</label>
                                     <input type="text" id="cfg-taller-nrc" value="${ws.nrc || ''}" required style="padding:0.6rem;">
                                 </div>
+                                <div class="form-group">
+                                    <label>Giro / Actividad</label>
+                                    <input type="text" id="cfg-taller-giro" value="${ws.giro || ''}" required style="padding:0.6rem;">
+                                </div>
                             </div>
-                            <div class="form-row">
+
+                            <!-- Dirección -->
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>País</label>
+                                    <select id="cfg-taller-pais" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="El Salvador" selected>El Salvador</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Departamento</label>
+                                    <select id="cfg-taller-departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="Ahuachapán" ${ws.departamento === 'Ahuachapán' ? 'selected' : ''}>Ahuachapán</option>
+                                        <option value="Cabañas" ${ws.departamento === 'Cabañas' ? 'selected' : ''}>Cabañas</option>
+                                        <option value="Chalatenango" ${ws.departamento === 'Chalatenango' ? 'selected' : ''}>Chalatenango</option>
+                                        <option value="Cuscatlán" ${ws.departamento === 'Cuscatlán' ? 'selected' : ''}>Cuscatlán</option>
+                                        <option value="La Libertad" ${ws.departamento === 'La Libertad' ? 'selected' : ''}>La Libertad</option>
+                                        <option value="La Paz" ${ws.departamento === 'La Paz' ? 'selected' : ''}>La Paz</option>
+                                        <option value="La Unión" ${ws.departamento === 'La Unión' ? 'selected' : ''}>La Unión</option>
+                                        <option value="Morazán" ${ws.departamento === 'Morazán' ? 'selected' : ''}>Morazán</option>
+                                        <option value="San Miguel" ${ws.departamento === 'San Miguel' ? 'selected' : ''}>San Miguel</option>
+                                        <option value="San Salvador" ${ws.departamento === 'San Salvador' ? 'selected' : ''}>San Salvador</option>
+                                        <option value="San Vicente" ${ws.departamento === 'San Vicente' ? 'selected' : ''}>San Vicente</option>
+                                        <option value="Santa Ana" ${ws.departamento === 'Santa Ana' ? 'selected' : ''}>Santa Ana</option>
+                                        <option value="Sonsonate" ${ws.departamento === 'Sonsonate' ? 'selected' : ''}>Sonsonate</option>
+                                        <option value="Usulután" ${ws.departamento === 'Usulután' ? 'selected' : ''}>Usulután</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Municipio</label>
+                                    <input type="text" id="cfg-taller-municipio" value="${ws.municipio || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección Comercial Detallada</label>
+                                <input type="text" id="cfg-taller-direccion" value="${ws.direccion || ''}" required style="padding:0.6rem;">
+                            </div>
+
+                            <!-- Logotipo -->
+                            <div class="form-group">
+                                <label>Cargar Nuevo Logotipo</label>
+                                <input type="file" id="cfg-taller-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div id="cfg-logo-preview-container" style="display:${ws.logo ? 'block' : 'none'}; text-align:center; margin-top:0.5rem;">
+                                <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
+                                <img id="cfg-logo-preview" src="${ws.logo || ''}" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
+                            </div>
+
+                            <!-- Branding de Documentos -->
+                            <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:1.5rem; margin-bottom:1rem; font-weight:700;">Diseño y Branding (PDFs)</h3>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div class="form-group">
                                     <label>Texto Corto para Logo (PDFs)</label>
                                     <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: GRUPO GEMA" required style="padding:0.6rem;">
@@ -3801,7 +3909,7 @@ function renderConfiguracion(container) {
                                     <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
+                            <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end; padding:0.65rem 1.25rem;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
                         </form>
                     </div>
                 </div>
@@ -3832,9 +3940,7 @@ function renderConfiguracion(container) {
                 </div>
             </div>
         `;
-    }
-
-    function getEmpleadosHtml() {
+    }function getEmpleadosHtml() {
         return `
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
@@ -4178,27 +4284,73 @@ function renderConfiguracion(container) {
         
         // Bind Taller Form
         const configTallerForm = document.getElementById('config-taller-form');
+        // Bind file change for logo upload
+        const logoInput = document.getElementById('cfg-taller-logo');
+        window.saasSelectedLogoBase64 = ws.logo || '';
+        
+        if (logoInput) {
+            logoInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (readerEvent) => {
+                        const base64 = readerEvent.target.result;
+                        window.saasSelectedLogoBase64 = base64;
+                        const previewImg = document.getElementById('cfg-logo-preview');
+                        const previewContainer = document.getElementById('cfg-logo-preview-container');
+                        if (previewImg && previewContainer) {
+                            previewImg.src = base64;
+                            previewContainer.style.display = 'block';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
         if (configTallerForm) {
             configTallerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 db.config_taller = {
                     nombre: document.getElementById('cfg-taller-nombre').value,
+                    alias: document.getElementById('cfg-taller-alias').value,
+                    nombre_comercial: document.getElementById('cfg-taller-nombre-comercial').value,
                     giro: document.getElementById('cfg-taller-giro').value,
                     direccion: document.getElementById('cfg-taller-direccion').value,
                     telefono: document.getElementById('cfg-taller-telefono').value,
                     correo: document.getElementById('cfg-taller-correo').value,
-                    nit: document.getElementById('cfg-taller-nit').value,
+                    nit: document.getElementById('cfg-taller-tipo-doc').value === 'NIT' ? document.getElementById('cfg-taller-num-doc').value : '',
                     nrc: document.getElementById('cfg-taller-nrc').value,
                     logoText: document.getElementById('cfg-taller-logotext').value,
-                    logoTagline: document.getElementById('cfg-taller-tagline').value
+                    logoTagline: document.getElementById('cfg-taller-tagline').value,
+                    tipo_persona: document.getElementById('cfg-taller-tipo-persona').value,
+                    clasificacion_tributaria: document.getElementById('cfg-taller-clasificacion').value,
+                    sujeto_excluido: document.getElementById('cfg-taller-sujeto-excluido').value,
+                    tipo_documento: document.getElementById('cfg-taller-tipo-doc').value,
+                    num_documento: document.getElementById('cfg-taller-num-doc').value,
+                    actividad_economica: document.getElementById('cfg-taller-giro').value,
+                    pais: document.getElementById('cfg-taller-pais').value,
+                    departamento: document.getElementById('cfg-taller-departamento').value,
+                    municipio: document.getElementById('cfg-taller-municipio').value,
+                    logo: window.saasSelectedLogoBase64 || ''
                 };
+
+                // Sync with saas_state if matching active session
+                if (db.saas_state && db.saas_state.workshopData) {
+                    const wsId = db.saas_state.workshopData.id;
+                    const wsReg = (db.solicitudes_registro || []).find(s => s.id === wsId);
+                    if (wsReg) {
+                        Object.assign(wsReg, db.config_taller);
+                        db.saas_state.workshopData = wsReg;
+                    }
+                }
+
                 saveDatabase(db);
                 showToast("Datos de la empresa y branding de documentos actualizados", "success");
                 updateSidebarBrand();
                 renderConfiguracion(container);
             });
         }
-
         // Roles & Permisos Logic
         const rolSelector = document.getElementById('permiso-rol-selector');
         const checkboxesContainer = document.getElementById('permisos-checkboxes-container');
@@ -6059,30 +6211,36 @@ function exportBudgetPDF(budgetId) {
         <!-- Header -->
         <div class="pdf-header">
             <div class="company-details">
-                <h1 class="company-title">${ws.nombre}</h1>
+                <h1 class="company-title">${ws.nombre_comercial || ws.nombre}</h1>
                 <div class="company-info">
-                    ${ws.direccion}<br>
-                    Tel. ${ws.telefono}<br>
-                    <a href="mailto:${ws.correo}" class="company-email">${ws.correo}</a>
+                    ${ws.nombre_comercial && ws.nombre_comercial !== ws.nombre ? `Razón Social: ${ws.nombre}<br>` : ''}
+                    Dirección: ${ws.direccion || ''}${ws.municipio || ws.departamento || ws.pais ? `, ${[ws.municipio, ws.departamento, ws.pais].filter(Boolean).join(', ')}` : ''}<br>
+                    Tel: ${ws.telefono} | Correo: <a href="mailto:${ws.correo}" class="company-email">${ws.correo}</a><br>
+                    ${ws.tipo_documento || 'NIT'}: ${ws.num_documento || ws.nit || ''} ${ws.nrc ? ` | NRC: ${ws.nrc}` : ''}<br>
+                    Giro: ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}
                 </div>
             </div>
-            <div class="logo-container">
-                <svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="1" y="1" width="218" height="88" rx="8" fill="#f8fafc" stroke="#b0b8c0" stroke-width="1.2"/>
-                    <path d="M10,75 L210,75 M10,79 L210,79" stroke="#64748b" stroke-width="0.8" stroke-dasharray="2,2"/>
-                    <g transform="translate(14, 16) scale(0.052)" fill="#1e293b">
-                        <path d="M190 280 L160 210 Q150 190 130 190 L60 190 Q40 190 30 210 L5 280 L5 360 L190 360 Z M190 360 M120 220 L70 220 L70 260 L120 260 Z" fill="#64748b"/>
-                        <circle cx="50" cy="370" r="22"/>
-                        <circle cx="150" cy="370" r="22"/>
-                        <path d="M420 250 L380 160 Q360 130 330 130 L230 130 Q200 130 180 160 L140 250 L140 370 L420 370 Z M280 170 L210 170 L210 220 L280 220 Z M370 170 L300 170 L300 220 L370 220 Z" fill="#1e293b"/>
-                        <circle cx="210" cy="385" r="28"/>
-                        <circle cx="350" cy="385" r="28"/>
-                    </g>
-                    <text x="76" y="24" font-family="'Outfit', sans-serif" font-size="11.5" font-weight="800" fill="#1e293b">${ws.logoText || 'TALLER'}</text>
-                    <text x="76" y="37" font-family="'Outfit', sans-serif" font-size="9" font-weight="700" fill="#64748b">${ws.nombre.includes('C.V.') || ws.nombre.includes('c.v.') ? 'S.A. DE C.V.' : ''}</text>
-                    <text x="76" y="55" font-family="'Inter', sans-serif" font-size="6" font-weight="600" fill="#1e293b">${(ws.logoTagline || '').toUpperCase()}</text>
-                    <text x="76" y="65" font-family="'Inter', sans-serif" font-size="5.5" font-weight="600" fill="#64748b">${(ws.giro || '').substring(0, 50).toUpperCase()}</text>
-                </svg>
+            <div class="logo-container" style="display: flex; justify-content: flex-end; align-items: center; min-height: 90px;">
+                ${ws.logo ? `
+                    <img src="${ws.logo}" style="max-width: 220px; max-height: 90px; object-fit: contain; border-radius: 4px;" />
+                ` : `
+                    <svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="218" height="88" rx="8" fill="#f8fafc" stroke="#b0b8c0" stroke-width="1.2"/>
+                        <path d="M10,75 L210,75 M10,79 L210,79" stroke="#64748b" stroke-width="0.8" stroke-dasharray="2,2"/>
+                        <g transform="translate(14, 16) scale(0.052)" fill="#1e293b">
+                            <path d="M190 280 L160 210 Q150 190 130 190 L60 190 Q40 190 30 210 L5 280 L5 360 L190 360 Z M190 360 M120 220 L70 220 L70 260 L120 260 Z" fill="#64748b"/>
+                            <circle cx="50" cy="370" r="22"/>
+                            <circle cx="150" cy="370" r="22"/>
+                            <path d="M420 250 L380 160 Q360 130 330 130 L230 130 Q200 130 180 160 L140 250 L140 370 L420 370 Z M280 170 L210 170 L210 220 L280 220 Z M370 170 L300 170 L300 220 L370 220 Z" fill="#1e293b"/>
+                            <circle cx="210" cy="385" r="28"/>
+                            <circle cx="350" cy="385" r="28"/>
+                        </g>
+                        <text x="76" y="24" font-family="'Outfit', sans-serif" font-size="11.5" font-weight="800" fill="#1e293b">${ws.logoText || 'TALLER'}</text>
+                        <text x="76" y="37" font-family="'Outfit', sans-serif" font-size="9" font-weight="700" fill="#64748b">${ws.nombre.includes('C.V.') || ws.nombre.includes('c.v.') ? 'S.A. DE C.V.' : ''}</text>
+                        <text x="76" y="55" font-family="'Inter', sans-serif" font-size="6" font-weight="600" fill="#1e293b">${(ws.logoTagline || '').toUpperCase()}</text>
+                        <text x="76" y="65" font-family="'Inter', sans-serif" font-size="5.5" font-weight="600" fill="#64748b">${(ws.giro || '').substring(0, 50).toUpperCase()}</text>
+                    </svg>
+                `}
             </div>
         </div>
 
@@ -6520,90 +6678,216 @@ function renderLockScreen(container) {
 function renderRegistroSaaS(container) {
     const db = getDatabase();
     const plans = db.saas_plans || [];
-    
+    window.saasSelectedLogoBase64 = ''; // Reset selected logo
+
     container.innerHTML = `
-        <div style="max-width:650px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
+        <div style="max-width:750px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
                 <div>
-                    <h2 style="font-family:'Outfit', sans-serif; font-size:1.75rem; font-weight:700; color:var(--text-primary);">Registrar Nuevo Taller</h2>
-                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Completa los datos comerciales para crear tu cuenta en Mecanic OS</p>
+                    <h2 style="font-family:'Outfit', sans-serif; font-size:1.85rem; font-weight:800; color:var(--text-primary);"><i class="fa-solid fa-gears" style="color:var(--primary); margin-right:0.5rem;"></i>Registrar Nuevo Taller</h2>
+                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Completa los datos comerciales y de facturación (FacturaLlama) para tu cuenta</p>
                 </div>
-                <a href="#landing" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem;"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+                <a href="#landing" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600;"><i class="fa-solid fa-arrow-left"></i> Volver</a>
             </div>
             
-            <form id="saas-register-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                <div class="form-group">
-                    <label>Nombre Comercial del Taller</label>
-                    <input type="text" id="reg-taller-nombre" required placeholder="Ej: Taller Automotriz San José" style="padding:0.6rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Giro / Actividad Económica</label>
-                    <input type="text" id="reg-taller-giro" required placeholder="Ej: Mantenimiento y Pintura Automotriz" style="padding:0.6rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Dirección del Taller</label>
-                    <input type="text" id="reg-taller-direccion" required placeholder="Calle principal, Municipio, Departamento" style="padding:0.6rem;">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Teléfono de Contacto</label>
-                        <input type="text" id="reg-taller-telefono" required placeholder="2222-2222" style="padding:0.6rem;">
+            <form id="saas-register-form" style="display:flex; flex-direction:column; gap:1.5rem;">
+                <!-- 1. DATOS GENERALES -->
+                <div>
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Datos Generales</h3>
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>Nombre o Razón Social</label>
+                        <input type="text" id="reg-taller-nombre" required placeholder="Ej: Taller Automotriz San José S.A. de C.V." style="padding:0.6rem;">
                     </div>
-                    <div class="form-group">
-                        <label>Correo Electrónico</label>
-                        <input type="email" id="reg-taller-correo" required placeholder="contacto@taller.com" style="padding:0.6rem;">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Alias del Taller (Nombre Corto)</label>
+                            <input type="text" id="reg-taller-alias" required placeholder="Ej: Automotriz San José" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre Comercial</label>
+                            <input type="text" id="reg-taller-nombre-comercial" required placeholder="Ej: Taller San José" style="padding:0.6rem;">
+                        </div>
                     </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>NIT de la Empresa</label>
-                        <input type="text" id="reg-taller-nit" required placeholder="0614-xxxxxx-xxx-x" style="padding:0.6rem;">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="reg-taller-correo" required placeholder="contacto@taller.com" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono de Contacto</label>
+                            <input type="text" id="reg-taller-telefono" required placeholder="2222-2222" style="padding:0.6rem;">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>NRC (Registro Contribuyente)</label>
-                        <input type="text" id="reg-taller-nrc" required placeholder="xxxxxx-x" style="padding:0.6rem;">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Tipo de Persona</label>
+                            <select id="reg-taller-tipo-persona" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="Natural">Natural</option>
+                                <option value="Jurídica" selected>Jurídica</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Clasificación Tributaria</label>
+                            <select id="reg-taller-clasificacion" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="Otros" selected>Otros</option>
+                                <option value="Pequeño contribuyente">Pequeño contribuyente</option>
+                                <option value="Mediano contribuyente">Mediano contribuyente</option>
+                                <option value="Gran contribuyente">Gran contribuyente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>¿Es sujeto excluido?</label>
+                            <select id="reg-taller-sujeto-excluido" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="No" selected>No</option>
+                                <option value="Sí">Sí</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-row" style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
-                    <div class="form-group">
-                        <label>Plan de Suscripción</label>
-                        <select id="reg-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                            ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Código de Cupón (Opcional)</label>
-                        <div style="display:flex; gap:0.5rem;">
-                            <input type="text" id="reg-taller-cupon" placeholder="Ej: BIENVENIDO50" style="padding:0.6rem; flex:1; text-transform:uppercase;">
-                            <button type="button" id="btn-apply-coupon" class="btn btn-secondary" style="padding:0.6rem;">Aplicar</button>
+                <!-- 2. DATOS FISCALES -->
+                <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Datos Fiscales</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Tipo de Documento</label>
+                            <select id="reg-taller-tipo-doc" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="NIT" selected>NIT (Empresa/Persona)</option>
+                                <option value="DUI">DUI (Persona Natural)</option>
+                                <option value="Pasaporte">Pasaporte</option>
+                                <option value="Carnet de Extranjería">Carnet de Extranjería</option>
+                                <option value="Otro">Otro</option>
+                            </select>
                         </div>
-                        <div id="coupon-message" style="font-size:0.75rem; margin-top:0.25rem;"></div>
+                        <div class="form-group">
+                            <label>Número de Documento</label>
+                            <input type="text" id="reg-taller-num-doc" required placeholder="0614-111111-101-1" style="padding:0.6rem;">
+                        </div>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>NRC (Registro Contribuyente)</label>
+                            <input type="text" id="reg-taller-nrc" required placeholder="123456-7" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Giro / Actividad Económica</label>
+                            <input type="text" id="reg-taller-giro" required placeholder="Ej: Mantenimiento y reparación de vehículos" style="padding:0.6rem;">
+                        </div>
                     </div>
                 </div>
-                
-                <div style="border-top:1px solid var(--border-color); padding-top:1.25rem; margin-top:0.5rem;">
-                    <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; font-weight:600; margin-bottom:1rem; color:var(--primary);">Datos del Propietario (Usuario Administrador)</h4>
-                    <div class="form-row">
+
+                <!-- 3. DIRECCIÓN -->
+                <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Dirección</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                         <div class="form-group">
-                            <label>Nombre Completo</label>
+                            <label>País</label>
+                            <select id="reg-taller-pais" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="El Salvador" selected>El Salvador</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Departamento</label>
+                            <select id="reg-taller-departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                <option value="Ahuachapán">Ahuachapán</option>
+                                <option value="Cabañas">Cabañas</option>
+                                <option value="Chalatenango">Chalatenango</option>
+                                <option value="Cuscatlán">Cuscatlán</option>
+                                <option value="La Libertad" selected>La Libertad</option>
+                                <option value="La Paz">La Paz</option>
+                                <option value="La Unión">La Unión</option>
+                                <option value="Morazán">Morazán</option>
+                                <option value="San Miguel">San Miguel</option>
+                                <option value="San Salvador">San Salvador</option>
+                                <option value="San Vicente">San Vicente</option>
+                                <option value="Santa Ana">Santa Ana</option>
+                                <option value="Sonsonate">Sonsonate</option>
+                                <option value="Usulután">Usulután</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Municipio</label>
+                            <input type="text" id="reg-taller-municipio" required placeholder="Ej: Colón" style="padding:0.6rem;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección Comercial Detallada</label>
+                        <input type="text" id="reg-taller-direccion" required placeholder="Carr. Sonsonate, col. Cuyagualo #16" style="padding:0.6rem;">
+                    </div>
+                </div>
+
+                <!-- 4. LOGOTIPO -->
+                <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Logotipo del Taller (Para Documentos)</h3>
+                    <div class="form-group">
+                        <label>Subir Logotipo (Formatos recomendados: PNG, JPG)</label>
+                        <input type="file" id="reg-taller-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
+                    </div>
+                    <div id="reg-logo-preview-container" style="display:none; margin-top:1rem; text-align:center;">
+                        <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
+                        <img id="reg-logo-preview" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
+                    </div>
+                </div>
+
+                <!-- 5. ACCESO Y PLAN -->
+                <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Plan de Suscripción y Cuenta</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Plan Comercial</label>
+                            <select id="reg-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Código de Cupón (Opcional)</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="reg-taller-cupon" placeholder="Ej: BIENVENIDO50" style="padding:0.6rem; flex:1; text-transform:uppercase;">
+                                <button type="button" id="btn-apply-coupon" class="btn btn-secondary" style="padding:0.6rem;">Aplicar</button>
+                            </div>
+                            <div id="coupon-message" style="font-size:0.75rem; margin-top:0.25rem;"></div>
+                        </div>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Nombre Completo del Administrador</label>
                             <input type="text" id="reg-prop-nombre" required placeholder="Tu Nombre y Apellido" style="padding:0.6rem;">
                         </div>
                         <div class="form-group">
-                            <label>Contraseña para el Taller</label>
+                            <label>Contraseña de Acceso</label>
                             <input type="password" id="reg-prop-pass" required placeholder="Mínimo 4 caracteres" style="padding:0.6rem;">
                         </div>
                     </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary" style="margin-top:1rem; padding:0.8rem; font-size:1rem; font-weight:600;"><i class="fa-solid fa-paper-plane"></i> Enviar Solicitud de Registro</button>
+                <button type="submit" class="btn btn-primary" style="margin-top:1rem; padding:0.9rem; font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Registrar Taller y Activar</button>
             </form>
         </div>
     `;
+
+    // Bind file upload to base64 preview
+    setTimeout(() => {
+        const logoInput = document.getElementById('reg-taller-logo');
+        if (logoInput) {
+            logoInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (readerEvent) => {
+                        const base64 = readerEvent.target.result;
+                        window.saasSelectedLogoBase64 = base64;
+                        const previewImg = document.getElementById('reg-logo-preview');
+                        const previewContainer = document.getElementById('reg-logo-preview-container');
+                        if (previewImg && previewContainer) {
+                            previewImg.src = base64;
+                            previewContainer.style.display = 'block';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    }, 50);
     
     // Bind dynamic coupon checking
     let selectedCoupon = null;
@@ -6687,14 +6971,27 @@ function renderRegistroSaaS(container) {
         const requestData = {
             id: requestId,
             nombre: document.getElementById('reg-taller-nombre').value,
+            alias: document.getElementById('reg-taller-alias').value,
+            nombre_comercial: document.getElementById('reg-taller-nombre-comercial').value,
             giro: document.getElementById('reg-taller-giro').value,
             direccion: document.getElementById('reg-taller-direccion').value,
             telefono: document.getElementById('reg-taller-telefono').value,
             correo: document.getElementById('reg-taller-correo').value,
-            nit: document.getElementById('reg-taller-nit').value,
+            nit: document.getElementById('reg-taller-tipo-doc').value === 'NIT' ? document.getElementById('reg-taller-num-doc').value : '',
             nrc: document.getElementById('reg-taller-nrc').value,
-            logoText: document.getElementById('reg-taller-nombre').value.substring(0, 15).toUpperCase(),
+            logoText: document.getElementById('reg-taller-alias').value.substring(0, 15).toUpperCase(),
             logoTagline: 'Servicio Automotriz Especializado',
+            tipo_persona: document.getElementById('reg-taller-tipo-persona').value,
+            clasificacion_tributaria: document.getElementById('reg-taller-clasificacion').value,
+            sujeto_excluido: document.getElementById('reg-taller-sujeto-excluido').value,
+            tipo_documento: document.getElementById('reg-taller-tipo-doc').value,
+            num_documento: document.getElementById('reg-taller-num-doc').value,
+            actividad_economica: document.getElementById('reg-taller-giro').value,
+            pais: document.getElementById('reg-taller-pais').value,
+            departamento: document.getElementById('reg-taller-departamento').value,
+            municipio: document.getElementById('reg-taller-municipio').value,
+            logo: window.saasSelectedLogoBase64 || '',
+            
             propietario: document.getElementById('reg-prop-nombre').value,
             pass: document.getElementById('reg-prop-pass').value,
             status: 'aprobado',
@@ -6728,7 +7025,6 @@ function renderRegistroSaaS(container) {
         handleRouting();
     });
 }
-
 function renderSuspendedSaaS(container) {
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
@@ -7170,12 +7466,33 @@ function renderAdminSolicitudes(container) {
             workshop.precio_mensual = price;
             workshop.suscripcion_status = status;
             
+            // Collect new fields
+            workshop.nombre = document.getElementById('edit-saas-nombre').value;
+            workshop.alias = document.getElementById('edit-saas-alias').value;
+            workshop.nombre_comercial = document.getElementById('edit-saas-nombre-comercial').value;
+            workshop.giro = document.getElementById('edit-saas-giro').value;
+            workshop.direccion = document.getElementById('edit-saas-direccion').value;
+            workshop.telefono = document.getElementById('edit-saas-telefono').value;
+            workshop.correo = document.getElementById('edit-saas-correo').value;
+            workshop.nrc = document.getElementById('edit-saas-nrc').value;
+            workshop.tipo_persona = document.getElementById('edit-saas-tipo-persona').value;
+            workshop.clasificacion_tributaria = document.getElementById('edit-saas-clasificacion').value;
+            workshop.sujeto_excluido = document.getElementById('edit-saas-sujeto-excluido').value;
+            workshop.tipo_documento = document.getElementById('edit-saas-tipo-doc').value;
+            workshop.num_documento = document.getElementById('edit-saas-num-doc').value;
+            workshop.actividad_economica = document.getElementById('edit-saas-giro').value;
+            workshop.pais = document.getElementById('edit-saas-pais').value;
+            workshop.departamento = document.getElementById('edit-saas-departamento').value;
+            workshop.municipio = document.getElementById('edit-saas-municipio').value;
+            if (window.saasSelectedLogoBase64) {
+                workshop.logo = window.saasSelectedLogoBase64;
+                workshop.logoText = document.getElementById('edit-saas-alias').value.substring(0, 15).toUpperCase();
+            }
+            
             // If this is the active workshop being used in the app, sync the active saas_state
             const saasState = db.saas_state;
             if (saasState.workshopData && saasState.workshopData.id === id) {
-                saasState.workshopData.plan = plan;
-                saasState.workshopData.precio_mensual = price;
-                saasState.workshopData.suscripcion_status = status;
+                saasState.workshopData = workshop;
                 
                 // Reactivate or suspend the active user state
                 if (status === 'suspendido') {
@@ -7183,10 +7500,35 @@ function renderAdminSolicitudes(container) {
                 } else if (saasState.status === 'suspended' && (status === 'activo' || status === 'demo')) {
                     saasState.status = 'active';
                 }
+                
+                // Copy to config_taller
+                db.config_taller = {
+                    nombre: workshop.nombre,
+                    alias: workshop.alias,
+                    nombre_comercial: workshop.nombre_comercial,
+                    giro: workshop.giro,
+                    direccion: workshop.direccion,
+                    telefono: workshop.telefono,
+                    correo: workshop.correo,
+                    nit: workshop.tipo_documento === 'NIT' ? workshop.num_documento : '',
+                    nrc: workshop.nrc,
+                    logoText: workshop.alias.substring(0, 15).toUpperCase(),
+                    logoTagline: 'Servicio Automotriz Especializado',
+                    tipo_persona: workshop.tipo_persona,
+                    clasificacion_tributaria: workshop.clasificacion_tributaria,
+                    sujeto_excluido: workshop.sujeto_excluido,
+                    tipo_documento: workshop.tipo_documento,
+                    num_documento: workshop.num_documento,
+                    actividad_economica: workshop.giro,
+                    pais: workshop.pais,
+                    departamento: workshop.departamento,
+                    municipio: workshop.municipio,
+                    logo: workshop.logo || ''
+                };
             }
             
             saveDatabase(db);
-            showToast("Suscripción actualizada correctamente.", "success");
+            showToast("Suscripción y datos comerciales actualizados.", "success");
             window.saasCloseForm();
         }
     };
@@ -7230,100 +7572,191 @@ function renderAdminSolicitudes(container) {
     // Render forms if active
     if (window.saasAddWorkshopForm) {
         const plans = db.saas_plans || [];
+        window.saasSelectedLogoBase64 = ''; // Reset
         
         container.innerHTML = `
-            <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
+            <div style="max-width:700px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                     <div>
                         <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-square-plus" style="color:var(--primary);"></i> Registrar Taller Manualmente</h2>
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Añade una nueva cuenta de taller directamente al sistema</p>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Añade una nueva cuenta de taller con campos tributarios de FacturaLlama</p>
                     </div>
                     <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
                 </div>
                 
                 <form id="saas-manual-register-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                    <!-- Datos Generales -->
+                    <h3 style="font-size:1rem; color:var(--primary); margin:0; font-weight:600; border-left:3px solid var(--primary); padding-left:0.5rem;">Datos Generales</h3>
                     <div class="form-group">
-                        <label>Nombre Comercial del Taller</label>
-                        <input type="text" id="man-taller-nombre" required placeholder="Ej: Auto Centro Mecánico" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        <label>Nombre o Razón Social</label>
+                        <input type="text" id="man-taller-nombre" required placeholder="Ej: Taller Automotriz San José S.A. de C.V." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                     </div>
-                    
-                    <div class="form-row">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                         <div class="form-group">
-                            <label>Giro / Actividad Económica</label>
-                            <input type="text" id="man-taller-giro" required placeholder="Ej: Taller Mecánico General" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <label>Alias del Taller</label>
+                            <input type="text" id="man-taller-alias" required placeholder="Ej: Automotriz San José" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                         <div class="form-group">
-                            <label>Dirección</label>
-                            <input type="text" id="man-taller-direccion" required placeholder="Municipio, Departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <label>Nombre Comercial</label>
+                            <input type="text" id="man-taller-nombre-comercial" required placeholder="Ej: Taller San José" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
-                    
-                    <div class="form-row">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="man-taller-correo" required placeholder="contacto@taller.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
                         <div class="form-group">
                             <label>Teléfono</label>
                             <input type="text" id="man-taller-telefono" required placeholder="2222-2222" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
                         <div class="form-group">
-                            <label>Correo Electrónico</label>
-                            <input type="email" id="man-taller-correo" required placeholder="cliente@correo.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <label>Tipo Persona</label>
+                            <select id="man-taller-tipo-persona" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Natural">Natural</option>
+                                <option value="Jurídica" selected>Jurídica</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Clasificación Tributaria</label>
+                            <select id="man-taller-clasificacion" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Otros" selected>Otros</option>
+                                <option value="Pequeño contribuyente">Pequeño contribuyente</option>
+                                <option value="Mediano contribuyente">Mediano contribuyente</option>
+                                <option value="Gran contribuyente">Gran contribuyente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>¿Es sujeto excluido?</label>
+                            <select id="man-taller-sujeto-excluido" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="No" selected>No</option>
+                                <option value="Sí">Sí</option>
+                            </select>
                         </div>
                     </div>
-                    
-                    <div class="form-row">
+
+                    <!-- Datos Fiscales -->
+                    <h3 style="font-size:1rem; color:var(--primary); margin:0; font-weight:600; border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:0.5rem;">Datos Fiscales</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                         <div class="form-group">
-                            <label>NIT</label>
-                            <input type="text" id="man-taller-nit" required placeholder="0614-xxxxxx-xxx-x" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <label>Tipo Documento</label>
+                            <select id="man-taller-tipo-doc" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="NIT" selected>NIT</option>
+                                <option value="DUI">DUI</option>
+                                <option value="Pasaporte">Pasaporte</option>
+                                <option value="Carnet de Extranjería">Carnet de Extranjería</option>
+                                <option value="Otro">Otro</option>
+                            </select>
                         </div>
+                        <div class="form-group">
+                            <label>Número Documento</label>
+                            <input type="text" id="man-taller-num-doc" required placeholder="0614-111111-101-1" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                         <div class="form-group">
                             <label>NRC</label>
-                            <input type="text" id="man-taller-nrc" required placeholder="xxxxxx-x" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <input type="text" id="man-taller-nrc" required placeholder="123456-7" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Giro / Actividad Económica</label>
+                            <input type="text" id="man-taller-giro" required placeholder="Ej: Reparación y mantenimiento de vehículos" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
-                    
-                    <div style="border-top:1px dashed var(--border-color); padding-top:1rem; margin-top:0.25rem;">
-                        <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; font-weight:600; margin-bottom:1rem; color:var(--primary);">Detalles de Membresía y Acceso</h4>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Plan de Suscripción</label>
-                                <select id="man-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                                    ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">Plan ${p.nombre} ($${p.precio}/mes)</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Cuota Pactada ($ USD)</label>
-                                <input type="number" step="0.01" id="man-taller-precio" required value="75.00" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Propietario / Administrador</label>
-                                <input type="text" id="man-taller-prop" required placeholder="Nombre Completo" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            </div>
-                            <div class="form-group">
-                                <label>Contraseña de Acceso</label>
-                                <input type="password" id="man-taller-pass" required value="1234" placeholder="Mínimo 4 caracteres" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            </div>
-                        </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Estado de Suscripción</label>
-                                <select id="man-taller-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                    <option value="activo">Activo (Acceso Completo)</option>
-                                    <option value="demo">Demo (Prueba Gratuita)</option>
-                                    <option value="suspendido">Suspendido (Bloqueado)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Vigencia Inicial (días)</label>
-                                <input type="number" id="man-taller-days" required value="30" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            </div>
+                    <!-- Dirección -->
+                    <h3 style="font-size:1rem; color:var(--primary); margin:0; font-weight:600; border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:0.5rem;">Dirección</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>País</label>
+                            <select id="man-taller-pais" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="El Salvador" selected>El Salvador</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Departamento</label>
+                            <select id="man-taller-departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Ahuachapán">Ahuachapán</option>
+                                <option value="Cabañas">Cabañas</option>
+                                <option value="Chalatenango">Chalatenango</option>
+                                <option value="Cuscatlán">Cuscatlán</option>
+                                <option value="La Libertad" selected>La Libertad</option>
+                                <option value="La Paz">La Paz</option>
+                                <option value="La Unión">La Unión</option>
+                                <option value="Morazán">Morazán</option>
+                                <option value="San Miguel">San Miguel</option>
+                                <option value="San Salvador">San Salvador</option>
+                                <option value="San Vicente">San Vicente</option>
+                                <option value="Santa Ana">Santa Ana</option>
+                                <option value="Sonsonate">Sonsonate</option>
+                                <option value="Usulután">Usulután</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Municipio</label>
+                            <input type="text" id="man-taller-municipio" required placeholder="Ej: Colón" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección Comercial Detallada</label>
+                        <input type="text" id="man-taller-direccion" required placeholder="Carr. Sonsonate, col. Cuyagualo #16" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+
+                    <!-- Logotipo -->
+                    <h3 style="font-size:1rem; color:var(--primary); margin:0; font-weight:600; border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:0.5rem;">Logotipo</h3>
+                    <div class="form-group">
+                        <label>Seleccionar Logotipo</label>
+                        <input type="file" id="man-taller-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+                    <div id="man-logo-preview-container" style="display:none; text-align:center; margin-top:0.5rem;">
+                        <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
+                        <img id="man-logo-preview" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
+                    </div>
+
+                    <!-- Cuenta y Membresía -->
+                    <h3 style="font-size:1rem; color:var(--primary); margin:0; font-weight:600; border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:0.5rem;">Membresía y Acceso</h3>
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Plan de Suscripción</label>
+                            <select id="man-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">Plan ${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cuota Pactada ($ USD)</label>
+                            <input type="number" step="0.01" id="man-taller-precio" required value="75.00" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
                     
-                    <div style="display:flex; gap:1rem; margin-top:1rem;">
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Propietario / Administrador</label>
+                            <input type="text" id="man-taller-prop" required placeholder="Nombre Completo" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña de Acceso</label>
+                            <input type="password" id="man-taller-pass" required value="1234" placeholder="Mínimo 4 caracteres" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Estado de Suscripción</label>
+                            <select id="man-taller-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="activo">Activo (Acceso Completo)</option>
+                                <option value="demo">Demo (Prueba Gratuita)</option>
+                                <option value="suspendido">Suspendido (Bloqueado)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Vigencia Inicial (días)</label>
+                            <input type="number" id="man-taller-days" required value="30" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:1rem; margin-top:1.5rem;">
                         <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-user-plus"></i> Registrar y Activar</button>
                         <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
                     </div>
@@ -7335,14 +7768,35 @@ function renderAdminSolicitudes(container) {
         setTimeout(() => {
             const planSel = document.getElementById('man-taller-plan');
             const priceInput = document.getElementById('man-taller-precio');
+            const logoInput = document.getElementById('man-taller-logo');
+            
             if (planSel && priceInput) {
                 planSel.addEventListener('change', () => {
                     const opt = planSel.options[planSel.selectedIndex];
                     priceInput.value = opt.getAttribute('data-price');
                 });
-                // Initial call
                 const opt = planSel.options[planSel.selectedIndex];
                 if (opt) priceInput.value = opt.getAttribute('data-price');
+            }
+
+            if (logoInput) {
+                logoInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (readerEvent) => {
+                            const base64 = readerEvent.target.result;
+                            window.saasSelectedLogoBase64 = base64;
+                            const previewImg = document.getElementById('man-logo-preview');
+                            const previewContainer = document.getElementById('man-logo-preview-container');
+                            if (previewImg && previewContainer) {
+                                previewImg.src = base64;
+                                previewContainer.style.display = 'block';
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
             }
 
             document.getElementById('man-taller-prop').addEventListener('input', (e) => {
@@ -7364,14 +7818,27 @@ function renderAdminSolicitudes(container) {
                 const manNewWs = {
                     id: manId,
                     nombre: document.getElementById('man-taller-nombre').value,
+                    alias: document.getElementById('man-taller-alias').value,
+                    nombre_comercial: document.getElementById('man-taller-nombre-comercial').value,
                     giro: document.getElementById('man-taller-giro').value,
                     direccion: document.getElementById('man-taller-direccion').value,
                     telefono: document.getElementById('man-taller-telefono').value,
                     correo: document.getElementById('man-taller-correo').value,
-                    nit: document.getElementById('man-taller-nit').value,
+                    nit: document.getElementById('man-taller-tipo-doc').value === 'NIT' ? document.getElementById('man-taller-num-doc').value : '',
                     nrc: document.getElementById('man-taller-nrc').value,
-                    logoText: document.getElementById('man-taller-nombre').value.substring(0, 15).toUpperCase(),
+                    logoText: document.getElementById('man-taller-alias').value.substring(0, 15).toUpperCase(),
                     logoTagline: 'Servicio Automotriz Especializado',
+                    tipo_persona: document.getElementById('man-taller-tipo-persona').value,
+                    clasificacion_tributaria: document.getElementById('man-taller-clasificacion').value,
+                    sujeto_excluido: document.getElementById('man-taller-sujeto-excluido').value,
+                    tipo_documento: document.getElementById('man-taller-tipo-doc').value,
+                    num_documento: document.getElementById('man-taller-num-doc').value,
+                    actividad_economica: document.getElementById('man-taller-giro').value,
+                    pais: document.getElementById('man-taller-pais').value,
+                    departamento: document.getElementById('man-taller-departamento').value,
+                    municipio: document.getElementById('man-taller-municipio').value,
+                    logo: window.saasSelectedLogoBase64 || '',
+                    
                     propietario: document.getElementById('man-taller-prop').value,
                     pass: document.getElementById('man-taller-pass').value,
                     status: 'aprobado',
@@ -7408,8 +7875,7 @@ function renderAdminSolicitudes(container) {
         }, 50);
         return;
     }
-
-    if (window.saasViewReceiptPaymentId) {
+if (window.saasViewReceiptPaymentId) {
         const payId = window.saasViewReceiptPaymentId;
         const payment = payments.find(p => p.id === payId);
         if (!payment) {
@@ -7556,37 +8022,164 @@ function renderAdminSolicitudes(container) {
         }
         
         container.innerHTML = `
-            <div style="max-width:600px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
+            <div style="max-width:700px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                     <div>
-                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Editar Suscripción</h2>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Ajustar Suscripción y Datos Fiscales</h2>
                         <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Taller: <strong>${workshop.nombre}</strong></p>
                     </div>
                     <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
                 </div>
                 
                 <form onsubmit="window.handleSaasEditSubmit(event)" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <div class="form-group">
-                        <label>Plan de Suscripción</label>
-                        <select id="edit-saas-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            <option value="Basic" ${workshop.plan === 'Basic' ? 'selected' : ''}>Basic ($45/mes)</option>
-                            <option value="Pro" ${workshop.plan === 'Pro' ? 'selected' : ''}>Pro ($75/mes)</option>
-                            <option value="Enterprise" ${workshop.plan === 'Enterprise' ? 'selected' : ''}>Enterprise ($120/mes)</option>
-                        </select>
+                    <!-- Membresía -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Plan de Suscripción</label>
+                            <select id="edit-saas-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Basic" ${workshop.plan === 'Basic' ? 'selected' : ''}>Basic ($45/mes)</option>
+                                <option value="Pro" ${workshop.plan === 'Pro' ? 'selected' : ''}>Pro ($75/mes)</option>
+                                <option value="Enterprise" ${workshop.plan === 'Enterprise' ? 'selected' : ''}>Enterprise ($120/mes)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cuota Pactada ($ USD)</label>
+                            <input type="number" step="0.01" id="edit-saas-price" required value="${workshop.precio_mensual || 75.00}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select id="edit-saas-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="activo" ${workshop.suscripcion_status === 'activo' ? 'selected' : ''}>Activo</option>
+                                <option value="suspendido" ${workshop.suscripcion_status === 'suspendido' ? 'selected' : ''}>Suspendido</option>
+                                <option value="demo" ${workshop.suscripcion_status === 'demo' ? 'selected' : ''}>Demo</option>
+                            </select>
+                        </div>
                     </div>
-                    
+
+                    <!-- Datos Generales -->
                     <div class="form-group">
-                        <label>Cuota Mensual Negociada ($ USD)</label>
-                        <input type="number" step="0.01" id="edit-saas-price" required value="${workshop.precio_mensual || 75.00}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        <label>Nombre o Razón Social</label>
+                        <input type="text" id="edit-saas-nombre" required value="${workshop.nombre || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                     </div>
-                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Alias (Nombre Corto)</label>
+                            <input type="text" id="edit-saas-alias" required value="${workshop.alias || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre Comercial</label>
+                            <input type="text" id="edit-saas-nombre-comercial" required value="${workshop.nombre_comercial || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="edit-saas-correo" required value="${workshop.correo || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="text" id="edit-saas-telefono" required value="${workshop.telefono || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Tipo Persona</label>
+                            <select id="edit-saas-tipo-persona" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Natural" ${workshop.tipo_persona === 'Natural' ? 'selected' : ''}>Natural</option>
+                                <option value="Jurídica" ${workshop.tipo_persona === 'Jurídica' ? 'selected' : ''}>Jurídica</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Clasificación Tributaria</label>
+                            <select id="edit-saas-clasificacion" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Otros" ${workshop.clasificacion_tributaria === 'Otros' ? 'selected' : ''}>Otros</option>
+                                <option value="Pequeño contribuyente" ${workshop.clasificacion_tributaria === 'Pequeño contribuyente' ? 'selected' : ''}>Pequeño contribuyente</option>
+                                <option value="Mediano contribuyente" ${workshop.clasificacion_tributaria === 'Mediano contribuyente' ? 'selected' : ''}>Mediano contribuyente</option>
+                                <option value="Gran contribuyente" ${workshop.clasificacion_tributaria === 'Gran contribuyente' ? 'selected' : ''}>Gran contribuyente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>¿Es sujeto excluido?</label>
+                            <select id="edit-saas-sujeto-excluido" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="No" ${workshop.sujeto_excluido === 'No' ? 'selected' : ''}>No</option>
+                                <option value="Sí" ${workshop.sujeto_excluido === 'Sí' ? 'selected' : ''}>Sí</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Datos Fiscales -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Tipo Documento</label>
+                            <select id="edit-saas-tipo-doc" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="NIT" ${workshop.tipo_documento === 'NIT' ? 'selected' : ''}>NIT</option>
+                                <option value="DUI" ${workshop.tipo_documento === 'DUI' ? 'selected' : ''}>DUI</option>
+                                <option value="Pasaporte" ${workshop.tipo_documento === 'Pasaporte' ? 'selected' : ''}>Pasaporte</option>
+                                <option value="Carnet de Extranjería" ${workshop.tipo_documento === 'Carnet de Extranjería' ? 'selected' : ''}>Carnet de Extranjería</option>
+                                <option value="Otro" ${workshop.tipo_documento === 'Otro' ? 'selected' : ''}>Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Número Documento</label>
+                            <input type="text" id="edit-saas-num-doc" required value="${workshop.num_documento || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>NRC</label>
+                            <input type="text" id="edit-saas-nrc" required value="${workshop.nrc || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Giro / Actividad</label>
+                            <input type="text" id="edit-saas-giro" required value="${workshop.giro || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>País</label>
+                            <select id="edit-saas-pais" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="El Salvador" selected>El Salvador</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Departamento</label>
+                            <select id="edit-saas-departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <option value="Ahuachapán" ${workshop.departamento === 'Ahuachapán' ? 'selected' : ''}>Ahuachapán</option>
+                                <option value="Cabañas" ${workshop.departamento === 'Cabañas' ? 'selected' : ''}>Cabañas</option>
+                                <option value="Chalatenango" ${workshop.departamento === 'Chalatenango' ? 'selected' : ''}>Chalatenango</option>
+                                <option value="Cuscatlán" ${workshop.departamento === 'Cuscatlán' ? 'selected' : ''}>Cuscatlán</option>
+                                <option value="La Libertad" ${workshop.departamento === 'La Libertad' ? 'selected' : ''}>La Libertad</option>
+                                <option value="La Paz" ${workshop.departamento === 'La Paz' ? 'selected' : ''}>La Paz</option>
+                                <option value="La Unión" ${workshop.departamento === 'La Unión' ? 'selected' : ''}>La Unión</option>
+                                <option value="Morazán" ${workshop.departamento === 'Morazán' ? 'selected' : ''}>Morazán</option>
+                                <option value="San Miguel" ${workshop.departamento === 'San Miguel' ? 'selected' : ''}>San Miguel</option>
+                                <option value="San Salvador" ${workshop.departamento === 'San Salvador' ? 'selected' : ''}>San Salvador</option>
+                                <option value="San Vicente" ${workshop.departamento === 'San Vicente' ? 'selected' : ''}>San Vicente</option>
+                                <option value="Santa Ana" ${workshop.departamento === 'Santa Ana' ? 'selected' : ''}>Santa Ana</option>
+                                <option value="Sonsonate" ${workshop.departamento === 'Sonsonate' ? 'selected' : ''}>Sonsonate</option>
+                                <option value="Usulután" ${workshop.departamento === 'Usulután' ? 'selected' : ''}>Usulután</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Municipio</label>
+                            <input type="text" id="edit-saas-municipio" required value="${workshop.municipio || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
                     <div class="form-group">
-                        <label>Estado de Suscripción</label>
-                        <select id="edit-saas-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                            <option value="activo" ${workshop.suscripcion_status === 'activo' ? 'selected' : ''}>Activo (Acceso Completo)</option>
-                            <option value="suspendido" ${workshop.suscripcion_status === 'suspendido' ? 'selected' : ''}>Suspendido (Acceso Bloqueado)</option>
-                            <option value="demo" ${workshop.suscripcion_status === 'demo' ? 'selected' : ''}>Demo (Prueba Gratuita)</option>
-                        </select>
+                        <label>Dirección Comercial Detallada</label>
+                        <input type="text" id="edit-saas-direccion" required value="${workshop.direccion || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+
+                    <!-- Logotipo -->
+                    <div class="form-group">
+                        <label>Logotipo del Taller</label>
+                        <input type="file" id="edit-saas-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+                    <div id="edit-logo-preview-container" style="display:${workshop.logo ? 'block' : 'none'}; text-align:center; margin-top:0.5rem;">
+                        <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
+                        <img id="edit-logo-preview" src="${workshop.logo || ''}" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
                     </div>
                     
                     <div style="display:flex; gap:1rem; margin-top:1rem;">
@@ -7596,10 +8189,34 @@ function renderAdminSolicitudes(container) {
                 </form>
             </div>
         `;
+
+        // Bind image loader for edit logo
+        setTimeout(() => {
+            window.saasSelectedLogoBase64 = workshop.logo || '';
+            const logoInput = document.getElementById('edit-saas-logo');
+            if (logoInput) {
+                logoInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (readerEvent) => {
+                            const base64 = readerEvent.target.result;
+                            window.saasSelectedLogoBase64 = base64;
+                            const previewImg = document.getElementById('edit-logo-preview');
+                            const previewContainer = document.getElementById('edit-logo-preview-container');
+                            if (previewImg && previewContainer) {
+                                previewImg.src = base64;
+                                previewContainer.style.display = 'block';
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        }, 50);
         return;
     }
-    
-    if (window.saasConfigWorkshopId) {
+if (window.saasConfigWorkshopId) {
         const id = window.saasConfigWorkshopId;
         const workshop = solicitudes.find(s => s.id === id);
         if (!workshop) {
@@ -8854,14 +9471,26 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
         
         db.config_taller = {
             nombre: saas.workshopData.nombre,
+            alias: saas.workshopData.alias || '',
+            nombre_comercial: saas.workshopData.nombre_comercial || '',
             giro: saas.workshopData.giro,
             direccion: saas.workshopData.direccion,
             telefono: saas.workshopData.telefono,
             correo: saas.workshopData.correo,
             nit: saas.workshopData.nit,
             nrc: saas.workshopData.nrc,
-            logoText: saas.workshopData.logoText,
-            logoTagline: saas.workshopData.logoTagline
+            logoText: saas.workshopData.logoText || 'MecanicOS',
+            logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
+            tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
+            clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
+            sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
+            tipo_documento: saas.workshopData.tipo_documento || 'NIT',
+            num_documento: saas.workshopData.num_documento || '',
+            actividad_economica: saas.workshopData.actividad_economica || saas.workshopData.giro,
+            pais: saas.workshopData.pais || 'El Salvador',
+            departamento: saas.workshopData.departamento || '',
+            municipio: saas.workshopData.municipio || '',
+            logo: saas.workshopData.logo || ''
         };
         
         const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
