@@ -3640,30 +3640,11 @@ function initDatabase() {
         }
         if (!db.saas_state) {
             db.saas_state = {
-                status: 'active', // 'guest', 'pending', 'approved_terms_pending', 'active', 'suspended'
-                workshopData: {
-                    id: 'REQ-GEMA',
-                    nombre: 'GRUPO GEMA, S.A. DE C.V.',
-                    giro: 'Servicio de Mantenimiento al Transporte Terrestre',
-                    direccion: 'Carretera al Puerto de La Libertad, Km. 10.5, Santa Tecla',
-                    telefono: '2288-9900',
-                    correo: 'contacto@grupogemasv.com',
-                    nit: '0614-121285-101-5',
-                    nrc: '190562-4',
-                    logoText: 'GRUPO GEMA',
-                    logoTagline: 'Transporte & Mantenimiento Especializado',
-                    propietario: 'David Antonio Mejía Ramírez',
-                    pass: 'admin',
-                    status: 'aprobado',
-                    createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
-                    plan: 'Enterprise',
-                    precio_mensual: 120.00,
-                    suscripcion_status: 'activo',
-                    proximo_pago: Date.now() + 18 * 24 * 60 * 60 * 1000
-                },
-                termsSigned: true,
-                signatureName: 'David Antonio Mejía Ramírez',
-                signedAt: Date.now() - 59 * 24 * 60 * 60 * 1000
+                status: 'guest',
+                workshopData: null,
+                termsSigned: false,
+                signatureName: '',
+                signedAt: null
             };
             changed = true;
         }
@@ -4405,7 +4386,7 @@ const routes = {
 
 function handleRouting() {
     const db = getDatabase();
-    const saas = db.saas_state || { status: 'active' };
+    const saas = db.saas_state || { status: 'guest' };
     
     // Check if the current active workshop has been suspended by the SaaS admin
     if (saas.status === 'active' && saas.workshopData && saas.workshopData.id) {
@@ -9388,7 +9369,7 @@ function exportBudgetPDF(budgetId) {
 // ----------------------------------------------------
 function renderLanding(container) {
     const db = getDatabase();
-    const saas = db.saas_state || { status: 'active' };
+    const saas = db.saas_state || { status: 'guest' };
     
     if (saas.status === 'pending') {
         container.innerHTML = `
@@ -9424,15 +9405,20 @@ function renderLanding(container) {
                 <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; color:var(--text-primary);">
                     <i class="fa-solid fa-gears logo-icon" style="color:var(--primary);"></i> Mecanic<span>OS</span>
                 </div>
-                <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button id="btn-landing-top-login" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
+                    <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
+                </div>
             </div>
             
             <h1 style="font-family:'Outfit', sans-serif; font-size:3.5rem; font-weight:800; line-height:1.15; max-width:800px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #fff 30%, var(--primary-glow) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">El Sistema Operativo Premium para tu Taller Automotriz</h1>
             <p style="color:var(--text-secondary); font-size:1.2rem; max-width:650px; margin: 0 auto 2.5rem auto; line-height:1.6;">
                 Mecanic OS automatiza tu taller de punta a punta: desde la recepción de vehículos con inspección digital hasta la facturación electrónica DTE (Ministerio de Hacienda) y la planilla de salarios.
             </p>
-            <div style="display:flex; justify-content:center; gap:1.25rem;">
+            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
                 <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
+                <button id="btn-landing-login" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</button>
+                <button id="btn-landing-demo" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; color:var(--cyan); border-color:var(--cyan); cursor:pointer;"><i class="fa-solid fa-desktop"></i> Probar Demo (Grupo Gema)</button>
             </div>
         </div>
         
@@ -9472,6 +9458,59 @@ function renderLanding(container) {
             </div>
         </div>
     `;
+
+    // Bind listeners
+    const topLoginBtn = document.getElementById('btn-landing-top-login');
+    if (topLoginBtn) {
+        topLoginBtn.addEventListener('click', () => {
+            document.getElementById('firebase-auth-modal').classList.add('active');
+        });
+    }
+
+    const loginBtn = document.getElementById('btn-landing-login');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            document.getElementById('firebase-auth-modal').classList.add('active');
+        });
+    }
+
+    const demoBtn = document.getElementById('btn-landing-demo');
+    if (demoBtn) {
+        demoBtn.addEventListener('click', () => {
+            const currentDb = getDatabase();
+            currentDb.saas_state = {
+                status: 'active',
+                workshopData: {
+                    id: 'REQ-GEMA',
+                    nombre: 'GRUPO GEMA, S.A. DE C.V.',
+                    giro: 'Servicio de Mantenimiento al Transporte Terrestre',
+                    direccion: 'Carretera al Puerto de La Libertad, Km. 10.5, Santa Tecla',
+                    telefono: '2288-9900',
+                    correo: 'contacto@grupogemasv.com',
+                    nit: '0614-121285-101-5',
+                    nrc: '190562-4',
+                    logoText: 'GRUPO GEMA',
+                    logoTagline: 'Transporte & Mantenimiento Especializado',
+                    propietario: 'David Antonio Mejía Ramírez',
+                    pass: 'admin',
+                    status: 'aprobado',
+                    createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
+                    plan: 'Enterprise',
+                    precio_mensual: 120.00,
+                    suscripcion_status: 'activo',
+                    proximo_pago: Date.now() + 18 * 24 * 60 * 60 * 1000
+                },
+                termsSigned: true,
+                signatureName: 'David Antonio Mejía Ramírez',
+                signedAt: Date.now() - 59 * 24 * 60 * 60 * 1000
+            };
+            saveDatabase(currentDb);
+            showToast("Modo Demo activado para Grupo Gema.", "success");
+            window.location.hash = 'taller-dashboard';
+            handleRouting();
+        });
+    }
+}
 }
 
 function renderRegistroSaaS(container) {
@@ -9590,7 +9629,7 @@ function renderRegistroSaaS(container) {
 
 function renderSuspendedSaaS(container) {
     const db = getDatabase();
-    const saas = db.saas_state || { status: 'active' };
+    const saas = db.saas_state || { status: 'guest' };
     const workshop = saas.workshopData || { nombre: 'tu taller', precio_mensual: 75.00 };
     
     container.innerHTML = `
@@ -10411,7 +10450,7 @@ function renderAdminSolicitudes(container) {
 
 function renderTerminosSaaS(container) {
     const db = getDatabase();
-    const saas = db.saas_state || { status: 'active' };
+    const saas = db.saas_state || { status: 'guest' };
     
     if (saas.status !== 'approved_terms_pending') {
         window.location.hash = 'landing';
