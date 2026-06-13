@@ -3781,6 +3781,16 @@ function initDatabase() {
             ];
             changed = true;
         }
+        // Sync active workshop configurations to local storage
+        if (db.saas_state && db.saas_state.workshopData) {
+            const wsData = db.saas_state.workshopData;
+            if (wsData.dte_config) {
+                localStorage.setItem('mecanic_os_dte_config', JSON.stringify(wsData.dte_config));
+            }
+            if (wsData.firebase_config) {
+                localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(wsData.firebase_config));
+            }
+        }
         if (changed) {
             saveDatabase(db);
         }
@@ -3793,6 +3803,17 @@ function getDatabase() {
 
 function saveDatabase(db) {
     localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+    if (db && db.saas_state && db.saas_state.workshopData) {
+        const wsData = db.saas_state.workshopData;
+        if (wsData.dte_config) {
+            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(wsData.dte_config));
+        }
+        if (wsData.firebase_config) {
+            localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(wsData.firebase_config));
+        } else if (db.saas_state.status === 'guest') {
+            localStorage.removeItem('mecanic_os_firebase_config');
+        }
+    }
     if (isFirebaseConnected && currentFirebaseUser && !preventFirestoreSync) {
         syncToFirestore(db);
     }
@@ -7365,60 +7386,6 @@ function renderConfiguracion(container) {
         <div class="view-split">
             <div style="display:flex; flex-direction:column; gap:1.5rem;">
                 <div class="glass-card">
-                    <h3>Integración Facturación Electrónica (FacturaLlama)</h3>
-                    <form id="config-dte-form" style="margin-top:1rem; display:flex; flex-direction:column; gap:1.25rem;">
-                        <div class="form-group">
-                            <label>Ambiente de Emisión</label>
-                            <select id="cfg-ambiente">
-                                <option value="00" ${dteCfg.ambiente === '00' ? 'selected' : ''}>00 - Pruebas / Sandbox</option>
-                                <option value="01" ${dteCfg.ambiente === '01' ? 'selected' : ''}>01 - Producción / En Vivo</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>FacturaLlama API Key (test_sk_... o live_sk_...)</label>
-                            <input type="password" id="cfg-api-key" value="${dteCfg.apiKey || ''}" placeholder="Ingresa tu API Key de FacturaLlama" style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>URL del Servidor Backend / Proxy (Ej: https://mi-backend.onrender.com)</label>
-                            <input type="text" id="cfg-backend-url" value="${dteCfg.backendUrl || ''}" placeholder="En blanco para usar el servidor local (/api/dte)" style="padding:0.6rem;">
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Código de Establecimiento MH</label>
-                                <input type="text" id="cfg-mh-code" value="${dteCfg.mhCode || '0001'}" placeholder="0001" style="padding:0.6rem;">
-                            </div>
-                            <div class="form-group">
-                                <label>Número de Punto de Venta (POS)</label>
-                                <input type="number" id="cfg-pos-number" value="${dteCfg.posNumber || '1'}" placeholder="1" style="padding:0.6rem;">
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-primary" id="btn-save-dte-cfg" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-circle-check"></i> Guardar Credenciales FacturaLlama</button>
-                    </form>
-                </div>
-
-                <div class="glass-card">
-                    <h3>Base de Datos en la Nube (Google Firebase Config)</h3>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
-                        Por defecto, Mecanic OS utiliza una base de datos centralizada en la nube. Si eres desarrollador o posees una cuenta propia de Firebase (White-label), puedes configurar tus credenciales aquí. Déjalo en blanco para usar la base de datos estándar.
-                    </p>
-                    <form id="config-firebase-form" style="display:flex; flex-direction:column; gap:1rem;">
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="text" id="cfg-fb-apikey" value="${fbCfg.apiKey || ''}" placeholder="AIzaSy..." style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>Auth Domain</label>
-                            <input type="text" id="cfg-fb-authdomain" value="${fbCfg.authDomain || ''}" placeholder="taller.firebaseapp.com" style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>Project ID</label>
-                            <input type="text" id="cfg-fb-projectid" value="${fbCfg.projectId || ''}" placeholder="taller-id" style="padding:0.6rem;">
-                        </div>
-                        <button type="button" class="btn btn-primary" id="btn-save-fb-cfg" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Guardar Configuración Firebase</button>
-                    </form>
-                </div>
-
-                <div class="glass-card">
                     <h3>Datos de la Empresa / Taller</h3>
                     <form id="config-taller-form" style="margin-top:1rem; display:flex; flex-direction:column; gap:1.25rem;">
                         <div class="form-group">
@@ -7624,45 +7591,6 @@ function renderConfiguracion(container) {
         if (!t.Incapacidades) t.Incapacidades = [];
         if (!t.Vacaciones) t.Vacaciones = [];
         if (!t.Bonos) t.Bonos = [];
-    });
-
-    document.getElementById('btn-save-dte-cfg').addEventListener('click', () => {
-        const apiKey = document.getElementById('cfg-api-key').value;
-        const ambiente = document.getElementById('cfg-ambiente').value;
-        const backendUrl = document.getElementById('cfg-backend-url').value;
-        const mhCode = document.getElementById('cfg-mh-code').value;
-        const posNumber = document.getElementById('cfg-pos-number').value;
-        
-        localStorage.setItem('mecanic_os_dte_config', JSON.stringify({
-            apiKey,
-            ambiente,
-            backendUrl,
-            mhCode,
-            posNumber
-        }));
-        
-        showToast("Configuración de FacturaLlama guardada", "success");
-    });
-
-    document.getElementById('btn-save-fb-cfg').addEventListener('click', () => {
-        const apiKey = document.getElementById('cfg-fb-apikey').value.trim();
-        const authDomain = document.getElementById('cfg-fb-authdomain').value.trim();
-        const projectId = document.getElementById('cfg-fb-projectid').value.trim();
-        
-        if (!apiKey) {
-            localStorage.removeItem('mecanic_os_firebase_config');
-            showToast("Configuración de Firebase revertida a la estándar", "success");
-        } else {
-            localStorage.setItem('mecanic_os_firebase_config', JSON.stringify({
-                apiKey,
-                authDomain,
-                projectId,
-                storageBucket: `${projectId}.appspot.com`,
-                messagingSenderId: "1234567890",
-                appId: `1:1234567890:web:${Math.random().toString(36).substring(7)}`
-            }));
-            showToast("Configuración de Firebase personalizada guardada. Recarga la página para aplicar.", "success");
-        }
     });
 
     const configTallerForm = document.getElementById('config-taller-form');
@@ -9634,7 +9562,14 @@ function renderRegistroSaaS(container) {
             propietario: document.getElementById('reg-prop-nombre').value,
             pass: document.getElementById('reg-prop-pass').value,
             status: 'pendiente',
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            dte_config: {
+                apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
+                ambiente: '00',
+                mhCode: '0001',
+                posNumber: '1',
+                backendUrl: ''
+            }
         };
         
         db.solicitudes_registro.push(requestData);
@@ -9720,6 +9655,7 @@ function renderAdminSolicitudes(container) {
     window.saasCloseForm = function() {
         window.saasEditWorkshopId = null;
         window.saasPayWorkshopId = null;
+        window.saasConfigWorkshopId = null;
         renderAdminSolicitudes(container);
     };
 
@@ -9847,6 +9783,148 @@ function renderAdminSolicitudes(container) {
         return;
     }
     
+    if (window.saasConfigWorkshopId) {
+        const id = window.saasConfigWorkshopId;
+        const workshop = solicitudes.find(s => s.id === id);
+        if (!workshop) {
+            window.saasCloseForm();
+            return;
+        }
+
+        const dte = workshop.dte_config || {
+            apiKey: '',
+            ambiente: '00',
+            mhCode: '0001',
+            posNumber: '1',
+            backendUrl: ''
+        };
+        const fb = workshop.firebase_config || {
+            apiKey: '',
+            authDomain: '',
+            projectId: ''
+        };
+
+        container.innerHTML = `
+            <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
+                    <div>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Configuración Técnica DTE & Nube</h2>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Taller: <strong>${workshop.nombre}</strong></p>
+                    </div>
+                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                
+                <form id="saas-tech-config-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                    <h3 style="font-size:1.05rem; border-left:3px solid var(--primary); padding-left:0.5rem; color:var(--text-primary); margin:0;">Credenciales FacturaLlama (DTE)</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ambiente de Emisión</label>
+                            <select id="tech-ambiente" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                <option value="00" ${dte.ambiente === '00' ? 'selected' : ''}>00 - Pruebas / Sandbox</option>
+                                <option value="01" ${dte.ambiente === '01' ? 'selected' : ''}>01 - Producción / En Vivo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key de FacturaLlama</label>
+                            <input type="password" id="tech-api-key" value="${dte.apiKey || ''}" placeholder="sk_test_... o sk_live_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Código Establecimiento MH</label>
+                            <input type="text" id="tech-mh-code" value="${dte.mhCode || '0001'}" placeholder="0001" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de POS</label>
+                            <input type="number" id="tech-pos-number" value="${dte.posNumber || '1'}" placeholder="1" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>URL Servidor Proxy (Opcional, vacío usa local)</label>
+                        <input type="text" id="tech-backend-url" value="${dte.backendUrl || ''}" placeholder="https://..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+
+                    <h3 style="font-size:1.05rem; border-left:3px solid var(--primary); padding-left:0.5rem; color:var(--text-primary); margin-top:0.75rem; margin-bottom:0;">Base de Datos (Google Firebase Custom Config)</h3>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">Deja en blanco para usar la base de datos centralizada estándar de Mecanic OS.</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Firebase API Key</label>
+                            <input type="text" id="tech-fb-apikey" value="${fb.apiKey || ''}" placeholder="AIzaSy..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Auth Domain</label>
+                            <input type="text" id="tech-fb-authdomain" value="${fb.authDomain || ''}" placeholder="taller.firebaseapp.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Project ID</label>
+                        <input type="text" id="tech-fb-projectid" value="${fb.projectId || ''}" placeholder="taller-id" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+                    
+                    <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Configuración Técnica</button>
+                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('saas-tech-config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const currentDb = getDatabase();
+            const target = currentDb.solicitudes_registro.find(s => s.id === id);
+            if (target) {
+                target.dte_config = {
+                    apiKey: document.getElementById('tech-api-key').value,
+                    ambiente: document.getElementById('tech-ambiente').value,
+                    mhCode: document.getElementById('tech-mh-code').value,
+                    posNumber: document.getElementById('tech-pos-number').value,
+                    backendUrl: document.getElementById('tech-backend-url').value
+                };
+
+                const fbKey = document.getElementById('tech-fb-apikey').value.trim();
+                const fbDomain = document.getElementById('tech-fb-authdomain').value.trim();
+                const fbProj = document.getElementById('tech-fb-projectid').value.trim();
+
+                if (fbKey && fbDomain && fbProj) {
+                    target.firebase_config = {
+                        apiKey: fbKey,
+                        authDomain: fbDomain,
+                        projectId: fbProj,
+                        storageBucket: `${fbProj}.appspot.com`,
+                        messagingSenderId: "1234567890",
+                        appId: `1:1234567890:web:${Math.random().toString(36).substring(7)}`
+                    };
+                } else {
+                    delete target.firebase_config;
+                }
+
+                const activeState = currentDb.saas_state;
+                if (activeState && activeState.workshopData && activeState.workshopData.id === id) {
+                    activeState.workshopData.dte_config = target.dte_config;
+                    activeState.workshopData.firebase_config = target.firebase_config;
+
+                    localStorage.setItem('mecanic_os_dte_config', JSON.stringify(target.dte_config));
+                    if (target.firebase_config) {
+                        localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(target.firebase_config));
+                    } else {
+                        localStorage.removeItem('mecanic_os_firebase_config');
+                    }
+                }
+
+                saveDatabase(currentDb);
+                showToast("Configuración técnica actualizada y aplicada.", "success");
+                window.saasCloseForm();
+            }
+        });
+        return;
+    }
+
     if (window.saasPayWorkshopId) {
         const id = window.saasPayWorkshopId;
         const workshop = solicitudes.find(s => s.id === id);
@@ -10046,6 +10124,12 @@ function renderAdminSolicitudes(container) {
                 renderAdminSolicitudes(container);
             });
         });
+        document.querySelectorAll('.btn-config-saas').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.saasConfigWorkshopId = btn.getAttribute('data-id');
+                renderAdminSolicitudes(container);
+            });
+        });
     }
 
     // Sub-renderers
@@ -10186,6 +10270,7 @@ function renderAdminSolicitudes(container) {
                                             <div style="display:flex; flex-direction:column; gap:0.4rem; max-width:140px;">
                                                 <button class="btn btn-secondary btn-edit-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-edit"></i> Ajustar Plan</button>
                                                 <button class="btn btn-primary btn-pay-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota</button>
+                                                <button class="btn btn-secondary btn-config-saas" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--primary); border-color:var(--primary);"><i class="fa-solid fa-gears"></i> Configurar DTE/BD</button>
                                                 <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${c.id}')" style="padding:0.35rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
                                                     <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar' : 'Suspender'}
                                                 </button>
