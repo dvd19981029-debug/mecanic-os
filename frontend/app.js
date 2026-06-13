@@ -87,6 +87,22 @@ function initDatabase() {
             db.saas_payments = [];
             changed = true;
         }
+        if (!db.saas_plans) {
+            db.saas_plans = [
+                { id: 'plan-basic', nombre: 'Basic', precio: 45.00, descripcion: 'Ideal para talleres pequeños o independientes', max_usuarios: 3, features: ['Gestión de clientes y vehículos', 'Presupuestos estándar', 'Kanban básico'] },
+                { id: 'plan-pro', nombre: 'Pro', precio: 75.00, descripcion: 'Recomendado para talleres en crecimiento con DTE', max_usuarios: 10, features: ['Todo lo de Basic', 'Facturador DTE (MH El Salvador)', 'Control de Inventario y Kárdex', 'Punto de Venta (POS)', 'Reportes BI básicos'] },
+                { id: 'plan-enterprise', nombre: 'Enterprise', precio: 120.00, descripcion: 'Para talleres grandes o redes de sucursales', max_usuarios: 99, features: ['Todo lo de Pro', 'Base de Datos dedicada (Firebase)', 'Soporte Premium 24/7', 'Planilla y Salarios avanzados', 'API de integración externa'] }
+            ];
+            changed = true;
+        }
+        if (!db.saas_coupons) {
+            db.saas_coupons = [
+                { codigo: 'BIENVENIDO50', tipo: 'porcentaje', valor: 50, descripcion: '50% de descuento en el primer pago', activo: true, expiracion: '2026-12-31' },
+                { codigo: 'MECANICFREE', tipo: 'porcentaje', valor: 100, descripcion: '100% de descuento (acceso gratuito temporal)', activo: true, expiracion: '2026-12-31' },
+                { codigo: 'OS15OFF', tipo: 'fijo', valor: 15, descripcion: '$15 de descuento fijo', activo: true, expiracion: '2026-12-31' }
+            ];
+            changed = true;
+        }
         // Sync active workshop configurations to local storage
         if (db.saas_state && db.saas_state.workshopData) {
             const wsData = db.saas_state.workshopData;
@@ -713,7 +729,9 @@ const routes = {
     
     'terminos': renderTerminosSaaS,
     'suspended': renderSuspendedSaaS,
-    'lock-screen': renderLockScreen
+    'lock-screen': renderLockScreen,
+    'pago-suscripcion': renderPagoSuscripcionSaaS,
+    'admin-solicitudes': renderAdminSolicitudes
 };
 
 function handleRouting() {
@@ -749,7 +767,7 @@ function handleRouting() {
     }
     
     // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
-    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen'];
+    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen', 'pago-suscripcion'];
     
     // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
     if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
@@ -814,7 +832,7 @@ function handleRouting() {
         }
     }
     
-    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen'].includes(routeName);
+    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen', 'pago-suscripcion'].includes(routeName);
     const sidebarEl = document.getElementById('app-sidebar');
     const headerEl = document.querySelector('.top-header');
     const appContainer = document.querySelector('.app-container');
@@ -6500,6 +6518,9 @@ function renderLockScreen(container) {
 }
 
 function renderRegistroSaaS(container) {
+    const db = getDatabase();
+    const plans = db.saas_plans || [];
+    
     container.innerHTML = `
         <div style="max-width:650px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
@@ -6547,6 +6568,23 @@ function renderRegistroSaaS(container) {
                         <input type="text" id="reg-taller-nrc" required placeholder="xxxxxx-x" style="padding:0.6rem;">
                     </div>
                 </div>
+
+                <div class="form-row" style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
+                    <div class="form-group">
+                        <label>Plan de Suscripción</label>
+                        <select id="reg-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                            ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Código de Cupón (Opcional)</label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" id="reg-taller-cupon" placeholder="Ej: BIENVENIDO50" style="padding:0.6rem; flex:1; text-transform:uppercase;">
+                            <button type="button" id="btn-apply-coupon" class="btn btn-secondary" style="padding:0.6rem;">Aplicar</button>
+                        </div>
+                        <div id="coupon-message" style="font-size:0.75rem; margin-top:0.25rem;"></div>
+                    </div>
+                </div>
                 
                 <div style="border-top:1px solid var(--border-color); padding-top:1.25rem; margin-top:0.5rem;">
                     <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; font-weight:600; margin-bottom:1rem; color:var(--primary);">Datos del Propietario (Usuario Administrador)</h4>
@@ -6567,12 +6605,85 @@ function renderRegistroSaaS(container) {
         </div>
     `;
     
+    // Bind dynamic coupon checking
+    let selectedCoupon = null;
+    
+    const applyBtn = document.getElementById('btn-apply-coupon');
+    const couponInput = document.getElementById('reg-taller-cupon');
+    const planSelect = document.getElementById('reg-taller-plan');
+    const msgDiv = document.getElementById('coupon-message');
+    
+    function updatePriceDisplay() {
+        if (!planSelect) return;
+        const planOption = planSelect.options[planSelect.selectedIndex];
+        if (!planOption) return;
+        const originalPrice = parseFloat(planOption.getAttribute('data-price'));
+        let finalPrice = originalPrice;
+        
+        if (selectedCoupon) {
+            if (selectedCoupon.tipo === 'porcentaje') {
+                finalPrice = originalPrice * (1 - selectedCoupon.valor / 100);
+            } else if (selectedCoupon.tipo === 'fijo') {
+                finalPrice = Math.max(0, originalPrice - selectedCoupon.valor);
+            }
+            msgDiv.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Cupón "${selectedCoupon.codigo}" aplicado (${selectedCoupon.descripcion}). Cuota: <strong>$${finalPrice.toFixed(2)}/mes</strong> (Antes $${originalPrice.toFixed(2)})</span>`;
+        } else {
+            msgDiv.innerHTML = `<span style="color:var(--text-secondary);">Cuota estándar: $${originalPrice.toFixed(2)}/mes</span>`;
+        }
+    }
+    
+    if (applyBtn && couponInput) {
+        applyBtn.addEventListener('click', () => {
+            const code = couponInput.value.trim().toUpperCase();
+            if (!code) {
+                selectedCoupon = null;
+                updatePriceDisplay();
+                return;
+            }
+            
+            const currentDb = getDatabase();
+            const coupon = (currentDb.saas_coupons || []).find(c => c.codigo === code && c.activo);
+            
+            if (coupon) {
+                selectedCoupon = coupon;
+                showToast("¡Cupón promocional aplicado!", "success");
+            } else {
+                selectedCoupon = null;
+                showToast("Cupón inválido o expirado", "error");
+                msgDiv.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Código inválido o expirado</span>`;
+                return;
+            }
+            updatePriceDisplay();
+        });
+        
+        planSelect.addEventListener('change', updatePriceDisplay);
+        // Initial load
+        updatePriceDisplay();
+    }
+    
     const form = document.getElementById('saas-register-form');
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        const db = getDatabase();
+        const currentDb = getDatabase();
         const requestId = 'REQ-' + Date.now();
+        
+        // Calculate dynamic pricing
+        const planName = planSelect.value;
+        const targetPlan = (currentDb.saas_plans || []).find(p => p.nombre === planName);
+        const originalPrice = targetPlan ? targetPlan.precio : 75.00;
+        let finalPrice = originalPrice;
+        let couponApplied = null;
+        
+        if (selectedCoupon) {
+            couponApplied = selectedCoupon.codigo;
+            if (selectedCoupon.tipo === 'porcentaje') {
+                finalPrice = originalPrice * (1 - selectedCoupon.valor / 100);
+            } else if (selectedCoupon.tipo === 'fijo') {
+                finalPrice = Math.max(0, originalPrice - selectedCoupon.valor);
+            }
+        }
+        
         const requestData = {
             id: requestId,
             nombre: document.getElementById('reg-taller-nombre').value,
@@ -6588,6 +6699,11 @@ function renderRegistroSaaS(container) {
             pass: document.getElementById('reg-prop-pass').value,
             status: 'aprobado',
             createdAt: Date.now(),
+            plan: planName,
+            precio_mensual: finalPrice,
+            cupon_usado: couponApplied,
+            suscripcion_status: 'activo',
+            proximo_pago: Date.now() + 30 * 24 * 60 * 60 * 1000,
             dte_config: {
                 apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
                 ambiente: '00',
@@ -6597,8 +6713,8 @@ function renderRegistroSaaS(container) {
             }
         };
         
-        db.solicitudes_registro.push(requestData);
-        db.saas_state = {
+        currentDb.solicitudes_registro.push(requestData);
+        currentDb.saas_state = {
             status: 'approved_terms_pending',
             workshopData: requestData,
             termsSigned: false,
@@ -6606,7 +6722,7 @@ function renderRegistroSaaS(container) {
             signedAt: null
         };
         
-        saveDatabase(db);
+        saveDatabase(currentDb);
         showToast("¡Taller registrado con éxito! Completa la firma de términos.", "success");
         window.location.hash = 'terminos';
         handleRouting();
@@ -6642,15 +6758,369 @@ function renderSuspendedSaaS(container) {
                 </div>
             </div>
             
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem;">
-                Para restablecer tu acceso, por favor ponte en contacto con administración a través del correo 
-                <a href="mailto:ventas@forbiddensoluciones.com" style="color: var(--primary); text-decoration: none; font-weight: 600;">ventas@forbiddensoluciones.com</a> 
-                o llama al <strong>7815-0614</strong>.
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                Para restablecer tu acceso, puedes realizar tu pago de manera inmediata en línea o contactar con administración en 
+                <a href="mailto:ventas@forbiddensoluciones.com" style="color: var(--primary); text-decoration: none; font-weight: 600;">ventas@forbiddensoluciones.com</a>.
             </p>
             
-            <!-- El administrador se pondrá en contacto para reactivar la suscripción -->
+            <div style="display:flex; flex-direction:column; gap:0.75rem; max-width:300px; margin:0 auto;">
+                <a href="#pago-suscripcion?id=${workshop.id}" class="btn btn-primary" style="padding:0.75rem;"><i class="fa-solid fa-credit-card"></i> Pagar Mensualidad en Línea</a>
+                <a href="#landing" class="btn btn-secondary" style="padding:0.75rem;"><i class="fa-solid fa-house"></i> Volver a Landing</a>
+            </div>
         </div>
     `;
+}
+
+function renderPagoSuscripcionSaaS(container, queryParams) {
+    const db = getDatabase();
+    const targetId = queryParams.id || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id);
+    const ws = (db.solicitudes_registro || []).find(s => s.id === targetId);
+    
+    if (!ws) {
+        container.innerHTML = `
+            <div style="max-width: 500px; margin: 8rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; text-align: center;">
+                <div style="font-size: 4rem; color: var(--danger); margin-bottom: 1rem;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <h2 style="font-family:'Outfit', sans-serif; color: var(--text-primary);">Taller no encontrado</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">El enlace de pago no corresponde a ningún taller registrado o está incompleto.</p>
+                <a href="#landing" class="btn btn-primary">Volver al Inicio</a>
+            </div>
+        `;
+        return;
+    }
+    
+    const originalPlan = (db.saas_plans || []).find(p => p.nombre === ws.plan) || { precio: 75.00 };
+    let finalPrice = ws.precio_mensual || originalPlan.precio;
+    let selectedCoupon = null;
+    
+    if (ws.cupon_usado) {
+        selectedCoupon = (db.saas_coupons || []).find(c => c.codigo === ws.cupon_usado);
+    }
+    
+    container.innerHTML = `
+        <div style="max-width: 900px; margin: 4rem auto; padding: 1.5rem;" class="saas-container">
+            <!-- Loading Overlay (hidden initially) -->
+            <div id="payment-loading-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.95); z-index:9999; justify-content:center; align-items:center; flex-direction:column; gap:1.5rem;">
+                <div class="spinner-large" style="border: 4px solid rgba(99, 102, 241, 0.1); border-left-color: var(--primary); border-radius: 50%; width: 70px; height: 70px; animation: spin 1s linear infinite;"></div>
+                <h3 id="loading-step-text" style="font-family:'Outfit', sans-serif; color:#fff; font-size:1.35rem; font-weight:600; text-align:center; transition: all 0.3s;">Procesando pago seguro...</h3>
+                <p style="color:var(--text-muted); font-size:0.9rem;">No cierres esta pestaña ni recargues la página.</p>
+            </div>
+
+            <!-- Page Header -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
+                <div>
+                    <h2 style="font-family:'Outfit', sans-serif; font-size:2rem; font-weight:800; color:var(--text-primary);"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Pasarela de Pago Seguro</h2>
+                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Servicio de suscripción y facturación integrada para Mecanic OS</p>
+                </div>
+                <a href="#landing" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem;"><i class="fa-solid fa-arrow-left"></i> Cancelar y Volver</a>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:2rem;" id="checkout-grid">
+                <!-- Tarjeta Form -->
+                <div class="glass-card" style="padding:2.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;">Método de Pago: Tarjeta de Crédito/Débito</h3>
+                        <div style="display:flex; gap:0.5rem; font-size:1.5rem; color:var(--text-muted);">
+                            <i class="fa-brands fa-cc-visa"></i>
+                            <i class="fa-brands fa-cc-mastercard"></i>
+                            <i class="fa-brands fa-cc-amex"></i>
+                        </div>
+                    </div>
+
+                    <form id="virtual-payment-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                        <div class="form-group">
+                            <label>Nombre del Tarjetahabiente</label>
+                            <input type="text" id="card-name" required placeholder="Ej: Juan Pérez" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Número de Tarjeta</label>
+                            <input type="text" id="card-number" required placeholder="4111 1111 1111 1111" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; font-family:monospace; letter-spacing:0.1em;">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha de Expiración</label>
+                                <input type="text" id="card-expiry" required placeholder="MM/YY" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; text-align:center;">
+                            </div>
+                            <div class="form-group">
+                                <label>Código CVV</label>
+                                <input type="password" id="card-cvv" required placeholder="123" maxlength="4" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; text-align:center; font-family:monospace;">
+                            </div>
+                        </div>
+
+                        <div style="background:rgba(99, 102, 241, 0.05); border:1px solid rgba(99, 102, 241, 0.15); border-radius:6px; padding:1rem; font-size:0.8rem; color:var(--text-secondary); display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
+                            <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1.1rem;"></i>
+                            <span><strong>Modo Pruebas Activo:</strong> Puedes simular la compra ingresando cualquier número de tarjeta y datos ficticios.</span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="padding:1rem; font-size:1.1rem; font-weight:700; margin-top:1rem; text-transform:uppercase; letter-spacing:0.05em;"><i class="fa-solid fa-lock"></i> Procesar Pago Seguro</button>
+                    </form>
+                </div>
+
+                <!-- Resumen de Factura -->
+                <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                    <!-- Taller Card -->
+                    <div class="glass-card" style="padding:1.5rem;">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; color:var(--primary); margin:0 0 1rem 0;">Información del Taller</h4>
+                        <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.85rem; color:var(--text-secondary);">
+                            <div>Taller: <strong style="color:var(--text-primary);">${ws.nombre}</strong></div>
+                            <div>Giro: <span>${ws.giro}</span></div>
+                            <div>NIT: <span>${ws.nit}</span></div>
+                            <div>Representante: <strong style="color:var(--text-primary);">${ws.propietario}</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Desglose Financiero -->
+                    <div class="glass-card" style="padding:1.5rem;">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; color:var(--text-primary); margin:0 0 1.25rem 0;">Resumen del Pedido</h4>
+                        
+                        <div style="display:flex; flex-direction:column; gap:1rem; font-size:0.9rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem; margin-bottom:1.25rem;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>Suscripción mensual: Plan ${ws.plan}</span>
+                                <span>$${originalPlan.precio.toFixed(2)}</span>
+                            </div>
+                            
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.8rem;">¿Tienes un cupón?</label>
+                                <div style="display:flex; gap:0.4rem;">
+                                    <input type="text" id="checkout-coupon" value="${ws.cupon_usado || ''}" placeholder="CUPÓN" style="padding:0.4rem 0.6rem; text-transform:uppercase; font-size:0.8rem; background:rgba(0,0,0,0.1); border:1px solid var(--border-color); color:#fff; border-radius:4px; flex:1;">
+                                    <button type="button" id="btn-checkout-coupon" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;">Aplicar</button>
+                                </div>
+                                <div id="checkout-coupon-msg" style="font-size:0.75rem; margin-top:0.25rem;"></div>
+                            </div>
+                            
+                            <div id="checkout-discount-row" style="display:${selectedCoupon ? 'flex' : 'none'}; justify-content:space-between; color:var(--success);">
+                                <span id="checkout-discount-label">Descuento (${selectedCoupon ? selectedCoupon.codigo : ''}):</span>
+                                <span id="checkout-discount-val">-$0.00</span>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700;">
+                            <span style="color:var(--text-primary);">Total a Pagar:</span>
+                            <span style="color:var(--primary); font-size:1.4rem;" id="checkout-total-val">$${finalPrice.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // JavaScript behavior within pasarela
+    setTimeout(() => {
+        const cardNum = document.getElementById('card-number');
+        const cardExpiry = document.getElementById('card-expiry');
+        const cardCvv = document.getElementById('card-cvv');
+        const checkoutCoupon = document.getElementById('checkout-coupon');
+        const applyCouponBtn = document.getElementById('btn-checkout-coupon');
+        const discountRow = document.getElementById('checkout-discount-row');
+        const discountLabel = document.getElementById('checkout-discount-label');
+        const discountVal = document.getElementById('checkout-discount-val');
+        const totalValEl = document.getElementById('checkout-total-val');
+        const couponMsg = document.getElementById('checkout-coupon-msg');
+        
+        // Auto-spacing card number
+        if (cardNum) {
+            cardNum.addEventListener('input', (e) => {
+                let val = e.target.value.replace(/\D/g, '');
+                if (val.length > 16) val = val.substring(0, 16);
+                let formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
+                e.target.value = formatted;
+            });
+        }
+
+        // Auto-slash expiry date
+        if (cardExpiry) {
+            cardExpiry.addEventListener('input', (e) => {
+                let val = e.target.value.replace(/\D/g, '');
+                if (val.length > 4) val = val.substring(0, 4);
+                if (val.length > 2) {
+                    e.target.value = val.substring(0, 2) + '/' + val.substring(2);
+                } else {
+                    e.target.value = val;
+                }
+            });
+        }
+
+        // CVV limit
+        if (cardCvv) {
+            cardCvv.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').substring(0, 4);
+            });
+        }
+
+        // Coupon logic
+        function applyCouponCode(code) {
+            if (!code) {
+                selectedCoupon = null;
+                if (discountRow) discountRow.style.display = 'none';
+                finalPrice = originalPlan.precio;
+                if (totalValEl) totalValEl.textContent = `$${finalPrice.toFixed(2)}`;
+                if (couponMsg) couponMsg.innerHTML = '';
+                return;
+            }
+
+            const currentDb = getDatabase();
+            const coupon = (currentDb.saas_coupons || []).find(c => c.codigo === code && c.activo);
+
+            if (coupon) {
+                selectedCoupon = coupon;
+                let discount = 0;
+                if (coupon.tipo === 'porcentaje') {
+                    discount = originalPlan.precio * (coupon.valor / 100);
+                } else if (coupon.tipo === 'fijo') {
+                    discount = Math.min(originalPlan.precio, coupon.valor);
+                }
+                finalPrice = Math.max(0, originalPlan.precio - discount);
+                
+                if (discountRow) discountRow.style.display = 'flex';
+                if (discountLabel) discountLabel.textContent = `Descuento (${coupon.codigo}):`;
+                if (discountVal) discountVal.textContent = `-$${discount.toFixed(2)}`;
+                if (totalValEl) totalValEl.textContent = `$${finalPrice.toFixed(2)}`;
+                if (couponMsg) couponMsg.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-check"></i> Cupón válido aplicado</span>`;
+                showToast("Cupón de descuento aplicado con éxito.", "success");
+            } else {
+                selectedCoupon = null;
+                if (discountRow) discountRow.style.display = 'none';
+                finalPrice = originalPlan.precio;
+                if (totalValEl) totalValEl.textContent = `$${finalPrice.toFixed(2)}`;
+                if (couponMsg) couponMsg.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Cupón inválido</span>`;
+                showToast("Código de cupón inválido o vencido.", "error");
+            }
+        }
+
+        if (applyCouponBtn) {
+            applyCouponBtn.addEventListener('click', () => {
+                applyCouponCode(checkoutCoupon.value.trim().toUpperCase());
+            });
+        }
+
+        // Run initial coupon apply if workshop registered with a coupon
+        if (ws.cupon_usado) {
+            applyCouponCode(ws.cupon_usado);
+        }
+
+        // Submit handler with beautiful animation loader
+        const form = document.getElementById('virtual-payment-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const overlay = document.getElementById('payment-loading-overlay');
+                const stepText = document.getElementById('loading-step-text');
+                if (overlay) overlay.style.display = 'flex';
+
+                // Load steps animation
+                const steps = [
+                    "Validando información de tarjeta...",
+                    "Conectando de forma segura con la red adquirente...",
+                    "Procesando cargo por $" + finalPrice.toFixed(2) + " USD...",
+                    "Generando comprobante fiscal y extendiendo vigencia...",
+                    "¡Activación completada con éxito!"
+                ];
+
+                let currentStep = 0;
+                const intervalId = setInterval(() => {
+                    currentStep++;
+                    if (currentStep < steps.length) {
+                        if (stepText) stepText.textContent = steps[currentStep];
+                    } else {
+                        clearInterval(intervalId);
+                        finalizeTransaction();
+                    }
+                }, 700);
+
+                function finalizeTransaction() {
+                    const currentDb = getDatabase();
+                    const targetWs = currentDb.solicitudes_registro.find(s => s.id === targetId);
+                    
+                    if (targetWs) {
+                        const nextFacturaNum = 'SUS-' + new Date().getFullYear() + '-' + String((currentDb.saas_payments || []).length + 1).padStart(3, '0');
+                        
+                        // 1. Create payment record
+                        const newPayment = {
+                            id: 'PAY-' + Date.now().toString().slice(-4),
+                            workshopId: targetId,
+                            workshopName: targetWs.nombre,
+                            plan: targetWs.plan,
+                            monto: finalPrice,
+                            subtotal: originalPlan.precio,
+                            descuento_aplicado: originalPlan.precio - finalPrice,
+                            cupon_usado: selectedCoupon ? selectedCoupon.codigo : null,
+                            fecha: Date.now(),
+                            factura: nextFacturaNum,
+                            metodo: 'Tarjeta de Crédito (Online)',
+                            estado: 'completado'
+                        };
+                        
+                        if (!currentDb.saas_payments) currentDb.saas_payments = [];
+                        currentDb.saas_payments.push(newPayment);
+
+                        // 2. Extend subscription
+                        targetWs.suscripcion_status = 'activo';
+                        targetWs.precio_mensual = finalPrice;
+                        targetWs.cupon_usado = selectedCoupon ? selectedCoupon.codigo : null;
+                        targetWs.proximo_pago = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+                        // 3. Sync if this is the active workshop
+                        if (currentDb.saas_state && currentDb.saas_state.workshopData && currentDb.saas_state.workshopData.id === targetId) {
+                            currentDb.saas_state.status = 'active';
+                            currentDb.saas_state.workshopData = targetWs;
+                            currentDb.saas_state.termsSigned = true;
+                        }
+
+                        saveDatabase(currentDb);
+
+                        // Render success state
+                        if (overlay) overlay.style.display = 'none';
+                        renderSuccessState(newPayment, targetWs);
+                    }
+                }
+
+                function renderSuccessState(payment, workshop) {
+                    container.innerHTML = `
+                        <div style="max-width: 600px; margin: 4rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--success); border-radius: 12px; text-align: center;" class="saas-container">
+                            <div style="font-size: 5rem; color: var(--success); margin-bottom: 1.5rem;">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">
+                                ¡Pago Procesado con Éxito!
+                            </h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
+                                La suscripción de <strong>${workshop.nombre}</strong> ha sido activada/renovada exitosamente. Tu acceso a la plataforma está habilitado por los próximos 30 días.
+                            </p>
+
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; text-align: left; font-size: 0.9rem;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                    <span style="color:var(--text-muted);">Comprobante:</span>
+                                    <strong style="color:var(--text-primary); font-family:monospace;">${payment.factura}</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                    <span style="color:var(--text-muted);">Monto Pagado:</span>
+                                    <strong style="color:var(--success);">$${payment.monto.toFixed(2)} USD</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                    <span style="color:var(--text-muted);">Método:</span>
+                                    <span style="color:var(--text-primary);">${payment.metodo}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:var(--text-muted);">Próximo Pago:</span>
+                                    <strong style="color:var(--text-primary);">${new Date(workshop.proximo_pago).toLocaleDateString()}</strong>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:1rem;">
+                                <a href="#taller-dashboard" class="btn btn-primary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-gauge"></i> Entrar a Mecanic OS</a>
+                                <a href="#landing" class="btn btn-secondary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-house"></i> Volver a Landing</a>
+                            </div>
+                        </div>
+                    `;
+                    showToast("Membresía activada con éxito.", "success");
+                }
+            });
+        }
+    }, 50);
 }
 
 function renderAdminSolicitudes(container) {
@@ -6681,6 +7151,8 @@ function renderAdminSolicitudes(container) {
         window.saasEditWorkshopId = null;
         window.saasPayWorkshopId = null;
         window.saasConfigWorkshopId = null;
+        window.saasAddWorkshopForm = false;
+        window.saasViewReceiptPaymentId = null;
         renderAdminSolicitudes(container);
     };
 
@@ -6754,6 +7226,325 @@ function renderAdminSolicitudes(container) {
             window.saasCloseForm();
         }
     };
+
+    // Render forms if active
+    if (window.saasAddWorkshopForm) {
+        const plans = db.saas_plans || [];
+        
+        container.innerHTML = `
+            <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
+                    <div>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-square-plus" style="color:var(--primary);"></i> Registrar Taller Manualmente</h2>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Añade una nueva cuenta de taller directamente al sistema</p>
+                    </div>
+                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                
+                <form id="saas-manual-register-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                    <div class="form-group">
+                        <label>Nombre Comercial del Taller</label>
+                        <input type="text" id="man-taller-nombre" required placeholder="Ej: Auto Centro Mecánico" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Giro / Actividad Económica</label>
+                            <input type="text" id="man-taller-giro" required placeholder="Ej: Taller Mecánico General" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="man-taller-direccion" required placeholder="Municipio, Departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Teléfono</label>
+                            <input type="text" id="man-taller-telefono" required placeholder="2222-2222" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="man-taller-correo" required placeholder="cliente@correo.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>NIT</label>
+                            <input type="text" id="man-taller-nit" required placeholder="0614-xxxxxx-xxx-x" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>NRC</label>
+                            <input type="text" id="man-taller-nrc" required placeholder="xxxxxx-x" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    
+                    <div style="border-top:1px dashed var(--border-color); padding-top:1rem; margin-top:0.25rem;">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; font-weight:600; margin-bottom:1rem; color:var(--primary);">Detalles de Membresía y Acceso</h4>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Plan de Suscripción</label>
+                                <select id="man-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                    ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">Plan ${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Cuota Pactada ($ USD)</label>
+                                <input type="number" step="0.01" id="man-taller-precio" required value="75.00" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Propietario / Administrador</label>
+                                <input type="text" id="man-taller-prop" required placeholder="Nombre Completo" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña de Acceso</label>
+                                <input type="password" id="man-taller-pass" required value="1234" placeholder="Mínimo 4 caracteres" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Estado de Suscripción</label>
+                                <select id="man-taller-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                    <option value="activo">Activo (Acceso Completo)</option>
+                                    <option value="demo">Demo (Prueba Gratuita)</option>
+                                    <option value="suspendido">Suspendido (Bloqueado)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Vigencia Inicial (días)</label>
+                                <input type="number" id="man-taller-days" required value="30" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:1rem; margin-top:1rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-user-plus"></i> Registrar y Activar</button>
+                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        // Update default price when plan changes
+        setTimeout(() => {
+            const planSel = document.getElementById('man-taller-plan');
+            const priceInput = document.getElementById('man-taller-precio');
+            if (planSel && priceInput) {
+                planSel.addEventListener('change', () => {
+                    const opt = planSel.options[planSel.selectedIndex];
+                    priceInput.value = opt.getAttribute('data-price');
+                });
+                // Initial call
+                const opt = planSel.options[planSel.selectedIndex];
+                if (opt) priceInput.value = opt.getAttribute('data-price');
+            }
+
+            document.getElementById('man-taller-prop').addEventListener('input', (e) => {
+                const passField = document.getElementById('man-taller-pass');
+                if (passField && !passField.value) {
+                    passField.value = '1234';
+                }
+            });
+
+            document.getElementById('saas-manual-register-form').addEventListener('submit', (manEvent) => {
+                manEvent.preventDefault();
+                const currentDb = getDatabase();
+                const manId = 'REQ-' + Date.now();
+                const manPrice = parseFloat(document.getElementById('man-taller-precio').value);
+                const manDays = parseInt(document.getElementById('man-taller-days').value) || 30;
+                const manStatus = document.getElementById('man-taller-status').value;
+                const manPlanName = planSel.value;
+                
+                const manNewWs = {
+                    id: manId,
+                    nombre: document.getElementById('man-taller-nombre').value,
+                    giro: document.getElementById('man-taller-giro').value,
+                    direccion: document.getElementById('man-taller-direccion').value,
+                    telefono: document.getElementById('man-taller-telefono').value,
+                    correo: document.getElementById('man-taller-correo').value,
+                    nit: document.getElementById('man-taller-nit').value,
+                    nrc: document.getElementById('man-taller-nrc').value,
+                    logoText: document.getElementById('man-taller-nombre').value.substring(0, 15).toUpperCase(),
+                    logoTagline: 'Servicio Automotriz Especializado',
+                    propietario: document.getElementById('man-taller-prop').value,
+                    pass: document.getElementById('man-taller-pass').value,
+                    status: 'aprobado',
+                    createdAt: Date.now(),
+                    plan: manPlanName,
+                    precio_mensual: manPrice,
+                    suscripcion_status: manStatus,
+                    proximo_pago: Date.now() + manDays * 24 * 60 * 60 * 1000,
+                    dte_config: {
+                        apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
+                        ambiente: '00',
+                        mhCode: '0001',
+                        posNumber: '1',
+                        backendUrl: ''
+                    }
+                };
+                
+                currentDb.solicitudes_registro.push(manNewWs);
+                
+                if (manStatus === 'activo' && currentDb.saas_state.status === 'guest') {
+                    currentDb.saas_state = {
+                        status: 'active',
+                        workshopData: manNewWs,
+                        termsSigned: true,
+                        signatureName: manNewWs.propietario,
+                        signedAt: Date.now()
+                    };
+                }
+                
+                saveDatabase(currentDb);
+                showToast("Taller registrado manualmente y habilitado.", "success");
+                window.saasCloseForm();
+            });
+        }, 50);
+        return;
+    }
+
+    if (window.saasViewReceiptPaymentId) {
+        const payId = window.saasViewReceiptPaymentId;
+        const payment = payments.find(p => p.id === payId);
+        if (!payment) {
+            window.saasCloseForm();
+            return;
+        }
+        
+        const wsData = (db.solicitudes_registro || []).find(s => s.id === payment.workshopId) || {};
+        
+        container.innerHTML = `
+            <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
+                    <div>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);"><i class="fa-solid fa-file-invoice" style="color:var(--primary);"></i> Recibo de Pago</h2>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Comprobante de transacción de membresía SaaS</p>
+                    </div>
+                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                
+                <div id="print-saas-receipt" style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 8px; padding: 2rem; color: var(--text-primary); font-family: 'Inter', sans-serif;">
+                    <!-- Invoice Header -->
+                    <div style="display:flex; justify-content:space-between; border-bottom:2px dashed var(--border-color); padding-bottom:1.5rem; margin-bottom:1.5rem;">
+                        <div>
+                            <h3 style="font-family:'Outfit', sans-serif; font-weight:800; color:var(--primary); margin:0; font-size:1.3rem;">MECANIC OS</h3>
+                            <span style="font-size:0.75rem; color:var(--text-secondary);">Forbidden Soluciones S.A. de C.V.</span><br>
+                            <span style="font-size:0.75rem; color:var(--text-secondary);">San Salvador, El Salvador</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-muted);">N° COMPROBANTE</span><br>
+                            <strong style="font-family:monospace; font-size:1.1rem; color:var(--text-primary);">${payment.factura}</strong><br>
+                            <span style="font-size:0.75rem; color:var(--text-secondary);">${new Date(payment.fecha).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Billing Info -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; font-size:0.85rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
+                        <div>
+                            <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; display:block; margin-bottom:0.25rem;">Facturado a:</span>
+                            <strong style="color:var(--text-primary);">${payment.workshopName}</strong><br>
+                            <span style="color:var(--text-secondary);">${wsData.direccion || 'Dirección no disponible'}</span><br>
+                            <span style="color:var(--text-secondary);">Correo: ${wsData.correo || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; display:block; margin-bottom:0.25rem;">Detalles Fiscales:</span>
+                            <span>NIT: ${wsData.nit || 'N/A'}</span><br>
+                            <span>NRC: ${wsData.nrc || 'N/A'}</span><br>
+                            <span>Método: <strong>${payment.metodo}</strong></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Table breakdown -->
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-bottom:1.5rem;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border-color); text-align:left;">
+                                <th style="padding:0.5rem 0; color:var(--text-muted);">Descripción / Concepto</th>
+                                <th style="padding:0.5rem 0; text-align:right; color:var(--text-muted);">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:0.75rem 0;">
+                                    <strong>Membresía Mensual SaaS</strong><br>
+                                    <span style="color:var(--text-secondary); font-size:0.75rem;">Acceso al sistema - Plan ${payment.plan} (30 días de vigencia)</span>
+                                </td>
+                                <td style="padding:0.75rem 0; text-align:right; font-weight:600;">$${(payment.subtotal || payment.monto).toFixed(2)}</td>
+                            </tr>
+                            ${payment.descuento_aplicado && payment.descuento_aplicado > 0 ? `
+                            <tr style="color:var(--success);">
+                                <td style="padding:0.5rem 0; font-size:0.8rem;">
+                                    Descuento Promocional ${payment.cupon_usado ? `(${payment.cupon_usado})` : ''}
+                                </td>
+                                <td style="padding:0.5rem 0; text-align:right; font-weight:600;">-$${payment.descuento_aplicado.toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Total -->
+                    <div style="display:flex; justify-content:flex-end; border-top:2px solid var(--border-color); padding-top:1rem; font-size:1.05rem;">
+                        <div style="text-align:right; width:250px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem; font-size:0.9rem;">
+                                <span style="color:var(--text-secondary);">Subtotal:</span>
+                                <span style="color:var(--text-primary); font-weight:600;">$${(payment.subtotal || payment.monto).toFixed(2)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-size:0.9rem; color:var(--success);">
+                                <span>Descuento:</span>
+                                <span>-$${(payment.descuento_aplicado || 0).toFixed(2)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-weight:700; border-top:1px dashed var(--border-color); padding-top:0.5rem;">
+                                <span style="color:var(--text-primary);">Total Pagado:</span>
+                                <span style="color:var(--primary); font-size:1.2rem;">$${payment.monto.toFixed(2)} USD</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:2rem; text-align:center; border-top:1px solid var(--border-color); padding-top:1rem; font-size:0.75rem; color:var(--text-secondary); font-style:italic;">
+                        ¡Gracias por utilizar Mecanic OS! Si tienes dudas técnicas, contáctanos a soporte@mecanicos.com
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                    <button id="btn-print-receipt-modal" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-print"></i> Imprimir Comprobante</button>
+                    <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cerrar</button>
+                </div>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            document.getElementById('btn-print-receipt-modal').addEventListener('click', () => {
+                const printContent = document.getElementById('print-saas-receipt').innerHTML;
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>Recibo Mecanic OS - ${payment.factura}</title>
+                        <style>
+                            body { font-family: 'Inter', sans-serif; padding: 40px; color: #000; background: #fff; }
+                            th, td { border-bottom: 1px solid #ddd; padding: 8px 0; }
+                            table { width: 100%; border-collapse: collapse; }
+                            h3 { color: #4f46e5; }
+                        </style>
+                    </head>
+                    <body>
+                        ${printContent}
+                        <script>
+                            window.onload = function() { window.print(); window.close(); }
+                        </script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            });
+        }, 50);
+        return;
+    }
 
     // Render forms if active
     if (window.saasEditWorkshopId) {
@@ -7051,6 +7842,7 @@ function renderAdminSolicitudes(container) {
                 <button class="saas-tab-btn ${activeTab === 'sub' ? 'active' : ''}" onclick="window.switchSaaSTab('sub')"><i class="fa-solid fa-users-gear"></i> Suscripciones & Clientes</button>
                 <button class="saas-tab-btn ${activeTab === 'req' ? 'active' : ''}" onclick="window.switchSaaSTab('req')"><i class="fa-solid fa-clock-rotate-left"></i> Solicitudes (${solicitudes.filter(s => s.status === 'pendiente').length})</button>
                 <button class="saas-tab-btn ${activeTab === 'pay' ? 'active' : ''}" onclick="window.switchSaaSTab('pay')"><i class="fa-solid fa-receipt"></i> Historial de Cobros</button>
+                <button class="saas-tab-btn ${activeTab === 'plans-coupons' ? 'active' : ''}" onclick="window.switchSaaSTab('plans-coupons')"><i class="fa-solid fa-tags"></i> Planes & Cupones</button>
                 <button class="saas-tab-btn ${activeTab === 'metrics' ? 'active' : ''}" onclick="window.switchSaaSTab('metrics')"><i class="fa-solid fa-chart-line"></i> Métricas SaaS</button>
             </div>
             
@@ -7059,6 +7851,7 @@ function renderAdminSolicitudes(container) {
                 ${activeTab === 'req' ? renderRequestsTab() : ''}
                 ${activeTab === 'sub' ? renderSubscriptionsTab() : ''}
                 ${activeTab === 'pay' ? renderPaymentsTab() : ''}
+                ${activeTab === 'plans-coupons' ? renderPlansCouponsTab() : ''}
                 ${activeTab === 'metrics' ? renderMetricsTab() : ''}
             </div>
         </div>
@@ -7137,6 +7930,24 @@ function renderAdminSolicitudes(container) {
     
     // Switch state actions
     if (activeTab === 'sub') {
+        const manRegBtn = document.getElementById('btn-man-register-saas');
+        if (manRegBtn) {
+            manRegBtn.addEventListener('click', () => {
+                window.saasAddWorkshopForm = true;
+                renderAdminSolicitudes(container);
+            });
+        }
+        document.querySelectorAll('.btn-copy-pay-link').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const payUrl = window.location.origin + window.location.pathname + '#pago-suscripcion?id=' + id;
+                navigator.clipboard.writeText(payUrl).then(() => {
+                    showToast("¡Enlace de pago copiado al portapapeles!", "success");
+                }).catch(() => {
+                    showToast("Error al copiar enlace", "error");
+                });
+            });
+        });
         document.querySelectorAll('.btn-edit-sub').forEach(btn => {
             btn.addEventListener('click', () => {
                 window.saasEditWorkshopId = btn.getAttribute('data-id');
@@ -7155,6 +7966,159 @@ function renderAdminSolicitudes(container) {
                 renderAdminSolicitudes(container);
             });
         });
+    }
+    
+    if (activeTab === 'pay') {
+        document.querySelectorAll('.btn-view-saas-receipt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.saasViewReceiptPaymentId = btn.getAttribute('data-id');
+                renderAdminSolicitudes(container);
+            });
+        });
+    }
+    
+    if (activeTab === 'plans-coupons') {
+        const addPlanBtn = document.getElementById('btn-add-saas-plan');
+        if (addPlanBtn) {
+            addPlanBtn.addEventListener('click', () => {
+                window.saasAddPlanForm = true;
+                renderAdminSolicitudes(container);
+            });
+        }
+
+        const addCouponBtn = document.getElementById('btn-add-saas-coupon');
+        if (addCouponBtn) {
+            addCouponBtn.addEventListener('click', () => {
+                window.saasAddCouponForm = true;
+                renderAdminSolicitudes(container);
+            });
+        }
+
+        document.querySelectorAll('.btn-edit-saas-plan').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.saasEditPlanId = btn.getAttribute('data-id');
+                renderAdminSolicitudes(container);
+            });
+        });
+
+        document.querySelectorAll('.btn-delete-saas-plan').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm("¿Está seguro de que desea eliminar este plan de suscripción comercial?")) {
+                    const currentDb = getDatabase();
+                    currentDb.saas_plans = (currentDb.saas_plans || []).filter(p => p.id !== id);
+                    saveDatabase(currentDb);
+                    showToast("Plan eliminado del catálogo.", "info");
+                    renderAdminSolicitudes(container);
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-toggle-saas-coupon').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const code = btn.getAttribute('data-id');
+                const currentDb = getDatabase();
+                const coupon = (currentDb.saas_coupons || []).find(c => c.codigo === code);
+                if (coupon) {
+                    coupon.activo = !coupon.activo;
+                    saveDatabase(currentDb);
+                    showToast(`Cupón ${coupon.codigo} ${coupon.activo ? 'activado' : 'desactivado'}.`, "info");
+                    renderAdminSolicitudes(container);
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-delete-saas-coupon').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const code = btn.getAttribute('data-id');
+                if (confirm("¿Está seguro de que desea eliminar este cupón comercial?")) {
+                    const currentDb = getDatabase();
+                    currentDb.saas_coupons = (currentDb.saas_coupons || []).filter(c => c.codigo !== code);
+                    saveDatabase(currentDb);
+                    showToast("Cupón eliminado del catálogo.", "info");
+                    renderAdminSolicitudes(container);
+                }
+            });
+        });
+
+        // Form submits
+        const planForm = document.getElementById('saas-plan-form');
+        if (planForm) {
+            planForm.addEventListener('submit', (planEvent) => {
+                planEvent.preventDefault();
+                const currentDb = getDatabase();
+                const nombre = document.getElementById('plan-form-nombre').value;
+                const precio = parseFloat(document.getElementById('plan-form-precio').value);
+                const max_usuarios = parseInt(document.getElementById('plan-form-users').value) || 5;
+                const descripcion = document.getElementById('plan-form-desc').value;
+                const featuresText = document.getElementById('plan-form-features').value;
+                const features = featuresText.split('\n').map(f => f.trim()).filter(f => f.length > 0);
+
+                if (!currentDb.saas_plans) currentDb.saas_plans = [];
+
+                if (window.saasEditPlanId) {
+                    const targetPlan = currentDb.saas_plans.find(p => p.id === window.saasEditPlanId);
+                    if (targetPlan) {
+                        targetPlan.nombre = nombre;
+                        targetPlan.precio = precio;
+                        targetPlan.max_usuarios = max_usuarios;
+                        targetPlan.descripcion = descripcion;
+                        targetPlan.features = features;
+                    }
+                } else {
+                    const newPlan = {
+                        id: 'plan-' + Date.now(),
+                        nombre: nombre,
+                        precio: precio,
+                        descripcion: descripcion,
+                        max_usuarios: max_usuarios,
+                        features: features
+                    };
+                    currentDb.saas_plans.push(newPlan);
+                }
+
+                saveDatabase(currentDb);
+                showToast("Plan de suscripción guardado.", "success");
+                window.saasCloseForm();
+            });
+        }
+
+        const couponForm = document.getElementById('saas-coupon-form');
+        if (couponForm) {
+            couponForm.addEventListener('submit', (couponEvent) => {
+                couponEvent.preventDefault();
+                const currentDb = getDatabase();
+                const codigo = document.getElementById('coupon-form-codigo').value.trim().toUpperCase();
+                const tipo = document.getElementById('coupon-form-tipo').value;
+                const valor = parseFloat(document.getElementById('coupon-form-valor').value);
+                const expiracion = document.getElementById('coupon-form-expiry').value;
+                const descripcion = document.getElementById('coupon-form-desc').value;
+                const activo = document.getElementById('coupon-form-active').checked;
+
+                if (!currentDb.saas_coupons) currentDb.saas_coupons = [];
+
+                // Check if coupon code already exists
+                const existsIdx = currentDb.saas_coupons.findIndex(c => c.codigo === codigo);
+                const newCoupon = {
+                    codigo: codigo,
+                    tipo: tipo,
+                    valor: valor,
+                    expiracion: expiracion,
+                    descripcion: descripcion,
+                    activo: activo
+                };
+
+                if (existsIdx >= 0) {
+                    currentDb.saas_coupons[existsIdx] = newCoupon;
+                } else {
+                    currentDb.saas_coupons.push(newCoupon);
+                }
+
+                saveDatabase(currentDb);
+                showToast("Cupón promocional guardado.", "success");
+                window.saasCloseForm();
+            });
+        }
     }
 
     // Sub-renderers
@@ -7228,85 +8192,89 @@ function renderAdminSolicitudes(container) {
     
     function renderSubscriptionsTab() {
         const approvedClients = solicitudes.filter(s => s.status === 'aprobado');
-        if (approvedClients.length === 0) {
-            return `
-                <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
-                    <div style="font-size:3rem; margin-bottom:1rem; opacity:0.5;"><i class="fa-solid fa-user-xmark"></i></div>
-                    <p>No hay clientes o talleres activos aprobados en este momento.</p>
-                </div>
-            `;
-        }
         
         return `
             <div class="glass-card" style="padding:1.5rem;">
-                <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; margin-bottom:1rem; color:var(--text-primary);">Registro de Clientes y Suscripciones Negociadas</h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Taller / Cliente</th>
-                                <th>Contacto</th>
-                                <th>Plan Contratado</th>
-                                <th>Cuota Mensual</th>
-                                <th>Estado</th>
-                                <th>Renovación</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${approvedClients.map(c => {
-                                const plan = c.plan || 'Pro';
-                                const price = c.precio_mensual || 75.00;
-                                const status = c.suscripcion_status || 'activo';
-                                const nextPay = c.proximo_pago ? new Date(c.proximo_pago).toLocaleDateString() : 'N/A';
-                                
-                                let badgeColor = 'badge-success';
-                                if (status === 'suspendido') badgeColor = 'badge-danger';
-                                if (status === 'demo') badgeColor = 'badge-warning';
-                                
-                                const isCurrent = db.saas_state.workshopData && db.saas_state.workshopData.id === c.id;
-                                
-                                return `
-                                    <tr style="${isCurrent ? 'background:rgba(99, 102, 241, 0.05); border-left:3px solid var(--primary);' : ''}">
-                                        <td>
-                                            <strong>${c.nombre}</strong> ${isCurrent ? '<span style="font-size:0.7rem; background:var(--primary); color:white; padding:1px 5px; border-radius:3px; margin-left:5px;">ACTIVO EN SESIÓN</span>' : ''}<br>
-                                            <small style="color:var(--text-muted);">${c.giro}</small><br>
-                                            <small style="color:var(--text-muted); font-size:0.75rem;">${c.direccion}</small>
-                                        </td>
-                                        <td>
-                                            <strong>${c.propietario}</strong><br>
-                                            <small style="color:var(--text-muted);">${c.correo}</small><br>
-                                            <small style="color:var(--text-muted); font-size:0.75rem;">TEL: ${c.telefono}</small>
-                                        </td>
-                                        <td>
-                                            <strong style="color:var(--primary);">${plan.toUpperCase()}</strong>
-                                        </td>
-                                        <td>
-                                            <strong style="font-size:1rem; color:var(--text-primary);">$${price.toFixed(2)}</strong>
-                                        </td>
-                                        <td><span class="badge-tag ${badgeColor}">${status.toUpperCase()}</span></td>
-                                        <td>
-                                            <span style="${c.proximo_pago && c.proximo_pago < Date.now() ? 'color:var(--danger); font-weight:bold;' : 'color:var(--text-primary);'}">
-                                                ${nextPay}
-                                            </span>
-                                            ${c.proximo_pago && c.proximo_pago < Date.now() ? '<br><small style="color:var(--danger);">VENCIDO</small>' : ''}
-                                        </td>
-                                        <td>
-                                            <div style="display:flex; flex-direction:column; gap:0.4rem; max-width:140px;">
-                                                <button class="btn btn-secondary btn-edit-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-edit"></i> Ajustar Plan</button>
-                                                <button class="btn btn-primary btn-pay-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota</button>
-                                                <button class="btn btn-secondary btn-config-saas" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--primary); border-color:var(--primary);"><i class="fa-solid fa-gears"></i> Configurar DTE/BD</button>
-                                                <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${c.id}')" style="padding:0.35rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
-                                                    <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar' : 'Suspender'}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;">Registro de Clientes y Suscripciones Negociadas</h3>
+                    <button id="btn-man-register-saas" class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-square-plus"></i> Registrar Taller Manualmente</button>
                 </div>
+                
+                ${approvedClients.length === 0 ? `
+                    <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
+                        <div style="font-size:3rem; margin-bottom:1rem; opacity:0.5;"><i class="fa-solid fa-user-xmark"></i></div>
+                        <p>No hay clientes o talleres activos aprobados en este momento.</p>
+                    </div>
+                ` : `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Taller / Cliente</th>
+                                    <th>Contacto</th>
+                                    <th>Plan Contratado</th>
+                                    <th>Cuota Mensual</th>
+                                    <th>Estado</th>
+                                    <th>Renovación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${approvedClients.map(c => {
+                                    const plan = c.plan || 'Pro';
+                                    const price = c.precio_mensual || 75.00;
+                                    const status = c.suscripcion_status || 'activo';
+                                    const nextPay = c.proximo_pago ? new Date(c.proximo_pago).toLocaleDateString() : 'N/A';
+                                    
+                                    let badgeColor = 'badge-success';
+                                    if (status === 'suspendido') badgeColor = 'badge-danger';
+                                    if (status === 'demo') badgeColor = 'badge-warning';
+                                    
+                                    const isCurrent = db.saas_state.workshopData && db.saas_state.workshopData.id === c.id;
+                                    
+                                    return `
+                                        <tr style="${isCurrent ? 'background:rgba(99, 102, 241, 0.05); border-left:3px solid var(--primary);' : ''}">
+                                            <td>
+                                                <strong>${c.nombre}</strong> ${isCurrent ? '<span style="font-size:0.7rem; background:var(--primary); color:white; padding:1px 5px; border-radius:3px; margin-left:5px;">ACTIVO EN SESIÓN</span>' : ''}<br>
+                                                <small style="color:var(--text-muted);">${c.giro}</small><br>
+                                                <small style="color:var(--text-muted); font-size:0.75rem;">${c.direccion}</small>
+                                            </td>
+                                            <td>
+                                                <strong>${c.propietario}</strong><br>
+                                                <small style="color:var(--text-muted);">${c.correo}</small><br>
+                                                <small style="color:var(--text-muted); font-size:0.75rem;">TEL: ${c.telefono}</small>
+                                            </td>
+                                            <td>
+                                                <strong style="color:var(--primary);">${plan.toUpperCase()}</strong>
+                                            </td>
+                                            <td>
+                                                <strong style="font-size:1rem; color:var(--text-primary);">$${price.toFixed(2)}</strong>
+                                            </td>
+                                            <td><span class="badge-tag ${badgeColor}">${status.toUpperCase()}</span></td>
+                                            <td>
+                                                <span style="${c.proximo_pago && c.proximo_pago < Date.now() ? 'color:var(--danger); font-weight:bold;' : 'color:var(--text-primary);'}">
+                                                    ${nextPay}
+                                                </span>
+                                                ${c.proximo_pago && c.proximo_pago < Date.now() ? '<br><small style="color:var(--danger);">VENCIDO</small>' : ''}
+                                            </td>
+                                            <td>
+                                                <div style="display:flex; flex-direction:column; gap:0.4rem; max-width:140px;">
+                                                    <button class="btn btn-secondary btn-edit-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-edit"></i> Ajustar Plan</button>
+                                                    <button class="btn btn-primary btn-pay-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota</button>
+                                                    <button class="btn btn-secondary btn-copy-pay-link" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--success); border-color:var(--success);"><i class="fa-solid fa-link"></i> Enlace de Pago</button>
+                                                    <button class="btn btn-secondary btn-config-saas" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--primary); border-color:var(--primary);"><i class="fa-solid fa-gears"></i> Configurar DTE/BD</button>
+                                                    <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${c.id}')" style="padding:0.35rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
+                                                        <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar' : 'Suspender'}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
             </div>
         `;
     }
@@ -7338,6 +8306,7 @@ function renderAdminSolicitudes(container) {
                                 <th>Método de Pago</th>
                                 <th>Monto Recaudado</th>
                                 <th>Estado</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7350,6 +8319,9 @@ function renderAdminSolicitudes(container) {
                                     <td>${p.metodo}</td>
                                     <td><strong style="color:var(--success); font-size:0.95rem;">$${Number(p.monto).toFixed(2)}</strong></td>
                                     <td><span class="badge-tag badge-success">${p.estado.toUpperCase()}</span></td>
+                                    <td>
+                                        <button class="btn btn-secondary btn-view-saas-receipt" data-id="${p.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem;"><i class="fa-solid fa-receipt"></i> Ver Recibo</button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -7368,66 +8340,310 @@ function renderAdminSolicitudes(container) {
         const mrr = activeClients.reduce((sum, c) => sum + (c.precio_mensual || 75.00), 0);
         // Total collected
         const totalCollected = payments.reduce((sum, p) => sum + Number(p.monto), 0);
+        // ARPU
+        const arpu = activeClients.length > 0 ? (mrr / activeClients.length) : 0;
+        // Churn Rate
+        const churnRate = approvedClients.length > 0 ? ((suspendedClients.length / approvedClients.length) * 100) : 0;
+        
+        // Count payment methods share
+        const paymentMethods = payments.reduce((acc, p) => {
+            const m = p.metodo || 'Tarjeta de Crédito (Online)';
+            const cleanMethod = m.includes('Tarjeta') ? 'Tarjeta de Crédito' : (m.includes('Transferencia') ? 'Transferencia' : (m.includes('Chivo') ? 'Bitcoin / Chivo' : 'Efectivo/Otros'));
+            acc[cleanMethod] = (acc[cleanMethod] || 0) + Number(p.monto);
+            return acc;
+        }, {});
         
         return `
-            <div class="saas-metrics-grid">
+            <div class="saas-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                 <div class="metric-card-saas primary">
-                    <span class="metric-label">Ingreso Mensual Recurrente (MRR)</span>
+                    <span class="metric-label">MRR (Recurrente Mensual)</span>
                     <div class="metric-val">$${mrr.toFixed(2)}</div>
-                    <small style="color:var(--text-muted);">Suma de cuotas mensuales activas</small>
+                    <small style="color:var(--text-muted); font-size:0.75rem;">Suma de cuotas mensuales activas</small>
                 </div>
                 <div class="metric-card-saas success">
-                    <span class="metric-label">Recaudación Total Histórica</span>
+                    <span class="metric-label">Recaudación Histórica</span>
                     <div class="metric-val">$${totalCollected.toFixed(2)}</div>
-                    <small style="color:var(--text-muted);">${payments.length} facturas de suscripción cobradas</small>
+                    <small style="color:var(--text-muted); font-size:0.75rem;">${payments.length} facturas cobradas</small>
                 </div>
                 <div class="metric-card-saas warning">
-                    <span class="metric-label">Clientes Activos / Demo</span>
-                    <div class="metric-val">${activeClients.length}</div>
-                    <small style="color:var(--text-muted);">${approvedClients.length} talleres en total aprobados</small>
+                    <span class="metric-label">ARPU (Ingreso Medio)</span>
+                    <div class="metric-val">$${arpu.toFixed(2)}</div>
+                    <small style="color:var(--text-muted); font-size:0.75rem;">Ingreso promedio por taller</small>
                 </div>
                 <div class="metric-card-saas danger">
-                    <span class="metric-label">Clientes Suspendidos</span>
-                    <div class="metric-val">${suspendedClients.length}</div>
-                    <small style="color:var(--text-muted);">Talleres con el acceso deshabilitado</small>
+                    <span class="metric-label">Tasa de Churn (Suspensión)</span>
+                    <div class="metric-val">${churnRate.toFixed(1)}%</div>
+                    <small style="color:var(--text-muted); font-size:0.75rem;">${suspendedClients.length} de ${approvedClients.length} talleres suspendidos</small>
                 </div>
             </div>
             
-            <div class="glass-card" style="padding:2rem; margin-top:1.5rem;">
-                <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; margin-bottom:1.5rem; color:var(--text-primary);">Distribución Financiera y Cobros por Cliente</h3>
-                
-                <div style="display:flex; flex-wrap:wrap; gap:2rem; justify-content:space-around; align-items:center;">
-                    <!-- SVG mini visual chart representing MRR share -->
-                    <div style="text-align:center;">
-                        <svg width="200" height="200" viewBox="0 0 200 200" style="transform: rotate(-90deg);">
-                            <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--border-color)" stroke-width="20"></circle>
-                            <!-- Circle segments representing MRR portion -->
-                            <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--primary)" stroke-width="20" stroke-dasharray="240 440" stroke-dashoffset="0"></circle>
-                            <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--success)" stroke-width="20" stroke-dasharray="150 440" stroke-dashoffset="-240"></circle>
-                            <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--warning)" stroke-width="20" stroke-dasharray="50 440" stroke-dashoffset="-390"></circle>
-                        </svg>
-                        <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">Participación de MRR por Taller</div>
-                    </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-top:1.5rem;">
+                <!-- Chart 1: Participación de MRR -->
+                <div class="glass-card" style="padding:1.5rem;">
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1.5rem; color:var(--text-primary);">Participación de MRR por Taller</h3>
                     
-                    <div style="flex:1; min-width:280px; display:flex; flex-direction:column; gap:1rem;">
-                        ${approvedClients.map(c => {
-                            const share = mrr > 0 ? (((c.precio_mensual || 75.00) / mrr) * 100) : 0;
+                    <div style="display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:space-around; align-items:center;">
+                        <div style="text-align:center;">
+                            <svg width="130" height="130" viewBox="0 0 200 200" style="transform: rotate(-90deg);">
+                                <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--border-color)" stroke-width="20"></circle>
+                                <!-- Circle segments representing MRR portion -->
+                                <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--primary)" stroke-width="20" stroke-dasharray="240 440" stroke-dashoffset="0"></circle>
+                                <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--success)" stroke-width="20" stroke-dasharray="150 440" stroke-dashoffset="-240"></circle>
+                                <circle r="70" cx="100" cy="100" fill="transparent" stroke="var(--warning)" stroke-width="20" stroke-dasharray="50 440" stroke-dashoffset="-390"></circle>
+                            </svg>
+                            <div style="margin-top:0.5rem; font-size:0.75rem; color:var(--text-muted);">Cuotas Activas</div>
+                        </div>
+                        
+                        <div style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:0.75rem; max-height:150px; overflow-y:auto;">
+                            ${activeClients.length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted);">No hay talleres activos</p>' : activeClients.map((c, idx) => {
+                                const share = mrr > 0 ? (((c.precio_mensual || 75.00) / mrr) * 100) : 0;
+                                const colors = ['var(--primary)', 'var(--success)', 'var(--warning)', 'var(--danger)', '#6366f1', '#a855f7', '#ec4899'];
+                                const color = colors[idx % colors.length];
+                                return `
+                                    <div>
+                                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.2rem;">
+                                            <span style="font-weight:600; color:var(--text-primary);">${c.nombre}</span>
+                                            <span>$${(c.precio_mensual || 75.00).toFixed(0)} (${share.toFixed(0)}%)</span>
+                                        </div>
+                                        <div style="height:5px; background:var(--border-color); border-radius:3px; overflow:hidden;">
+                                            <div style="width:${share}%; height:100%; background:${color}; border-radius:3px;"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart 2: Canales de Cobro -->
+                <div class="glass-card" style="padding:1.5rem;">
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1.5rem; color:var(--text-primary);">Volumen de Venta por Método de Pago</h3>
+                    <div style="display:flex; flex-direction:column; gap:1rem;">
+                        ${Object.keys(paymentMethods).length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:2rem;">No hay cobros registrados</p>' : Object.entries(paymentMethods).map(([method, amount]) => {
+                            const pct = totalCollected > 0 ? ((amount / totalCollected) * 100) : 0;
                             let color = 'var(--primary)';
-                            if (c.id === 'REQ-ESCANDON') color = 'var(--success)';
-                            if (c.id === 'REQ-PROGRESO') color = 'var(--warning)';
+                            if (method.includes('Tarjeta')) color = 'var(--primary)';
+                            else if (method.includes('Transferencia')) color = 'var(--success)';
+                            else if (method.includes('Bitcoin')) color = 'var(--warning)';
+                            else color = 'var(--text-muted)';
+                            
                             return `
                                 <div>
-                                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.25rem;">
-                                        <span><strong>${c.nombre}</strong> (${c.plan})</span>
-                                        <span>$${(c.precio_mensual || 75.00).toFixed(2)}/mes (${share.toFixed(0)}%)</span>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:0.25rem;">
+                                        <span style="font-weight:600; color:var(--text-primary);"><i class="fa-solid fa-money-bill-transfer" style="margin-right:0.4rem; color:${color};"></i> ${method}</span>
+                                        <span><strong>$${amount.toFixed(2)}</strong> (${pct.toFixed(0)}%)</span>
                                     </div>
                                     <div style="height:6px; background:var(--border-color); border-radius:3px; overflow:hidden;">
-                                        <div style="width:${share}%; height:100%; background:${color}; border-radius:3px;"></div>
+                                        <div style="width:${pct}%; height:100%; background:${color}; border-radius:3px;"></div>
                                     </div>
                                 </div>
                             `;
                         }).join('')}
                     </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPlansCouponsTab() {
+        const plans = db.saas_plans || [];
+        const coupons = db.saas_coupons || [];
+
+        if (window.saasAddPlanForm || window.saasEditPlanId) {
+            const isEdit = !!window.saasEditPlanId;
+            const plan = isEdit ? plans.find(p => p.id === window.saasEditPlanId) : {
+                id: 'plan-' + Date.now(),
+                nombre: '',
+                precio: 0,
+                descripcion: '',
+                max_usuarios: 5,
+                features: []
+            };
+
+            if (isEdit && !plan) {
+                window.saasCloseForm();
+                return '';
+            }
+
+            return `
+                <div class="glass-card" style="padding:2rem; max-width:600px; margin:0 auto;">
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; margin-bottom:1.5rem; color:var(--text-primary); border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        ${isEdit ? 'Editar Plan de Suscripción' : 'Agregar Nuevo Plan de Suscripción'}
+                    </h3>
+                    <form id="saas-plan-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                        <div class="form-group">
+                            <label>Nombre del Plan</label>
+                            <input type="text" id="plan-form-nombre" required value="${plan.nombre}" placeholder="Ej: Standard" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Precio Mensual ($ USD)</label>
+                                <input type="number" step="0.01" id="plan-form-precio" required value="${plan.precio}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Límite de Usuarios</label>
+                                <input type="number" id="plan-form-users" required value="${plan.max_usuarios}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción Corta</label>
+                            <input type="text" id="plan-form-desc" required value="${plan.descripcion}" placeholder="Resumen del plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Características (Una por línea o separadas por comas)</label>
+                            <textarea id="plan-form-features" rows="4" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; font-family:sans-serif;" placeholder="Gestión de inventario&#10;Facturación electrónica&#10;Soporte básico">${(plan.features || []).join('\n')}</textarea>
+                        </div>
+                        
+                        <div style="display:flex; gap:1rem; margin-top:1rem;">
+                            <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Plan</button>
+                            <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        if (window.saasAddCouponForm) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return `
+                <div class="glass-card" style="padding:2rem; max-width:600px; margin:0 auto;">
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; margin-bottom:1.5rem; color:var(--text-primary); border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        Crear Nuevo Cupón de Descuento
+                    </h3>
+                    <form id="saas-coupon-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Código del Cupón (Mayúsculas)</label>
+                                <input type="text" id="coupon-form-codigo" required placeholder="Ej: PROMO50" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-transform:uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <label>Tipo de Descuento</label>
+                                <select id="coupon-form-tipo" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                                    <option value="porcentaje">Porcentaje (%)</option>
+                                    <option value="fijo">Cantidad Fija ($ USD)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Valor del Descuento</label>
+                                <input type="number" step="0.01" id="coupon-form-valor" required placeholder="50 o 15" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Expiración</label>
+                                <input type="date" id="coupon-form-expiry" required value="${todayStr}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción para el Cliente</label>
+                            <input type="text" id="coupon-form-desc" required placeholder="Ej: 50% de descuento en el primer mes" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem;">
+                            <input type="checkbox" id="coupon-form-active" checked style="width:20px; height:20px;">
+                            <label for="coupon-form-active" style="margin:0; cursor:pointer;">Cupón Activo e Habilitado</label>
+                        </div>
+                        
+                        <div style="display:flex; gap:1rem; margin-top:1rem;">
+                            <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Cupón</button>
+                            <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        // Default view: list of plans and coupons
+        return `
+            <div style="display:flex; flex-direction:column; gap:2.5rem;">
+                <!-- Catalog Section -->
+                <div class="glass-card" style="padding:2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;"><i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> Planes de Suscripción Oficiales</h3>
+                        <button id="btn-add-saas-plan" class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Crear Nuevo Plan</button>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
+                        ${plans.map(p => `
+                            <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; border-color: rgba(255,255,255,0.08);">
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.2rem; color:var(--text-primary); margin:0;">Plan ${p.nombre}</h4>
+                                        <strong style="font-size:1.25rem; color:var(--primary);">$${p.precio}/mes</strong>
+                                    </div>
+                                    <p style="color:var(--text-secondary); font-size:0.8rem; line-height:1.5; margin-bottom:1rem;">${p.descripcion}</p>
+                                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem;">Máximo: <strong>${p.max_usuarios} usuarios</strong></div>
+                                    
+                                    <div style="font-size:0.8rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:0.4rem; border-top:1px solid var(--border-color); padding-top:1rem; margin-bottom:1.5rem;">
+                                        ${(p.features || []).map(f => `<div><i class="fa-solid fa-check" style="color:var(--success); margin-right:0.4rem;"></i> ${f}</div>`).join('')}
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <button class="btn btn-secondary btn-edit-saas-plan" data-id="${p.id}" style="flex:1; padding:0.4rem; font-size:0.75rem;"><i class="fa-solid fa-pencil"></i> Editar</button>
+                                    <button class="btn btn-secondary btn-delete-saas-plan" data-id="${p.id}" style="flex:1; padding:0.4rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-trash"></i> Eliminar</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Coupons Section -->
+                <div class="glass-card" style="padding:2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;"><i class="fa-solid fa-ticket" style="color:var(--success);"></i> Cupones de Descuento y Promociones</h3>
+                        <button id="btn-add-saas-coupon" class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Crear Cupón</button>
+                    </div>
+
+                    ${coupons.length === 0 ? `
+                        <div style="text-align:center; padding:2rem; color:var(--text-secondary);">
+                            <p>No se han registrado cupones comerciales.</p>
+                        </div>
+                    ` : `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Tipo Descuento</th>
+                                        <th>Valor</th>
+                                        <th>Descripción</th>
+                                        <th>Expiración</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${coupons.map(c => {
+                                        let badgeColor = c.activo ? 'badge-success' : 'badge-danger';
+                                        let isExpired = Date.parse(c.expiracion) < Date.now();
+                                        if (isExpired) {
+                                            badgeColor = 'badge-warning';
+                                        }
+                                        return `
+                                            <tr>
+                                                <td><strong style="color:var(--primary); font-family:monospace; font-size:1.05rem; letter-spacing:0.05em;">${c.codigo}</strong></td>
+                                                <td>${c.tipo === 'porcentaje' ? 'Porcentaje (%)' : 'Fijo ($ USD)'}</td>
+                                                <td><strong>${c.tipo === 'porcentaje' ? c.valor + '%' : '$' + c.valor.toFixed(2)}</strong></td>
+                                                <td><small>${c.descripcion}</small></td>
+                                                <td>
+                                                    <span style="${isExpired ? 'color:var(--danger); font-weight:bold;' : ''}">${new Date(c.expiracion + 'T00:00:00').toLocaleDateString()}</span>
+                                                    ${isExpired ? '<br><small style="color:var(--danger); font-size:0.75rem;">EXPIRADO</small>' : ''}
+                                                </td>
+                                                <td><span class="badge-tag ${badgeColor}">${isExpired ? 'EXPIRADO' : (c.activo ? 'ACTIVO' : 'INACTIVO')}</span></td>
+                                                <td>
+                                                    <div style="display:flex; gap:0.5rem;">
+                                                        <button class="btn btn-secondary btn-toggle-saas-coupon" data-id="${c.codigo}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:${c.activo ? 'var(--warning)' : 'var(--success)'}; border-color:${c.activo ? 'var(--warning)' : 'var(--success)'};">
+                                                            ${c.activo ? 'Desactivar' : 'Activar'}
+                                                        </button>
+                                                        <button class="btn btn-secondary btn-delete-saas-coupon" data-id="${c.codigo}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-trash-can"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
                 </div>
             </div>
         `;
