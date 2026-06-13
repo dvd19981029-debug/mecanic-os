@@ -8534,48 +8534,11 @@ function renderConfiguracion(container) {
         modal.classList.add('active');
     }
 
-    function calculateElSalvadorPayroll(baseSalary, extraBonuses = 0) {
-        const totalGravado = baseSalary + extraBonuses;
-        const isssEmployee = Math.min(totalGravado, 1000) * 0.03;
-        const afpEmployee = totalGravado * 0.0725;
-        const rentBase = totalGravado - isssEmployee - afpEmployee;
-        
-        let isr = 0;
-        if (rentBase > 2038.10) {
-            isr = (rentBase - 2038.10) * 0.30 + 288.57;
-        } else if (rentBase > 895.24) {
-            isr = (rentBase - 895.24) * 0.20 + 60.00;
-        } else if (rentBase > 472.00) {
-            isr = (rentBase - 472.00) * 0.10 + 17.67;
-        }
-        
-        const totalDeductions = isssEmployee + afpEmployee + isr;
-        const netSalary = totalGravado - totalDeductions;
-        
-        const isssEmployer = Math.min(totalGravado, 1000) * 0.075;
-        const afpEmployer = totalGravado * 0.0875;
-        const insaforp = totalGravado >= 1000 ? totalGravado * 0.01 : 0;
-        const employerCost = totalGravado + isssEmployer + afpEmployer + insaforp;
-        
-        return {
-            totalGravado,
-            isssEmployee,
-            afpEmployee,
-            isr,
-            totalDeductions,
-            netSalary,
-            isssEmployer,
-            afpEmployer,
-            insaforp,
-            employerCost
-        };
-    }
-
     function openPayrollCalculation(tech, initialBonos = 0) {
         const payrollContent = document.getElementById('payroll-content');
         
         function updateCalcView(sal, bonos) {
-            const calc = calculateElSalvadorPayroll(sal, bonos);
+            const calc = calculateElSalvadorPeriodPayroll(sal, bonos, 'M');
             payrollContent.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:1.25rem; margin-top:1rem;">
                     <div>
