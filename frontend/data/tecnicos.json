@@ -1,0 +1,20 @@
+[
+  {
+    "Tecnico_ID": "TEC-CS-181025-100910",
+    "Nombre_Completo": "David Antonio Mejía Ramirez",
+    "Email": "ventas@forbiddensoluciones.com",
+    "Telefono": 781506164,
+    "Nivel_Acceso": "Administrador",
+    "Contraseña": "Admin123"
+  },
+  {
+    "Tecnico_ID": "TEC-CS-151225-083151",
+    "Nombre_Completo": "Johny Javier Muñoz",
+    "Email": "jjmunoz923@gmail.com",
+    "Telefono": "7625 0906",
+    "Especialidad": "Mecánico",
+    "Nivel_Acceso": "Administrador",
+    "Estado_Laboral": "Activo",
+    "Contraseña": "1234"
+  }
+]

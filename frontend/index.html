@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mecanic OS - Gestión de Taller y Facturación Electrónica</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body class="dark-theme">
+    <!-- App Container -->
+    <div class="app-container">
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="app-sidebar">
+            <button id="mobile-menu-close" class="icon-btn mobile-only-btn" style="display: none; align-self: flex-end; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer; margin-bottom: 0.5rem;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-gears logo-icon"></i>
+                    <span class="logo-text">Mecanic<span>OS</span></span>
+                </div>
+                <span class="brand-tag">Grupo Gema</span>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <div class="menu-section">Operaciones</div>
+                <a href="#taller-dashboard" class="menu-item active" data-route="taller-dashboard">
+                    <i class="fa-solid fa-gauge-high"></i> Panel Taller
+                </a>
+                <a href="#clientes-vehiculos" class="menu-item" data-route="clientes-vehiculos">
+                    <i class="fa-solid fa-users-gear"></i> Clientes y Autos
+                </a>
+                <a href="#revision-21" class="menu-item" data-route="revision-21">
+                    <i class="fa-solid fa-clipboard-check"></i> Hoja 21 Puntos
+                </a>
+                <a href="#presupuestos" class="menu-item" data-route="presupuestos">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Presupuestos
+                </a>
+                <a href="#kanban" class="menu-item" data-route="kanban">
+                    <i class="fa-solid fa-cubes-stacked"></i> Control Taller (Kanban)
+                </a>
+
+                <div class="menu-section">Finanzas y Caja</div>
+                <a href="#facturador" class="menu-item" data-route="facturador">
+                    <i class="fa-solid fa-wallet"></i> Facturar DTE
+                </a>
+                <a href="#venta-rapida" class="menu-item" data-route="venta-rapida">
+                    <i class="fa-solid fa-cart-shopping"></i> Venta Rápida (POS)
+                </a>
+                <a href="#cuentas-cobrar" class="menu-item" data-route="cuentas-cobrar">
+                    <i class="fa-solid fa-hand-holding-dollar"></i> Cuentas por Cobrar
+                </a>
+
+                <div class="menu-section">Administración</div>
+                <a href="#inventario" class="menu-item" data-route="inventario">
+                    <i class="fa-solid fa-boxes-stacked"></i> Inventario / Kárdex
+                </a>
+                <a href="#gastos" class="menu-item" data-route="gastos">
+                    <i class="fa-solid fa-receipt"></i> Gastos y Compras
+                </a>
+                <a href="#planilla" class="menu-item" data-route="planilla">
+                    <i class="fa-solid fa-calculator"></i> Planillas y Salarios
+                </a>
+                <a href="#dashboard-bi" class="menu-item" data-route="dashboard-bi">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard BI
+                </a>
+                <a href="#configuracion" class="menu-item" data-route="configuracion">
+                    <i class="fa-solid fa-sliders"></i> Ajustes / Catálogos
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <img id="current-user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100" alt="Avatar" class="avatar">
+                    <div class="user-info">
+                        <span id="current-user-name" class="user-name">David Mejía</span>
+                        <span id="current-user-role" class="user-role">Administrador</span>
+                    </div>
+                </div>
+                <button id="user-switch-btn" class="icon-btn" title="Cambiar de Usuario">
+                    <i class="fa-solid fa-user-gear"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="top-header">
+                <div class="header-left" style="display: flex; align-items: center;">
+                    <button id="mobile-menu-toggle" class="icon-btn mobile-only-btn" style="display: none; margin-right: 1rem; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer;">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1 id="view-title" style="margin: 0; font-size: 1.5rem; line-height: 1.2;">Panel de Control de Taller</h1>
+                        <span id="view-subtitle" class="subtitle">Visión general y accesos rápidos</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="status-indicator online">
+                        <span class="dot"></span>
+                        <span class="label">MH El Salvador Conectado (DTE)</span>
+                    </div>
+                    <div class="date-time" id="live-clock">
+                        12 Jun, 2026 10:56 PM
+                    </div>
+                    <div class="notifications-bell">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="badge" id="alert-badge">3</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Rendered Dynamic Views -->
+            <div id="view-container" class="view-container">
+                <!-- Views will be dynamically injected here by app.js -->
+                <div class="loading-spinner">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Cargando Mecanic OS...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Switch User Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>Cambiar Perfil de Usuario</h2>
+                <button class="close-modal-btn" id="close-user-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Selecciona el perfil activo para simular los permisos y vistas correspondientes:</p>
+                <div class="users-grid" id="users-selection-grid">
+                    <!-- Loaded dynamically from tecnicos.json -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Message / Toast Notification -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "mecanic-os",
+  "version": "1.0.0",
+  "description": "Premium Workshop & Electronic Invoicing Management System",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "workshop",
+    "mecanic",
+    "dte",
+    "el-salvador",
+    "billing"
+  ],
+  "author": "Mecanic OS Team",
+  "license": "ISC"
+}

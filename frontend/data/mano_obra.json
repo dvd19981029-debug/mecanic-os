@@ -1,0 +1,178 @@
+[
+  {
+    "ID_ManoObra": 320001,
+    "Descripcion": "Mecanica Varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45917.91645833333,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320002,
+    "Descripcion": "Soldadura varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45930.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320003,
+    "Descripcion": "Electricidad Varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45941.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320004,
+    "Descripcion": "Lavado Varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45953.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320005,
+    "Descripcion": "Tornos Varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45968.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320006,
+    "Descripcion": "Enderezado varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 45979.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320007,
+    "Descripcion": "Servicios varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 0,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46005.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": 320250,
+    "Descripcion": "Desmontaje varios",
+    "Categoria": "MO001",
+    "PrecioUnitario": 6.07,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "NO",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46114.84508101852,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-134041",
+    "Descripcion": "Cambio de aceite y filtros",
+    "Categoria": "MO004",
+    "PrecioUnitario": 20,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "NO",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.569918981484,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-134406",
+    "Descripcion": "Cambio de soporte de cardan",
+    "Categoria": "MO001",
+    "PrecioUnitario": 45,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.572291666664,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-134651",
+    "Descripcion": "Cambio de fricciones",
+    "Categoria": "MO006",
+    "PrecioUnitario": 25,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.57420138889,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-135023",
+    "Descripcion": "Cambio de sello de bufa",
+    "Categoria": "MO001",
+    "PrecioUnitario": 45,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.57665509259,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-135059",
+    "Descripcion": "Cambio de sello de masa",
+    "Categoria": "Direccion",
+    "PrecioUnitario": 45,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.57707175926,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-135701",
+    "Descripcion": "Cambio de cruceta",
+    "Categoria": "Carroceria",
+    "PrecioUnitario": 35,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.58126157407,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-151225-135830",
+    "Descripcion": "Cambio de soportes de motor traseros",
+    "Categoria": "Carroceria",
+    "PrecioUnitario": 60,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46006.582291666666,
+    "Estado": "Activo"
+  },
+  {
+    "ID_ManoObra": "MO-CS-301225-173603",
+    "Descripcion": "CAMBIO DE INYECTORES",
+    "Categoria": "MOTOR",
+    "PrecioUnitario": 80,
+    "UnidadMedida": "Servicio",
+    "PrecioEditable": "SI",
+    "AplicaIVA": "SI",
+    "FechaCreacion": 46021.73336805555,
+    "Estado": "Activo"
+  }
+]
