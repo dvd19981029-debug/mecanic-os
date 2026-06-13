@@ -3601,12 +3601,7 @@ function initDatabase() {
     if (!localStorage.getItem('mecanic_os_pos_cart')) {
         localStorage.setItem('mecanic_os_pos_cart', JSON.stringify([]));
     }
-    if (!localStorage.getItem('mecanic_os_active_user')) {
-        // Default to first technician
-        const db = getDatabase();
-        const defaultUser = db.tecnicos && db.tecnicos.length > 0 ? db.tecnicos[0] : { Nombre_Completo: "David Mejía", Nivel_Acceso: "Administrador", Foto_Perfil: "" };
-        localStorage.setItem('mecanic_os_active_user', JSON.stringify(defaultUser));
-    }
+
     if (!localStorage.getItem('mecanic_os_dte_config')) {
         localStorage.setItem('mecanic_os_dte_config', JSON.stringify({
             apiKey: '',
@@ -4232,11 +4227,15 @@ function generateUUID() {
 }
 
 function getActiveUser() {
-    return JSON.parse(localStorage.getItem('mecanic_os_active_user'));
+    return JSON.parse(sessionStorage.getItem('mecanic_os_active_user'));
 }
 
 function setActiveUser(user) {
-    localStorage.setItem('mecanic_os_active_user', JSON.stringify(user));
+    if (user) {
+        sessionStorage.setItem('mecanic_os_active_user', JSON.stringify(user));
+    } else {
+        sessionStorage.removeItem('mecanic_os_active_user');
+    }
     updateUserUI();
 }
 
@@ -4381,7 +4380,8 @@ const routes = {
     'registro': renderRegistroSaaS,
     'admin-solicitudes': renderAdminSolicitudes,
     'terminos': renderTerminosSaaS,
-    'suspended': renderSuspendedSaaS
+    'suspended': renderSuspendedSaaS,
+    'lock-screen': renderLockScreen
 };
 
 function handleRouting() {
@@ -4396,6 +4396,11 @@ function handleRouting() {
             db.saas_state.status = 'suspended';
             saveDatabase(db);
         }
+    }
+    
+    // Force Lock Screen if active workshop but no employee session
+    if (saas.status === 'active' && !getActiveUser()) {
+        window.location.hash = 'lock-screen';
     }
     
     let hash = window.location.hash.substring(1);
@@ -4476,7 +4481,7 @@ function handleRouting() {
         }
     }
     
-    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended'].includes(routeName);
+    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen'].includes(routeName);
     const sidebarEl = document.getElementById('app-sidebar');
     const headerEl = document.querySelector('.top-header');
     const appContainer = document.querySelector('.app-container');
@@ -7979,7 +7984,7 @@ function renderConfiguracion(container) {
     document.querySelectorAll('.btn-delete-tecnico').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');
-            const activeUser = JSON.parse(localStorage.getItem('mecanic_os_active_user'));
+            const activeUser = getActiveUser();
             if (activeUser && activeUser.Tecnico_ID === id) {
                 showToast("No puedes eliminar al usuario activo", "warning");
                 return;
@@ -9511,6 +9516,119 @@ function renderLanding(container) {
         });
     }
 }
+
+function renderLockScreen(container) {
+    const db = getDatabase();
+    const saas = db.saas_state || {};
+    const workshop = saas.workshopData || { nombre: 'Mecanic OS', logoText: 'MecanicOS', logoTagline: 'Gestión de Taller' };
+    
+    // Clear any previous active user just in case
+    sessionStorage.removeItem('mecanic_os_active_user');
+
+    function showProfiles() {
+        container.innerHTML = `
+            <div style="max-width: 800px; margin: 4rem auto; padding: 2.5rem; text-align: center;">
+                <div style="margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="font-size: 3rem; color: var(--primary);"><i class="fa-solid fa-gears"></i></div>
+                    <h1 style="font-family:'Outfit', sans-serif; font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">${workshop.nombre}</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">${workshop.logoTagline || 'Control de Acceso de Empleados'}</p>
+                </div>
+                
+                <h2 style="font-family:'Outfit', sans-serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 2rem; color: var(--text-primary);">Selecciona tu Perfil de Empleado</h2>
+                
+                <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; justify-content: center; max-width: 650px; margin: 0 auto;">
+                    ${db.tecnicos.map(t => {
+                        const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
+                        return `
+                            <div class="user-card lock-profile-card" data-id="${t.Codigo_Cliente || t.Nombre_Completo}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
+                                <img src="${avatar}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
+                                <div style="text-align: center;">
+                                    <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">${t.Nombre_Completo}</strong>
+                                    <small style="color: var(--text-secondary); font-size: 0.75rem;">${t.Nivel_Acceso}</small>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+
+        const cards = container.querySelectorAll('.lock-profile-card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.borderColor = 'var(--primary)';
+                card.style.background = 'var(--bg-card-hover)';
+                card.style.transform = 'translateY(-3px)';
+                card.style.boxShadow = '0 8px 16px rgba(0,0,0,0.2)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.borderColor = 'var(--border-color)';
+                card.style.background = 'var(--bg-card)';
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            });
+            card.addEventListener('click', () => {
+                const techId = card.getAttribute('data-id');
+                const selectedTech = db.tecnicos.find(t => (t.Codigo_Cliente || t.Nombre_Completo) === techId);
+                if (selectedTech) {
+                    showPasscodeForm(selectedTech);
+                }
+            });
+        });
+    }
+
+    function showPasscodeForm(tech) {
+        const avatar = tech.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
+        container.innerHTML = `
+            <div style="max-width: 450px; margin: 6rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <img src="${avatar}" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); margin-bottom: 1rem; box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);">
+                    <h2 style="margin: 0; font-family:'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${tech.Nombre_Completo}</h2>
+                    <span style="color: var(--text-secondary); font-size: 0.85rem;">${tech.Nivel_Acceso}</span>
+                </div>
+                
+                <form id="lock-passcode-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <div class="form-group">
+                        <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Contraseña de Acceso</label>
+                        <input type="password" id="lock-user-password" required placeholder="Ingresa tu contraseña" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-lock-back" style="flex: 1; padding: 0.75rem;"><i class="fa-solid fa-arrow-left"></i> Cambiar Perfil</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 0.75rem;"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        setTimeout(() => {
+            const input = document.getElementById('lock-user-password');
+            if (input) input.focus();
+        }, 100);
+
+        document.getElementById('btn-lock-back').addEventListener('click', showProfiles);
+
+        document.getElementById('lock-passcode-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const enteredPass = document.getElementById('lock-user-password').value;
+            const realPass = tech.Contraseña || '';
+            
+            if (enteredPass === realPass) {
+                setActiveUser(tech);
+                showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
+                window.location.hash = 'taller-dashboard';
+                handleRouting();
+            } else {
+                showToast("Contraseña de empleado incorrecta", "error");
+                const pwdInput = document.getElementById('lock-user-password');
+                if (pwdInput) {
+                    pwdInput.value = '';
+                    pwdInput.focus();
+                }
+            }
+        });
+    }
+
+    showProfiles();
 }
 
 function renderRegistroSaaS(container) {
@@ -10678,7 +10796,7 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                 Bonos: []
             };
             db.tecnicos.push(newTech);
-            localStorage.setItem('mecanic_os_active_user', JSON.stringify(newTech));
+            setActiveUser(newTech);
         }
         
         saveDatabase(db);
