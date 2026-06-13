@@ -1102,6 +1102,7 @@ tr:hover td {
     flex-direction: column;
     gap: 1.25rem;
     height: 100%;
+    min-height: 0;
 }
 
 .pos-products-grid {
@@ -1155,6 +1156,7 @@ tr:hover td {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
 }
 
 .pos-cart-items {
