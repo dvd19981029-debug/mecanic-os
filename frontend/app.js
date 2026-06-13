@@ -717,11 +717,6 @@ const routes = {
 };
 
 function handleRouting() {
-    let currentHash = window.location.hash.substring(1).split('?')[0];
-    if (currentHash === 'admin-solicitudes') {
-        window.location.hash = 'landing';
-        return;
-    }
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
     
@@ -754,7 +749,7 @@ function handleRouting() {
     }
     
     // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
-    const publicSaasRoutes = ['landing', 'registro', 'terminos', 'suspended', 'lock-screen'];
+    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen'];
     
     // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
     if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
@@ -819,7 +814,7 @@ function handleRouting() {
         }
     }
     
-    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'suspended', 'lock-screen'].includes(routeName);
+    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen'].includes(routeName);
     const sidebarEl = document.getElementById('app-sidebar');
     const headerEl = document.querySelector('.top-header');
     const appContainer = document.querySelector('.app-container');
@@ -6659,6 +6654,10 @@ function renderSuspendedSaaS(container) {
 }
 
 function renderAdminSolicitudes(container) {
+    if (sessionStorage.getItem('mecanic_os_saas_admin_auth') !== 'true') {
+        renderSaaSAdminLogin(container);
+        return;
+    }
     const db = getDatabase();
     const solicitudes = db.solicitudes_registro || [];
     const payments = db.saas_payments || [];
@@ -7987,5 +7986,47 @@ function updateNotifications() {
                 });
             });
         }
+    }
+}
+
+
+function renderSaaSAdminLogin(container) {
+    container.innerHTML = `
+        <div style="max-width: 450px; margin: 8rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center;">
+            <div style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h2 style="font-family:'Outfit', sans-serif; font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">Super Administrador SaaS</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem;">Ingresa la contraseña maestra para acceder a la consola central de Mecanic OS</p>
+            
+            <form id="saas-admin-login-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group" style="text-align: left;">
+                    <label>Contraseña Maestra</label>
+                    <input type="password" id="saas-admin-pass" required placeholder="••••••••" style="padding: 0.75rem; font-size: 1rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 0.8rem; font-size: 1rem; font-weight: 600; margin-top: 0.5rem;"><i class="fa-solid fa-right-to-bracket"></i> Ingresar a la Consola</button>
+                <a href="#landing" style="color: var(--text-secondary); font-size: 0.85rem; text-decoration: none; margin-top: 0.5rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Inicio</a>
+            </form>
+        </div>
+    `;
+
+    const form = document.getElementById('saas-admin-login-form');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const pass = document.getElementById('saas-admin-pass').value;
+            if (pass === 'SuperAdminOS') {
+                sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
+                showToast("Acceso concedido como Super Administrador", "success");
+                renderAdminSolicitudes(container);
+            } else {
+                showToast("Contraseña incorrecta", "error");
+                const passInput = document.getElementById('saas-admin-pass');
+                if (passInput) {
+                    passInput.value = '';
+                    passInput.focus();
+                }
+            }
+        });
     }
 }
