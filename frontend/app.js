@@ -2194,7 +2194,7 @@ const DEFAULT_DATABASE = {
       "ID_Vehiculo": "VEHICULO-CS-151225-070607",
       "Placas": "P 115598",
       "Kilometraje": "625,000  KM",
-      "Estado": 4,
+      "Estado": 3,
       "% Impuesto": 0.13,
       "AplicaPercepcion": 0,
       "AplicaRetencion": 0,
@@ -2710,7 +2710,7 @@ const DEFAULT_DATABASE = {
       "Categoría Contribuyente": "OTROS",
       "ID_Vehiculo": "VEHICULO-CS-150126-085557",
       "Placas": "C134716",
-      "Estado": 4,
+      "Estado": 3,
       "% Impuesto": 0.13,
       "AplicaPercepcion": 0,
       "AplicaRetencion": 0,
@@ -3513,7 +3513,7 @@ const DEFAULT_DATABASE = {
       "ID_Vehiculo": "VEHICULO-CS-020326-175426",
       "Placas": "C129928",
       "Kilometraje": "344970 km",
-      "Estado": 4,
+      "Estado": 3,
       "% Impuesto": 0.13,
       "AplicaPercepcion": 0,
       "AplicaRetencion": 0,
@@ -4648,7 +4648,7 @@ function renderTallerDashboard(container) {
                                 const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || { Placas: p.Placas || 'N/A' };
                                 const tech = db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
                                 let statusBadge = '';
-                                if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Diagnóstico</span>';
+                                if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
                                 else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
                                 else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
                                 else statusBadge = '<span class="badge-tag badge-success">En Espera</span>';
@@ -5028,7 +5028,7 @@ function renderClientesVehiculos(container, queryParams) {
                             ? '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin presupuestos previos</td></tr>'
                             : clientBudgets.map(p => {
                                 let statusBadge = '';
-                                if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Diagnóstico</span>';
+                                if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
                                 else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
                                 else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
                                 return `
@@ -5497,10 +5497,13 @@ function renderPresupuestos(container, queryParams) {
 
         filtered.forEach(p => {
             let statusBadge = '';
-            if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Diagnóstico</span>';
+            if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
             else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
             else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
             else statusBadge = '<span class="badge-tag badge-success">En Espera</span>';
+            
+            const isFacturado = p.Estado == 3;
+            const actionText = isFacturado ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
             
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -5513,7 +5516,7 @@ function renderPresupuestos(container, queryParams) {
                 <td><small>${p.controlNumber || 'Sin Emitir (Pendiente)'}</small></td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-edit"></i> Editar</a>
+                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                     </div>
                 </td>
@@ -5546,6 +5549,8 @@ function renderPresupuestos(container, queryParams) {
 function renderBudgetEditor(container, budget) {
     const db = getDatabase();
     const isNew = (budget === null);
+    const activeUser = getActiveUser();
+    const isAdmin = activeUser && (activeUser.Nivel_Acceso === 'Administrador');
     
     if (isNew) {
         budget = {
@@ -5628,7 +5633,7 @@ function renderBudgetEditor(container, budget) {
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
-                        <select id="editor-tech-select" style="padding: 0.5rem;">
+                        <select id="editor-tech-select" style="padding: 0.5rem;" ${budget.Estado == 3 ? 'disabled' : ''}>
                             ${techsHTML}
                         </select>
                     </div>
@@ -5636,7 +5641,7 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
-                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;">
+                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${budget.Estado == 3 ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -5652,7 +5657,7 @@ function renderBudgetEditor(container, budget) {
                 <div class="glass-card" id="editor-products-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Repuestos y Refacciones</h3>
-                        <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
+                        <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
                     </div>
                     
                     <div class="item-row" style="background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
@@ -5673,7 +5678,7 @@ function renderBudgetEditor(container, budget) {
                 <div class="glass-card" id="editor-labor-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Mano de Obra y Servicios</h3>
-                        <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
+                        <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
                     </div>
                     
                     <div class="item-row" style="background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
@@ -5698,10 +5703,10 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Estado del Presupuesto</label>
-                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;">
-                        <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Diagnóstico / Iniciado</option>
-                        <option value="2" ${budget.Estado == 2 ? 'selected' : ''}>2 - Aprobado por Cliente</option>
-                        <option value="3" ${budget.Estado == 3 ? 'selected' : ''} disabled>3 - Facturado (Mod. Caja)</option>
+                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${budget.Estado == 3 ? 'disabled' : ''}>
+                        <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Creado</option>
+                        <option value="2" ${budget.Estado == 2 ? 'selected' : ''} ${!isAdmin ? 'disabled' : ''}>2 - Aprobado ${!isAdmin ? '(Solo Admin)' : ''}</option>
+                        <option value="3" ${budget.Estado == 3 ? 'selected' : ''} disabled>3 - Facturado</option>
                     </select>
                 </div>
                 
@@ -5718,8 +5723,15 @@ function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
+                ${budget.Estado == 3 ? `
+                <div style="background: rgba(46, 204, 113, 0.1); border: 1px solid var(--success); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Presupuesto facturado (Lectura).</span>
+                </div>
+                ` : ''}
+
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
-                    <button class="btn btn-primary" id="save-budget-btn"><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
+                    <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado == 3 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
                     <button class="btn btn-secondary" onclick="window.location.hash='#presupuestos'"><i class="fa-solid fa-arrow-left"></i> Volver a Lista</button>
@@ -5862,6 +5874,7 @@ function renderBudgetEditor(container, budget) {
     }
 
     function renderTempRows() {
+        const isLocked = budget.Estado == 3;
         productsContainer.innerHTML = '';
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
@@ -5869,10 +5882,10 @@ function renderBudgetEditor(container, budget) {
             row.innerHTML = `
                 <div><small class="text-muted">${item['ID_Producto DPP'] || 'PROD'}</small></div>
                 <div><strong>${item.Descripcion}</strong></div>
-                <div><input type="number" class="row-qty" data-type="product" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;"></div>
-                <div><input type="number" class="row-price" data-type="product" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px;"></div>
+                <div><input type="number" class="row-qty" data-type="product" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
+                <div><input type="number" class="row-price" data-type="product" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px;" ${isLocked ? 'disabled' : ''}></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
-                <div><button class="icon-btn btn-danger delete-row-btn" data-type="product" data-idx="${index}" style="width: 30px; height: 30px;"><i class="fa-solid fa-trash"></i></button></div>
+                <div><button class="icon-btn btn-danger delete-row-btn" data-type="product" data-idx="${index}" style="width: 30px; height: 30px;" ${isLocked ? 'disabled style="opacity: 0.4; pointer-events: none;"' : ''}><i class="fa-solid fa-trash"></i></button></div>
             `;
             productsContainer.appendChild(row);
         });
@@ -5884,10 +5897,10 @@ function renderBudgetEditor(container, budget) {
             row.innerHTML = `
                 <div><small class="text-muted">${item.ID_ManoObra || 'MO'}</small></div>
                 <div><strong>${item.Descripcion}</strong></div>
-                <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;"></div>
-                <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px;"></div>
+                <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
+                <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px;" ${isLocked ? 'disabled' : ''}></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
-                <div><button class="icon-btn btn-danger delete-row-btn" data-type="labor" data-idx="${index}" style="width: 30px; height: 30px;"><i class="fa-solid fa-trash"></i></button></div>
+                <div><button class="icon-btn btn-danger delete-row-btn" data-type="labor" data-idx="${index}" style="width: 30px; height: 30px;" ${isLocked ? 'disabled style="opacity: 0.4; pointer-events: none;"' : ''}><i class="fa-solid fa-trash"></i></button></div>
             `;
             laborContainer.appendChild(row);
         });
