@@ -10372,6 +10372,13 @@ document.addEventListener('DOMContentLoaded', () => {
     userSwitchBtn.addEventListener('click', () => {
         const db = getDatabase();
         usersSelectionGrid.innerHTML = '';
+        usersSelectionGrid.style.display = 'grid';
+        
+        const introPara = userModal.querySelector('.modal-body > p');
+        if (introPara) introPara.style.display = 'block';
+        
+        const existingForm = document.getElementById('switcher-password-form');
+        if (existingForm) existingForm.remove();
         
         db.tecnicos.forEach(t => {
             const card = document.createElement('div');
@@ -10387,12 +10394,78 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             card.addEventListener('click', () => {
-                setActiveUser(t);
-                userModal.classList.remove('active');
-                showToast(`Sesión simulada como ${t.Nombre_Completo.split(' ')[0]}`, "success");
+                // Hide user grid and intro text
+                usersSelectionGrid.style.display = 'none';
+                if (introPara) introPara.style.display = 'none';
                 
-                // Reload current view with the new user context
-                handleRouting();
+                // Remove any existing password form
+                const currentForm = document.getElementById('switcher-password-form');
+                if (currentForm) currentForm.remove();
+                
+                // Create password form
+                const passForm = document.createElement('form');
+                passForm.id = 'switcher-password-form';
+                passForm.style.display = 'flex';
+                passForm.style.flexDirection = 'column';
+                passForm.style.gap = '1rem';
+                passForm.style.marginTop = '1rem';
+                passForm.style.background = 'rgba(255,255,255,0.02)';
+                passForm.style.padding = '1.25rem';
+                passForm.style.borderRadius = '8px';
+                passForm.style.border = '1px solid rgba(255,255,255,0.08)';
+                
+                passForm.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 0.5rem;">
+                        <img src="${avatar}" class="avatar" style="width: 60px; height: 60px; margin-bottom: 0.5rem; border-radius: 50%;">
+                        <h3 style="margin: 0; font-size: 1.1rem;">${t.Nombre_Completo}</h3>
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">${t.Nivel_Acceso}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña de Acceso</label>
+                        <input type="password" id="switcher-user-password" required placeholder="Ingresa tu contraseña" style="padding: 0.6rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-user-switch" style="padding: 0.5rem 1rem;">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Confirmar Acceso</button>
+                    </div>
+                `;
+                
+                userModal.querySelector('.modal-body').appendChild(passForm);
+                
+                // Focus on password input
+                setTimeout(() => {
+                    const pwdInput = document.getElementById('switcher-user-password');
+                    if (pwdInput) pwdInput.focus();
+                }, 100);
+                
+                // Cancel button listener
+                document.getElementById('btn-cancel-user-switch').addEventListener('click', () => {
+                    passForm.remove();
+                    usersSelectionGrid.style.display = 'grid';
+                    if (introPara) introPara.style.display = 'block';
+                });
+                
+                // Form submit listener
+                passForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const enteredPass = document.getElementById('switcher-user-password').value;
+                    const realPass = t.Contraseña || '';
+                    
+                    if (enteredPass === realPass) {
+                        setActiveUser(t);
+                        passForm.remove();
+                        userModal.classList.remove('active');
+                        showToast(`Sesión activa como ${t.Nombre_Completo.split(' ')[0]}`, "success");
+                        handleRouting();
+                    } else {
+                        showToast("Contraseña de empleado incorrecta", "error");
+                        const pwdInput = document.getElementById('switcher-user-password');
+                        if (pwdInput) {
+                            pwdInput.value = '';
+                            pwdInput.focus();
+                        }
+                    }
+                });
             });
             
             usersSelectionGrid.appendChild(card);
