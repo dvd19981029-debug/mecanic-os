@@ -6386,8 +6386,35 @@ function renderLockScreen(container) {
                         `;
                     }).join('')}
                 </div>
+                
+                <div style="margin-top: 3.5rem; display: flex; justify-content: center;">
+                    <button id="btn-lock-disconnect" class="btn btn-secondary" style="font-size: 0.85rem; border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);"><i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar Taller de esta PC</button>
+                </div>
             </div>
         `;
+
+        const disconnectBtn = container.querySelector('#btn-lock-disconnect');
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => {
+                if (confirm("¿Seguro que deseas desconectar este taller de este equipo? Se borrará el almacenamiento local y volverás al estado de Invitado.")) {
+                    db.saas_state = {
+                        status: 'guest',
+                        workshopData: null,
+                        termsSigned: false,
+                        signatureName: '',
+                        signedAt: null
+                    };
+                    db.config_taller = null;
+                    db.solicitudes_registro = [];
+                    db.saas_payments = [];
+                    saveDatabase(db);
+                    sessionStorage.removeItem('mecanic_os_active_user');
+                    showToast("Taller desconectado con éxito", "info");
+                    window.location.hash = 'landing';
+                    handleRouting();
+                }
+            });
+        }
 
         const cards = container.querySelectorAll('.lock-profile-card');
         cards.forEach(card => {
@@ -7812,4 +7839,15 @@ document.addEventListener('DOMContentLoaded', () => {
     closeUserModal.addEventListener('click', () => {
         userModal.classList.remove('active');
     });
+
+    const userLogoutBtn = document.getElementById('user-logout-btn');
+    if (userLogoutBtn) {
+        userLogoutBtn.addEventListener('click', () => {
+            if (confirm("¿Seguro que deseas cerrar la sesión actual y bloquear la pantalla?")) {
+                sessionStorage.removeItem('mecanic_os_active_user');
+                window.location.hash = 'lock-screen';
+                handleRouting();
+            }
+        });
+    }
 });
