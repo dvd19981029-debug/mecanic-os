@@ -6210,7 +6210,6 @@ function renderLanding(container) {
                     Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada.
                 </p>
                 <div style="display:flex; flex-direction:column; gap:1rem; align-items:center;">
-                    <a href="#admin-solicitudes" class="btn btn-primary" style="padding:0.75rem 1.5rem; text-decoration:none;"><i class="fa-solid fa-user-shield"></i> Simular Consola del Admin (Aprobar Solicitud)</a>
                     <button id="btn-reset-saas-guest" class="btn btn-secondary" style="font-size:0.85rem;"><i class="fa-solid fa-rotate-left"></i> Cancelar Solicitud y Volver a Intentar</button>
                 </div>
             </div>
@@ -7045,7 +7044,7 @@ function renderAdminSolicitudes(container) {
                 db.solicitudes_registro = [];
                 db.saas_payments = [];
                 saveDatabase(db);
-                showToast("Plataforma reiniciada a modo Invitado (Listo para simular)", "info");
+                showToast("Plataforma reiniciada a modo Invitado", "info");
                 window.location.hash = 'landing';
                 handleRouting();
             }
