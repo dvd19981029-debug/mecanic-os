@@ -709,13 +709,18 @@ const routes = {
     'planilla': renderPlanilla,
     'landing': renderLanding,
     'registro': renderRegistroSaaS,
-    'admin-solicitudes': renderAdminSolicitudes,
+    
     'terminos': renderTerminosSaaS,
     'suspended': renderSuspendedSaaS,
     'lock-screen': renderLockScreen
 };
 
 function handleRouting() {
+    let currentHash = window.location.hash.substring(1).split('?')[0];
+    if (currentHash === 'admin-solicitudes') {
+        window.location.hash = 'landing';
+        return;
+    }
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
     
@@ -748,7 +753,7 @@ function handleRouting() {
     }
     
     // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
-    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen'];
+    const publicSaasRoutes = ['landing', 'registro', 'terminos', 'suspended', 'lock-screen'];
     
     // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
     if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
@@ -762,17 +767,17 @@ function handleRouting() {
             return;
         }
     } else if (saas.status === 'pending') {
-        if (routeName !== 'landing' && routeName !== 'admin-solicitudes' && routeName !== 'registro') {
+        if (routeName !== 'landing'  && routeName !== 'registro') {
             window.location.hash = 'landing';
             return;
         }
     } else if (saas.status === 'approved_terms_pending') {
-        if (routeName !== 'terminos' && routeName !== 'admin-solicitudes') {
+        if (routeName !== 'terminos' ) {
             window.location.hash = 'terminos';
             return;
         }
     } else if (saas.status === 'suspended') {
-        if (routeName !== 'suspended' && routeName !== 'admin-solicitudes') {
+        if (routeName !== 'suspended' ) {
             window.location.hash = 'suspended';
             return;
         }
@@ -813,7 +818,7 @@ function handleRouting() {
         }
     }
     
-    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen'].includes(routeName);
+    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'suspended', 'lock-screen'].includes(routeName);
     const sidebarEl = document.getElementById('app-sidebar');
     const headerEl = document.querySelector('.top-header');
     const appContainer = document.querySelector('.app-container');
@@ -2821,7 +2826,7 @@ function renderFacturador(container, queryParams) {
             }
 
             saveDatabase(db);
-            showToast(resData.simulated ? "DTE Simulado Exitosamente" : "DTE Generado y Aprobado por MH El Salvador!", "success");
+            showToast("DTE Generado y Aprobado por MH El Salvador!", "success");
             
             const ws = getWorkshopConfig(db);
             
@@ -6231,7 +6236,6 @@ function renderLanding(container) {
         topButtonsHTML = `
             <div style="display:flex; gap:0.75rem; align-items:center;">
                 <a href="#taller-dashboard" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); padding:0.5rem 1.2rem; border-radius:50px;"><i class="fa-solid fa-right-to-bracket"></i> Acceder</a>
-                <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
             </div>
         `;
         
@@ -6245,7 +6249,6 @@ function renderLanding(container) {
         topButtonsHTML = `
             <div style="display:flex; gap:0.75rem; align-items:center;">
                 <button id="btn-landing-top-login" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
-                <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
             </div>
         `;
         
@@ -6253,7 +6256,6 @@ function renderLanding(container) {
             <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
                 <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
                 <button id="btn-landing-login" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</button>
-                <button id="btn-landing-demo" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; color:var(--cyan); border-color:var(--cyan); cursor:pointer;"><i class="fa-solid fa-desktop"></i> Probar Demo (Grupo Gema)</button>
             </div>
         `;
     }
@@ -6326,42 +6328,7 @@ function renderLanding(container) {
         });
     }
 
-    const demoBtn = document.getElementById('btn-landing-demo');
-    if (demoBtn) {
-        demoBtn.addEventListener('click', () => {
-            const currentDb = getDatabase();
-            currentDb.saas_state = {
-                status: 'active',
-                workshopData: {
-                    id: 'REQ-GEMA',
-                    nombre: 'GRUPO GEMA, S.A. DE C.V.',
-                    giro: 'Servicio de Mantenimiento al Transporte Terrestre',
-                    direccion: 'Carretera al Puerto de La Libertad, Km. 10.5, Santa Tecla',
-                    telefono: '2288-9900',
-                    correo: 'contacto@grupogemasv.com',
-                    nit: '0614-121285-101-5',
-                    nrc: '190562-4',
-                    logoText: 'GRUPO GEMA',
-                    logoTagline: 'Transporte & Mantenimiento Especializado',
-                    propietario: 'David Antonio Mejía Ramírez',
-                    pass: 'admin',
-                    status: 'aprobado',
-                    createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
-                    plan: 'Enterprise',
-                    precio_mensual: 120.00,
-                    suscripcion_status: 'activo',
-                    proximo_pago: Date.now() + 18 * 24 * 60 * 60 * 1000
-                },
-                termsSigned: true,
-                signatureName: 'David Antonio Mejía Ramírez',
-                signedAt: Date.now() - 59 * 24 * 60 * 60 * 1000
-            };
-            saveDatabase(currentDb);
-            showToast("Modo Demo activado para Grupo Gema.", "success");
-            window.location.hash = 'taller-dashboard';
-            handleRouting();
-        });
-    }
+
 
     const resetBtn = document.getElementById('btn-landing-reset');
     if (resetBtn) {
@@ -6588,7 +6555,7 @@ function renderRegistroSaaS(container) {
             logoTagline: 'Servicio Automotriz Especializado',
             propietario: document.getElementById('reg-prop-nombre').value,
             pass: document.getElementById('reg-prop-pass').value,
-            status: 'pendiente',
+            status: 'aprobado',
             createdAt: Date.now(),
             dte_config: {
                 apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
@@ -6601,7 +6568,7 @@ function renderRegistroSaaS(container) {
         
         db.solicitudes_registro.push(requestData);
         db.saas_state = {
-            status: 'pending',
+            status: 'approved_terms_pending',
             workshopData: requestData,
             termsSigned: false,
             signatureName: '',
@@ -6609,8 +6576,8 @@ function renderRegistroSaaS(container) {
         };
         
         saveDatabase(db);
-        showToast("Solicitud de registro enviada con éxito", "success");
-        window.location.hash = 'landing';
+        showToast("¡Taller registrado con éxito! Completa la firma de términos.", "success");
+        window.location.hash = 'terminos';
         handleRouting();
     });
 }
@@ -6650,11 +6617,7 @@ function renderSuspendedSaaS(container) {
                 o llama al <strong>7815-0614</strong>.
             </p>
             
-            <div style="display: flex; flex-direction: column; gap: 1rem; align-items: center;">
-                <a href="#admin-solicitudes" class="btn btn-primary" style="padding: 0.75rem 1.5rem; text-decoration: none; background: var(--primary);">
-                    <i class="fa-solid fa-user-shield"></i> Consola del Administrador (Simular Pago y Reactivar)
-                </a>
-            </div>
+            <!-- El administrador se pondrá en contacto para reactivar la suscripción -->
         </div>
     `;
 }
