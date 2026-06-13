@@ -4398,14 +4398,9 @@ function handleRouting() {
         }
     }
     
-    // Force Lock Screen if active workshop but no employee session
-    if (saas.status === 'active' && !getActiveUser()) {
-        window.location.hash = 'lock-screen';
-    }
-    
     let hash = window.location.hash.substring(1);
     if (!hash) {
-        hash = (saas.status === 'active') ? 'taller-dashboard' : 'landing';
+        hash = 'landing';
     }
     
     // Handle parameterized routes (e.g. #presupuestos?id=XXX)
@@ -4421,8 +4416,14 @@ function handleRouting() {
         });
     }
     
-    // Rutas públicas y de onboarding
-    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended'];
+    // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
+    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen'];
+    
+    // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
+    if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
+        window.location.hash = 'lock-screen';
+        return;
+    }
     
     if (saas.status === 'guest') {
         if (!publicSaasRoutes.includes(routeName)) {
@@ -9403,6 +9404,41 @@ function renderLanding(container) {
         });
         return;
     }
+
+    let actionButtonsHTML = '';
+    let topButtonsHTML = '';
+    
+    if (saas.status === 'active') {
+        const workshopName = saas.workshopData ? saas.workshopData.nombre : 'Mi Taller';
+        topButtonsHTML = `
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <a href="#taller-dashboard" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); padding:0.5rem 1.2rem; border-radius:50px;"><i class="fa-solid fa-right-to-bracket"></i> Acceder</a>
+                <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
+            </div>
+        `;
+        
+        actionButtonsHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:1.25rem; margin-top:2rem;">
+                <a href="#taller-dashboard" class="btn btn-primary" style="padding:1rem 2.5rem; font-size:1.15rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-right-to-bracket"></i> Ingresar a ${workshopName}</a>
+                <button id="btn-landing-reset" style="background:none; border:none; color:var(--text-secondary); text-decoration:underline; font-size:0.85rem; cursor:pointer; margin-top:0.5rem;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar taller / Usar otra cuenta</button>
+            </div>
+        `;
+    } else {
+        topButtonsHTML = `
+            <div style="display:flex; gap:0.75rem; align-items:center;">
+                <button id="btn-landing-top-login" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
+                <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
+            </div>
+        `;
+        
+        actionButtonsHTML = `
+            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
+                <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
+                <button id="btn-landing-login" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</button>
+                <button id="btn-landing-demo" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; color:var(--cyan); border-color:var(--cyan); cursor:pointer;"><i class="fa-solid fa-desktop"></i> Probar Demo (Grupo Gema)</button>
+            </div>
+        `;
+    }
     
     container.innerHTML = `
         <div class="landing-hero" style="position:relative; overflow:hidden; padding: 6rem 2rem; text-align:center; background: radial-gradient(circle at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%);">
@@ -9410,21 +9446,14 @@ function renderLanding(container) {
                 <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; color:var(--text-primary);">
                     <i class="fa-solid fa-gears logo-icon" style="color:var(--primary);"></i> Mecanic<span>OS</span>
                 </div>
-                <div style="display:flex; gap:0.75rem; align-items:center;">
-                    <button id="btn-landing-top-login" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
-                    <a href="#admin-solicitudes" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem; font-weight:600; background:rgba(255,255,255,0.05); padding:0.5rem 1rem; border-radius:50px; border:1px solid var(--border-color);"><i class="fa-solid fa-user-shield"></i> Consola Admin SaaS</a>
-                </div>
+                ${topButtonsHTML}
             </div>
             
             <h1 style="font-family:'Outfit', sans-serif; font-size:3.5rem; font-weight:800; line-height:1.15; max-width:800px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #fff 30%, var(--primary-glow) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">El Sistema Operativo Premium para tu Taller Automotriz</h1>
             <p style="color:var(--text-secondary); font-size:1.2rem; max-width:650px; margin: 0 auto 2.5rem auto; line-height:1.6;">
                 Mecanic OS automatiza tu taller de punta a punta: desde la recepción de vehículos con inspección digital hasta la facturación electrónica DTE (Ministerio de Hacienda) y la planilla de salarios.
             </p>
-            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
-                <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
-                <button id="btn-landing-login" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</button>
-                <button id="btn-landing-demo" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; color:var(--cyan); border-color:var(--cyan); cursor:pointer;"><i class="fa-solid fa-desktop"></i> Probar Demo (Grupo Gema)</button>
-            </div>
+            ${actionButtonsHTML}
         </div>
         
         <div style="max-width:1100px; margin:0 auto 6rem auto; padding:0 2rem;">
@@ -9433,7 +9462,7 @@ function renderLanding(container) {
                 <div class="glass-card" style="padding:2rem; border-radius:12px;">
                     <div style="font-size:2rem; color:var(--primary); margin-bottom:1rem;"><i class="fa-solid fa-clipboard-check"></i></div>
                     <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Recepción y Diagnóstico 21 Puntos</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Registra ingresos, kilometraje y evalúa el vehículo con un semáforo interactivo (Verde, Amarillo, Rojo) desde cualquier celular o tablet en el patio del taller.</p>
+                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Registra ingresos, kilometraje and evalúa el vehículo con un semáforo interactivo (Verde, Amarillo, Rojo) desde cualquier celular o tablet en el patio del taller.</p>
                 </div>
                 <div class="glass-card" style="padding:2rem; border-radius:12px;">
                     <div style="font-size:2rem; color:var(--success); margin-bottom:1rem;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
@@ -9513,6 +9542,29 @@ function renderLanding(container) {
             showToast("Modo Demo activado para Grupo Gema.", "success");
             window.location.hash = 'taller-dashboard';
             handleRouting();
+        });
+    }
+
+    const resetBtn = document.getElementById('btn-landing-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (confirm("¿Seguro que deseas desconectar este taller? Se eliminarán los datos locales de esta PC y volverás al estado de Invitado.")) {
+                db.saas_state = {
+                    status: 'guest',
+                    workshopData: null,
+                    termsSigned: false,
+                    signatureName: '',
+                    signedAt: null
+                };
+                db.config_taller = null;
+                db.solicitudes_registro = [];
+                db.saas_payments = [];
+                saveDatabase(db);
+                sessionStorage.removeItem('mecanic_os_active_user');
+                showToast("Taller desconectado con éxito", "info");
+                window.location.hash = 'landing';
+                handleRouting();
+            }
         });
     }
 }
