@@ -4362,6 +4362,7 @@ function showToast(message, type = 'primary') {
 }
 
 // SPA Routing System
+let activeConfigTab = 'taller';
 const routes = {
     'taller-dashboard': renderTallerDashboard,
     'clientes-vehiculos': renderClientesVehiculos,
@@ -7382,124 +7383,225 @@ function renderConfiguracion(container) {
 
     const ws = getWorkshopConfig(db);
 
-    container.innerHTML = `
-        <div class="view-split">
-            <div style="display:flex; flex-direction:column; gap:1.5rem;">
-                <div class="glass-card">
-                    <h3>Datos de la Empresa / Taller</h3>
-                    <form id="config-taller-form" style="margin-top:1rem; display:flex; flex-direction:column; gap:1.25rem;">
-                        <div class="form-group">
-                            <label>Nombre Legal / Comercial de la Empresa</label>
-                            <input type="text" id="cfg-taller-nombre" value="${ws.nombre || ''}" required style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>Giro / Actividad Económica</label>
-                            <input type="text" id="cfg-taller-giro" value="${ws.giro || ''}" required style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>Dirección Comercial Completa</label>
-                            <input type="text" id="cfg-taller-direccion" value="${ws.direccion || ''}" required style="padding:0.6rem;">
-                        </div>
-                        <div class="form-row">
+    // Initialize techs properties if missing
+    db.tecnicos.forEach(t => {
+        if (t.Salario_Base === undefined) {
+            t.Salario_Base = t.Tecnico_ID.includes('181025') ? 1200 : 750;
+        }
+        if (!t.Incapacidades) t.Incapacidades = [];
+        if (!t.Vacaciones) t.Vacaciones = [];
+        if (!t.Bonos) t.Bonos = [];
+    });
+
+    // Helper functions for layouts
+    function getTallerHtml() {
+        return `
+            <div class="view-split">
+                <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                    <div class="glass-card">
+                        <h3>Datos de la Empresa / Taller</h3>
+                        <form id="config-taller-form" style="margin-top:1rem; display:flex; flex-direction:column; gap:1.25rem;">
                             <div class="form-group">
-                                <label>Teléfono de Contacto</label>
-                                <input type="text" id="cfg-taller-telefono" value="${ws.telefono || ''}" required style="padding:0.6rem;">
+                                <label>Nombre Legal / Comercial de la Empresa</label>
+                                <input type="text" id="cfg-taller-nombre" value="${ws.nombre || ''}" required style="padding:0.6rem;">
                             </div>
                             <div class="form-group">
-                                <label>Correo Electrónico</label>
-                                <input type="email" id="cfg-taller-correo" value="${ws.correo || ''}" required style="padding:0.6rem;">
+                                <label>Giro / Actividad Económica</label>
+                                <input type="text" id="cfg-taller-giro" value="${ws.giro || ''}" required style="padding:0.6rem;">
                             </div>
+                            <div class="form-group">
+                                <label>Dirección Comercial Completa</label>
+                                <input type="text" id="cfg-taller-direccion" value="${ws.direccion || ''}" required style="padding:0.6rem;">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Teléfono de Contacto</label>
+                                    <input type="text" id="cfg-taller-telefono" value="${ws.telefono || ''}" required style="padding:0.6rem;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Correo Electrónico</label>
+                                    <input type="email" id="cfg-taller-correo" value="${ws.correo || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>NIT (Número de Identificación Tributaria)</label>
+                                    <input type="text" id="cfg-taller-nit" value="${ws.nit || ''}" required style="padding:0.6rem;">
+                                </div>
+                                <div class="form-group">
+                                    <label>NRC (Número de Registro de Contribuyente)</label>
+                                    <input type="text" id="cfg-taller-nrc" value="${ws.nrc || ''}" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Texto Corto para Logo (PDFs)</label>
+                                    <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: GRUPO GEMA" required style="padding:0.6rem;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Eslogan / Tagline Logo</label>
+                                    <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                    <div class="glass-card" id="card-roles-permisos">
+                        <h3 style="margin-bottom:0.75rem;"><i class="fa-solid fa-user-shield"></i> Gestión de Roles y Permisos</h3>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                            Personaliza los accesos a las diferentes vistas de la plataforma para cada rol. Los cambios se aplicarán de inmediato.
+                        </p>
+                        
+                        <div class="form-group" style="margin-bottom:1.25rem;">
+                            <label style="font-weight:600; margin-bottom:0.4rem; display:block;">Seleccionar Rol</label>
+                            <select id="permiso-rol-selector" style="padding:0.6rem; width:100%; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                                <!-- Options populated dynamically -->
+                            </select>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>NIT (Número de Identificación Tributaria)</label>
-                                <input type="text" id="cfg-taller-nit" value="${ws.nit || ''}" required style="padding:0.6rem;">
-                            </div>
-                            <div class="form-group">
-                                <label>NRC (Número de Registro de Contribuyente)</label>
-                                <input type="text" id="cfg-taller-nrc" value="${ws.nrc || ''}" required style="padding:0.6rem;">
-                            </div>
+
+                        <label style="font-weight:600; margin-bottom:0.6rem; display:block;">Vistas y Módulos Autorizados</label>
+                        <div id="permisos-checkboxes-container" style="display:flex; flex-direction:column; gap:0.6rem; max-height:280px; overflow-y:auto; padding-right:0.4rem; margin-bottom:1.25rem; border:1px solid rgba(255,255,255,0.05); padding:0.6rem; border-radius:6px; background:rgba(0,0,0,0.1);">
+                            <!-- Checkboxes populated dynamically -->
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Texto Corto para Logo (PDFs)</label>
-                                <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: GRUPO GEMA" required style="padding:0.6rem;">
-                            </div>
-                            <div class="form-group">
-                                <label>Eslogan / Tagline Logo</label>
-                                <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
-                    </form>
+
+                        <button type="button" class="btn btn-primary" id="btn-save-role-permissions" style="width:100%; justify-content:center;">
+                            <i class="fa-solid fa-circle-check"></i> Guardar Permisos del Rol
+                        </button>
+                    </div>
                 </div>
             </div>
+        `;
+    }
 
-            <div style="display:flex; flex-direction:column; gap:1.5rem;">
-                <div class="glass-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                        <h3>Catálogo de Técnicos / Empleados</h3>
-                        <button class="btn btn-primary" id="btn-add-tecnico" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-user-plus"></i> Nuevo Empleado</button>
-                    </div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
+    function getEmpleadosHtml() {
+        return `
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3>Catálogo de Técnicos / Empleados</h3>
+                    <button class="btn btn-primary" id="btn-add-tecnico" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-user-plus"></i> Nuevo Empleado</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Especialidad</th>
+                                <th>Salario Base</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${db.tecnicos.map(t => `
                                 <tr>
-                                    <th>Nombre</th>
-                                    <th>Especialidad</th>
-                                    <th>Salario Base</th>
-                                    <th>Acción</th>
+                                    <td><strong>${t.Nombre_Completo}</strong></td>
+                                    <td>${t.Especialidad || 'Mecánico General'}</td>
+                                    <td>$ ${parseFloat(t.Salario_Base).toFixed(2)}</td>
+                                    <td>
+                                        <div style="display:flex; gap:0.35rem;">
+                                            <button class="btn btn-secondary btn-payroll" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-calculator"></i> Planilla</button>
+                                            <button class="btn btn-secondary btn-expediente" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-folder-open"></i> Expediente</button>
+                                            <button class="btn btn-secondary btn-edit-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                                            <button class="btn btn-secondary btn-delete-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${db.tecnicos.map(t => {
-                                    if (t.Salario_Base === undefined) {
-                                        t.Salario_Base = t.Tecnico_ID.includes('181025') ? 1200 : 750;
-                                    }
-                                    return `
-                                        <tr>
-                                            <td><strong>${t.Nombre_Completo}</strong></td>
-                                            <td>${t.Especialidad || 'Mecánico General'}</td>
-                                            <td>$ ${parseFloat(t.Salario_Base).toFixed(2)}</td>
-                                            <td>
-                                                <div style="display:flex; gap:0.35rem;">
-                                                    <button class="btn btn-secondary btn-payroll" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-calculator"></i> Planilla</button>
-                                                    <button class="btn btn-secondary btn-expediente" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-folder-open"></i> Expediente</button>
-                                                    <button class="btn btn-secondary btn-edit-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-                                                    <button class="btn btn-secondary btn-delete-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="glass-card" id="card-roles-permisos">
-                    <h3 style="margin-bottom:0.75rem;"><i class="fa-solid fa-user-shield"></i> Gestión de Roles y Permisos</h3>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.25rem;">
-                        Personaliza los accesos a las diferentes vistas de la plataforma para cada rol. Los cambios se aplicarán de inmediato.
-                    </p>
-                    
-                    <div class="form-group" style="margin-bottom:1.25rem;">
-                        <label style="font-weight:600; margin-bottom:0.4rem; display:block;">Seleccionar Rol</label>
-                        <select id="permiso-rol-selector" style="padding:0.6rem; width:100%; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                    </div>
-
-                    <label style="font-weight:600; margin-bottom:0.6rem; display:block;">Vistas y Módulos Autorizados</label>
-                    <div id="permisos-checkboxes-container" style="display:flex; flex-direction:column; gap:0.6rem; max-height:280px; overflow-y:auto; padding-right:0.4rem; margin-bottom:1.25rem; border:1px solid rgba(255,255,255,0.05); padding:0.6rem; border-radius:6px; background:rgba(0,0,0,0.1);">
-                        <!-- Checkboxes will be populated dynamically -->
-                    </div>
-
-                    <button type="button" class="btn btn-primary" id="btn-save-role-permissions" style="width:100%; justify-content:center;">
-                        <i class="fa-solid fa-circle-check"></i> Guardar Permisos del Rol
-                    </button>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        `;
+    }
+
+    function getProductosHtml() {
+        return `
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h3>Catálogo de Repuestos y Productos</h3>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Administra el catálogo maestro de repuestos para presupuestos y POS.</p>
+                    </div>
+                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="search-productos-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:280px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        <button class="btn btn-primary" id="btn-add-producto"><i class="fa-solid fa-plus"></i> Nuevo Producto</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th>Presentación</th>
+                                <th style="text-align:right;">Precio Neto</th>
+                                <th style="text-align:right;">Precio c/IVA</th>
+                                <th style="text-align:center;">Stock Mín.</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productos-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    function getServiciosHtml() {
+        return `
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h3>Catálogo de Servicios y Mano de Obra</h3>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Define los servicios técnicos base y sus tarifas por defecto.</p>
+                    </div>
+                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="search-servicios-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:280px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        <button class="btn btn-primary" id="btn-add-servicio"><i class="fa-solid fa-plus"></i> Nuevo Servicio</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Servicio</th>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>U. Medida</th>
+                                <th style="text-align:right;">Precio Base</th>
+                                <th style="text-align:center;">Precio Editable</th>
+                                <th style="text-align:center;">Aplica IVA</th>
+                                <th style="text-align:center;">Estado</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servicios-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // Render outer structure
+    container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+            <div class="saas-tabs-container" style="margin-bottom: 0.5rem;">
+                <button class="saas-tab-btn ${activeConfigTab === 'taller' ? 'active' : ''}" data-tab="taller"><i class="fa-solid fa-sliders"></i> Taller y Roles</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'empleados' ? 'active' : ''}" data-tab="empleados"><i class="fa-solid fa-users-gear"></i> Empleados</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'productos' ? 'active' : ''}" data-tab="productos"><i class="fa-solid fa-boxes-stacked"></i> Repuestos / Productos</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'servicios' ? 'active' : ''}" data-tab="servicios"><i class="fa-solid fa-screwdriver-wrench"></i> Servicios / Mano de Obra</button>
+            </div>
+            
+            <div id="config-tab-content-area">
+                <!-- Tab specific HTML goes here -->
+            </div>
+        </div>
 
         <!-- Payroll Modal -->
         <div id="payroll-modal" class="modal">
@@ -7581,39 +7683,117 @@ function renderConfiguracion(container) {
                 </form>
             </div>
         </div>
+
+        <!-- Producto Modal -->
+        <div id="producto-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 id="producto-modal-title">Registrar Producto / Repuesto</h2>
+                    <button class="close-modal-btn" id="close-producto-modal">&times;</button>
+                </div>
+                <form id="producto-form" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                    <input type="hidden" id="producto-id">
+                    <div class="form-group">
+                        <label>Descripción / Nombre del Repuesto</label>
+                        <input type="text" id="producto-descripcion" required placeholder="Ej. Balatas delanteras">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio Venta ($ Sin IVA)</label>
+                            <input type="number" id="producto-precio-venta" required min="0" step="0.01" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Precio Venta con IVA (13% Auto)</label>
+                            <input type="text" id="producto-precio-iva" readonly style="background:rgba(255,255,255,0.05); color:var(--text-muted); padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Stock Mínimo</label>
+                            <input type="number" id="producto-minimos" required min="0" step="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Presentación / Tipo Unidad</label>
+                            <input type="text" id="producto-presentacion" required value="Unidad" placeholder="Ej. Unidad, Galón, Litro">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-producto">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Servicio Modal -->
+        <div id="servicio-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 id="servicio-modal-title">Registrar Servicio / Mano de Obra</h2>
+                    <button class="close-modal-btn" id="close-servicio-modal">&times;</button>
+                </div>
+                <form id="servicio-form" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                    <input type="hidden" id="servicio-id">
+                    <div class="form-group">
+                        <label>Descripción del Servicio</label>
+                        <input type="text" id="servicio-descripcion" required placeholder="Ej. Cambio de Aceite">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio Unitario ($ Sin IVA)</label>
+                            <input type="number" id="servicio-precio" required min="0" step="0.01" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Unidad de Medida</label>
+                            <select id="servicio-unidad" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="Servicio">Servicio</option>
+                                <option value="Hora">Hora</option>
+                                <option value="Día">Día</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <select id="servicio-categoria" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="MO001">Mecánica General</option>
+                                <option value="MO002">Electricidad</option>
+                                <option value="MO003">Enderezado y Pintura</option>
+                                <option value="MO004">Otros Servicios</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Precio Editable en Presupuestos?</label>
+                            <select id="servicio-editable" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="SI">Sí</option>
+                                <option value="NO">No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Aplica IVA?</label>
+                            <select id="servicio-iva" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="SI">Sí</option>
+                                <option value="NO">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select id="servicio-estado" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-servicio">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
-
-    // Initialize techs properties if missing
-    db.tecnicos.forEach(t => {
-        if (t.Salario_Base === undefined) {
-            t.Salario_Base = t.Tecnico_ID.includes('181025') ? 1200 : 750;
-        }
-        if (!t.Incapacidades) t.Incapacidades = [];
-        if (!t.Vacaciones) t.Vacaciones = [];
-        if (!t.Bonos) t.Bonos = [];
-    });
-
-    const configTallerForm = document.getElementById('config-taller-form');
-    if (configTallerForm) {
-        configTallerForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            db.config_taller = {
-                nombre: document.getElementById('cfg-taller-nombre').value,
-                giro: document.getElementById('cfg-taller-giro').value,
-                direccion: document.getElementById('cfg-taller-direccion').value,
-                telefono: document.getElementById('cfg-taller-telefono').value,
-                correo: document.getElementById('cfg-taller-correo').value,
-                nit: document.getElementById('cfg-taller-nit').value,
-                nrc: document.getElementById('cfg-taller-nrc').value,
-                logoText: document.getElementById('cfg-taller-logotext').value,
-                logoTagline: document.getElementById('cfg-taller-tagline').value
-            };
-            saveDatabase(db);
-            showToast("Datos de la empresa y branding de documentos actualizados", "success");
-            updateSidebarBrand();
-            renderConfiguracion(container);
-        });
-    }
 
     // Modal Close Triggers
     document.getElementById('close-payroll-modal').addEventListener('click', () => {
@@ -7623,7 +7803,737 @@ function renderConfiguracion(container) {
         document.getElementById('expediente-modal').classList.remove('active');
     });
 
-    // Payroll Calculator Logic
+    // Setup active tab listeners
+    const tabContentArea = document.getElementById('config-tab-content-area');
+    
+    // Bind tabs switcher
+    container.querySelectorAll('.saas-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeConfigTab = btn.getAttribute('data-tab');
+            renderConfiguracion(container);
+        });
+    });
+
+    // Populate Tab Content
+    if (activeConfigTab === 'taller') {
+        tabContentArea.innerHTML = getTallerHtml();
+        
+        // Bind Taller Form
+        const configTallerForm = document.getElementById('config-taller-form');
+        if (configTallerForm) {
+            configTallerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                db.config_taller = {
+                    nombre: document.getElementById('cfg-taller-nombre').value,
+                    giro: document.getElementById('cfg-taller-giro').value,
+                    direccion: document.getElementById('cfg-taller-direccion').value,
+                    telefono: document.getElementById('cfg-taller-telefono').value,
+                    correo: document.getElementById('cfg-taller-correo').value,
+                    nit: document.getElementById('cfg-taller-nit').value,
+                    nrc: document.getElementById('cfg-taller-nrc').value,
+                    logoText: document.getElementById('cfg-taller-logotext').value,
+                    logoTagline: document.getElementById('cfg-taller-tagline').value
+                };
+                saveDatabase(db);
+                showToast("Datos de la empresa y branding de documentos actualizados", "success");
+                updateSidebarBrand();
+                renderConfiguracion(container);
+            });
+        }
+
+        // Roles & Permisos Logic
+        const rolSelector = document.getElementById('permiso-rol-selector');
+        const checkboxesContainer = document.getElementById('permisos-checkboxes-container');
+        const btnSavePermissions = document.getElementById('btn-save-role-permissions');
+
+        const appViewsConfig = [
+            { route: 'taller-dashboard', label: 'Panel Taller', icon: 'fa-solid fa-gauge-high' },
+            { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
+            { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
+            { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
+            { route: 'kanban', label: 'Control Taller (Kanban)', icon: 'fa-solid fa-cubes-stacked' },
+            { route: 'facturador', label: 'Facturar DTE', icon: 'fa-solid fa-wallet' },
+            { route: 'venta-rapida', label: 'Venta Rápida (POS)', icon: 'fa-solid fa-cart-shopping' },
+            { route: 'cuentas-cobrar', label: 'Cuentas por Cobrar', icon: 'fa-solid fa-hand-holding-dollar' },
+            { route: 'inventario', label: 'Inventario / Kárdex', icon: 'fa-solid fa-boxes-stacked' },
+            { route: 'gastos', label: 'Gastos y Compras', icon: 'fa-solid fa-receipt' },
+            { route: 'planilla', label: 'Planillas y Salarios', icon: 'fa-solid fa-calculator' },
+            { route: 'dashboard-bi', label: 'Dashboard BI', icon: 'fa-solid fa-chart-line' },
+            { route: 'configuracion', label: 'Ajustes / Catálogos', icon: 'fa-solid fa-sliders' }
+        ];
+
+        if (rolSelector && checkboxesContainer && btnSavePermissions) {
+            const uniqueRoles = Array.from(new Set([
+                'Administrador',
+                'Técnico',
+                'Recepcionista',
+                ...(db.tecnicos || []).map(t => t.Nivel_Acceso).filter(Boolean)
+            ]));
+
+            rolSelector.innerHTML = uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+
+            const renderCheckboxes = (role) => {
+                let allowed = [];
+                if (db.role_permissions && db.role_permissions[role]) {
+                    allowed = db.role_permissions[role];
+                } else {
+                    if (role === "Administrador") {
+                        allowed = appViewsConfig.map(v => v.route);
+                    } else if (role === "Recepcionista") {
+                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "venta-rapida", "cuentas-cobrar"];
+                    } else {
+                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                    }
+                }
+
+                checkboxesContainer.innerHTML = appViewsConfig.map(view => {
+                    const isChecked = allowed.includes(view.route) ? 'checked' : '';
+                    const isForcedAdminSetting = (role === 'Administrador' && view.route === 'configuracion') ? 'disabled checked' : '';
+                    return `
+                        <div class="permission-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="${view.icon}" style="color: var(--primary); width: 20px; text-align: center;"></i>
+                                <div>
+                                    <span style="font-weight: 500; font-size: 0.85rem; color:var(--text-primary);">${view.label}</span>
+                                    <small style="display: block; color: var(--text-muted); font-size: 0.7rem;">${view.route}</small>
+                                </div>
+                            </div>
+                            <input type="checkbox" class="permission-checkbox" data-route="${view.route}" ${isChecked} ${isForcedAdminSetting} style="width: 20px; height: 20px; cursor: pointer;">
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            const initialRole = rolSelector.value;
+            if (initialRole) renderCheckboxes(initialRole);
+
+            rolSelector.addEventListener('change', (e) => {
+                renderCheckboxes(e.target.value);
+            });
+
+            btnSavePermissions.addEventListener('click', () => {
+                const currentDb = getDatabase();
+                const selectedRole = rolSelector.value;
+                const checkboxes = checkboxesContainer.querySelectorAll('.permission-checkbox');
+                const selectedRoutes = [];
+                
+                checkboxes.forEach(cb => {
+                    if (cb.checked) {
+                        selectedRoutes.push(cb.getAttribute('data-route'));
+                    }
+                });
+
+                if (selectedRole === 'Administrador') {
+                    if (!selectedRoutes.includes('configuracion')) selectedRoutes.push('configuracion');
+                    if (!selectedRoutes.includes('taller-dashboard')) selectedRoutes.push('taller-dashboard');
+                }
+
+                currentDb.role_permissions = currentDb.role_permissions || {};
+                currentDb.role_permissions[selectedRole] = selectedRoutes;
+                saveDatabase(currentDb);
+                showToast(`Permisos para el rol "${selectedRole}" guardados y sincronizados.`, "success");
+                
+                updateUserUI();
+
+                const activeUser = getActiveUser();
+                if (activeUser && (activeUser.Nivel_Acceso || "Mecánico") === selectedRole) {
+                    const hash = window.location.hash.substring(1);
+                    let currentRoute = hash.split('?')[0] || 'taller-dashboard';
+                    if (!selectedRoutes.includes(currentRoute)) {
+                        const fallback = selectedRoutes.includes('taller-dashboard') ? 'taller-dashboard' : (selectedRoutes[0] || 'taller-dashboard');
+                        window.location.hash = fallback;
+                    }
+                }
+            });
+        }
+    } else if (activeConfigTab === 'empleados') {
+        tabContentArea.innerHTML = getEmpleadosHtml();
+
+        // Bind Payroll & Expediente buttons
+        document.querySelectorAll('.btn-payroll').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const t = db.tecnicos.find(x => x.Tecnico_ID === id);
+                const sumBonos = (t.Bonos || []).reduce((sum, b) => sum + parseFloat(b.Monto || 0), 0);
+                openPayrollCalculation(t, sumBonos);
+            });
+        });
+
+        document.querySelectorAll('.btn-expediente').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const t = db.tecnicos.find(x => x.Tecnico_ID === id);
+                openExpedienteModal(t);
+            });
+        });
+
+        // Edit Employee button
+        document.querySelectorAll('.btn-edit-tecnico').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const t = db.tecnicos.find(x => x.Tecnico_ID === id);
+                if (t) {
+                    document.getElementById('tecnico-modal-title').textContent = 'Editar Empleado';
+                    document.getElementById('tecnico-id').value = t.Tecnico_ID;
+                    document.getElementById('tecnico-nombre').value = t.Nombre_Completo || '';
+                    document.getElementById('tecnico-email').value = t.Email || '';
+                    document.getElementById('tecnico-telefono').value = t.Telefono || '';
+                    document.getElementById('tecnico-especialidad').value = t.Especialidad || 'Mecánico General';
+                    document.getElementById('tecnico-acceso').value = t.Nivel_Acceso || 'Técnico';
+                    document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
+                    document.getElementById('tecnico-pass').value = t.Contraseña || '1234';
+                    document.getElementById('tecnico-modal').classList.add('active');
+                }
+            });
+        });
+
+        // Delete Employee button
+        document.querySelectorAll('.btn-delete-tecnico').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const activeUser = getActiveUser();
+                if (activeUser && activeUser.Tecnico_ID === id) {
+                    showToast("No puedes eliminar al usuario activo", "warning");
+                    return;
+                }
+                if (confirm("¿Está seguro de que desea eliminar a este empleado del catálogo?")) {
+                    const currentDb = getDatabase();
+                    currentDb.tecnicos = currentDb.tecnicos.filter(x => x.Tecnico_ID !== id);
+                    saveDatabase(currentDb);
+                    showToast("Empleado eliminado del catálogo", "success");
+                    renderConfiguracion(container);
+                }
+            });
+        });
+
+        // Add Employee button
+        document.getElementById('btn-add-tecnico').addEventListener('click', () => {
+            document.getElementById('tecnico-modal-title').textContent = 'Registrar Empleado';
+            document.getElementById('tecnico-id').value = '';
+            document.getElementById('tecnico-nombre').value = '';
+            document.getElementById('tecnico-email').value = '';
+            document.getElementById('tecnico-telefono').value = '';
+            document.getElementById('tecnico-especialidad').value = 'Mecánico General';
+            document.getElementById('tecnico-acceso').value = 'Técnico';
+            document.getElementById('tecnico-salario').value = '365';
+            document.getElementById('tecnico-pass').value = '1234';
+            document.getElementById('tecnico-modal').classList.add('active');
+        });
+
+        // Bind Employee Form Submit
+        const tecnicoForm = document.getElementById('tecnico-form');
+        tecnicoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('tecnico-id').value;
+            const nombre = document.getElementById('tecnico-nombre').value;
+            const email = document.getElementById('tecnico-email').value;
+            const telefono = document.getElementById('tecnico-telefono').value;
+            const especialidad = document.getElementById('tecnico-especialidad').value;
+            const acceso = document.getElementById('tecnico-acceso').value;
+            const salario = parseFloat(document.getElementById('tecnico-salario').value || 365);
+            const pass = document.getElementById('tecnico-pass').value;
+            
+            const currentDb = getDatabase();
+            if (id) {
+                const t = currentDb.tecnicos.find(x => x.Tecnico_ID === id);
+                if (t) {
+                    t.Nombre_Completo = nombre;
+                    t.Email = email;
+                    t.Telefono = telefono;
+                    t.Especialidad = especialidad;
+                    t.Nivel_Acceso = acceso;
+                    t.Salario_Base = salario;
+                    t.Contraseña = pass;
+                }
+                showToast("Datos de empleado actualizados", "success");
+            } else {
+                const newId = `TEC-CS-${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Math.floor(100000 + Math.random() * 900000)}`;
+                currentDb.tecnicos.push({
+                    Tecnico_ID: newId,
+                    Nombre_Completo: nombre,
+                    Email: email,
+                    Telefono: telefono,
+                    Especialidad: especialidad,
+                    Nivel_Acceso: acceso,
+                    Salario_Base: salario,
+                    Contraseña: pass,
+                    Incapacidades: [],
+                    Vacaciones: [],
+                    Bonos: []
+                });
+                showToast("Nuevo empleado registrado con éxito", "success");
+            }
+            saveDatabase(currentDb);
+            document.getElementById('tecnico-modal').classList.remove('active');
+            renderConfiguracion(container);
+        });
+
+        // Bind Cancel and Close triggers for employee modal
+        const closeTecnicoModal = () => {
+            document.getElementById('tecnico-modal').classList.remove('active');
+        };
+        document.getElementById('close-tecnico-modal').addEventListener('click', closeTecnicoModal);
+        document.getElementById('btn-cancel-tecnico').addEventListener('click', closeTecnicoModal);
+
+    } else if (activeConfigTab === 'productos') {
+        tabContentArea.innerHTML = getProductosHtml();
+        const tableBody = document.getElementById('productos-table-body');
+        const searchInput = document.getElementById('search-productos-input');
+
+        function populateProductos(filterText = '') {
+            tableBody.innerHTML = '';
+            const filtered = db.productos.filter(p => 
+                (p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            // Display top 50 matches for performance
+            const limit = filtered.slice(0, 50);
+
+            if (limit.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
+                return;
+            }
+
+            limit.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><small style="color:var(--text-muted); font-family:monospace;">${p['ID_ Producto']}</small></td>
+                    <td><strong>${p.Descripcion}</strong></td>
+                    <td>${p.Presentacion || 'Unidad'}</td>
+                    <td style="text-align:right;">$ ${parseFloat(p['Precio Venta'] || 0).toFixed(2)}</td>
+                    <td style="text-align:right; color:var(--cyan);">$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || (p['Precio Venta'] * 1.13) || 0).toFixed(2)}</td>
+                    <td style="text-align:center;">${p.Minimos || 1}</td>
+                    <td style="text-align:center;">
+                        <div style="display:flex; gap:0.35rem; justify-content:center;">
+                            <button class="btn btn-secondary btn-edit-producto" data-id="${p['ID_ Producto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-secondary btn-delete-producto" data-id="${p['ID_ Producto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Bind edits
+            tableBody.querySelectorAll('.btn-edit-producto').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const p = db.productos.find(x => x['ID_ Producto'] === id);
+                    if (p) {
+                        document.getElementById('producto-modal-title').textContent = 'Editar Producto / Repuesto';
+                        document.getElementById('producto-id').value = p['ID_ Producto'];
+                        document.getElementById('producto-descripcion').value = p.Descripcion || '';
+                        document.getElementById('producto-precio-venta').value = p['Precio Venta'] || 0;
+                        document.getElementById('producto-minimos').value = p.Minimos || 1;
+                        document.getElementById('producto-presentacion').value = p.Presentacion || 'Unidad';
+                        
+                        // Set Iva Inc
+                        document.getElementById('producto-precio-iva').value = '$ ' + parseFloat((p['Precio Venta'] || 0) * 1.13).toFixed(2);
+                        
+                        document.getElementById('producto-modal').classList.add('active');
+                    }
+                });
+            });
+
+            // Bind deletes
+            tableBody.querySelectorAll('.btn-delete-producto').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    if (confirm(`¿Está seguro de que desea eliminar el producto "${id}" del catálogo?`)) {
+                        const currentDb = getDatabase();
+                        currentDb.productos = currentDb.productos.filter(x => x['ID_ Producto'] !== id);
+                        saveDatabase(currentDb);
+                        showToast("Producto eliminado del catálogo", "success");
+                        renderConfiguracion(container);
+                    }
+                });
+            });
+        }
+
+        // Init table
+        populateProductos();
+
+        // Search listener
+        searchInput.addEventListener('input', (e) => {
+            populateProductos(e.target.value);
+        });
+
+        // Add Product Trigger
+        document.getElementById('btn-add-producto').addEventListener('click', () => {
+            document.getElementById('producto-modal-title').textContent = 'Registrar Producto / Repuesto';
+            document.getElementById('producto-id').value = '';
+            document.getElementById('producto-descripcion').value = '';
+            document.getElementById('producto-precio-venta').value = '0.00';
+            document.getElementById('producto-minimos').value = '1';
+            document.getElementById('producto-presentacion').value = 'Unidad';
+            document.getElementById('producto-precio-iva').value = '$ 0.00';
+            document.getElementById('producto-modal').classList.add('active');
+        });
+
+        // Auto-calculate IVA in modal
+        const valInput = document.getElementById('producto-precio-venta');
+        const ivaInput = document.getElementById('producto-precio-iva');
+        valInput.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value || 0);
+            ivaInput.value = '$ ' + parseFloat(val * 1.13).toFixed(2);
+        });
+
+        // Bind Submit
+        const prodForm = document.getElementById('producto-form');
+        prodForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('producto-id').value;
+            const desc = document.getElementById('producto-descripcion').value;
+            const precio = parseFloat(document.getElementById('producto-precio-venta').value || 0);
+            const minimos = parseInt(document.getElementById('producto-minimos').value || 1);
+            const pres = document.getElementById('producto-presentacion').value || 'Unidad';
+
+            const currentDb = getDatabase();
+            if (id) {
+                // Edit
+                const p = currentDb.productos.find(x => x['ID_ Producto'] === id);
+                if (p) {
+                    p.Descripcion = desc;
+                    p['Precio Venta'] = precio;
+                    p['Precio Unit'] = precio;
+                    p['Precio Venta Unit Iva Inc'] = parseFloat((precio * 1.13).toFixed(2));
+                    p['Precio Unit Iva Inc'] = parseFloat((precio * 1.13).toFixed(2));
+                    p.Minimos = minimos;
+                    p.Presentacion = pres;
+                }
+                showToast("Producto actualizado en catálogo", "success");
+            } else {
+                // Add
+                const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+                const hhmmss = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
+                const newId = `PROD-CS-${yymmdd}-${hhmmss}`;
+                currentDb.productos.push({
+                    "ID_ Producto": newId,
+                    "Descripcion": desc,
+                    "Precio Venta": precio,
+                    "Precio Unit": precio,
+                    "Precio Venta Unit Iva Inc": parseFloat((precio * 1.13).toFixed(2)),
+                    "Precio Unit Iva Inc": parseFloat((precio * 1.13).toFixed(2)),
+                    "Minimos": minimos,
+                    "Presentacion": pres,
+                    "Categoría": "100101",
+                    "Margen": 0,
+                    "Descuento": "NO",
+                    "Usuario": getActiveUser() ? getActiveUser().Tecnico_ID : ''
+                });
+                showToast("Nuevo producto registrado con éxito", "success");
+            }
+            saveDatabase(currentDb);
+            document.getElementById('producto-modal').classList.remove('active');
+            renderConfiguracion(container);
+        });
+
+        // Close triggers
+        const closeProdModal = () => {
+            document.getElementById('producto-modal').classList.remove('active');
+        };
+        document.getElementById('close-producto-modal').addEventListener('click', closeProdModal);
+        document.getElementById('btn-cancel-producto').addEventListener('click', closeProdModal);
+
+    } else if (activeConfigTab === 'servicios') {
+        tabContentArea.innerHTML = getServiciosHtml();
+        const tableBody = document.getElementById('servicios-table-body');
+        const searchInput = document.getElementById('search-servicios-input');
+
+        function populateServicios(filterText = '') {
+            tableBody.innerHTML = '';
+            const filtered = db.mano_obra.filter(mo => 
+                (mo.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (mo.ID_ManoObra || '').toString().includes(filterText)
+            );
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron servicios de mano de obra</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(mo => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><small style="color:var(--text-muted); font-family:monospace;">${mo.ID_ManoObra}</small></td>
+                    <td><strong>${mo.Descripcion}</strong></td>
+                    <td>${mo.Categoria || 'MO001'}</td>
+                    <td>${mo.UnidadMedida || 'Servicio'}</td>
+                    <td style="text-align:right;">$ ${parseFloat(mo.PrecioUnitario || 0).toFixed(2)}</td>
+                    <td style="text-align:center;"><span class="badge ${mo.PrecioEditable === 'NO' ? 'badge-danger' : 'badge-success'}">${mo.PrecioEditable || 'SI'}</span></td>
+                    <td style="text-align:center;"><span class="badge ${mo.AplicaIVA === 'NO' ? 'badge-danger' : 'badge-success'}">${mo.AplicaIVA || 'SI'}</span></td>
+                    <td style="text-align:center;"><span class="badge ${mo.Estado === 'Inactivo' ? 'badge-danger' : 'badge-success'}">${mo.Estado || 'Activo'}</span></td>
+                    <td style="text-align:center;">
+                        <div style="display:flex; gap:0.35rem; justify-content:center;">
+                            <button class="btn btn-secondary btn-edit-servicio" data-id="${mo.ID_ManoObra}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-secondary btn-delete-servicio" data-id="${mo.ID_ManoObra}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Bind edits
+            tableBody.querySelectorAll('.btn-edit-servicio').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const mo = db.mano_obra.find(x => x.ID_ManoObra.toString() === id.toString());
+                    if (mo) {
+                        document.getElementById('servicio-modal-title').textContent = 'Editar Servicio / Mano de Obra';
+                        document.getElementById('servicio-id').value = mo.ID_ManoObra;
+                        document.getElementById('servicio-descripcion').value = mo.Descripcion || '';
+                        document.getElementById('servicio-precio').value = mo.PrecioUnitario || 0;
+                        document.getElementById('servicio-unidad').value = mo.UnidadMedida || 'Servicio';
+                        document.getElementById('servicio-categoria').value = mo.Categoria || 'MO001';
+                        document.getElementById('servicio-editable').value = mo.PrecioEditable || 'SI';
+                        document.getElementById('servicio-iva').value = mo.AplicaIVA || 'SI';
+                        document.getElementById('servicio-estado').value = mo.Estado || 'Activo';
+                        
+                        document.getElementById('servicio-modal').classList.add('active');
+                    }
+                });
+            });
+
+            // Bind deletes
+            tableBody.querySelectorAll('.btn-delete-servicio').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    if (confirm(`¿Está seguro de que desea eliminar el servicio "${id}" del catálogo?`)) {
+                        const currentDb = getDatabase();
+                        currentDb.mano_obra = currentDb.mano_obra.filter(x => x.ID_ManoObra.toString() !== id.toString());
+                        saveDatabase(currentDb);
+                        showToast("Servicio de mano de obra eliminado", "success");
+                        renderConfiguracion(container);
+                    }
+                });
+            });
+        }
+
+        // Init table
+        populateServicios();
+
+        // Search listener
+        searchInput.addEventListener('input', (e) => {
+            populateServicios(e.target.value);
+        });
+
+        // Add Servicio Trigger
+        document.getElementById('btn-add-servicio').addEventListener('click', () => {
+            document.getElementById('servicio-modal-title').textContent = 'Registrar Servicio / Mano de Obra';
+            document.getElementById('servicio-id').value = '';
+            document.getElementById('servicio-descripcion').value = '';
+            document.getElementById('servicio-precio').value = '0.00';
+            document.getElementById('servicio-unidad').value = 'Servicio';
+            document.getElementById('servicio-categoria').value = 'MO001';
+            document.getElementById('servicio-editable').value = 'SI';
+            document.getElementById('servicio-iva').value = 'SI';
+            document.getElementById('servicio-estado').value = 'Activo';
+            document.getElementById('servicio-modal').classList.add('active');
+        });
+
+        // Bind Submit
+        const servForm = document.getElementById('servicio-form');
+        servForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('servicio-id').value;
+            const desc = document.getElementById('servicio-descripcion').value;
+            const precio = parseFloat(document.getElementById('servicio-precio').value || 0);
+            const unidad = document.getElementById('servicio-unidad').value;
+            const cat = document.getElementById('servicio-categoria').value;
+            const editable = document.getElementById('servicio-editable').value;
+            const iva = document.getElementById('servicio-iva').value;
+            const estado = document.getElementById('servicio-estado').value;
+
+            const currentDb = getDatabase();
+            if (id) {
+                // Edit
+                const mo = currentDb.mano_obra.find(x => x.ID_ManoObra.toString() === id.toString());
+                if (mo) {
+                    mo.Descripcion = desc;
+                    mo.PrecioUnitario = precio;
+                    mo.UnidadMedida = unidad;
+                    mo.Categoria = cat;
+                    mo.PrecioEditable = editable;
+                    mo.AplicaIVA = iva;
+                    mo.Estado = estado;
+                }
+                showToast("Servicio de mano de obra actualizado", "success");
+            } else {
+                // Add
+                const nextId = currentDb.mano_obra.length > 0 ? Math.max(...currentDb.mano_obra.map(x => parseInt(x.ID_ManoObra) || 0)) + 1 : 320001;
+                currentDb.mano_obra.push({
+                    "ID_ManoObra": nextId,
+                    "Descripcion": desc,
+                    "PrecioUnitario": precio,
+                    "UnidadMedida": unidad,
+                    "Categoria": cat,
+                    "PrecioEditable": editable,
+                    "AplicaIVA": iva,
+                    "Estado": estado,
+                    "FechaCreacion": Date.now() / (1000 * 60 * 60 * 24) + 25569
+                });
+                showToast("Nuevo servicio de mano de obra registrado", "success");
+            }
+            saveDatabase(currentDb);
+            document.getElementById('servicio-modal').classList.remove('active');
+            renderConfiguracion(container);
+        });
+
+        // Close triggers
+        const closeServModal = () => {
+            document.getElementById('servicio-modal').classList.remove('active');
+        };
+        document.getElementById('close-servicio-modal').addEventListener('click', closeServModal);
+        document.getElementById('btn-cancel-servicio').addEventListener('click', closeServModal);
+    }
+
+    // Expediente (Vacaciones, Incapacidades, Bonos) modal logic
+    function openExpedienteModal(tech) {
+        const modal = document.getElementById('expediente-modal');
+        const content = document.getElementById('expediente-content');
+        
+        let activeTab = 'incapacidades';
+        
+        function renderExpedienteTabs() {
+            let listHTML = '';
+            let formHTML = '';
+            
+            if (activeTab === 'incapacidades') {
+                listHTML = (tech.Incapacidades || []).length === 0
+                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay incapacidades registradas</p>'
+                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
+                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Diagnóstico</th><th style="padding:0.5rem;">Ref. ISSS</th></tr></thead>
+                        <tbody>
+                            ${tech.Incapacidades.map(inc => {
+                                const diff = Math.ceil((new Date(inc.Fin) - new Date(inc.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
+                                return `<tr><td style="padding:0.5rem;">${inc.Inicio}</td><td style="padding:0.5rem;">${inc.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${inc.Diagnostico}</td><td style="padding:0.5rem;">${inc.RefISSS || 'N/A'}</td></tr>`;
+                            }).join('')}
+                        </tbody>
+                       </table>`;
+                       
+                formHTML = `
+                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <h4 style="color:var(--primary);">Registrar Incapacidad Médica</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Fecha Inicio</label><input type="date" id="exp-inc-start" required></div>
+                            <div class="form-group"><label>Fecha Fin</label><input type="date" id="exp-inc-end" required></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Diagnóstico / Motivo</label><input type="text" id="exp-inc-diag" placeholder="Ej. Accidente, Gripe..." required></div>
+                            <div class="form-group"><label>Número de Licencia ISSS</label><input type="text" id="exp-inc-ref" placeholder="Certificado #"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Incapacidad</button>
+                    </form>
+                `;
+            } else if (activeTab === 'vacaciones') {
+                listHTML = (tech.Vacaciones || []).length === 0
+                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay vacaciones registradas</p>'
+                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
+                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Detalles</th></tr></thead>
+                        <tbody>
+                            ${tech.Vacaciones.map(v => {
+                                const diff = Math.ceil((new Date(v.Fin) - new Date(v.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
+                                return `<tr><td style="padding:0.5rem;">${v.Inicio}</td><td style="padding:0.5rem;">${v.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${v.Detalles || 'Períero regular'}</td></tr>`;
+                            }).join('')}
+                        </tbody>
+                       </table>`;
+                       
+                formHTML = `
+                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <h4 style="color:var(--primary);">Registrar Vacaciones Tomadas</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Fecha Inicio</label><input type="date" id="exp-vac-start" required></div>
+                            <div class="form-group"><label>Fecha Fin</label><input type="date" id="exp-vac-end" required></div>
+                        </div>
+                        <div class="form-group"><label>Comentarios / Prima Vacacional (30%)</label><input type="text" id="exp-vac-notes" placeholder="Ej. Con prima 30% cancelada..."></div>
+                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Vacación</button>
+                    </form>
+                `;
+            } else {
+                listHTML = (tech.Bonos || []).length === 0
+                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay bonos o extras registrados</p>'
+                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
+                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Fecha</th><th style="padding:0.5rem;">Monto</th><th style="padding:0.5rem;">Concepto</th></tr></thead>
+                        <tbody>
+                            ${tech.Bonos.map(b => `<tr><td style="padding:0.5rem;">${new Date(b.Fecha).toLocaleDateString('es-SV')}</td><td style="padding:0.5rem; font-weight:700; color:var(--cyan);">$ ${parseFloat(b.Monto).toFixed(2)}</td><td style="padding:0.5rem;">${b.Concepto}</td></tr>`).join('')}
+                        </tbody>
+                       </table>`;
+                       
+                formHTML = `
+                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <h4 style="color:var(--primary);">Registrar Extra / Bono / Comisión</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Monto del Pago Extra ($)</label><input type="number" id="exp-bon-monto" min="0.01" step="0.01" required></div>
+                            <div class="form-group"><label>Concepto del Pago</label><input type="text" id="exp-bon-concepto" placeholder="Ej. Comisión por labor, Bono trimestral" required></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Pago Extra</button>
+                    </form>
+                `;
+            }
+            
+            content.innerHTML = `
+                <div style="margin-top:1rem; display:flex; flex-direction:column; gap:1rem;">
+                    <div>
+                        <strong style="font-size:1.15rem; color:var(--cyan);">${tech.Nombre_Completo}</strong>
+                        <p style="font-size:0.8rem; color:var(--text-secondary);">Historial Laboral del Taller</p>
+                    </div>
+                    
+                    <div style="display:flex; border-bottom:1px solid var(--border-color); gap:0.5rem; padding-bottom:0.25rem;">
+                        <button class="btn ${activeTab === 'incapacidades' ? 'btn-primary' : 'btn-secondary'}" id="tab-inc" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-bed-pulse"></i> Incapacidades</button>
+                        <button class="btn ${activeTab === 'vacaciones' ? 'btn-primary' : 'btn-secondary'}" id="tab-vac" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-umbrella-beach"></i> Vacaciones</button>
+                        <button class="btn ${activeTab === 'bonos' ? 'btn-primary' : 'btn-secondary'}" id="tab-bon" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Bonos y Extras</button>
+                    </div>
+                    
+                    <div class="table-container" style="max-height:220px; overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-sm);">
+                        ${listHTML}
+                    </div>
+                    
+                    ${formHTML}
+                </div>
+            `;
+            
+            document.getElementById('tab-inc').addEventListener('click', () => { activeTab = 'incapacidades'; renderExpedienteTabs(); });
+            document.getElementById('tab-vac').addEventListener('click', () => { activeTab = 'vacaciones'; renderExpedienteTabs(); });
+            document.getElementById('tab-bon').addEventListener('click', () => { activeTab = 'bonos'; renderExpedienteTabs(); });
+            
+            const formAdd = document.getElementById('expediente-form-add');
+            if (formAdd) {
+                formAdd.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    if (activeTab === 'incapacidades') {
+                        const start = document.getElementById('exp-inc-start').value;
+                        const end = document.getElementById('exp-inc-end').value;
+                        const diag = document.getElementById('exp-inc-diag').value;
+                        const ref = document.getElementById('exp-inc-ref').value;
+                        
+                        tech.Incapacidades.unshift({ Inicio: start, Fin: end, Diagnostico: diag, RefISSS: ref });
+                        showToast("Incapacidad registrada en expediente", "success");
+                    } else if (activeTab === 'vacaciones') {
+                        const start = document.getElementById('exp-vac-start').value;
+                        const end = document.getElementById('exp-vac-end').value;
+                        const notes = document.getElementById('exp-vac-notes').value;
+                        
+                        tech.Vacaciones.unshift({ Inicio: start, Fin: end, Detalles: notes });
+                        showToast("Vacaciones registradas en expediente", "success");
+                    } else {
+                        const amt = parseFloat(document.getElementById('exp-bon-monto').value);
+                        const conc = document.getElementById('exp-bon-concepto').value;
+                        
+                        tech.Bonos.unshift({ Fecha: Date.now(), Monto: amt, Concepto: conc });
+                        showToast("Bono/Comisión extra registrado", "success");
+                    }
+                    
+                    saveDatabase(db);
+                    renderExpedienteTabs();
+                });
+            }
+        }
+        
+        renderExpedienteTabs();
+        modal.classList.add('active');
+    }
+
     function calculateElSalvadorPayroll(baseSalary, extraBonuses = 0) {
         const totalGravado = baseSalary + extraBonuses;
         const isssEmployee = Math.min(totalGravado, 1000) * 0.03;
@@ -7737,404 +8647,6 @@ function renderConfiguracion(container) {
         
         updateCalcView(tech.Salario_Base, initialBonos);
         document.getElementById('payroll-modal').classList.add('active');
-    }
-
-    // Expediente (Vacaciones, Incapacidades, Bonos) modal logic
-    function openExpedienteModal(tech) {
-        const modal = document.getElementById('expediente-modal');
-        const content = document.getElementById('expediente-content');
-        
-        let activeTab = 'incapacidades';
-        
-        function renderExpedienteTabs() {
-            let listHTML = '';
-            let formHTML = '';
-            
-            if (activeTab === 'incapacidades') {
-                listHTML = (tech.Incapacidades || []).length === 0
-                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay incapacidades registradas</p>'
-                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
-                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Diagnóstico</th><th style="padding:0.5rem;">Ref. ISSS</th></tr></thead>
-                        <tbody>
-                            ${tech.Incapacidades.map(inc => {
-                                const diff = Math.ceil((new Date(inc.Fin) - new Date(inc.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
-                                return `<tr><td style="padding:0.5rem;">${inc.Inicio}</td><td style="padding:0.5rem;">${inc.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${inc.Diagnostico}</td><td style="padding:0.5rem;">${inc.RefISSS || 'N/A'}</td></tr>`;
-                            }).join('')}
-                        </tbody>
-                       </table>`;
-                       
-                formHTML = `
-                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
-                        <h4 style="color:var(--primary);">Registrar Incapacidad Médica</h4>
-                        <div class="form-row">
-                            <div class="form-group"><label>Fecha Inicio</label><input type="date" id="exp-inc-start" required></div>
-                            <div class="form-group"><label>Fecha Fin</label><input type="date" id="exp-inc-end" required></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Diagnóstico / Motivo</label><input type="text" id="exp-inc-diag" placeholder="Ej. Accidente, Gripe..." required></div>
-                            <div class="form-group"><label>Número de Licencia ISSS</label><input type="text" id="exp-inc-ref" placeholder="Certificado #"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Incapacidad</button>
-                    </form>
-                `;
-            } else if (activeTab === 'vacaciones') {
-                listHTML = (tech.Vacaciones || []).length === 0
-                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay vacaciones registradas</p>'
-                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
-                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Detalles</th></tr></thead>
-                        <tbody>
-                            ${tech.Vacaciones.map(v => {
-                                const diff = Math.ceil((new Date(v.Fin) - new Date(v.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
-                                return `<tr><td style="padding:0.5rem;">${v.Inicio}</td><td style="padding:0.5rem;">${v.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${v.Detalles || 'Período regular'}</td></tr>`;
-                            }).join('')}
-                        </tbody>
-                       </table>`;
-                       
-                formHTML = `
-                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
-                        <h4 style="color:var(--primary);">Registrar Vacaciones Tomadas</h4>
-                        <div class="form-row">
-                            <div class="form-group"><label>Fecha Inicio</label><input type="date" id="exp-vac-start" required></div>
-                            <div class="form-group"><label>Fecha Fin</label><input type="date" id="exp-vac-end" required></div>
-                        </div>
-                        <div class="form-group"><label>Comentarios / Prima Vacacional (30%)</label><input type="text" id="exp-vac-notes" placeholder="Ej. Con prima 30% cancelada..."></div>
-                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Vacación</button>
-                    </form>
-                `;
-            } else {
-                listHTML = (tech.Bonos || []).length === 0
-                    ? '<p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0; text-align:center;">No hay bonos o extras registrados</p>'
-                    : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
-                        <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Fecha</th><th style="padding:0.5rem;">Monto</th><th style="padding:0.5rem;">Concepto</th></tr></thead>
-                        <tbody>
-                            ${tech.Bonos.map(b => `<tr><td style="padding:0.5rem;">${new Date(b.Fecha).toLocaleDateString('es-SV')}</td><td style="padding:0.5rem; font-weight:700; color:var(--cyan);">$ ${parseFloat(b.Monto).toFixed(2)}</td><td style="padding:0.5rem;">${b.Concepto}</td></tr>`).join('')}
-                        </tbody>
-                       </table>`;
-                       
-                formHTML = `
-                    <form id="expediente-form-add" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
-                        <h4 style="color:var(--primary);">Registrar Extra / Bono / Comisión</h4>
-                        <div class="form-row">
-                            <div class="form-group"><label>Monto del Pago Extra ($)</label><input type="number" id="exp-bon-monto" min="0.01" step="0.01" required></div>
-                            <div class="form-group"><label>Concepto del Pago</label><input type="text" id="exp-bon-concepto" placeholder="Ej. Comisión por labor, Bono trimestral" required></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Registrar Pago Extra</button>
-                    </form>
-                `;
-            }
-            
-            content.innerHTML = `
-                <div style="margin-top:1rem; display:flex; flex-direction:column; gap:1rem;">
-                    <div>
-                        <strong style="font-size:1.15rem; color:var(--cyan);">${tech.Nombre_Completo}</strong>
-                        <p style="font-size:0.8rem; color:var(--text-secondary);">Historial Laboral del Taller</p>
-                    </div>
-                    
-                    <div style="display:flex; border-bottom:1px solid var(--border-color); gap:0.5rem; padding-bottom:0.25rem;">
-                        <button class="btn ${activeTab === 'incapacidades' ? 'btn-primary' : 'btn-secondary'}" id="tab-inc" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-bed-pulse"></i> Incapacidades</button>
-                        <button class="btn ${activeTab === 'vacaciones' ? 'btn-primary' : 'btn-secondary'}" id="tab-vac" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-umbrella-beach"></i> Vacaciones</button>
-                        <button class="btn ${activeTab === 'bonos' ? 'btn-primary' : 'btn-secondary'}" id="tab-bon" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Bonos y Extras</button>
-                    </div>
-                    
-                    <div class="table-container" style="max-height:220px; overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-sm);">
-                        ${listHTML}
-                    </div>
-                    
-                    ${formHTML}
-                </div>
-            `;
-            
-            document.getElementById('tab-inc').addEventListener('click', () => { activeTab = 'incapacidades'; renderExpedienteTabs(); });
-            document.getElementById('tab-vac').addEventListener('click', () => { activeTab = 'vacaciones'; renderExpedienteTabs(); });
-            document.getElementById('tab-bon').addEventListener('click', () => { activeTab = 'bonos'; renderExpedienteTabs(); });
-            
-            const formAdd = document.getElementById('expediente-form-add');
-            if (formAdd) {
-                formAdd.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    
-                    if (activeTab === 'incapacidades') {
-                        const start = document.getElementById('exp-inc-start').value;
-                        const end = document.getElementById('exp-inc-end').value;
-                        const diag = document.getElementById('exp-inc-diag').value;
-                        const ref = document.getElementById('exp-inc-ref').value;
-                        
-                        tech.Incapacidades.unshift({ Inicio: start, Fin: end, Diagnostico: diag, RefISSS: ref });
-                        showToast("Incapacidad registrada en expediente", "success");
-                    } else if (activeTab === 'vacaciones') {
-                        const start = document.getElementById('exp-vac-start').value;
-                        const end = document.getElementById('exp-vac-end').value;
-                        const notes = document.getElementById('exp-vac-notes').value;
-                        
-                        tech.Vacaciones.unshift({ Inicio: start, Fin: end, Detalles: notes });
-                        showToast("Vacaciones registradas en expediente", "success");
-                    } else {
-                        const amt = parseFloat(document.getElementById('exp-bon-monto').value);
-                        const conc = document.getElementById('exp-bon-concepto').value;
-                        
-                        tech.Bonos.unshift({ Fecha: Date.now(), Monto: amt, Concepto: conc });
-                        showToast("Bono/Comisión extra registrado", "success");
-                    }
-                    
-                    saveDatabase(db);
-                    renderExpedienteTabs();
-                });
-            }
-        }
-        
-        renderExpedienteTabs();
-        modal.classList.add('active');
-    }
-
-    // Bind Payroll & Expediente buttons
-    document.querySelectorAll('.btn-payroll').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            const t = db.tecnicos.find(x => x.Tecnico_ID === id);
-            const sumBonos = (t.Bonos || []).reduce((sum, b) => sum + parseFloat(b.Monto || 0), 0);
-            openPayrollCalculation(t, sumBonos);
-        });
-    });
-
-    document.querySelectorAll('.btn-expediente').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            const t = db.tecnicos.find(x => x.Tecnico_ID === id);
-            openExpedienteModal(t);
-        });
-    });
-
-    // Tecnico Modal Logic
-    const tecnicoModal = document.getElementById('tecnico-modal');
-    const tecnicoForm = document.getElementById('tecnico-form');
-    
-    document.getElementById('btn-add-tecnico').addEventListener('click', () => {
-        document.getElementById('tecnico-modal-title').textContent = 'Registrar Empleado';
-        document.getElementById('tecnico-id').value = '';
-        document.getElementById('tecnico-nombre').value = '';
-        document.getElementById('tecnico-email').value = '';
-        document.getElementById('tecnico-telefono').value = '';
-        document.getElementById('tecnico-especialidad').value = 'Mecánico General';
-        document.getElementById('tecnico-acceso').value = 'Técnico';
-        document.getElementById('tecnico-salario').value = '365';
-        document.getElementById('tecnico-pass').value = '1234';
-        tecnicoModal.classList.add('active');
-    });
-    
-    const closeTecnicoModal = () => {
-        tecnicoModal.classList.remove('active');
-    };
-    
-    document.getElementById('close-tecnico-modal').addEventListener('click', closeTecnicoModal);
-    document.getElementById('btn-cancel-tecnico').addEventListener('click', closeTecnicoModal);
-    
-    tecnicoForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = document.getElementById('tecnico-id').value;
-        const nombre = document.getElementById('tecnico-nombre').value;
-        const email = document.getElementById('tecnico-email').value;
-        const telefono = document.getElementById('tecnico-telefono').value;
-        const especialidad = document.getElementById('tecnico-especialidad').value;
-        const acceso = document.getElementById('tecnico-acceso').value;
-        const salario = parseFloat(document.getElementById('tecnico-salario').value || 365);
-        const pass = document.getElementById('tecnico-pass').value;
-        
-        const db = getDatabase();
-        if (id) {
-            // Edit
-            const t = db.tecnicos.find(x => x.Tecnico_ID === id);
-            if (t) {
-                t.Nombre_Completo = nombre;
-                t.Email = email;
-                t.Telefono = telefono;
-                t.Especialidad = especialidad;
-                t.Nivel_Acceso = acceso;
-                t.Salario_Base = salario;
-                t.Contraseña = pass;
-            }
-            showToast("Datos de empleado actualizados", "success");
-        } else {
-            // New
-            const newId = `TEC-CS-${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Math.floor(100000 + Math.random() * 900000)}`;
-            db.tecnicos.push({
-                Tecnico_ID: newId,
-                Nombre_Completo: nombre,
-                Email: email,
-                Telefono: telefono,
-                Especialidad: especialidad,
-                Nivel_Acceso: acceso,
-                Salario_Base: salario,
-                Contraseña: pass,
-                Incapacidades: [],
-                Vacaciones: [],
-                Bonos: []
-            });
-            showToast("Nuevo empleado registrado con éxito", "success");
-        }
-        saveDatabase(db);
-        tecnicoModal.classList.remove('active');
-        renderConfiguracion(container);
-    });
-    
-    document.querySelectorAll('.btn-edit-tecnico').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            const t = db.tecnicos.find(x => x.Tecnico_ID === id);
-            if (t) {
-                document.getElementById('tecnico-modal-title').textContent = 'Editar Empleado';
-                document.getElementById('tecnico-id').value = t.Tecnico_ID;
-                document.getElementById('tecnico-nombre').value = t.Nombre_Completo || '';
-                document.getElementById('tecnico-email').value = t.Email || '';
-                document.getElementById('tecnico-telefono').value = t.Telefono || '';
-                document.getElementById('tecnico-especialidad').value = t.Especialidad || 'Mecánico General';
-                document.getElementById('tecnico-acceso').value = t.Nivel_Acceso || 'Técnico';
-                document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
-                document.getElementById('tecnico-pass').value = t.Contraseña || '1234';
-                tecnicoModal.classList.add('active');
-            }
-        });
-    });
-    
-    document.querySelectorAll('.btn-delete-tecnico').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-id');
-            const activeUser = getActiveUser();
-            if (activeUser && activeUser.Tecnico_ID === id) {
-                showToast("No puedes eliminar al usuario activo", "warning");
-                return;
-            }
-            if (confirm("¿Está seguro de que desea eliminar a este empleado del catálogo?")) {
-                const db = getDatabase();
-                db.tecnicos = db.tecnicos.filter(x => x.Tecnico_ID !== id);
-                saveDatabase(db);
-                showToast("Empleado eliminado del catálogo", "success");
-                renderConfiguracion(container);
-            }
-        });
-    });
-
-    // --- GESTIÓN DE ROLES Y PERMISOS JS LOGIC ---
-    const rolSelector = document.getElementById('permiso-rol-selector');
-    const checkboxesContainer = document.getElementById('permisos-checkboxes-container');
-    const btnSavePermissions = document.getElementById('btn-save-role-permissions');
-
-    const appViewsConfig = [
-        { route: 'taller-dashboard', label: 'Panel Taller', icon: 'fa-solid fa-gauge-high' },
-        { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
-        { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
-        { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
-        { route: 'kanban', label: 'Control Taller (Kanban)', icon: 'fa-solid fa-cubes-stacked' },
-        { route: 'facturador', label: 'Facturar DTE', icon: 'fa-solid fa-wallet' },
-        { route: 'venta-rapida', label: 'Venta Rápida (POS)', icon: 'fa-solid fa-cart-shopping' },
-        { route: 'cuentas-cobrar', label: 'Cuentas por Cobrar', icon: 'fa-solid fa-hand-holding-dollar' },
-        { route: 'inventario', label: 'Inventario / Kárdex', icon: 'fa-solid fa-boxes-stacked' },
-        { route: 'gastos', label: 'Gastos y Compras', icon: 'fa-solid fa-receipt' },
-        { route: 'planilla', label: 'Planillas y Salarios', icon: 'fa-solid fa-calculator' },
-        { route: 'dashboard-bi', label: 'Dashboard BI', icon: 'fa-solid fa-chart-line' },
-        { route: 'configuracion', label: 'Ajustes / Catálogos', icon: 'fa-solid fa-sliders' }
-    ];
-
-    if (rolSelector && checkboxesContainer && btnSavePermissions) {
-        // Collect unique roles
-        const uniqueRoles = Array.from(new Set([
-            'Administrador',
-            'Técnico',
-            'Recepcionista',
-            ...(db.tecnicos || []).map(t => t.Nivel_Acceso).filter(Boolean)
-        ]));
-
-        // Populate role dropdown
-        rolSelector.innerHTML = uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('');
-
-        // Function to render checkboxes for a role
-        const renderCheckboxes = (role) => {
-            let allowed = [];
-            if (db.role_permissions && db.role_permissions[role]) {
-                allowed = db.role_permissions[role];
-            } else {
-                // Default fallbacks
-                if (role === "Administrador") {
-                    allowed = appViewsConfig.map(v => v.route);
-                } else if (role === "Recepcionista") {
-                    allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "venta-rapida", "cuentas-cobrar"];
-                } else {
-                    allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
-                }
-            }
-
-            checkboxesContainer.innerHTML = appViewsConfig.map(view => {
-                const isChecked = allowed.includes(view.route) ? 'checked' : '';
-                // Safety disable check: Administrador can't disable configuracion
-                const isForcedAdminSetting = (role === 'Administrador' && view.route === 'configuracion') ? 'disabled checked' : '';
-                
-                return `
-                    <div class="permission-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <i class="${view.icon}" style="color: var(--primary); width: 20px; text-align: center;"></i>
-                            <div>
-                                <span style="font-weight: 500; font-size: 0.85rem; color:var(--text-primary);">${view.label}</span>
-                                <small style="display: block; color: var(--text-muted); font-size: 0.7rem;">${view.route}</small>
-                            </div>
-                        </div>
-                        <input type="checkbox" class="permission-checkbox" data-route="${view.route}" ${isChecked} ${isForcedAdminSetting} style="width: 20px; height: 20px; cursor: pointer;">
-                    </div>
-                `;
-            }).join('');
-        };
-
-        // Initialize checkboxes with the first role
-        const initialRole = rolSelector.value;
-        if (initialRole) {
-            renderCheckboxes(initialRole);
-        }
-
-        // Handle selector change
-        rolSelector.addEventListener('change', (e) => {
-            renderCheckboxes(e.target.value);
-        });
-
-        // Save button listener
-        btnSavePermissions.addEventListener('click', () => {
-            const currentDb = getDatabase();
-            const selectedRole = rolSelector.value;
-            const checkboxes = checkboxesContainer.querySelectorAll('.permission-checkbox');
-            const selectedRoutes = [];
-            
-            checkboxes.forEach(cb => {
-                if (cb.checked) {
-                    selectedRoutes.push(cb.getAttribute('data-route'));
-                }
-            });
-
-            // Safeguard for Administrador
-            if (selectedRole === 'Administrador') {
-                if (!selectedRoutes.includes('configuracion')) {
-                    selectedRoutes.push('configuracion');
-                }
-                if (!selectedRoutes.includes('taller-dashboard')) {
-                    selectedRoutes.push('taller-dashboard');
-                }
-            }
-
-            currentDb.role_permissions = currentDb.role_permissions || {};
-            currentDb.role_permissions[selectedRole] = selectedRoutes;
-            saveDatabase(currentDb);
-            showToast(`Permisos para el rol "${selectedRole}" guardados y sincronizados.`, "success");
-            
-            // Re-render/update UI
-            updateUserUI();
-
-            // Check if active user is impacted and needs redirection
-            const activeUser = getActiveUser();
-            if (activeUser && (activeUser.Nivel_Acceso || "Mecánico") === selectedRole) {
-                const hash = window.location.hash.substring(1);
-                let currentRoute = hash.split('?')[0] || 'taller-dashboard';
-                if (!selectedRoutes.includes(currentRoute)) {
-                    const fallback = selectedRoutes.includes('taller-dashboard') ? 'taller-dashboard' : (selectedRoutes[0] || 'taller-dashboard');
-                    window.location.hash = fallback;
-                }
-            }
-        });
     }
 }
 
