@@ -3621,6 +3621,23 @@ function initDatabase() {
     const db = getDatabase();
     if (db) {
         let changed = false;
+        if (!db.role_permissions) {
+            db.role_permissions = {
+                "Administrador": [
+                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                    "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
+                    "dashboard-bi", "configuracion"
+                ],
+                "Técnico": [
+                    "taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"
+                ],
+                "Recepcionista": [
+                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                    "venta-rapida", "cuentas-cobrar"
+                ]
+            };
+            changed = true;
+        }
         if (!db.saas_state) {
             db.saas_state = {
                 status: 'active', // 'guest', 'pending', 'approved_terms_pending', 'active', 'suspended'
@@ -4230,11 +4247,72 @@ function updateUserUI() {
     
     if (user) {
         nameEl.textContent = user.Nombre_Completo || user.Nombre || "Usuario";
-        roleEl.textContent = user.Nivel_Acceso || "Mecánico";
+        const roleName = user.Nivel_Acceso || "Mecánico";
+        roleEl.textContent = roleName;
         if (user.Foto_Perfil) {
             avatarEl.src = user.Foto_Perfil;
         } else {
             avatarEl.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
+        }
+
+        // --- FILTER SIDEBAR MENU BASED ON ROLE PERMISSIONS ---
+        const db = getDatabase();
+        let allowedRoutes = [];
+        if (db && db.role_permissions && db.role_permissions[roleName]) {
+            allowedRoutes = db.role_permissions[roleName];
+        } else {
+            // Sensible fallbacks
+            if (roleName === "Administrador") {
+                allowedRoutes = [
+                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                    "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
+                    "dashboard-bi", "configuracion"
+                ];
+            } else if (roleName === "Recepcionista") {
+                allowedRoutes = [
+                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                    "venta-rapida", "cuentas-cobrar"
+                ];
+            } else {
+                // Default to Técnico permissions
+                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+            }
+        }
+
+        // Update display of each menu-item
+        document.querySelectorAll('.menu-item').forEach(item => {
+            const route = item.getAttribute('data-route');
+            if (route) {
+                if (allowedRoutes.includes(route)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        });
+
+        // Hide/show menu sections based on whether they contain any visible items
+        let lastSectionEl = null;
+        let sectionHasVisibleItem = false;
+        
+        const sidebarMenu = document.querySelector('.sidebar-menu');
+        if (sidebarMenu) {
+            Array.from(sidebarMenu.children).forEach(child => {
+                if (child.classList.contains('menu-section')) {
+                    if (lastSectionEl) {
+                        lastSectionEl.style.display = sectionHasVisibleItem ? '' : 'none';
+                    }
+                    lastSectionEl = child;
+                    sectionHasVisibleItem = false;
+                } else if (child.classList.contains('menu-item')) {
+                    if (child.style.display !== 'none') {
+                        sectionHasVisibleItem = true;
+                    }
+                }
+            });
+            if (lastSectionEl) {
+                lastSectionEl.style.display = sectionHasVisibleItem ? '' : 'none';
+            }
         }
     }
 }
@@ -4358,6 +4436,41 @@ function handleRouting() {
         if (routeName !== 'suspended' && routeName !== 'admin-solicitudes') {
             window.location.hash = 'suspended';
             return;
+        }
+    }
+    
+    // Check role permissions for application views
+    const appViews = [
+        'taller-dashboard', 'clientes-vehiculos', 'revision-21', 'presupuestos', 'kanban',
+        'facturador', 'venta-rapida', 'cuentas-cobrar', 'inventario', 'gastos', 'planilla',
+        'dashboard-bi', 'configuracion'
+    ];
+    if (appViews.includes(routeName)) {
+        const activeUser = getActiveUser();
+        if (activeUser) {
+            const roleName = activeUser.Nivel_Acceso || "Mecánico";
+            let allowedRoutes = [];
+            if (db && db.role_permissions && db.role_permissions[roleName]) {
+                allowedRoutes = db.role_permissions[roleName];
+            } else {
+                if (roleName === "Administrador") {
+                    allowedRoutes = appViews;
+                } else if (roleName === "Recepcionista") {
+                    allowedRoutes = [
+                        "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                        "venta-rapida", "cuentas-cobrar"
+                    ];
+                } else {
+                    allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                }
+            }
+
+            if (!allowedRoutes.includes(routeName)) {
+                showToast("Acceso restringido: No tienes permisos para ver esta sección.", "error");
+                const fallback = allowedRoutes.find(r => appViews.includes(r)) || 'taller-dashboard';
+                window.location.hash = fallback;
+                return;
+            }
         }
     }
     
@@ -7355,47 +7468,71 @@ function renderConfiguracion(container) {
                 </div>
             </div>
 
-            <div class="glass-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                    <h3>Catálogo de Técnicos / Empleados</h3>
-                    <button class="btn btn-primary" id="btn-add-tecnico" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-user-plus"></i> Nuevo Empleado</button>
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                <div class="glass-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3>Catálogo de Técnicos / Empleados</h3>
+                        <button class="btn btn-primary" id="btn-add-tecnico" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-user-plus"></i> Nuevo Empleado</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Especialidad</th>
+                                    <th>Salario Base</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${db.tecnicos.map(t => {
+                                    if (t.Salario_Base === undefined) {
+                                        t.Salario_Base = t.Tecnico_ID.includes('181025') ? 1200 : 750;
+                                    }
+                                    return `
+                                        <tr>
+                                            <td><strong>${t.Nombre_Completo}</strong></td>
+                                            <td>${t.Especialidad || 'Mecánico General'}</td>
+                                            <td>$ ${parseFloat(t.Salario_Base).toFixed(2)}</td>
+                                            <td>
+                                                <div style="display:flex; gap:0.35rem;">
+                                                    <button class="btn btn-secondary btn-payroll" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-calculator"></i> Planilla</button>
+                                                    <button class="btn btn-secondary btn-expediente" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-folder-open"></i> Expediente</button>
+                                                    <button class="btn btn-secondary btn-edit-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                                                    <button class="btn btn-secondary btn-delete-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Especialidad</th>
-                                <th>Salario Base</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${db.tecnicos.map(t => {
-                                if (t.Salario_Base === undefined) {
-                                    t.Salario_Base = t.Tecnico_ID.includes('181025') ? 1200 : 750;
-                                }
-                                return `
-                                    <tr>
-                                        <td><strong>${t.Nombre_Completo}</strong></td>
-                                        <td>${t.Especialidad || 'Mecánico General'}</td>
-                                        <td>$ ${parseFloat(t.Salario_Base).toFixed(2)}</td>
-                                        <td>
-                                            <div style="display:flex; gap:0.35rem;">
-                                                <button class="btn btn-secondary btn-payroll" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-calculator"></i> Planilla</button>
-                                                <button class="btn btn-secondary btn-expediente" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-folder-open"></i> Expediente</button>
-                                                <button class="btn btn-secondary btn-edit-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-                                                <button class="btn btn-secondary btn-delete-tecnico" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
+
+                <div class="glass-card" id="card-roles-permisos">
+                    <h3 style="margin-bottom:0.75rem;"><i class="fa-solid fa-user-shield"></i> Gestión de Roles y Permisos</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                        Personaliza los accesos a las diferentes vistas de la plataforma para cada rol. Los cambios se aplicarán de inmediato.
+                    </p>
+                    
+                    <div class="form-group" style="margin-bottom:1.25rem;">
+                        <label style="font-weight:600; margin-bottom:0.4rem; display:block;">Seleccionar Rol</label>
+                        <select id="permiso-rol-selector" style="padding:0.6rem; width:100%; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+
+                    <label style="font-weight:600; margin-bottom:0.6rem; display:block;">Vistas y Módulos Autorizados</label>
+                    <div id="permisos-checkboxes-container" style="display:flex; flex-direction:column; gap:0.6rem; max-height:280px; overflow-y:auto; padding-right:0.4rem; margin-bottom:1.25rem; border:1px solid rgba(255,255,255,0.05); padding:0.6rem; border-radius:6px; background:rgba(0,0,0,0.1);">
+                        <!-- Checkboxes will be populated dynamically -->
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="btn-save-role-permissions" style="width:100%; justify-content:center;">
+                        <i class="fa-solid fa-circle-check"></i> Guardar Permisos del Rol
+                    </button>
                 </div>
             </div>
-        </div>
 
         <!-- Payroll Modal -->
         <div id="payroll-modal" class="modal">
@@ -7947,6 +8084,130 @@ function renderConfiguracion(container) {
             }
         });
     });
+
+    // --- GESTIÓN DE ROLES Y PERMISOS JS LOGIC ---
+    const rolSelector = document.getElementById('permiso-rol-selector');
+    const checkboxesContainer = document.getElementById('permisos-checkboxes-container');
+    const btnSavePermissions = document.getElementById('btn-save-role-permissions');
+
+    const appViewsConfig = [
+        { route: 'taller-dashboard', label: 'Panel Taller', icon: 'fa-solid fa-gauge-high' },
+        { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
+        { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
+        { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
+        { route: 'kanban', label: 'Control Taller (Kanban)', icon: 'fa-solid fa-cubes-stacked' },
+        { route: 'facturador', label: 'Facturar DTE', icon: 'fa-solid fa-wallet' },
+        { route: 'venta-rapida', label: 'Venta Rápida (POS)', icon: 'fa-solid fa-cart-shopping' },
+        { route: 'cuentas-cobrar', label: 'Cuentas por Cobrar', icon: 'fa-solid fa-hand-holding-dollar' },
+        { route: 'inventario', label: 'Inventario / Kárdex', icon: 'fa-solid fa-boxes-stacked' },
+        { route: 'gastos', label: 'Gastos y Compras', icon: 'fa-solid fa-receipt' },
+        { route: 'planilla', label: 'Planillas y Salarios', icon: 'fa-solid fa-calculator' },
+        { route: 'dashboard-bi', label: 'Dashboard BI', icon: 'fa-solid fa-chart-line' },
+        { route: 'configuracion', label: 'Ajustes / Catálogos', icon: 'fa-solid fa-sliders' }
+    ];
+
+    if (rolSelector && checkboxesContainer && btnSavePermissions) {
+        // Collect unique roles
+        const uniqueRoles = Array.from(new Set([
+            'Administrador',
+            'Técnico',
+            'Recepcionista',
+            ...(db.tecnicos || []).map(t => t.Nivel_Acceso).filter(Boolean)
+        ]));
+
+        // Populate role dropdown
+        rolSelector.innerHTML = uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+
+        // Function to render checkboxes for a role
+        const renderCheckboxes = (role) => {
+            let allowed = [];
+            if (db.role_permissions && db.role_permissions[role]) {
+                allowed = db.role_permissions[role];
+            } else {
+                // Default fallbacks
+                if (role === "Administrador") {
+                    allowed = appViewsConfig.map(v => v.route);
+                } else if (role === "Recepcionista") {
+                    allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "venta-rapida", "cuentas-cobrar"];
+                } else {
+                    allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                }
+            }
+
+            checkboxesContainer.innerHTML = appViewsConfig.map(view => {
+                const isChecked = allowed.includes(view.route) ? 'checked' : '';
+                // Safety disable check: Administrador can't disable configuracion
+                const isForcedAdminSetting = (role === 'Administrador' && view.route === 'configuracion') ? 'disabled checked' : '';
+                
+                return `
+                    <div class="permission-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="${view.icon}" style="color: var(--primary); width: 20px; text-align: center;"></i>
+                            <div>
+                                <span style="font-weight: 500; font-size: 0.85rem; color:var(--text-primary);">${view.label}</span>
+                                <small style="display: block; color: var(--text-muted); font-size: 0.7rem;">${view.route}</small>
+                            </div>
+                        </div>
+                        <input type="checkbox" class="permission-checkbox" data-route="${view.route}" ${isChecked} ${isForcedAdminSetting} style="width: 20px; height: 20px; cursor: pointer;">
+                    </div>
+                `;
+            }).join('');
+        };
+
+        // Initialize checkboxes with the first role
+        const initialRole = rolSelector.value;
+        if (initialRole) {
+            renderCheckboxes(initialRole);
+        }
+
+        // Handle selector change
+        rolSelector.addEventListener('change', (e) => {
+            renderCheckboxes(e.target.value);
+        });
+
+        // Save button listener
+        btnSavePermissions.addEventListener('click', () => {
+            const currentDb = getDatabase();
+            const selectedRole = rolSelector.value;
+            const checkboxes = checkboxesContainer.querySelectorAll('.permission-checkbox');
+            const selectedRoutes = [];
+            
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selectedRoutes.push(cb.getAttribute('data-route'));
+                }
+            });
+
+            // Safeguard for Administrador
+            if (selectedRole === 'Administrador') {
+                if (!selectedRoutes.includes('configuracion')) {
+                    selectedRoutes.push('configuracion');
+                }
+                if (!selectedRoutes.includes('taller-dashboard')) {
+                    selectedRoutes.push('taller-dashboard');
+                }
+            }
+
+            currentDb.role_permissions = currentDb.role_permissions || {};
+            currentDb.role_permissions[selectedRole] = selectedRoutes;
+            saveDatabase(currentDb);
+            showToast(`Permisos para el rol "${selectedRole}" guardados y sincronizados.`, "success");
+            
+            // Re-render/update UI
+            updateUserUI();
+
+            // Check if active user is impacted and needs redirection
+            const activeUser = getActiveUser();
+            if (activeUser && (activeUser.Nivel_Acceso || "Mecánico") === selectedRole) {
+                const hash = window.location.hash.substring(1);
+                let currentRoute = hash.split('?')[0] || 'taller-dashboard';
+                if (!selectedRoutes.includes(currentRoute)) {
+                    const fallback = selectedRoutes.includes('taller-dashboard') ? 'taller-dashboard' : (selectedRoutes[0] || 'taller-dashboard');
+                    window.location.hash = fallback;
+                }
+            }
+        });
+    }
 }
 
 // ----------------------------------------------------
