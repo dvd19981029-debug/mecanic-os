@@ -106,6 +106,10 @@
                     </div>
                 </div>
                 <div class="header-right">
+                    <div class="status-indicator" id="cloud-sync-indicator" style="cursor: pointer; margin-right: 0.75rem; background: rgba(255,255,255,0.05); padding: 0.4rem 0.75rem; border-radius: 20px;">
+                        <span class="dot" id="cloud-sync-dot" style="background-color: #888; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>
+                        <span class="label" id="cloud-sync-label"><i class="fa-solid fa-cloud"></i> Conexión Nube</span>
+                    </div>
                     <div class="status-indicator online">
                         <span class="dot"></span>
                         <span class="label">MH El Salvador Conectado (DTE)</span>
@@ -146,8 +150,115 @@
         </div>
     </div>
 
+    <!-- Cloud Connection & Sync Modal -->
+    <div id="firebase-auth-modal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Sincronización en la Nube</h2>
+                <button class="close-modal-btn" id="close-firebase-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="firebase-modal-body">
+                <!-- Logged Out View -->
+                <div id="fb-logged-out-view">
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                        Conecta tu taller a la nube de Google Firebase para respaldar tu base de datos y sincronizar cambios en tiempo real con otros dispositivos.
+                    </p>
+                    
+                    <!-- Login Form -->
+                    <div id="fb-login-section">
+                        <form id="fb-login-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Correo Electrónico</label>
+                                <input type="email" id="fb-login-email" required placeholder="taller@ejemplo.com" style="padding: 0.6rem;">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <input type="password" id="fb-login-password" required placeholder="••••••••" style="padding: 0.6rem;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="fb-btn-login" style="width: 100%; justify-content: center;">
+                                <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                            </button>
+                        </form>
+                        <p style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                            ¿No tienes cuenta? <a href="#" id="fb-show-register" style="color: var(--primary); text-decoration: none; font-weight: 500;">Regístrate aquí</a>
+                        </p>
+                    </div>
+
+                    <!-- Register Form (hidden by default) -->
+                    <div id="fb-register-section" style="display: none;">
+                        <form id="fb-register-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Nombre del Taller</label>
+                                <input type="text" id="fb-register-name" required placeholder="Mi Taller Mecánico" style="padding: 0.6rem;">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo Electrónico</label>
+                                <input type="email" id="fb-register-email" required placeholder="correo@ejemplo.com" style="padding: 0.6rem;">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña (Mínimo 6 caracteres)</label>
+                                <input type="password" id="fb-register-password" required minlength="6" placeholder="••••••••" style="padding: 0.6rem;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="fb-btn-register" style="width: 100%; justify-content: center; background: var(--success);">
+                                <i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller
+                            </button>
+                        </form>
+                        <p style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                            ¿Ya tienes cuenta? <a href="#" id="fb-show-login" style="color: var(--primary); text-decoration: none; font-weight: 500;">Inicia sesión aquí</a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Logged In View -->
+                <div id="fb-logged-in-view" style="display: none;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; margin-bottom: 1.5rem;">
+                        <i class="fa-solid fa-cloud-check" style="font-size: 3rem; color: var(--success);"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem;" id="fb-user-title">Taller Conectado</h3>
+                            <span id="fb-user-email" style="font-size: 0.85rem; color: var(--text-muted);">taller@ejemplo.com</span>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                            <span style="color: var(--text-muted);">Estado:</span>
+                            <strong style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Sincronizado</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-muted);">Última sincronización:</span>
+                            <span id="fb-last-sync" style="font-weight: 500;">Nunca</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button type="button" class="btn btn-secondary" id="fb-btn-force-sync" style="width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-rotate"></i> Sincronizar Manualmente
+                        </button>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="fb-btn-upload-local" title="Sube tu base de datos local y reemplaza la de la nube" style="font-size: 0.75rem; justify-content: center; padding: 0.5rem 0.25rem;">
+                                <i class="fa-solid fa-upload"></i> Subir a Nube
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="fb-btn-download-cloud" title="Descarga la base de datos de la nube y reemplaza la de esta PC" style="font-size: 0.75rem; justify-content: center; padding: 0.5rem 0.25rem;">
+                                <i class="fa-solid fa-download"></i> Descargar a PC
+                            </button>
+                        </div>
+                        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0;">
+                        <button type="button" class="btn btn-primary" id="fb-btn-logout" style="width: 100%; justify-content: center; background: #c0392b;">
+                            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión en esta PC
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Message / Toast Notification -->
     <div id="toast-container" class="toast-container"></div>
+
+    <!-- Firebase SDK (Compat v10) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- App Logic -->
     <script src="app.js"></script>

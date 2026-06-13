@@ -3776,6 +3776,371 @@ function getDatabase() {
 
 function saveDatabase(db) {
     localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+    if (isFirebaseConnected && currentFirebaseUser && !preventFirestoreSync) {
+        syncToFirestore(db);
+    }
+}
+
+// ----------------------------------------------------
+// GOOGLE FIREBASE REAL-TIME SYNC ENGINE
+// ----------------------------------------------------
+
+let isFirebaseConnected = false;
+let dbFirestore = null;
+let currentFirebaseUser = null;
+let firebaseUnsubscribe = null;
+let preventFirestoreSync = false;
+let lastSyncTime = null;
+
+// Default Firebase Configuration (Centralized SaaS)
+const DEFAULT_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyC_FakeMecanicOSKey1234567890",
+    authDomain: "mecanic-os-saas.firebaseapp.com",
+    projectId: "mecanic-os-saas",
+    storageBucket: "mecanic-os-saas.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:1234567890:web:abcd1234efgh5678"
+};
+
+function getFirebaseConfig() {
+    let customCfg = null;
+    try {
+        customCfg = JSON.parse(localStorage.getItem('mecanic_os_firebase_config'));
+    } catch (e) {}
+    return customCfg || DEFAULT_FIREBASE_CONFIG;
+}
+
+function initFirebase() {
+    if (typeof firebase === 'undefined') {
+        console.warn("Firebase SDK no cargado (offline o sin script). Iniciando en modo offline.");
+        updateCloudStatusUI(false, "offline");
+        return;
+    }
+
+    const config = getFirebaseConfig();
+    try {
+        if (firebase.apps.length === 0) {
+            firebase.initializeApp(config);
+        }
+        dbFirestore = firebase.firestore();
+        isFirebaseConnected = true;
+        
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                currentFirebaseUser = user;
+                updateCloudStatusUI(true, "active");
+                startRealTimeSync(user.uid);
+            } else {
+                currentFirebaseUser = null;
+                updateCloudStatusUI(false, "logged-out");
+                stopRealTimeSync();
+            }
+        });
+    } catch (err) {
+        console.error("Error al conectar con Firebase:", err);
+        isFirebaseConnected = false;
+        updateCloudStatusUI(false, "error");
+    }
+}
+
+function updateCloudStatusUI(active, state = "") {
+    const dot = document.getElementById('cloud-sync-dot');
+    const label = document.getElementById('cloud-sync-label');
+    
+    if (!dot || !label) return;
+    
+    if (active && state === "active") {
+        dot.style.backgroundColor = "#2ecc71"; // Green
+        label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Conectado`;
+        
+        const loggedOutView = document.getElementById('fb-logged-out-view');
+        const loggedInView = document.getElementById('fb-logged-in-view');
+        const userEmailSpan = document.getElementById('fb-user-email');
+        const lastSyncSpan = document.getElementById('fb-last-sync');
+        
+        if (loggedOutView) loggedOutView.style.display = "none";
+        if (loggedInView) loggedInView.style.display = "block";
+        if (userEmailSpan && currentFirebaseUser) userEmailSpan.textContent = currentFirebaseUser.email;
+        if (lastSyncSpan) lastSyncSpan.textContent = lastSyncTime ? lastSyncTime.toLocaleTimeString() : "Nunca";
+    } else if (state === "syncing") {
+        dot.style.backgroundColor = "#f1c40f"; // Yellow
+        label.innerHTML = `<i class="fa-solid fa-sync fa-spin"></i> Sincronizando...`;
+    } else if (state === "offline" || state === "logged-out") {
+        dot.style.backgroundColor = "#7f8c8d"; // Grey
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Sin cuenta en nube`;
+        
+        const loggedOutView = document.getElementById('fb-logged-out-view');
+        const loggedInView = document.getElementById('fb-logged-in-view');
+        if (loggedOutView) loggedOutView.style.display = "block";
+        if (loggedInView) loggedInView.style.display = "none";
+    } else {
+        dot.style.backgroundColor = "#e74c3c"; // Red
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Error Conexión`;
+    }
+}
+
+function startRealTimeSync(userId) {
+    if (!dbFirestore) return;
+    
+    stopRealTimeSync();
+    
+    updateCloudStatusUI(true, "syncing");
+    
+    firebaseUnsubscribe = dbFirestore.collection("workshops").doc(userId).onSnapshot((doc) => {
+        if (doc.exists) {
+            const remoteData = doc.data();
+            const remoteDb = remoteData.database;
+            
+            if (remoteDb) {
+                const remoteDbStr = JSON.stringify(remoteDb);
+                const localDbStr = localStorage.getItem('mecanic_os_db');
+                
+                if (remoteDbStr !== localDbStr) {
+                    console.log("Firebase Sync: Actualizando base de datos local con cambios remotos.");
+                    
+                    preventFirestoreSync = true;
+                    localStorage.setItem('mecanic_os_db', remoteDbStr);
+                    
+                    // Reload active view
+                    const activeRoute = window.location.hash.substring(1) || 'taller-dashboard';
+                    handleRouting();
+                    
+                    showToast("Base de datos sincronizada en tiempo real", "success");
+                    
+                    setTimeout(() => {
+                        preventFirestoreSync = false;
+                    }, 500);
+                }
+                
+                if (remoteData.updatedAt) {
+                    lastSyncTime = new Date(remoteData.updatedAt);
+                }
+            }
+        } else {
+            console.log("Firebase Sync: No hay datos remotos aún. Sincronizando datos locales actuales a la nube.");
+            const currentDb = getDatabase();
+            if (currentDb) {
+                uploadLocalDatabase();
+            }
+        }
+        updateCloudStatusUI(true, "active");
+    }, (err) => {
+        console.error("Error en Snapshot de Firestore:", err);
+        updateCloudStatusUI(false, "error");
+    });
+}
+
+function stopRealTimeSync() {
+    if (firebaseUnsubscribe) {
+        firebaseUnsubscribe();
+        firebaseUnsubscribe = null;
+    }
+}
+
+function syncToFirestore(db) {
+    if (!dbFirestore || !currentFirebaseUser || preventFirestoreSync) return;
+    
+    const userId = currentFirebaseUser.uid;
+    updateCloudStatusUI(true, "syncing");
+    
+    dbFirestore.collection("workshops").doc(userId).set({
+        database: db,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentFirebaseUser.email
+    }).then(() => {
+        lastSyncTime = new Date();
+        updateCloudStatusUI(true, "active");
+        console.log("Firebase Sync: Base de datos subida exitosamente.");
+    }).catch((err) => {
+        console.error("Error al subir cambios a Firebase:", err);
+        updateCloudStatusUI(false, "error");
+    });
+}
+
+function uploadLocalDatabase() {
+    const db = getDatabase();
+    if (db) {
+        syncToFirestore(db);
+        showToast("Datos locales subidos a la nube", "success");
+    }
+}
+
+function downloadCloudDatabase() {
+    if (!dbFirestore || !currentFirebaseUser) return;
+    
+    const userId = currentFirebaseUser.uid;
+    updateCloudStatusUI(true, "syncing");
+    
+    dbFirestore.collection("workshops").doc(userId).get().then((doc) => {
+        if (doc.exists) {
+            const remoteData = doc.data();
+            const remoteDb = remoteData.database;
+            if (remoteDb) {
+                localStorage.setItem('mecanic_os_db', JSON.stringify(remoteDb));
+                lastSyncTime = new Date(remoteData.updatedAt || new Date());
+                handleRouting();
+                showToast("Datos descargados desde la nube con éxito", "success");
+            }
+        } else {
+            showToast("No se encontraron datos remotos para descargar", "warning");
+        }
+        updateCloudStatusUI(true, "active");
+    }).catch(err => {
+        console.error("Error al descargar base de datos de Firebase:", err);
+        showToast("Error al descargar de la nube", "error");
+        updateCloudStatusUI(true, "active");
+    });
+}
+
+function bindFirebaseEvents() {
+    const cloudIndicator = document.getElementById('cloud-sync-indicator');
+    const authModal = document.getElementById('firebase-auth-modal');
+    const closeBtn = document.getElementById('close-firebase-modal');
+    const showRegister = document.getElementById('fb-show-register');
+    const showLogin = document.getElementById('fb-show-login');
+    const loginForm = document.getElementById('fb-login-form');
+    const registerForm = document.getElementById('fb-register-form');
+    const logoutBtn = document.getElementById('fb-btn-logout');
+    const forceSyncBtn = document.getElementById('fb-btn-force-sync');
+    const uploadLocalBtn = document.getElementById('fb-btn-upload-local');
+    const downloadCloudBtn = document.getElementById('fb-btn-download-cloud');
+
+    if (!authModal) return;
+
+    if (cloudIndicator) {
+        cloudIndicator.addEventListener('click', () => {
+            authModal.classList.add('active');
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            authModal.classList.remove('active');
+        });
+    }
+
+    if (showRegister) {
+        showRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('fb-login-section').style.display = "none";
+            document.getElementById('fb-register-section').style.display = "block";
+        });
+    }
+
+    if (showLogin) {
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('fb-login-section').style.display = "block";
+            document.getElementById('fb-register-section').style.display = "none";
+        });
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('fb-login-email').value;
+            const pass = document.getElementById('fb-login-password').value;
+            
+            if (typeof firebase === 'undefined') return;
+            
+            const btn = document.getElementById('fb-btn-login');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+            
+            firebase.auth().signInWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    showToast("Sesión iniciada correctamente en la nube", "success");
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                    authModal.classList.remove('active');
+                })
+                .catch((error) => {
+                    console.error("Error al iniciar sesión:", error);
+                    showToast(`Error: ${error.message}`, "error");
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                });
+        });
+    }
+
+    if (registerForm) {
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('fb-register-name').value;
+            const email = document.getElementById('fb-register-email').value;
+            const pass = document.getElementById('fb-register-password').value;
+            
+            if (typeof firebase === 'undefined') return;
+            
+            const btn = document.getElementById('fb-btn-register');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando cuenta...';
+            
+            firebase.auth().createUserWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    showToast("Taller registrado y conectado exitosamente", "success");
+                    
+                    const db = getDatabase();
+                    if (db) {
+                        if (!db.config_taller) db.config_taller = {};
+                        db.config_taller.nombre = name;
+                        db.config_taller.correo = email;
+                        saveDatabase(db);
+                    }
+                    
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller';
+                    authModal.classList.remove('active');
+                })
+                .catch((error) => {
+                    console.error("Error al registrar:", error);
+                    showToast(`Error: ${error.message}`, "error");
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller';
+                });
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            if (typeof firebase === 'undefined') return;
+            
+            if (confirm("¿Seguro que deseas cerrar la sesión? Los datos locales permanecerán en esta PC pero ya no se sincronizarán en tiempo real.")) {
+                firebase.auth().signOut()
+                    .then(() => {
+                        showToast("Sesión cerrada correctamente", "success");
+                        authModal.classList.remove('active');
+                    })
+                    .catch(err => {
+                        console.error("Error al cerrar sesión:", err);
+                    });
+            }
+        });
+    }
+
+    if (forceSyncBtn) {
+        forceSyncBtn.addEventListener('click', () => {
+            if (currentFirebaseUser) {
+                downloadCloudDatabase();
+            }
+        });
+    }
+
+    if (uploadLocalBtn) {
+        uploadLocalBtn.addEventListener('click', () => {
+            if (confirm("⚠️ ¡Atención! Esto sobrescribirá la base de datos que está en la nube con la información que tienes en este navegador local. ¿Deseas proceder?")) {
+                uploadLocalDatabase();
+            }
+        });
+    }
+
+    if (downloadCloudBtn) {
+        downloadCloudBtn.addEventListener('click', () => {
+            if (confirm("⚠️ ¡Atención! Esto descargará la información de la nube y sobrescribirá la base de datos de esta PC. Perderás cualquier cambio local no guardado en la nube. ¿Deseas proceder?")) {
+                downloadCloudDatabase();
+            }
+        });
+    }
 }
 
 function getWorkshopConfig(db) {
@@ -6878,6 +7243,9 @@ function renderConfiguracion(container) {
         posNumber: '1'
     };
 
+    // Load Firebase configuration
+    const fbCfg = JSON.parse(localStorage.getItem('mecanic_os_firebase_config')) || {};
+
     const ws = getWorkshopConfig(db);
 
     container.innerHTML = `
@@ -6912,6 +7280,28 @@ function renderConfiguracion(container) {
                             </div>
                         </div>
                         <button type="button" class="btn btn-primary" id="btn-save-dte-cfg" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-circle-check"></i> Guardar Credenciales FacturaLlama</button>
+                    </form>
+                </div>
+
+                <div class="glass-card">
+                    <h3>Base de Datos en la Nube (Google Firebase Config)</h3>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+                        Por defecto, Mecanic OS utiliza una base de datos centralizada en la nube. Si eres desarrollador o posees una cuenta propia de Firebase (White-label), puedes configurar tus credenciales aquí. Déjalo en blanco para usar la base de datos estándar.
+                    </p>
+                    <form id="config-firebase-form" style="display:flex; flex-direction:column; gap:1rem;">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="text" id="cfg-fb-apikey" value="${fbCfg.apiKey || ''}" placeholder="AIzaSy..." style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Auth Domain</label>
+                            <input type="text" id="cfg-fb-authdomain" value="${fbCfg.authDomain || ''}" placeholder="taller.firebaseapp.com" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Project ID</label>
+                            <input type="text" id="cfg-fb-projectid" value="${fbCfg.projectId || ''}" placeholder="taller-id" style="padding:0.6rem;">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="btn-save-fb-cfg" style="width:fit-content; align-self:flex-end;"><i class="fa-solid fa-save"></i> Guardar Configuración Firebase</button>
                     </form>
                 </div>
 
@@ -7115,6 +7505,27 @@ function renderConfiguracion(container) {
         }));
         
         showToast("Configuración de FacturaLlama guardada", "success");
+    });
+
+    document.getElementById('btn-save-fb-cfg').addEventListener('click', () => {
+        const apiKey = document.getElementById('cfg-fb-apikey').value.trim();
+        const authDomain = document.getElementById('cfg-fb-authdomain').value.trim();
+        const projectId = document.getElementById('cfg-fb-projectid').value.trim();
+        
+        if (!apiKey) {
+            localStorage.removeItem('mecanic_os_firebase_config');
+            showToast("Configuración de Firebase revertida a la estándar", "success");
+        } else {
+            localStorage.setItem('mecanic_os_firebase_config', JSON.stringify({
+                apiKey,
+                authDomain,
+                projectId,
+                storageBucket: `${projectId}.appspot.com`,
+                messagingSenderId: "1234567890",
+                appId: `1:1234567890:web:${Math.random().toString(36).substring(7)}`
+            }));
+            showToast("Configuración de Firebase personalizada guardada. Recarga la página para aplicar.", "success");
+        }
     });
 
     const configTallerForm = document.getElementById('config-taller-form');
@@ -9901,6 +10312,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
 
 document.addEventListener('DOMContentLoaded', () => {
     initDatabase();
+    initFirebase();
+    bindFirebaseEvents();
     updateUserUI();
     updateSidebarBrand();
     startClock();
