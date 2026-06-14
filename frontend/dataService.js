@@ -431,5 +431,178 @@ const dataService = {
             dataService.cache.presupuestos = dataService.cache.presupuestos.filter(p => p['ID Presupuesto'] !== id);
             await dataService.save(dataService.cache);
         }
+    },
+
+    // Global SaaS operations
+    saas: {
+        async getPlans() {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    const snap = await dbFirestore.collection("saas_plans").get();
+                    if (!snap.empty) {
+                        const plans = [];
+                        snap.forEach(doc => plans.push(doc.data()));
+                        dataService.cache.saas_plans = plans;
+                        localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                        return plans;
+                    }
+                } catch (e) {
+                    console.error("Error fetching plans from Firestore:", e);
+                }
+            }
+            return dataService.cache.saas_plans || [];
+        },
+        async getCoupons() {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    const snap = await dbFirestore.collection("saas_coupons").get();
+                    if (!snap.empty) {
+                        const coupons = [];
+                        snap.forEach(doc => coupons.push(doc.data()));
+                        dataService.cache.saas_coupons = coupons;
+                        localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                        return coupons;
+                    }
+                } catch (e) {
+                    console.error("Error fetching coupons from Firestore:", e);
+                }
+            }
+            return dataService.cache.saas_coupons || [];
+        },
+        async savePlan(plan) {
+            if (!dataService.cache.saas_plans) dataService.cache.saas_plans = [];
+            const idx = dataService.cache.saas_plans.findIndex(p => p.id === plan.id);
+            if (idx >= 0) {
+                dataService.cache.saas_plans[idx] = plan;
+            } else {
+                dataService.cache.saas_plans.push(plan);
+            }
+            localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_plans").doc(plan.id).set(plan);
+                } catch (e) {
+                    console.error("Error saving plan to Firestore:", e);
+                }
+            }
+        },
+        async deletePlan(planId) {
+            if (dataService.cache.saas_plans) {
+                dataService.cache.saas_plans = dataService.cache.saas_plans.filter(p => p.id !== planId);
+                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            }
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_plans").doc(planId).delete();
+                } catch (e) {
+                    console.error("Error deleting plan from Firestore:", e);
+                }
+            }
+        },
+        async saveCoupon(coupon) {
+            if (!dataService.cache.saas_coupons) dataService.cache.saas_coupons = [];
+            const idx = dataService.cache.saas_coupons.findIndex(c => c.codigo === coupon.codigo);
+            if (idx >= 0) {
+                dataService.cache.saas_coupons[idx] = coupon;
+            } else {
+                dataService.cache.saas_coupons.push(coupon);
+            }
+            localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_coupons").doc(coupon.codigo).set(coupon);
+                } catch (e) {
+                    console.error("Error saving coupon to Firestore:", e);
+                }
+            }
+        },
+        async deleteCoupon(code) {
+            if (dataService.cache.saas_coupons) {
+                dataService.cache.saas_coupons = dataService.cache.saas_coupons.filter(c => c.codigo !== code);
+                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            }
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_coupons").doc(code).delete();
+                } catch (e) {
+                    console.error("Error deleting coupon from Firestore:", e);
+                }
+            }
+        },
+        async createRequest(requestData) {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_requests").doc(requestData.id).set(requestData);
+                } catch (e) {
+                    console.error("Error creating request in Firestore:", e);
+                    throw e;
+                }
+            } else {
+                if (!dataService.cache.solicitudes_registro) dataService.cache.solicitudes_registro = [];
+                dataService.cache.solicitudes_registro.push(requestData);
+                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            }
+        },
+        async updateRequestStatus(requestId, status, additionalData = {}) {
+            const updateObj = { status, ...additionalData };
+            if (dataService.cache.solicitudes_registro) {
+                const req = dataService.cache.solicitudes_registro.find(s => s.id === requestId);
+                if (req) {
+                    Object.assign(req, updateObj);
+                    localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                }
+            }
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_requests").doc(requestId).update(updateObj);
+                } catch (e) {
+                    console.error("Error updating request status in Firestore:", e);
+                    try {
+                        await dbFirestore.collection("saas_requests").doc(requestId).set(updateObj, { merge: true });
+                    } catch (err2) {
+                        console.error("Fallback set merge failed:", err2);
+                        throw err2;
+                    }
+                }
+            }
+        },
+        listenRequest(requestId, callback) {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                return dbFirestore.collection("saas_requests").doc(requestId).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        callback(doc.data());
+                    } else {
+                        callback(null);
+                    }
+                }, (err) => {
+                    console.error("listenRequest error:", err);
+                });
+            } else {
+                const interval = setInterval(() => {
+                    const req = (dataService.cache.solicitudes_registro || []).find(s => s.id === requestId);
+                    callback(req || null);
+                }, 1000);
+                return () => clearInterval(interval);
+            }
+        },
+        listenRequests(callback) {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                return dbFirestore.collection("saas_requests").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                    const requests = [];
+                    snapshot.forEach(doc => {
+                        requests.push(doc.data());
+                    });
+                    dataService.cache.solicitudes_registro = requests;
+                    localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                    callback(requests);
+                }, (err) => {
+                    console.error("listenRequests error:", err);
+                    callback(dataService.cache.solicitudes_registro || []);
+                });
+            } else {
+                callback(dataService.cache.solicitudes_registro || []);
+                return () => {};
+            }
+        }
     }
 };

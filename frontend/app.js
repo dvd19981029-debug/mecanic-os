@@ -559,13 +559,77 @@ function handleRouting() {
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
     
-    // Check if the current active workshop has been suspended by the SaaS admin
+    // 1. Reactive Status Listener for Pending Guest Solicitud
+    if (saas.status === 'pending' && saas.workshopData && saas.workshopData.id) {
+        if (!window.saasLandingUnsubscribe) {
+            const reqId = saas.workshopData.id;
+            window.saasLandingUnsubscribe = dataService.saas.listenRequest(reqId, (updatedRequest) => {
+                if (updatedRequest) {
+                    if (updatedRequest.status === 'approved_terms_pending') {
+                        if (window.saasLandingUnsubscribe) {
+                            window.saasLandingUnsubscribe();
+                            window.saasLandingUnsubscribe = null;
+                        }
+                        db.saas_state.status = 'approved_terms_pending';
+                        db.saas_state.workshopData = updatedRequest;
+                        saveDatabase(db);
+                        showToast("¡Tu solicitud ha sido aprobada! Procediendo a la firma de términos.", "success");
+                        window.location.hash = 'terminos';
+                        handleRouting();
+                    } else if (updatedRequest.status === 'rechazado') {
+                        if (window.saasLandingUnsubscribe) {
+                            window.saasLandingUnsubscribe();
+                            window.saasLandingUnsubscribe = null;
+                        }
+                        db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                        saveDatabase(db);
+                        showToast("Tu solicitud ha sido rechazada por el administrador.", "error");
+                        window.location.hash = 'landing';
+                        handleRouting();
+                    }
+                }
+            });
+        }
+    } else {
+        if (window.saasLandingUnsubscribe) {
+            window.saasLandingUnsubscribe();
+            window.saasLandingUnsubscribe = null;
+        }
+    }
+
+    // 2. Reactive Status Listener for Active/Suspended Workshop (checks for status/suspension changes)
     if (saas.status === 'active' && saas.workshopData && saas.workshopData.id) {
-        const ws = db.solicitudes_registro.find(s => s.id === saas.workshopData.id);
-        if (ws && ws.suscripcion_status === 'suspendido') {
-            saas.status = 'suspended';
-            db.saas_state.status = 'suspended';
-            saveDatabase(db);
+        if (!window.saasActiveListener) {
+            const reqId = saas.workshopData.id;
+            window.saasActiveListener = dataService.saas.listenRequest(reqId, (updatedRequest) => {
+                if (updatedRequest) {
+                    if (updatedRequest.suscripcion_status === 'suspendido') {
+                        db.saas_state.status = 'suspended';
+                        saveDatabase(db);
+                        window.location.hash = 'suspended';
+                        handleRouting();
+                    }
+                }
+            });
+        }
+    } else if (saas.status === 'suspended' && saas.workshopData && saas.workshopData.id) {
+        if (!window.saasActiveListener) {
+            const reqId = saas.workshopData.id;
+            window.saasActiveListener = dataService.saas.listenRequest(reqId, (updatedRequest) => {
+                if (updatedRequest) {
+                    if (updatedRequest.suscripcion_status === 'activo' || updatedRequest.suscripcion_status === 'demo') {
+                        db.saas_state.status = 'active';
+                        saveDatabase(db);
+                        window.location.hash = 'taller-dashboard';
+                        handleRouting();
+                    }
+                }
+            });
+        }
+    } else {
+        if (window.saasActiveListener) {
+            window.saasActiveListener();
+            window.saasActiveListener = null;
         }
     }
     
@@ -585,6 +649,25 @@ function handleRouting() {
             const pair = param.split('=');
             queryParams[pair[0]] = decodeURIComponent(pair[1]);
         });
+    }
+    
+    // 3. Reactive Status Listener for Super Admin Requests list
+    if (routeName === 'admin-solicitudes' && sessionStorage.getItem('mecanic_os_saas_admin_auth') === 'true') {
+        if (!window.saasAdminRequestsUnsubscribe) {
+            window.saasAdminRequestsUnsubscribe = dataService.saas.listenRequests((requests) => {
+                const currentDb = getDatabase();
+                currentDb.solicitudes_registro = requests;
+                const container = document.getElementById('view-container');
+                if (window.location.hash.substring(1).split('?')[0] === 'admin-solicitudes' && container && !window.saasEditWorkshopId && !window.saasPayWorkshopId && !window.saasConfigWorkshopId && !window.saasAddWorkshopForm && !window.saasViewReceiptPaymentId) {
+                    renderAdminSolicitudes(container);
+                }
+            });
+        }
+    } else {
+        if (window.saasAdminRequestsUnsubscribe) {
+            window.saasAdminRequestsUnsubscribe();
+            window.saasAdminRequestsUnsubscribe = null;
+        }
     }
     
     // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
@@ -705,9 +788,9 @@ function handleRouting() {
         const container = document.getElementById('view-container');
         container.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando vista...</div>';
         
-        setTimeout(() => {
+        setTimeout(async () => {
             try {
-                renderFn(container, queryParams);
+                await renderFn(container, queryParams);
             } catch (err) {
                 console.error("Error rendering view:", err);
                 container.innerHTML = `<div class="glass-card" style="border-color: var(--danger); text-align: center; padding: 3rem;">
@@ -7546,9 +7629,10 @@ function renderLockScreen(container) {
     showProfiles();
 }
 
-function renderRegistroSaaS(container) {
+async function renderRegistroSaaS(container) {
     const db = getDatabase();
-    const plans = db.saas_plans || [];
+    const plans = await dataService.saas.getPlans();
+    const coupons = await dataService.saas.getCoupons();
     window.saasSelectedLogoBase64 = ''; // Reset selected logo
 
     container.innerHTML = `
@@ -7796,8 +7880,7 @@ function renderRegistroSaaS(container) {
                 return;
             }
             
-            const currentDb = getDatabase();
-            const coupon = (currentDb.saas_coupons || []).find(c => c.codigo === code && c.activo);
+            const coupon = (coupons || []).find(c => c.codigo === code && c.activo);
             
             if (coupon) {
                 selectedCoupon = coupon;
@@ -7821,11 +7904,11 @@ function renderRegistroSaaS(container) {
         e.preventDefault();
         
         const currentDb = getDatabase();
-        const requestId = 'REQ-' + Date.now();
+        const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
         
         // Calculate dynamic pricing
         const planName = planSelect.value;
-        const targetPlan = (currentDb.saas_plans || []).find(p => p.nombre === planName);
+        const targetPlan = (plans || []).find(p => p.nombre === planName);
         const originalPrice = targetPlan ? targetPlan.precio : 75.00;
         let finalPrice = originalPrice;
         let couponApplied = null;
@@ -7881,19 +7964,24 @@ function renderRegistroSaaS(container) {
             }
         };
         
-        currentDb.solicitudes_registro.push(requestData);
-        currentDb.saas_state = {
-            status: 'pending',
-            workshopData: requestData,
-            termsSigned: false,
-            signatureName: '',
-            signedAt: null
-        };
-        
-        saveDatabase(currentDb);
-        showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
-        window.location.hash = 'landing';
-        handleRouting();
+        dataService.saas.createRequest(requestData)
+            .then(() => {
+                currentDb.saas_state = {
+                    status: 'pending',
+                    workshopData: requestData,
+                    termsSigned: false,
+                    signatureName: '',
+                    signedAt: null
+                };
+                saveDatabase(currentDb);
+                showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
+                window.location.hash = 'landing';
+                handleRouting();
+            })
+            .catch(err => {
+                console.error("Error al registrar el taller:", err);
+                showToast("Error al guardar la solicitud: " + err.message, "error");
+            });
     });
 }
 function renderSuspendedSaaS(container) {
@@ -8290,12 +8378,14 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
     }, 50);
 }
 
-function renderAdminSolicitudes(container) {
+async function renderAdminSolicitudes(container) {
     if (sessionStorage.getItem('mecanic_os_saas_admin_auth') !== 'true') {
         renderSaaSAdminLogin(container);
         return;
     }
     const db = getDatabase();
+    const plans = await dataService.saas.getPlans();
+    const coupons = await dataService.saas.getCoupons();
     const solicitudes = db.solicitudes_registro || [];
     const payments = db.saas_payments || [];
     
@@ -8360,47 +8450,53 @@ function renderAdminSolicitudes(container) {
                 workshop.logoText = document.getElementById('edit-saas-alias').value.substring(0, 15).toUpperCase();
             }
             
-            // If this is the active workshop being used in the app, sync the active saas_state
-            const saasState = db.saas_state;
-            if (saasState.workshopData && saasState.workshopData.id === id) {
-                saasState.workshopData = workshop;
-                
-                // Reactivate or suspend the active user state
-                if (status === 'suspendido') {
-                    saasState.status = 'suspended';
-                } else if (saasState.status === 'suspended' && (status === 'activo' || status === 'demo')) {
-                    saasState.status = 'active';
-                }
-                
-                // Copy to config_taller
-                db.config_taller = {
-                    nombre: workshop.nombre,
-                    alias: workshop.alias,
-                    nombre_comercial: workshop.nombre_comercial,
-                    giro: workshop.giro,
-                    direccion: workshop.direccion,
-                    telefono: workshop.telefono,
-                    correo: workshop.correo,
-                    nit: workshop.tipo_documento === 'NIT' ? workshop.num_documento : '',
-                    nrc: workshop.nrc,
-                    logoText: workshop.alias.substring(0, 15).toUpperCase(),
-                    logoTagline: 'Servicio Automotriz Especializado',
-                    tipo_persona: workshop.tipo_persona,
-                    clasificacion_tributaria: workshop.clasificacion_tributaria,
-                    sujeto_excluido: workshop.sujeto_excluido,
-                    tipo_documento: workshop.tipo_documento,
-                    num_documento: workshop.num_documento,
-                    actividad_economica: workshop.giro,
-                    pais: workshop.pais,
-                    departamento: workshop.departamento,
-                    municipio: workshop.municipio,
-                    logo: workshop.logo || ''
-                };
-            }
-            
-            saveDatabase(db);
-            showToast("Suscripción y datos comerciales actualizados.", "success");
-            window.saasCloseForm();
+            dataService.saas.createRequest(workshop)
+                .then(() => {
+                    // If this is the active workshop being used in the app, sync the active saas_state
+                    const saasState = db.saas_state;
+                    if (saasState.workshopData && saasState.workshopData.id === id) {
+                        saasState.workshopData = workshop;
+                        
+                        // Reactivate or suspend the active user state
+                        if (status === 'suspendido') {
+                            saasState.status = 'suspended';
+                        } else if (saasState.status === 'suspended' && (status === 'activo' || status === 'demo')) {
+                            saasState.status = 'active';
+                        }
+                        
+                        // Copy to config_taller
+                        db.config_taller = {
+                            nombre: workshop.nombre,
+                            alias: workshop.alias,
+                            nombre_comercial: workshop.nombre_comercial,
+                            giro: workshop.giro,
+                            direccion: workshop.direccion,
+                            telefono: workshop.telefono,
+                            correo: workshop.correo,
+                            nit: workshop.tipo_documento === 'NIT' ? workshop.num_documento : '',
+                            nrc: workshop.nrc,
+                            logoText: workshop.alias.substring(0, 15).toUpperCase(),
+                            logoTagline: 'Servicio Automotriz Especializado',
+                            tipo_persona: workshop.tipo_persona,
+                            clasificacion_tributaria: workshop.clasificacion_tributaria,
+                            sujeto_excluido: workshop.sujeto_excluido,
+                            tipo_documento: workshop.tipo_documento,
+                            num_documento: workshop.num_documento,
+                            actividad_economica: workshop.giro,
+                            pais: workshop.pais,
+                            departamento: workshop.departamento,
+                            municipio: workshop.municipio,
+                            logo: workshop.logo || ''
+                        };
+                    }
+                    saveDatabase(db);
+                    showToast("Suscripción y datos comerciales actualizados.", "success");
+                    window.saasCloseForm();
+                })
+                .catch(err => {
+                    console.error("Error updating workshop request:", err);
+                    showToast("Error al actualizar taller: " + err.message, "error");
+                });
         }
     };
     
@@ -8430,13 +8526,20 @@ function renderAdminSolicitudes(container) {
             
             // Push next billing date 30 days
             workshop.proximo_pago = Date.now() + 30 * 24 * 60 * 60 * 1000;
-            if (db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
-                db.saas_state.workshopData.proximo_pago = workshop.proximo_pago;
-            }
             
-            saveDatabase(db);
-            showToast("Pago registrado con éxito y vigencia extendida.", "success");
-            window.saasCloseForm();
+            dataService.saas.createRequest(workshop)
+                .then(() => {
+                    if (db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
+                        db.saas_state.workshopData.proximo_pago = workshop.proximo_pago;
+                    }
+                    saveDatabase(db);
+                    showToast("Pago registrado con éxito y vigencia extendida.", "success");
+                    window.saasCloseForm();
+                })
+                .catch(err => {
+                    console.error("Error updating payment in request:", err);
+                    showToast("Error al registrar el pago: " + err.message, "error");
+                });
         }
     };
 
@@ -8727,21 +8830,15 @@ function renderAdminSolicitudes(container) {
                     }
                 };
                 
-                currentDb.solicitudes_registro.push(manNewWs);
-                
-                if (manStatus === 'activo' && currentDb.saas_state.status === 'guest') {
-                    currentDb.saas_state = {
-                        status: 'active',
-                        workshopData: manNewWs,
-                        termsSigned: true,
-                        signatureName: manNewWs.propietario,
-                        signedAt: Date.now()
-                    };
-                }
-                
-                saveDatabase(currentDb);
-                showToast("Taller registrado manualmente y habilitado.", "success");
-                window.saasCloseForm();
+                dataService.saas.createRequest(manNewWs)
+                    .then(() => {
+                        showToast("Taller registrado manualmente y habilitado.", "success");
+                        window.saasCloseForm();
+                    })
+                    .catch(err => {
+                        console.error("Error manual register workshop:", err);
+                        showToast("Error al registrar taller manualmente: " + err.message, "error");
+                    });
             });
         }, 50);
         return;
@@ -9375,24 +9472,23 @@ if (window.saasConfigWorkshopId) {
                 const id = btn.getAttribute('data-id');
                 if (confirm("¿Está seguro de que desea APROBAR esta solicitud comercial? El cliente deberá firmar los términos del servicio.")) {
                     const req = solicitudes.find(s => s.id === id);
-                    req.status = 'aprobado';
-                    
-                    req.plan = req.plan || 'Pro';
-                    req.precio_mensual = req.precio_mensual || 75.00;
-                    req.suscripcion_status = req.suscripcion_status || 'activo';
-                    req.proximo_pago = req.proximo_pago || (Date.now() + 30 * 24 * 60 * 60 * 1000);
-                    
-                    db.saas_state = {
-                        status: 'approved_terms_pending',
-                        workshopData: req,
-                        termsSigned: false,
-                        signatureName: '',
-                        signedAt: null
-                    };
-                    
-                    saveDatabase(db);
-                    showToast("Solicitud aprobada con éxito. Listo para la firma del cliente.", "success");
-                    renderAdminSolicitudes(container);
+                    if (req) {
+                        const updatedData = {
+                            status: 'approved_terms_pending',
+                            plan: req.plan || 'Pro',
+                            precio_mensual: req.precio_mensual || 75.00,
+                            suscripcion_status: req.suscripcion_status || 'activo',
+                            proximo_pago: req.proximo_pago || (Date.now() + 30 * 24 * 60 * 60 * 1000)
+                        };
+                        dataService.saas.updateRequestStatus(id, 'approved_terms_pending', updatedData)
+                            .then(() => {
+                                showToast("Solicitud aprobada con éxito. Listo para la firma del cliente.", "success");
+                            })
+                            .catch(err => {
+                                console.error("Error approving request:", err);
+                                showToast("Error al aprobar solicitud: " + err.message, "error");
+                            });
+                    }
                 }
             });
         });
@@ -9401,16 +9497,14 @@ if (window.saasConfigWorkshopId) {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm("¿Está seguro de que desea RECHAZAR esta solicitud?")) {
-                    const req = solicitudes.find(s => s.id === id);
-                    req.status = 'rechazado';
-                    
-                    if (db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
-                        db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
-                    }
-                    
-                    saveDatabase(db);
-                    showToast("Solicitud rechazada", "warning");
-                    renderAdminSolicitudes(container);
+                    dataService.saas.updateRequestStatus(id, 'rechazado')
+                        .then(() => {
+                            showToast("Solicitud rechazada", "warning");
+                        })
+                        .catch(err => {
+                            console.error("Error rejecting request:", err);
+                            showToast("Error al rechazar la solicitud: " + err.message, "error");
+                        });
                 }
             });
         });
@@ -9493,11 +9587,11 @@ if (window.saasConfigWorkshopId) {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm("¿Está seguro de que desea eliminar este plan de suscripción comercial?")) {
-                    const currentDb = getDatabase();
-                    currentDb.saas_plans = (currentDb.saas_plans || []).filter(p => p.id !== id);
-                    saveDatabase(currentDb);
-                    showToast("Plan eliminado del catálogo.", "info");
-                    renderAdminSolicitudes(container);
+                    dataService.saas.deletePlan(id)
+                        .then(() => {
+                            showToast("Plan eliminado del catálogo.", "info");
+                            renderAdminSolicitudes(container);
+                        });
                 }
             });
         });
@@ -9505,13 +9599,14 @@ if (window.saasConfigWorkshopId) {
         document.querySelectorAll('.btn-toggle-saas-coupon').forEach(btn => {
             btn.addEventListener('click', () => {
                 const code = btn.getAttribute('data-id');
-                const currentDb = getDatabase();
-                const coupon = (currentDb.saas_coupons || []).find(c => c.codigo === code);
+                const coupon = (coupons || []).find(c => c.codigo === code);
                 if (coupon) {
                     coupon.activo = !coupon.activo;
-                    saveDatabase(currentDb);
-                    showToast(`Cupón ${coupon.codigo} ${coupon.activo ? 'activado' : 'desactivado'}.`, "info");
-                    renderAdminSolicitudes(container);
+                    dataService.saas.saveCoupon(coupon)
+                        .then(() => {
+                            showToast(`Cupón ${coupon.codigo} ${coupon.activo ? 'activado' : 'desactivado'}.`, "info");
+                            renderAdminSolicitudes(container);
+                        });
                 }
             });
         });
@@ -9520,11 +9615,11 @@ if (window.saasConfigWorkshopId) {
             btn.addEventListener('click', () => {
                 const code = btn.getAttribute('data-id');
                 if (confirm("¿Está seguro de que desea eliminar este cupón comercial?")) {
-                    const currentDb = getDatabase();
-                    currentDb.saas_coupons = (currentDb.saas_coupons || []).filter(c => c.codigo !== code);
-                    saveDatabase(currentDb);
-                    showToast("Cupón eliminado del catálogo.", "info");
-                    renderAdminSolicitudes(container);
+                    dataService.saas.deleteCoupon(code)
+                        .then(() => {
+                            showToast("Cupón eliminado del catálogo.", "info");
+                            renderAdminSolicitudes(container);
+                        });
                 }
             });
         });
@@ -9534,7 +9629,6 @@ if (window.saasConfigWorkshopId) {
         if (planForm) {
             planForm.addEventListener('submit', (planEvent) => {
                 planEvent.preventDefault();
-                const currentDb = getDatabase();
                 const nombre = document.getElementById('plan-form-nombre').value;
                 const precio = parseFloat(document.getElementById('plan-form-precio').value);
                 const max_usuarios = parseInt(document.getElementById('plan-form-users').value) || 5;
@@ -9542,10 +9636,9 @@ if (window.saasConfigWorkshopId) {
                 const featuresText = document.getElementById('plan-form-features').value;
                 const features = featuresText.split('\n').map(f => f.trim()).filter(f => f.length > 0);
 
-                if (!currentDb.saas_plans) currentDb.saas_plans = [];
-
+                let targetPlan;
                 if (window.saasEditPlanId) {
-                    const targetPlan = currentDb.saas_plans.find(p => p.id === window.saasEditPlanId);
+                    targetPlan = (plans || []).find(p => p.id === window.saasEditPlanId);
                     if (targetPlan) {
                         targetPlan.nombre = nombre;
                         targetPlan.precio = precio;
@@ -9554,7 +9647,7 @@ if (window.saasConfigWorkshopId) {
                         targetPlan.features = features;
                     }
                 } else {
-                    const newPlan = {
+                    targetPlan = {
                         id: 'plan-' + Date.now(),
                         nombre: nombre,
                         precio: precio,
@@ -9562,12 +9655,15 @@ if (window.saasConfigWorkshopId) {
                         max_usuarios: max_usuarios,
                         features: features
                     };
-                    currentDb.saas_plans.push(newPlan);
                 }
 
-                saveDatabase(currentDb);
-                showToast("Plan de suscripción guardado.", "success");
-                window.saasCloseForm();
+                if (targetPlan) {
+                    dataService.saas.savePlan(targetPlan)
+                        .then(() => {
+                            showToast("Plan de suscripción guardado.", "success");
+                            window.saasCloseForm();
+                        });
+                }
             });
         }
 
@@ -9575,7 +9671,6 @@ if (window.saasConfigWorkshopId) {
         if (couponForm) {
             couponForm.addEventListener('submit', (couponEvent) => {
                 couponEvent.preventDefault();
-                const currentDb = getDatabase();
                 const codigo = document.getElementById('coupon-form-codigo').value.trim().toUpperCase();
                 const tipo = document.getElementById('coupon-form-tipo').value;
                 const valor = parseFloat(document.getElementById('coupon-form-valor').value);
@@ -9583,10 +9678,6 @@ if (window.saasConfigWorkshopId) {
                 const descripcion = document.getElementById('coupon-form-desc').value;
                 const activo = document.getElementById('coupon-form-active').checked;
 
-                if (!currentDb.saas_coupons) currentDb.saas_coupons = [];
-
-                // Check if coupon code already exists
-                const existsIdx = currentDb.saas_coupons.findIndex(c => c.codigo === codigo);
                 const newCoupon = {
                     codigo: codigo,
                     tipo: tipo,
@@ -9596,15 +9687,11 @@ if (window.saasConfigWorkshopId) {
                     activo: activo
                 };
 
-                if (existsIdx >= 0) {
-                    currentDb.saas_coupons[existsIdx] = newCoupon;
-                } else {
-                    currentDb.saas_coupons.push(newCoupon);
-                }
-
-                saveDatabase(currentDb);
-                showToast("Cupón promocional guardado.", "success");
-                window.saasCloseForm();
+                dataService.saas.saveCoupon(newCoupon)
+                    .then(() => {
+                        showToast("Cupón promocional guardado.", "success");
+                        window.saasCloseForm();
+                    });
             });
         }
     }
@@ -10331,65 +10418,143 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
             alert("Debe aceptar los términos y condiciones marcando la casilla correspondiente.");
             return;
         }
-        
-        db.saas_state = {
-            status: 'active',
-            workshopData: saas.workshopData,
-            termsSigned: true,
-            signatureName: sigName,
-            signedAt: Date.now()
-        };
-        
-        db.config_taller = {
-            nombre: saas.workshopData.nombre,
-            alias: saas.workshopData.alias || '',
-            nombre_comercial: saas.workshopData.nombre_comercial || '',
-            giro: saas.workshopData.giro,
-            direccion: saas.workshopData.direccion,
-            telefono: saas.workshopData.telefono,
-            correo: saas.workshopData.correo,
-            nit: saas.workshopData.nit,
-            nrc: saas.workshopData.nrc,
-            logoText: saas.workshopData.logoText || 'MecanicOS',
-            logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
-            tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
-            clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
-            sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
-            tipo_documento: saas.workshopData.tipo_documento || 'NIT',
-            num_documento: saas.workshopData.num_documento || '',
-            actividad_economica: saas.workshopData.actividad_economica || saas.workshopData.giro,
-            pais: saas.workshopData.pais || 'El Salvador',
-            departamento: saas.workshopData.departamento || '',
-            municipio: saas.workshopData.municipio || '',
-            logo: saas.workshopData.logo || ''
-        };
-        
-        const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
-        if (!exists) {
-            const newTech = {
-                Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
-                Nombre_Completo: saas.workshopData.propietario,
-                Email: saas.workshopData.correo,
-                Telefono: saas.workshopData.telefono,
-                Especialidad: 'Gerente General',
-                Nivel_Acceso: 'Administrador',
-                Salario_Base: 1500,
-                Contraseña: saas.workshopData.pass,
-                Incapacidades: [],
-                Vacaciones: [],
-                Bonos: []
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const origHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando cuenta y activando...';
+
+        const email = saas.workshopData.correo;
+        const pass = saas.workshopData.pass;
+
+        const proceedWithLocalActivation = async (uid) => {
+            db.saas_state = {
+                status: 'active',
+                workshopData: { ...saas.workshopData, status: 'active', uid },
+                termsSigned: true,
+                signatureName: sigName,
+                signedAt: Date.now()
             };
-            db.tecnicos.push(newTech);
-            setActiveUser(newTech);
+            
+            db.config_taller = {
+                nombre: saas.workshopData.nombre,
+                alias: saas.workshopData.alias || '',
+                nombre_comercial: saas.workshopData.nombre_comercial || '',
+                giro: saas.workshopData.giro,
+                direccion: saas.workshopData.direccion,
+                telefono: saas.workshopData.telefono,
+                correo: saas.workshopData.correo,
+                nit: saas.workshopData.nit,
+                nrc: saas.workshopData.nrc,
+                logoText: saas.workshopData.logoText || 'MecanicOS',
+                logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
+                tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
+                clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
+                sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
+                tipo_documento: saas.workshopData.tipo_documento || 'NIT',
+                num_documento: saas.workshopData.num_documento || '',
+                actividad_economica: saas.workshopData.actividad_economica || saas.workshopData.giro,
+                pais: saas.workshopData.pais || 'El Salvador',
+                departamento: saas.workshopData.departamento || '',
+                municipio: saas.workshopData.municipio || '',
+                logo: saas.workshopData.logo || ''
+            };
+            
+            const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
+            if (!exists) {
+                const newTech = {
+                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                    Nombre_Completo: saas.workshopData.propietario,
+                    Email: saas.workshopData.correo,
+                    Telefono: saas.workshopData.telefono,
+                    Especialidad: 'Gerente General',
+                    Nivel_Acceso: 'Administrador',
+                    Salario_Base: 1500,
+                    Contraseña: saas.workshopData.pass,
+                    Incapacidades: [],
+                    Vacaciones: [],
+                    Bonos: []
+                };
+                db.tecnicos.push(newTech);
+                setActiveUser(newTech);
+            }
+            
+            if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+                dataService.activeUserUid = uid;
+            }
+            
+            await saveDatabase(db);
+            
+            if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+                try {
+                    await dataService.migrateLocalDataToCloud(uid);
+                } catch (migrationErr) {
+                    console.error("Migration error during activation (continuing):", migrationErr);
+                }
+                dataService.startSync(uid);
+            }
+            
+            updateSidebarBrand();
+            updateUserUI();
+            
+            showToast("¡Plataforma Activada! Bienvenido a Mecanic OS.", "success");
+            window.location.hash = 'taller-dashboard';
+            handleRouting();
+        };
+
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            firebase.auth().createUserWithEmailAndPassword(email, pass)
+                .then(async (userCredential) => {
+                    const user = userCredential.user;
+                    try {
+                        await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
+                            termsSigned: true,
+                            signatureName: sigName,
+                            signedAt: Date.now(),
+                            uid: user.uid,
+                            status: 'active'
+                        });
+                        await proceedWithLocalActivation(user.uid);
+                    } catch (err) {
+                        console.error("Error updating request status:", err);
+                        await proceedWithLocalActivation(user.uid);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Firebase auth creation error:", error);
+                    if (error.code === 'auth/email-already-in-use') {
+                        firebase.auth().signInWithEmailAndPassword(email, pass)
+                            .then(async (userCredential) => {
+                                const user = userCredential.user;
+                                try {
+                                    await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
+                                        termsSigned: true,
+                                        signatureName: sigName,
+                                        signedAt: Date.now(),
+                                        uid: user.uid,
+                                        status: 'active'
+                                    });
+                                    await proceedWithLocalActivation(user.uid);
+                                } catch (err) {
+                                    console.error("Error updating status on sign in:", err);
+                                    await proceedWithLocalActivation(user.uid);
+                                }
+                            })
+                            .catch((loginErr) => {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = origHtml;
+                                showToast("Error al crear cuenta: El correo ya está en uso por otro taller.", "error");
+                            });
+                    } else {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origHtml;
+                        showToast(`Error al crear la cuenta: ${error.message}`, "error");
+                    }
+                });
+        } else {
+            const mockUid = 'local_' + Date.now();
+            proceedWithLocalActivation(mockUid);
         }
-        
-        saveDatabase(db);
-        updateSidebarBrand();
-        updateUserUI();
-        
-        showToast("¡Plataforma Activada! Bienvenido a Mecanic OS.", "success");
-        window.location.hash = 'taller-dashboard';
-        handleRouting();
     });
 }
 
