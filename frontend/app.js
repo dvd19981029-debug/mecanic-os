@@ -527,8 +527,12 @@ function getWorkshopConfig(db) {
             pais: 'El Salvador',
             departamento: 'La Libertad',
             municipio: 'Colón',
-            logo: ''
+            logo: '',
+            formato_presupuesto: 'moderno_facturallama'
         };
+    }
+    if (!db.config_taller.formato_presupuesto) {
+        db.config_taller.formato_presupuesto = 'moderno_facturallama';
     }
     return db.config_taller;
 }
@@ -3899,7 +3903,7 @@ function renderConfiguracion(container) {
 
                             <!-- Branding de Documentos -->
                             <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-top:1.5rem; margin-bottom:1rem; font-weight:700;">Diseño y Branding (PDFs)</h3>
-                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                                 <div class="form-group">
                                     <label>Texto Corto para Logo (PDFs)</label>
                                     <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: GRUPO GEMA" required style="padding:0.6rem;">
@@ -3908,6 +3912,14 @@ function renderConfiguracion(container) {
                                     <label>Eslogan / Tagline Logo</label>
                                     <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Formato de Impresión (Presupuestos)</label>
+                                <select id="cfg-taller-formato-presupuesto" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                    <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' ? 'selected' : ''}>Moderno (Formato FacturaLlama DTE)</option>
+                                    <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
+                                    <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
+                                </select>
                             </div>
                             <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end; padding:0.65rem 1.25rem;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
                         </form>
@@ -4332,7 +4344,8 @@ function renderConfiguracion(container) {
                     pais: document.getElementById('cfg-taller-pais').value,
                     departamento: document.getElementById('cfg-taller-departamento').value,
                     municipio: document.getElementById('cfg-taller-municipio').value,
-                    logo: window.saasSelectedLogoBase64 || ''
+                    logo: window.saasSelectedLogoBase64 || '',
+                    formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value
                 };
 
                 // Sync with saas_state if matching active session
@@ -5812,61 +5825,82 @@ function exportPlanillaConsolidada(year, month, periodType, payrollData) {
                     Aprobado Por (Gerencia)<br>Firma Autorizada
                 </div>
             </div>
-            <script>window.print();<\/script>
+            <script>window.print();</script>
         </body>
         </html>
     `);
     printWin.document.close();
 }
 
-// ----------------------------------------------------
-// BUDGET PDF EXPORT (GRUPO GEMA FORMAT)
-// ----------------------------------------------------
-function exportBudgetPDF(budgetId) {
-    const db = getDatabase();
-    const ws = getWorkshopConfig(db);
-    const budget = db.presupuestos.find(p => p['ID Presupuesto'] === budgetId);
-    if (!budget) {
-        showToast("Error: Presupuesto no encontrado", "danger");
-        return;
+// Helper function: Convert number to Spanish words (uppercase)
+function numeroALetras(num) {
+    const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+    const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+    const diezADiecinueve = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISITE', 'DIECIOCHO', 'DIECINUEVE'];
+    const veintiunoAVeintinueve = ['VEINTE', 'VEINTIUNO', 'VEINTIDOS', 'VEINTITRES', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISEIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
+    const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+    function convertirGrupo(n) {
+        let output = '';
+        if (n >= 100) {
+            if (n === 100) return 'CIEN ';
+            output += centenas[Math.floor(n / 100)] + ' ';
+            n %= 100;
+        }
+        if (n >= 20) {
+            if (n >= 20 && n <= 29) {
+                output += veintiunoAVeintinueve[n - 20] + ' ';
+            } else {
+                output += decenas[Math.floor(n / 10)] + ' ';
+                n %= 10;
+                if (n > 0) {
+                    output += 'Y ' + unidades[n] + ' ';
+                }
+            }
+        } else if (n >= 10) {
+            output += diezADiecinueve[n - 10] + ' ';
+        } else if (n > 0) {
+            output += unidades[n] + ' ';
+        }
+        return output;
     }
 
-    const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { 
-        Nombre: budget.Nombre, 
-        'Telefono 1 ': budget['Telefono 1 '] || '', 
-        Direccion: budget.Direccion || '' 
-    };
+    if (num === 0) return 'CERO CON 00/100 DÓLARES';
     
-    const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === budget.ID_Vehiculo) || { 
-        Placas: budget.Placas || 'N/A', 
-        Marca: 'N/A', 
-        Modelo: 'N/A', 
-        Año: 'N/A' 
-    };
+    let entero = Math.floor(num);
+    let decimales = Math.round((num - entero) * 100);
+    let letras = '';
 
-    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
-    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
-
-    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === budgetId);
-    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === budgetId);
-
-    const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
-    const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
-    const subtotal = sumProd + sumLab;
-    const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotal * taxRate;
-
-    let retVal = 0;
-    let percVal = 0;
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotal * parseFloat(client.AplicaRetencion);
-    }
-    if (client.AplicaPercepcion > 0) {
-        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+    if (entero >= 1000000) {
+        let millones = Math.floor(entero / 1000000);
+        if (millones === 1) {
+            letras += 'UN MILLÓN ';
+        } else {
+            letras += convertirGrupo(millones) + 'MILLONES ';
+        }
+        entero %= 1000000;
     }
 
-    const grandTotal = subtotal + iva + percVal - retVal;
+    if (entero >= 1000) {
+        let miles = Math.floor(entero / 1000);
+        if (miles === 1) {
+            letras += 'MIL ';
+        } else {
+            letras += convertirGrupo(miles) + 'MIL ';
+        }
+        entero %= 1000;
+    }
 
+    if (entero > 0) {
+        letras += convertirGrupo(entero);
+    }
+
+    const centavos = (decimales < 10 ? '0' : '') + decimales;
+    return `${letras.trim()} CON ${centavos}/100 DÓLARES`;
+}
+
+// Format 1: Clásico Mecanic OS
+function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 12px;">No se cotizan repuestos y lubricantes</td></tr>'
         : products.map(p => `
@@ -5909,8 +5943,7 @@ function exportBudgetPDF(budgetId) {
         `;
     }
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
+    return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6370,7 +6403,1040 @@ function exportBudgetPDF(budgetId) {
     </script>
 </body>
 </html>
-`);
+    `;
+}
+
+// Format 2: Moderno FacturaLlama DTE
+function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+    let items = [];
+    products.forEach(p => {
+        items.push({
+            cant: parseFloat(p.Cantidad || 1).toFixed(2),
+            unidad: 'Pieza',
+            desc: `[Repuesto] ${p.Descripcion}`,
+            precio: parseFloat(p.PrecioUnitario || 0),
+            descItem: 0.00,
+            total: parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)
+        });
+    });
+    labor.forEach(l => {
+        items.push({
+            cant: parseFloat(l.Cantidad || 1).toFixed(2),
+            unidad: 'Servicio',
+            desc: `[Mano de Obra] ${l.Descripcion}`,
+            precio: parseFloat(l.PrecioUnitario || 0),
+            descItem: 0.00,
+            total: parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)
+        });
+    });
+
+    const itemsHTML = items.length === 0
+        ? '<tr><td colspan="10" style="text-align: center; color: #64748b; padding: 12px;">No se registran items cotizados</td></tr>'
+        : items.map((item, idx) => `
+            <tr>
+                <td style="text-align: center; width: 4%;">${idx + 1}</td>
+                <td style="text-align: center; width: 6%;">${item.cant}</td>
+                <td style="text-align: center; width: 8%;">${item.unidad}</td>
+                <td style="width: 42%;">${item.desc}</td>
+                <td style="text-align: right; width: 10%;">$ ${item.precio.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; width: 8%;">$ ${item.descItem.toFixed(2)}</td>
+                <td style="text-align: right; width: 7%;">$ 0.00</td>
+                <td style="text-align: right; width: 5%;">$ 0.00</td>
+                <td style="text-align: right; width: 5%;">$ 0.00</td>
+                <td style="text-align: right; width: 10%;">$ ${item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+
+    const totalLetras = numeroALetras(grandTotal).toUpperCase();
+    const conditionStr = budget.Condicion || (client['Credito?'] === 'SI' ? 'CRÉDITO' : 'CONTADO');
+
+    let percRow = '';
+    if (percVal > 0) {
+        percRow = `
+            <tr>
+                <td class="totals-label">(+) IVA Percibido</td>
+                <td class="totals-val">$ ${percVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    }
+
+    let retRow = '';
+    if (retVal > 0) {
+        retRow = `
+            <tr>
+                <td class="totals-label">(-) IVA Retenido</td>
+                <td class="totals-val">$ ${retVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    }
+
+    let logoHTML = '';
+    if (ws.logo) {
+        logoHTML = `<img src="${ws.logo}" style="max-height: 85px; max-width: 200px; object-fit: contain; border-radius: 4px;" />`;
+    } else {
+        logoHTML = `
+            <div style="border:1.2px solid var(--border-color); padding: 6px; border-radius:6px; background:#f8fafc; font-family:'Outfit',sans-serif; text-align:center; font-weight:800; color:var(--primary-color); width:100%;">
+                <div style="font-size:1.15rem;">${ws.logoText || 'TALLER'}</div>
+                <div style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">${(ws.logoTagline || '').substring(0,35)}</div>
+            </div>
+        `;
+    }
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Presupuesto DTE - ${budget['ID Presupuesto']}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #5a626a;
+            --border-color: #cbd5e1;
+            --text-color: #0f172a;
+            --bg-label: #f1f5f9;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            background-color: #f8fafc;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 0.72rem;
+        }
+
+        .no-print-toolbar {
+            background-color: #1e293b;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .no-print-toolbar h3 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+        .toolbar-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-print {
+            background-color: #10b981;
+            color: #fff;
+        }
+        .btn-print:hover {
+            background-color: #059669;
+        }
+        .btn-close {
+            background-color: #64748b;
+            color: #fff;
+        }
+        .btn-close:hover {
+            background-color: #475569;
+        }
+
+        .page-container {
+            width: 820px;
+            margin: 30px auto;
+            background-color: #fff;
+            padding: 25px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+
+        .pdf-header {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 0.8fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: start;
+        }
+        .company-details {
+            font-size: 0.72rem;
+            line-height: 1.4;
+        }
+        .company-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1.25rem;
+            margin: 0 0 4px 0;
+            color: var(--primary-color);
+        }
+        .logo-container {
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .section-header-bar {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            text-align: center;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .box-container {
+            border: 1px solid var(--border-color);
+            border-top: none;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 0 0 4px 4px;
+            margin-bottom: 12px;
+        }
+
+        .dte-grid {
+            display: grid;
+            grid-template-columns: 85px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+        .dte-details {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 5px;
+            font-size: 0.7rem;
+            line-height: 1.3;
+        }
+
+        .receptor-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 15px;
+            font-size: 0.7rem;
+            line-height: 1.3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.68rem;
+            margin-bottom: 12px;
+        }
+        table, th, td {
+            border: 1px solid var(--border-color);
+        }
+        th {
+            background-color: var(--bg-label);
+            font-weight: 700;
+            text-align: center;
+            padding: 5px;
+            font-size: 0.7rem;
+        }
+        td {
+            padding: 5px 6px;
+        }
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+            page-break-inside: avoid;
+        }
+        .left-notes {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .notes-box {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            background-color: #fafbfc;
+            border-radius: 4px;
+            min-height: 40px;
+            font-size: 0.68rem;
+            line-height: 1.3;
+        }
+        .extension-box {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .extension-header {
+            background-color: var(--primary-color);
+            color: #fff;
+            text-align: center;
+            font-weight: 700;
+            padding: 3px;
+            font-size: 0.7rem;
+        }
+        .extension-body {
+            padding: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.65rem;
+        }
+        .sig-line {
+            border-bottom: 1px dashed #b0b8c0;
+            margin-top: 15px;
+            height: 10px;
+        }
+
+        .totals-table {
+            width: 100%;
+            margin-bottom: 0;
+        }
+        .totals-table td {
+            padding: 4px 8px;
+        }
+        .totals-label {
+            font-weight: 600;
+            font-size: 0.65rem;
+            color: #334155;
+            background-color: var(--bg-label);
+        }
+        .totals-val {
+            text-align: right;
+            font-weight: 600;
+        }
+        .grand-total-row td {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        @media print {
+            body {
+                background-color: #fff;
+                color: #000;
+            }
+            .no-print-toolbar {
+                display: none !important;
+            }
+            .page-container {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            @page {
+                size: portrait;
+                margin: 1.2cm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-toolbar">
+        <h3>Vista Previa de Impresión (Formato DTE) - Mecanic OS</h3>
+        <div class="toolbar-buttons">
+            <button class="btn-action btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir o Guardar PDF</button>
+            <button class="btn-action btn-close" onclick="window.close()"><i class="fa-solid fa-xmark"></i> Cerrar Vista Previa</button>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <!-- Header -->
+        <div class="pdf-header">
+            <div class="company-details">
+                <h1 class="company-title">${ws.nombre_comercial || ws.nombre}</h1>
+                <div><strong>Nombre o Razón Social:</strong> ${ws.nombre}</div>
+                <div><strong>Actividad Económica:</strong> ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}</div>
+                <div><strong>NIT:</strong> ${ws.num_documento || ws.nit || ''} &nbsp;&nbsp; <strong>NRC:</strong> ${ws.nrc || ''}</div>
+                <div><strong>Correo Electrónico:</strong> ${ws.correo}</div>
+                <div><strong>Teléfono:</strong> ${ws.telefono}</div>
+            </div>
+            <div class="company-details">
+                <div><strong>Dirección:</strong> ${ws.direccion || ''}</div>
+                <div>MUNICIPIO DE ${ws.municipio ? ws.municipio.toUpperCase() : ''}</div>
+                <div>DEPARTAMENTO DE ${ws.departamento ? ws.departamento.toUpperCase() : ''}</div>
+                <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
+                <div><strong>Punto de Venta:</strong> P001</div>
+            </div>
+            <div class="logo-container">
+                ${logoHTML}
+            </div>
+        </div>
+
+        <!-- DTE Box -->
+        <div class="section-header-bar">Documento Tributario Electrónico - Presupuesto / Cotización</div>
+        <div class="box-container dte-grid">
+            <div>
+                <!-- Mock QR Code -->
+                <svg width="80" height="80" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" fill="#f8fafc" rx="4" stroke="#b0b8c0" stroke-width="1"/>
+                    <rect x="10" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                    <rect x="15" y="15" width="15" height="15" fill="#f8fafc"/>
+                    <rect x="17" y="17" width="11" height="11" fill="#5a626a"/>
+                    
+                    <rect x="65" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                    <rect x="70" y="15" width="15" height="15" fill="#f8fafc"/>
+                    <rect x="72" y="17" width="11" height="11" fill="#5a626a"/>
+                    
+                    <rect x="10" y="65" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                    <rect x="15" y="70" width="15" height="15" fill="#f8fafc"/>
+                    <rect x="17" y="72" width="11" height="11" fill="#5a626a"/>
+                    
+                    <rect x="65" y="65" width="10" height="10" fill="#5a626a"/>
+                    <rect x="42" y="12" width="6" height="6" fill="#5a626a"/>
+                    <rect x="48" y="18" width="6" height="12" fill="#5a626a"/>
+                    <rect x="12" y="42" width="12" height="6" fill="#5a626a"/>
+                    <rect x="24" y="48" width="6" height="6" fill="#5a626a"/>
+                    <rect x="42" y="42" width="18" height="18" fill="#5a626a"/>
+                    <rect x="72" y="42" width="12" height="12" fill="#5a626a"/>
+                    <rect x="42" y="72" width="12" height="6" fill="#5a626a"/>
+                    <rect x="78" y="78" width="10" height="10" fill="#5a626a"/>
+                    <rect x="54" y="60" width="6" height="18" fill="#5a626a"/>
+                </svg>
+            </div>
+            <div class="dte-details">
+                <div><strong>Modelo de Facturación:</strong> MODELO FACTURACIÓN PREVIO</div>
+                <div><strong>Tipo de Transmisión:</strong> TRANSMISIÓN NORMAL</div>
+                <div><strong>Código de Generación:</strong><br><span style="font-family:monospace; font-size:0.65rem;">${budget['ID Presupuesto'].toUpperCase()}-PREV-DTE</span></div>
+                <div><strong>Versión de JSON:</strong> 1</div>
+                <div><strong>Número de Control:</strong> DTE-01-M001P001-${budget['ID Presupuesto'].substring(0,8)}</div>
+                <div><strong>Fecha y Hora de Generación:</strong><br>${new Date(budget.Fecha).toLocaleDateString('es-SV')} ${budget.Hora || '12:00:00'}</div>
+                <div style="grid-column: span 2;"><strong>Sello de Recepción:</strong> COTIZACION-NO-TRIBUTARIA-VALIDA-PARA-TALLER</div>
+            </div>
+        </div>
+
+        <!-- Receptor Box -->
+        <div class="section-header-bar">Receptor / Cliente y Vehículo</div>
+        <div class="box-container receptor-grid">
+            <div>
+                <h3 style="margin: 0 0 5px 0; font-size:0.75rem; color:var(--primary-color);">Datos del Cliente</h3>
+                <div><strong>Nombre o Razón Social:</strong> ${client.Nombre}</div>
+                <div><strong>Tipo de Documento:</strong> ${client.Tipo_Documento || 'DUI'}</div>
+                <div><strong>N° Documento:</strong> ${client.Num_Documento || client.DUI || 'N/A'}</div>
+                <div><strong>Dirección:</strong> ${client.Direccion || 'Dirección de cliente registrada'}</div>
+                <div><strong>Correo Electrónico:</strong> ${client.Correo || 'N/A'}</div>
+                <div><strong>Teléfono:</strong> ${budget['Telefono 1 '] || client['Telefono 1 '] || 'N/A'}</div>
+            </div>
+            <div>
+                <h3 style="margin: 0 0 5px 0; font-size:0.75rem; color:var(--primary-color);">Detalles del Vehículo</h3>
+                <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
+                <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
+                <div><strong>VIN / Motor:</strong> ${vehicle.Nª_VIN || 'N/A'} / ${vehicle.Nª_Motor || 'N/A'}</div>
+                <div><strong>Odómetro / Recorrido:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
+                <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
+            </div>
+        </div>
+
+        <!-- Cuerpo de Documento -->
+        <div class="section-header-bar">Cuerpo del Documento</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Cant.</th>
+                    <th>Unidad</th>
+                    <th>Descripción</th>
+                    <th>Precio Unitario</th>
+                    <th>Descuento</th>
+                    <th>Monto No Afecto</th>
+                    <th>No Sujeta</th>
+                    <th>Exenta</th>
+                    <th>Ventas Gravadas</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHTML}
+            </tbody>
+        </table>
+
+        <!-- Bottom -->
+        <div class="bottom-grid">
+            <div class="left-notes">
+                <div><strong>Total en Letras:</strong> <span style="font-weight: 700;">${totalLetras}</span></div>
+                <div><strong>Condición de la Operación:</strong> ${conditionStr.toUpperCase()}</div>
+                <div><strong>Observaciones:</strong></div>
+                <div class="notes-box">${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Servicio y mantenimiento técnico automotriz.'}</div>
+                
+                <!-- Extensión Firmas -->
+                <div class="extension-box">
+                    <div class="extension-header">Extensión</div>
+                    <div class="extension-body">
+                        <div>
+                            <strong>Nombre Entrega:</strong>
+                            <div class="sig-line"></div>
+                            <div style="margin-top:5px;">N° Documento:</div>
+                        </div>
+                        <div>
+                            <strong>Nombre Recibe:</strong>
+                            <div class="sig-line"></div>
+                            <div style="margin-top:5px;">N° Documento:</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <table class="totals-table">
+                    <tr>
+                        <td class="totals-label">Sumatoria de Ventas</td>
+                        <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    <tr>
+                        <td class="totals-label">Monto Global de Descuento</td>
+                        <td class="totals-val">$ 0.00</td>
+                    </tr>
+                    <tr>
+                        <td class="totals-label">Sub Total</td>
+                        <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    <tr>
+                        <td class="totals-label">(+) IVA (13%)</td>
+                        <td class="totals-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    ${percRow}
+                    ${retRow}
+                    <tr>
+                        <td class="totals-label">(-) Retención Renta</td>
+                        <td class="totals-val">$ 0.00</td>
+                    </tr>
+                    <tr class="grand-total-row">
+                        <td class="totals-label">Total a Pagar</td>
+                        <td class="totals-val">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                window.print();
+            }, 600);
+        });
+    </script>
+</body>
+</html>
+    `;
+}
+
+// Format 3: Elegante / Ejecutivo
+function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+    const productsHTML = products.length === 0
+        ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin repuestos ni lubricantes cotizados</td></tr>'
+        : products.map(p => `
+            <tr>
+                <td style="text-align: center; font-weight: 500;">${p.Cantidad}</td>
+                <td>${p.Descripcion}</td>
+                <td style="text-align: right;">$ ${parseFloat(p.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; font-weight: 600;">$ ${(parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+
+    const laborHTML = labor.length === 0
+        ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin mano de obra cotizada</td></tr>'
+        : labor.map(l => `
+            <tr>
+                <td style="text-align: center; font-weight: 500;">${l.Cantidad}</td>
+                <td>${l.Descripcion}</td>
+                <td style="text-align: right;">$ ${parseFloat(l.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; font-weight: 600;">$ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `).join('');
+
+    let percRow = '';
+    if (percVal > 0) {
+        percRow = `
+            <tr>
+                <td class="total-label">(+) IVA Percibido</td>
+                <td class="total-val">$ ${percVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    }
+
+    let retRow = '';
+    if (retVal > 0) {
+        retRow = `
+            <tr>
+                <td class="total-label">(-) IVA Retenido</td>
+                <td class="total-val">$ ${retVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+        `;
+    }
+
+    let logoHTML = '';
+    if (ws.logo) {
+        logoHTML = `<img src="${ws.logo}" style="max-height: 90px; max-width: 250px; object-fit: contain; border-radius: 4px;" />`;
+    } else {
+        logoHTML = `<div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight:800; color:var(--primary-color); margin: 0; letter-spacing: -0.03em;">${ws.logoText || 'MECANIC OS'}</div>`;
+    }
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Presupuesto Comercial - ${budget['ID Presupuesto']}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --accent-color: #b45309;
+            --border-color: #e2e8f0;
+            --text-color: #334155;
+            --bg-light: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            background-color: #ffffff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-size: 0.8rem;
+        }
+
+        .no-print-toolbar {
+            background-color: var(--primary-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+        }
+        .no-print-toolbar h3 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .toolbar-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-print {
+            background-color: var(--accent-color);
+            color: #fff;
+        }
+        .btn-print:hover {
+            opacity: 0.9;
+        }
+        .btn-close {
+            background-color: #64748b;
+            color: #fff;
+        }
+
+        .page-container {
+            width: 820px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .centered-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 25px;
+        }
+        .header-logo {
+            margin-bottom: 10px;
+        }
+        .header-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin: 0;
+            letter-spacing: -0.03em;
+        }
+        .header-tagline {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 2px;
+            margin-bottom: 10px;
+        }
+        .header-meta {
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .doc-meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px 25px;
+        }
+        .meta-col h4 {
+            margin: 0 0 4px 0;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+        }
+        .meta-col div {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .grid-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .info-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            border-bottom: 1.5px solid var(--accent-color);
+            padding-bottom: 5px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .card-body div {
+            margin-bottom: 6px;
+            font-size: 0.78rem;
+            line-height: 1.4;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            margin-bottom: 25px;
+        }
+        th {
+            border-bottom: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 700;
+            text-align: left;
+            padding: 8px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 8px;
+        }
+        
+        .totals-block {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            page-break-inside: avoid;
+        }
+        .totals-subtable {
+            width: 320px;
+        }
+        .totals-subtable td {
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
+        .total-label {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .total-val {
+            text-align: right;
+        }
+        .grand-total-row td {
+            border-top: 2px solid var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+            background-color: var(--bg-light);
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+
+        .notes-section {
+            margin-top: 25px;
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.4;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            .no-print-toolbar {
+                display: none !important;
+            }
+            @page {
+                size: portrait;
+                margin: 1.2cm;
+            }
+            body {
+                background-color: #fff;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-toolbar">
+        <h3>Vista Previa - Presupuesto Ejecutivo</h3>
+        <div class="toolbar-buttons">
+            <button class="btn-action btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir Presupuesto</button>
+            <button class="btn-action btn-close" onclick="window.close()"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <!-- Centered Header -->
+        <div class="centered-header">
+            <div class="header-logo">
+                ${logoHTML}
+            </div>
+            <div class="header-title" style="display:${ws.logo ? 'block' : 'none'}; font-size:1.4rem; font-weight:600; margin-top:5px;">${ws.nombre_comercial || ws.nombre}</div>
+            <div class="header-tagline">${ws.logoTagline || 'Mantenimiento de Flotas y Vehículos'}</div>
+            <div class="header-meta">
+                ${ws.nombre_comercial && ws.nombre_comercial !== ws.nombre ? `${ws.nombre} &bull; ` : ''}
+                Dirección: ${ws.direccion || ''}${ws.municipio || ws.departamento || ws.pais ? `, ${[ws.municipio, ws.departamento, ws.pais].filter(Boolean).join(', ')}` : ''}<br>
+                Tel: ${ws.telefono} &bull; Correo: ${ws.correo}<br>
+                ${ws.tipo_documento || 'NIT'}: ${ws.num_documento || ws.nit || ''} ${ws.nrc ? ` &bull; NRC: ${ws.nrc}` : ''} &bull; Giro: ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}
+            </div>
+        </div>
+
+        <!-- Document Metadata -->
+        <div class="doc-meta-row">
+            <div class="meta-col">
+                <h4>Presupuesto ID</h4>
+                <div>${budget['ID Presupuesto']}</div>
+            </div>
+            <div class="meta-col">
+                <h4>Fecha Emisión</h4>
+                <div>${new Date(budget.Fecha).toLocaleDateString('es-SV')}</div>
+            </div>
+            <div class="meta-col">
+                <h4>Condición</h4>
+                <div>${(budget.Condicion || (client['Credito?'] === 'SI' ? 'CRÉDITO' : 'CONTADO')).toUpperCase()}</div>
+            </div>
+            <div class="meta-col">
+                <h4>Total Cotizado</h4>
+                <div style="color:var(--accent-color); font-weight: 800;">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+        </div>
+
+        <!-- Receptor Details -->
+        <div class="grid-cards">
+            <div class="info-card">
+                <div class="card-title">Cliente / Receptor</div>
+                <div class="card-body">
+                    <div><strong>Nombre:</strong> ${client.Nombre}</div>
+                    <div><strong>Documento:</strong> ${client.Tipo_Documento || 'DUI'}: ${client.Num_Documento || 'N/A'}</div>
+                    <div><strong>Dirección:</strong> ${client.Direccion || 'Dirección de cliente registrada'}</div>
+                    <div><strong>Teléfono:</strong> ${budget['Telefono 1 '] || client['Telefono 1 '] || 'N/A'}</div>
+                    <div><strong>Email:</strong> ${client.Correo || 'N/A'}</div>
+                </div>
+            </div>
+            <div class="info-card">
+                <div class="card-title">Vehículo Asociado</div>
+                <div class="card-body">
+                    <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
+                    <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
+                    <div><strong>VIN / Motor:</strong> ${vehicle.Nª_VIN || 'N/A'} / ${vehicle.Nª_Motor || 'N/A'}</div>
+                    <div><strong>Kilometraje / Odómetro:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
+                    <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables -->
+        <div class="section-title">Repuestos y Lubricantes</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 8%; text-align: center;">Cant</th>
+                    <th style="width: 62%;">Descripción del Item</th>
+                    <th style="width: 15%; text-align: right;">P. Unitario</th>
+                    <th style="width: 15%; text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${productsHTML}
+            </tbody>
+        </table>
+
+        <div class="section-title">Mano de Obra y Servicios</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 8%; text-align: center;">Cant</th>
+                    <th style="width: 62%;">Descripción del Servicio</th>
+                    <th style="width: 15%; text-align: right;">P. Unitario</th>
+                    <th style="width: 15%; text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${laborHTML}
+            </tbody>
+        </table>
+
+        <!-- Totals Block -->
+        <div class="totals-block">
+            <table class="totals-subtable">
+                <tr>
+                    <td class="total-label">Sumatoria Repuestos y Servicios</td>
+                    <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">IVA (13%)</td>
+                    <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ${percRow}
+                ${retRow}
+                <tr class="grand-total-row">
+                    <td class="total-label">Total Neto a Pagar</td>
+                    <td class="total-val">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Notes and terms -->
+        <div class="notes-section">
+            <strong>Observaciones Generales:</strong><br>
+            Este presupuesto es válido por un período de 15 días a partir de su emisión. Los trabajos adicionales no contemplados en este documento serán consultados previamente con el cliente.
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                window.print();
+            }, 600);
+        });
+    </script>
+</body>
+</html>
+    `;
+}
+
+// ----------------------------------------------------
+// BUDGET PDF EXPORT (CONDITIONAL FORMAT SELECTOR)
+// ----------------------------------------------------
+function exportBudgetPDF(budgetId) {
+    const db = getDatabase();
+    const ws = getWorkshopConfig(db);
+    const budget = db.presupuestos.find(p => p['ID Presupuesto'] === budgetId);
+    if (!budget) {
+        showToast("Error: Presupuesto no encontrado", "danger");
+        return;
+    }
+
+    const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { 
+        Nombre: budget.Nombre, 
+        'Telefono 1 ': budget['Telefono 1 '] || '', 
+        Direccion: budget.Direccion || '' 
+    };
+    
+    const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === budget.ID_Vehiculo) || { 
+        Placas: budget.Placas || 'N/A', 
+        Marca: 'N/A', 
+        Modelo: 'N/A', 
+        Año: 'N/A' 
+    };
+
+    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+
+    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === budgetId);
+    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === budgetId);
+
+    const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
+    const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
+    const subtotal = sumProd + sumLab;
+    const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
+    const iva = subtotal * taxRate;
+
+    let retVal = 0;
+    let percVal = 0;
+    if (client.AplicaRetencion > 0) {
+        retVal = subtotal * parseFloat(client.AplicaRetencion);
+    }
+    if (client.AplicaPercepcion > 0) {
+        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+    }
+
+    const grandTotal = subtotal + iva + percVal - retVal;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
+        return;
+    }
+
+    const format = ws.formato_presupuesto || 'moderno_facturallama';
+    let pdfHTML = '';
+
+    if (format === 'clasico_mecanicos') {
+        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+    } else if (format === 'elegante_ejecutivo') {
+        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+    } else {
+        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+    }
+
+    printWindow.document.write(pdfHTML);
     printWindow.document.close();
 }
 
