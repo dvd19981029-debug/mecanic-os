@@ -97,15 +97,16 @@ function initFirebase() {
         dbFirestore = firebase.firestore();
         isFirebaseConnected = true;
         
-        firebase.auth().onAuthStateChanged((user) => {
+        firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
                 currentFirebaseUser = user;
                 updateCloudStatusUI(true, "active");
-                startRealTimeSync(user.uid);
+                dataService.startSync(user.uid);
+                await dataService.checkAndMigrate(user.uid);
             } else {
                 currentFirebaseUser = null;
                 updateCloudStatusUI(false, "logged-out");
-                stopRealTimeSync();
+                dataService.stopSync();
             }
         });
     } catch (err) {
@@ -151,118 +152,7 @@ function updateCloudStatusUI(active, state = "") {
     }
 }
 
-function startRealTimeSync(userId) {
-    if (!dbFirestore) return;
-    
-    stopRealTimeSync();
-    
-    updateCloudStatusUI(true, "syncing");
-    
-    firebaseUnsubscribe = dbFirestore.collection("workshops").doc(userId).onSnapshot((doc) => {
-        if (doc.exists) {
-            const remoteData = doc.data();
-            const remoteDb = remoteData.database;
-            
-            if (remoteDb) {
-                const remoteDbStr = JSON.stringify(remoteDb);
-                const localDbStr = localStorage.getItem('mecanic_os_db');
-                
-                if (remoteDbStr !== localDbStr) {
-                    console.log("Firebase Sync: Actualizando base de datos local con cambios remotos.");
-                    
-                    preventFirestoreSync = true;
-                    dataService.save(remoteDb);
-                    
-                    // Reload active view
-                    const activeRoute = window.location.hash.substring(1) || 'taller-dashboard';
-                    handleRouting();
-                    
-                    showToast("Base de datos sincronizada en tiempo real", "success");
-                    
-                    setTimeout(() => {
-                        preventFirestoreSync = false;
-                    }, 500);
-                }
-                
-                if (remoteData.updatedAt) {
-                    lastSyncTime = new Date(remoteData.updatedAt);
-                }
-            }
-        } else {
-            console.log("Firebase Sync: No hay datos remotos aún. Sincronizando datos locales actuales a la nube.");
-            const currentDb = getDatabase();
-            if (currentDb) {
-                uploadLocalDatabase();
-            }
-        }
-        updateCloudStatusUI(true, "active");
-    }, (err) => {
-        console.error("Error en Snapshot de Firestore:", err);
-        updateCloudStatusUI(false, "error");
-    });
-}
 
-function stopRealTimeSync() {
-    if (firebaseUnsubscribe) {
-        firebaseUnsubscribe();
-        firebaseUnsubscribe = null;
-    }
-}
-
-function syncToFirestore(db) {
-    if (!dbFirestore || !currentFirebaseUser || preventFirestoreSync) return;
-    
-    const userId = currentFirebaseUser.uid;
-    updateCloudStatusUI(true, "syncing");
-    
-    dbFirestore.collection("workshops").doc(userId).set({
-        database: db,
-        updatedAt: new Date().toISOString(),
-        updatedBy: currentFirebaseUser.email
-    }).then(() => {
-        lastSyncTime = new Date();
-        updateCloudStatusUI(true, "active");
-        console.log("Firebase Sync: Base de datos subida exitosamente.");
-    }).catch((err) => {
-        console.error("Error al subir cambios a Firebase:", err);
-        updateCloudStatusUI(false, "error");
-    });
-}
-
-function uploadLocalDatabase() {
-    const db = getDatabase();
-    if (db) {
-        syncToFirestore(db);
-        showToast("Datos locales subidos a la nube", "success");
-    }
-}
-
-function downloadCloudDatabase() {
-    if (!dbFirestore || !currentFirebaseUser) return;
-    
-    const userId = currentFirebaseUser.uid;
-    updateCloudStatusUI(true, "syncing");
-    
-    dbFirestore.collection("workshops").doc(userId).get().then((doc) => {
-        if (doc.exists) {
-            const remoteData = doc.data();
-            const remoteDb = remoteData.database;
-            if (remoteDb) {
-                dataService.save(remoteDb);
-                lastSyncTime = new Date(remoteData.updatedAt || new Date());
-                handleRouting();
-                showToast("Datos descargados desde la nube con éxito", "success");
-            }
-        } else {
-            showToast("No se encontraron datos remotos para descargar", "warning");
-        }
-        updateCloudStatusUI(true, "active");
-    }).catch(err => {
-        console.error("Error al descargar base de datos de Firebase:", err);
-        showToast("Error al descargar de la nube", "error");
-        updateCloudStatusUI(true, "active");
-    });
-}
 
 function bindFirebaseEvents() {
     const cloudIndicator = document.getElementById('cloud-sync-indicator');
@@ -393,23 +283,27 @@ function bindFirebaseEvents() {
     if (forceSyncBtn) {
         forceSyncBtn.addEventListener('click', () => {
             if (currentFirebaseUser) {
-                downloadCloudDatabase();
+                dataService.startSync(currentFirebaseUser.uid);
+                showToast("Sincronización en tiempo real reiniciada", "success");
             }
         });
     }
 
     if (uploadLocalBtn) {
-        uploadLocalBtn.addEventListener('click', () => {
-            if (confirm("⚠️ ¡Atención! Esto sobrescribirá la base de datos que está en la nube con la información que tienes en este navegador local. ¿Deseas proceder?")) {
-                uploadLocalDatabase();
+        uploadLocalBtn.addEventListener('click', async () => {
+            if (currentFirebaseUser) {
+                if (confirm("⚠️ ¡Atención! Esto subirá tu base de datos local actual a la nube en colecciones independientes. ¿Deseas proceder?")) {
+                    await dataService.migrateLocalDataToCloud(currentFirebaseUser.uid);
+                }
             }
         });
     }
 
     if (downloadCloudBtn) {
         downloadCloudBtn.addEventListener('click', () => {
-            if (confirm("⚠️ ¡Atención! Esto descargará la información de la nube y sobrescribirá la base de datos de esta PC. Perderás cualquier cambio local no guardado en la nube. ¿Deseas proceder?")) {
-                downloadCloudDatabase();
+            if (currentFirebaseUser) {
+                dataService.startSync(currentFirebaseUser.uid);
+                showToast("Datos descargados y sincronizados desde la nube", "success");
             }
         });
     }
