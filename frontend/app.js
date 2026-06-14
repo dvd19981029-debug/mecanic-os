@@ -17,13 +17,13 @@ const DEFAULT_DATABASE = {
 // Database Initialization in LocalStorage
 function initDatabase() {
     // Migration: Clear any old mock databases on first load
-    if (!localStorage.getItem('mecanic_os_db_cleared_v2')) {
+    if (!localStorage.getItem('mecanic_os_db_cleared_v3')) {
         localStorage.removeItem('mecanic_os_db');
         localStorage.removeItem('mecanic_os_pos_cart');
         localStorage.removeItem('mecanic_os_dte_config');
         localStorage.removeItem('mecanic_os_firebase_config');
         sessionStorage.removeItem('mecanic_os_active_user');
-        localStorage.setItem('mecanic_os_db_cleared_v2', 'true');
+        localStorage.setItem('mecanic_os_db_cleared_v3', 'true');
         window.location.hash = 'landing';
         window.location.reload();
         return;
@@ -66,12 +66,12 @@ let lastSyncTime = null;
 
 // Default Firebase Configuration (Centralized SaaS)
 const DEFAULT_FIREBASE_CONFIG = {
-    apiKey: "AIzaSyC_FakeMecanicOSKey1234567890",
-    authDomain: "mecanic-os-saas.firebaseapp.com",
-    projectId: "mecanic-os-saas",
-    storageBucket: "mecanic-os-saas.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcd1234efgh5678"
+    apiKey: "AIzaSyCjim6oYgaTPAy4kg_MvnrEKVW2KDu0Pz4",
+    authDomain: "gema-661cb.firebaseapp.com",
+    projectId: "gema-661cb",
+    storageBucket: "gema-661cb.firebasestorage.app",
+    messagingSenderId: "817173968961",
+    appId: "1:817173968961:web:17d976e69f85893886aec0"
 };
 
 function getFirebaseConfig() {
