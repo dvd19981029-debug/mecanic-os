@@ -143,64 +143,32 @@ function saveDatabase(db) {
 }
 
 // ----------------------------------------------------
-// GOOGLE FIREBASE REAL-TIME SYNC ENGINE
+// NODEJS BACKEND SYNC ENGINE (Replaces Firebase)
 // ----------------------------------------------------
 
-let isFirebaseConnected = false;
-let dbFirestore = null;
-let currentFirebaseUser = null;
-let firebaseUnsubscribe = null;
+let isFirebaseConnected = false; // Kept for variable compatibility, but means connected to Node server
+let currentFirebaseUser = null; // Re-used to hold basic user session like {uid: '123', email: 'taller@...'}
 let preventFirestoreSync = false;
 let lastSyncTime = null;
+let syncInterval = null;
 
-// Default Firebase Configuration (Centralized SaaS)
-const DEFAULT_FIREBASE_CONFIG = {
-    apiKey: "AIzaSyC_FakeMecanicOSKey1234567890",
-    authDomain: "mecanic-os-saas.firebaseapp.com",
-    projectId: "mecanic-os-saas",
-    storageBucket: "mecanic-os-saas.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcd1234efgh5678"
-};
-
-function getFirebaseConfig() {
-    let customCfg = null;
-    try {
-        customCfg = JSON.parse(localStorage.getItem('mecanic_os_firebase_config'));
-    } catch (e) {}
-    return customCfg || DEFAULT_FIREBASE_CONFIG;
-}
+const BACKEND_API_URL = window.location.origin;
 
 function initFirebase() {
-    if (typeof firebase === 'undefined') {
-        console.warn("Firebase SDK no cargado (offline o sin script). Iniciando en modo offline.");
-        updateCloudStatusUI(false, "offline");
-        return;
-    }
-
-    const config = getFirebaseConfig();
-    try {
-        if (firebase.apps.length === 0) {
-            firebase.initializeApp(config);
+    // Instead of Firebase, we check if there's a stored "fake" session indicating the user is logged in
+    const storedUser = localStorage.getItem('mecanic_os_node_auth');
+    if (storedUser) {
+        try {
+            currentFirebaseUser = JSON.parse(storedUser);
+            isFirebaseConnected = true;
+            updateCloudStatusUI(true, "active");
+            startRealTimeSync(currentFirebaseUser.uid);
+        } catch(e) {
+            console.error("Error parsing stored auth session", e);
+            updateCloudStatusUI(false, "logged-out");
         }
-        dbFirestore = firebase.firestore();
-        isFirebaseConnected = true;
-        
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                currentFirebaseUser = user;
-                updateCloudStatusUI(true, "active");
-                startRealTimeSync(user.uid);
-            } else {
-                currentFirebaseUser = null;
-                updateCloudStatusUI(false, "logged-out");
-                stopRealTimeSync();
-            }
-        });
-    } catch (err) {
-        console.error("Error al conectar con Firebase:", err);
-        isFirebaseConnected = false;
-        updateCloudStatusUI(false, "error");
+    } else {
+        updateCloudStatusUI(false, "logged-out");
     }
 }
 
@@ -241,79 +209,75 @@ function updateCloudStatusUI(active, state = "") {
 }
 
 function startRealTimeSync(userId) {
-    if (!dbFirestore) return;
-    
     stopRealTimeSync();
     
-    updateCloudStatusUI(true, "syncing");
-    
-    firebaseUnsubscribe = dbFirestore.collection("workshops").doc(userId).onSnapshot((doc) => {
-        if (doc.exists) {
-            const remoteData = doc.data();
-            const remoteDb = remoteData.database;
-            
-            if (remoteDb) {
-                const remoteDbStr = JSON.stringify(remoteDb);
-                const localDbStr = localStorage.getItem('mecanic_os_db');
-                
-                if (remoteDbStr !== localDbStr) {
-                    console.log("Firebase Sync: Actualizando base de datos local con cambios remotos.");
-                    
-                    preventFirestoreSync = true;
-                    localStorage.setItem('mecanic_os_db', remoteDbStr);
-                    
-                    // Reload active view
-                    const activeRoute = window.location.hash.substring(1) || 'taller-dashboard';
-                    handleRouting();
-                    
-                    showToast("Base de datos sincronizada en tiempo real", "success");
-                    
-                    setTimeout(() => {
-                        preventFirestoreSync = false;
-                    }, 500);
-                }
-                
-                if (remoteData.updatedAt) {
-                    lastSyncTime = new Date(remoteData.updatedAt);
-                }
-            }
-        } else {
-            console.log("Firebase Sync: No hay datos remotos aún. Sincronizando datos locales actuales a la nube.");
-            const currentDb = getDatabase();
-            if (currentDb) {
-                uploadLocalDatabase();
-            }
+    // Polling every 15 seconds to simulate real-time sync with Node Server
+    syncInterval = setInterval(() => {
+        if (!preventFirestoreSync) {
+            fetch(`${BACKEND_API_URL}/api/sync/${userId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.database) {
+                        const remoteDbStr = JSON.stringify(data.database);
+                        const localDbStr = localStorage.getItem('mecanic_os_db');
+
+                        if (remoteDbStr !== localDbStr) {
+                            console.log("Node Sync: Actualizando base de datos local con cambios remotos.");
+                            preventFirestoreSync = true;
+                            localStorage.setItem('mecanic_os_db', remoteDbStr);
+
+                            // Reload active view
+                            handleRouting();
+                            showToast("Base de datos sincronizada desde la nube", "success");
+
+                            setTimeout(() => {
+                                preventFirestoreSync = false;
+                            }, 500);
+                        }
+                        if (data.updatedAt) lastSyncTime = new Date(data.updatedAt);
+                        updateCloudStatusUI(true, "active");
+                    }
+                })
+                .catch(err => {
+                    console.error("Polling Error:", err);
+                    updateCloudStatusUI(false, "error");
+                });
         }
-        updateCloudStatusUI(true, "active");
-    }, (err) => {
-        console.error("Error en Snapshot de Firestore:", err);
-        updateCloudStatusUI(false, "error");
-    });
+    }, 15000);
 }
 
 function stopRealTimeSync() {
-    if (firebaseUnsubscribe) {
-        firebaseUnsubscribe();
-        firebaseUnsubscribe = null;
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
     }
 }
 
-function syncToFirestore(db) {
-    if (!dbFirestore || !currentFirebaseUser || preventFirestoreSync) return;
+function syncToFirestore(db) { // Kept name for compatibility
+    if (!currentFirebaseUser || preventFirestoreSync) return;
     
     const userId = currentFirebaseUser.uid;
     updateCloudStatusUI(true, "syncing");
     
-    dbFirestore.collection("workshops").doc(userId).set({
-        database: db,
-        updatedAt: new Date().toISOString(),
-        updatedBy: currentFirebaseUser.email
-    }).then(() => {
-        lastSyncTime = new Date();
-        updateCloudStatusUI(true, "active");
-        console.log("Firebase Sync: Base de datos subida exitosamente.");
-    }).catch((err) => {
-        console.error("Error al subir cambios a Firebase:", err);
+    fetch(`${BACKEND_API_URL}/api/sync/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ database: db, email: currentFirebaseUser.email })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            lastSyncTime = new Date();
+            updateCloudStatusUI(true, "active");
+            console.log("Node Sync: Base de datos subida exitosamente.");
+        } else {
+            throw new Error(data.message);
+        }
+    })
+    .catch((err) => {
+        console.error("Error al subir cambios a Node Server:", err);
         updateCloudStatusUI(false, "error");
     });
 }
@@ -327,30 +291,29 @@ function uploadLocalDatabase() {
 }
 
 function downloadCloudDatabase() {
-    if (!dbFirestore || !currentFirebaseUser) return;
+    if (!currentFirebaseUser) return;
     
     const userId = currentFirebaseUser.uid;
     updateCloudStatusUI(true, "syncing");
     
-    dbFirestore.collection("workshops").doc(userId).get().then((doc) => {
-        if (doc.exists) {
-            const remoteData = doc.data();
-            const remoteDb = remoteData.database;
-            if (remoteDb) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(remoteDb));
-                lastSyncTime = new Date(remoteData.updatedAt || new Date());
+    fetch(`${BACKEND_API_URL}/api/sync/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.database) {
+                localStorage.setItem('mecanic_os_db', JSON.stringify(data.database));
+                lastSyncTime = new Date(data.updatedAt || new Date());
                 handleRouting();
-                showToast("Datos descargados desde la nube con éxito", "success");
+                showToast("Datos descargados desde el servidor con éxito", "success");
+            } else {
+                showToast("No se encontraron datos remotos para descargar", "warning");
             }
-        } else {
-            showToast("No se encontraron datos remotos para descargar", "warning");
-        }
-        updateCloudStatusUI(true, "active");
-    }).catch(err => {
-        console.error("Error al descargar base de datos de Firebase:", err);
-        showToast("Error al descargar de la nube", "error");
-        updateCloudStatusUI(true, "active");
-    });
+            updateCloudStatusUI(true, "active");
+        })
+        .catch(err => {
+            console.error("Error al descargar base de datos de Node Server:", err);
+            showToast("Error al descargar de la nube", "error");
+            updateCloudStatusUI(true, "active");
+        });
 }
 
 function bindFirebaseEvents() {
@@ -400,27 +363,22 @@ function bindFirebaseEvents() {
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('fb-login-email').value;
-            const pass = document.getElementById('fb-login-password').value;
-            
-            if (typeof firebase === 'undefined') return;
+            const pass = document.getElementById('fb-login-password').value; // We just mock auth for now
             
             const btn = document.getElementById('fb-btn-login');
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
             
-            firebase.auth().signInWithEmailAndPassword(email, pass)
-                .then((userCredential) => {
-                    showToast("Sesión iniciada correctamente en la nube", "success");
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
-                    authModal.classList.remove('active');
-                })
-                .catch((error) => {
-                    console.error("Error al iniciar sesión:", error);
-                    showToast(`Error: ${error.message}`, "error");
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
-                });
+            setTimeout(() => {
+                const mockUser = { uid: "ws_" + Math.random().toString(36).substr(2, 9), email: email };
+                localStorage.setItem('mecanic_os_node_auth', JSON.stringify(mockUser));
+                initFirebase(); // Re-trigger init logic to set UI and start polling
+
+                showToast("Sesión iniciada correctamente con servidor local", "success");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                authModal.classList.remove('active');
+            }, 500);
         });
     }
 
@@ -429,52 +387,42 @@ function bindFirebaseEvents() {
             e.preventDefault();
             const name = document.getElementById('fb-register-name').value;
             const email = document.getElementById('fb-register-email').value;
-            const pass = document.getElementById('fb-register-password').value;
-            
-            if (typeof firebase === 'undefined') return;
             
             const btn = document.getElementById('fb-btn-register');
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando cuenta...';
             
-            firebase.auth().createUserWithEmailAndPassword(email, pass)
-                .then((userCredential) => {
-                    showToast("Taller registrado y conectado exitosamente", "success");
-                    
-                    const db = getDatabase();
-                    if (db) {
-                        if (!db.config_taller) db.config_taller = {};
-                        db.config_taller.nombre = name;
-                        db.config_taller.correo = email;
-                        saveDatabase(db);
-                    }
-                    
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller';
-                    authModal.classList.remove('active');
-                })
-                .catch((error) => {
-                    console.error("Error al registrar:", error);
-                    showToast(`Error: ${error.message}`, "error");
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller';
-                });
+            setTimeout(() => {
+                const mockUser = { uid: "ws_" + Math.random().toString(36).substr(2, 9), email: email };
+                localStorage.setItem('mecanic_os_node_auth', JSON.stringify(mockUser));
+                initFirebase();
+
+                showToast("Taller registrado y conectado exitosamente", "success");
+
+                const db = getDatabase();
+                if (db) {
+                    if (!db.config_taller) db.config_taller = {};
+                    db.config_taller.nombre = name;
+                    db.config_taller.correo = email;
+                    saveDatabase(db);
+                }
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta y Taller';
+                authModal.classList.remove('active');
+            }, 500);
         });
     }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            if (typeof firebase === 'undefined') return;
-            
             if (confirm("¿Seguro que deseas cerrar la sesión? Los datos locales permanecerán en esta PC pero ya no se sincronizarán en tiempo real.")) {
-                firebase.auth().signOut()
-                    .then(() => {
-                        showToast("Sesión cerrada correctamente", "success");
-                        authModal.classList.remove('active');
-                    })
-                    .catch(err => {
-                        console.error("Error al cerrar sesión:", err);
-                    });
+                localStorage.removeItem('mecanic_os_node_auth');
+                currentFirebaseUser = null;
+                stopRealTimeSync();
+                updateCloudStatusUI(false, "logged-out");
+                showToast("Sesión cerrada correctamente", "success");
+                authModal.classList.remove('active');
             }
         });
     }
