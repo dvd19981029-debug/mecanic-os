@@ -7865,12 +7865,12 @@ function renderRegistroSaaS(container) {
             
             propietario: document.getElementById('reg-prop-nombre').value,
             pass: document.getElementById('reg-prop-pass').value,
-            status: 'aprobado',
+            status: 'pendiente',
             createdAt: Date.now(),
             plan: planName,
             precio_mensual: finalPrice,
             cupon_usado: couponApplied,
-            suscripcion_status: 'activo',
+            suscripcion_status: 'demo',
             proximo_pago: Date.now() + 30 * 24 * 60 * 60 * 1000,
             dte_config: {
                 apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
@@ -7883,7 +7883,7 @@ function renderRegistroSaaS(container) {
         
         currentDb.solicitudes_registro.push(requestData);
         currentDb.saas_state = {
-            status: 'approved_terms_pending',
+            status: 'pending',
             workshopData: requestData,
             termsSigned: false,
             signatureName: '',
@@ -7891,8 +7891,8 @@ function renderRegistroSaaS(container) {
         };
         
         saveDatabase(currentDb);
-        showToast("¡Taller registrado con éxito! Completa la firma de términos.", "success");
-        window.location.hash = 'terminos';
+        showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
+        window.location.hash = 'landing';
         handleRouting();
     });
 }
