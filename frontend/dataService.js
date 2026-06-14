@@ -256,10 +256,22 @@ const dataService = {
             if (doc.exists) {
                 const data = doc.data();
                 let changed = false;
-                if (data.config_taller) { this.cache.config_taller = data.config_taller; changed = true; }
-                if (data.saas_state) { this.cache.saas_state = data.saas_state; changed = true; }
-                if (data.role_permissions) { this.cache.role_permissions = data.role_permissions; changed = true; }
-                if (data.saas_payments) { this.cache.saas_payments = data.saas_payments; changed = true; }
+                if (data.config_taller && JSON.stringify(this.cache.config_taller) !== JSON.stringify(data.config_taller)) { 
+                    this.cache.config_taller = data.config_taller; 
+                    changed = true; 
+                }
+                if (data.saas_state && JSON.stringify(this.cache.saas_state) !== JSON.stringify(data.saas_state)) { 
+                    this.cache.saas_state = data.saas_state; 
+                    changed = true; 
+                }
+                if (data.role_permissions && JSON.stringify(this.cache.role_permissions) !== JSON.stringify(data.role_permissions)) { 
+                    this.cache.role_permissions = data.role_permissions; 
+                    changed = true; 
+                }
+                if (data.saas_payments && JSON.stringify(this.cache.saas_payments) !== JSON.stringify(data.saas_payments)) { 
+                    this.cache.saas_payments = data.saas_payments; 
+                    changed = true; 
+                }
                 
                 if (changed) {
                     localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
@@ -280,11 +292,15 @@ const dataService = {
                     
                     if (change.type === "added" || change.type === "modified") {
                         if (idx >= 0) {
-                            this.cache[config.name][idx] = item;
+                            // Only update if the item data has actually changed
+                            if (JSON.stringify(this.cache[config.name][idx]) !== JSON.stringify(item)) {
+                                this.cache[config.name][idx] = item;
+                                updated = true;
+                            }
                         } else {
                             this.cache[config.name].push(item);
+                            updated = true;
                         }
-                        updated = true;
                     } else if (change.type === "removed") {
                         if (idx >= 0) {
                             this.cache[config.name].splice(idx, 1);
