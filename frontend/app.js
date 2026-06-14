@@ -28,10 +28,6 @@ function initDatabase() {
         window.location.reload();
         return;
     }
-
-    if (!localStorage.getItem('mecanic_os_db')) {
-        localStorage.setItem('mecanic_os_db', JSON.stringify(DEFAULT_DATABASE));
-    }
     
     // Check for auxiliary data
     if (!localStorage.getItem('mecanic_os_pos_cart')) {
@@ -47,99 +43,14 @@ function initDatabase() {
             backendUrl: ''
         }));
     }
-
-    // Initialize SaaS states
-    const db = getDatabase();
-    if (db) {
-        let changed = false;
-        if (!db.role_permissions) {
-            db.role_permissions = {
-                "Administrador": [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                    "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
-                    "dashboard-bi", "configuracion"
-                ],
-                "Técnico": [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"
-                ],
-                "Recepcionista": [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                    "venta-rapida", "cuentas-cobrar"
-                ]
-            };
-            changed = true;
-        }
-        if (!db.saas_state) {
-            db.saas_state = {
-                status: 'guest',
-                workshopData: null,
-                termsSigned: false,
-                signatureName: '',
-                signedAt: null
-            };
-            changed = true;
-        }
-        if (!db.solicitudes_registro || db.solicitudes_registro.length === 0) {
-            db.solicitudes_registro = [];
-            changed = true;
-        }
-        if (!db.saas_payments) {
-            db.saas_payments = [];
-            changed = true;
-        }
-        if (!db.saas_plans) {
-            db.saas_plans = [
-                { id: 'plan-basic', nombre: 'Basic', precio: 45.00, descripcion: 'Ideal para talleres pequeños o independientes', max_usuarios: 3, features: ['Gestión de clientes y vehículos', 'Presupuestos estándar', 'Kanban básico'] },
-                { id: 'plan-pro', nombre: 'Pro', precio: 75.00, descripcion: 'Recomendado para talleres en crecimiento con DTE', max_usuarios: 10, features: ['Todo lo de Basic', 'Facturador DTE (MH El Salvador)', 'Control de Inventario y Kárdex', 'Punto de Venta (POS)', 'Reportes BI básicos'] },
-                { id: 'plan-enterprise', nombre: 'Enterprise', precio: 120.00, descripcion: 'Para talleres grandes o redes de sucursales', max_usuarios: 99, features: ['Todo lo de Pro', 'Base de Datos dedicada (Firebase)', 'Soporte Premium 24/7', 'Planilla y Salarios avanzados', 'API de integración externa'] }
-            ];
-            changed = true;
-        }
-        if (!db.saas_coupons) {
-            db.saas_coupons = [
-                { codigo: 'BIENVENIDO50', tipo: 'porcentaje', valor: 50, descripcion: '50% de descuento en el primer pago', activo: true, expiracion: '2026-12-31' },
-                { codigo: 'MECANICFREE', tipo: 'porcentaje', valor: 100, descripcion: '100% de descuento (acceso gratuito temporal)', activo: true, expiracion: '2026-12-31' },
-                { codigo: 'OS15OFF', tipo: 'fijo', valor: 15, descripcion: '$15 de descuento fijo', activo: true, expiracion: '2026-12-31' }
-            ];
-            changed = true;
-        }
-        // Sync active workshop configurations to local storage
-        if (db.saas_state && db.saas_state.workshopData) {
-            const wsData = db.saas_state.workshopData;
-            if (wsData.dte_config) {
-                localStorage.setItem('mecanic_os_dte_config', JSON.stringify(wsData.dte_config));
-            }
-            if (wsData.firebase_config) {
-                localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(wsData.firebase_config));
-            }
-        }
-        if (changed) {
-            saveDatabase(db);
-        }
-    }
 }
 
 function getDatabase() {
-    return JSON.parse(localStorage.getItem('mecanic_os_db'));
+    return dataService.cache;
 }
 
-function saveDatabase(db) {
-    localStorage.setItem('mecanic_os_db', JSON.stringify(db));
-    if (db && db.saas_state && db.saas_state.workshopData) {
-        const wsData = db.saas_state.workshopData;
-        if (wsData.dte_config) {
-            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(wsData.dte_config));
-        }
-        if (wsData.firebase_config) {
-            localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(wsData.firebase_config));
-        } else if (db.saas_state.status === 'guest') {
-            localStorage.removeItem('mecanic_os_firebase_config');
-        }
-    }
-    if (isFirebaseConnected && currentFirebaseUser && !preventFirestoreSync) {
-        syncToFirestore(db);
-    }
-    updateNotifications();
+async function saveDatabase(db) {
+    await dataService.save(db);
 }
 
 // ----------------------------------------------------
@@ -260,7 +171,7 @@ function startRealTimeSync(userId) {
                     console.log("Firebase Sync: Actualizando base de datos local con cambios remotos.");
                     
                     preventFirestoreSync = true;
-                    localStorage.setItem('mecanic_os_db', remoteDbStr);
+                    dataService.save(remoteDb);
                     
                     // Reload active view
                     const activeRoute = window.location.hash.substring(1) || 'taller-dashboard';
@@ -337,7 +248,7 @@ function downloadCloudDatabase() {
             const remoteData = doc.data();
             const remoteDb = remoteData.database;
             if (remoteDb) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(remoteDb));
+                dataService.save(remoteDb);
                 lastSyncTime = new Date(remoteData.updatedAt || new Date());
                 handleRouting();
                 showToast("Datos descargados desde la nube con éxito", "success");
@@ -10592,7 +10503,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
 // SYSTEM STARTUP & USER MODAL HANDLERS
 // ----------------------------------------------------
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await dataService.init();
     initDatabase();
     initFirebase();
     bindFirebaseEvents();

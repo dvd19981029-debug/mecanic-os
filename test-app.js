@@ -81,6 +81,11 @@ const windowMock = {
 global.window = windowMock;
 global.document = documentMock;
 global.localStorage = localStorageMock;
+global.dataService = {
+    cache: {},
+    async init() { return this.cache; },
+    async save(db) { this.cache = db; }
+};
 
 // Load app.js
 try {
