@@ -3,6 +3,24 @@
  * Handles async database persistence, memory caching, and native Firestore collections sync.
  */
 
+// Define mapping for all collections in Mecanic OS
+const collectionConfigs = [
+    { name: 'clientes', path: 'clientes', key: 'Codigo_Cliente' },
+    { name: 'vehiculos', path: 'vehiculos', key: 'ID_Vehiculo' },
+    { name: 'presupuestos', path: 'presupuestos', key: 'ID Presupuesto' },
+    { name: 'productos', path: 'productos', key: 'ID_ Producto' },
+    { name: 'mano_obra', path: 'mano_obra', key: 'ID_ManoObra' },
+    { name: 'revisiones', path: 'revisiones', key: 'ID_Revision' },
+    { name: 'tecnicos', path: 'tecnicos', key: 'Tecnico_ID' },
+    { name: 'detalle_productos', path: 'detalle_productos', key: 'DPP' },
+    { name: 'detalle_mano_obra', path: 'detalle_mano_obra', key: 'ID_DetalleMO' },
+    { name: 'abonos_credito', path: 'abonos_credito', key: 'ID_Abono' },
+    { name: 'movs_inventario', path: 'movs_inventario', key: 'id_Mov' },
+    { name: 'venta_rapida', path: 'venta_rapida', key: 'ID_Venta_Rapida' },
+    { name: 'gastos', path: 'gastos', key: 'ID Gasto' },
+    { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' }
+];
+
 const dataService = {
     cache: null,
     activeUserUid: null,
@@ -95,6 +113,28 @@ const dataService = {
             }
         }
 
+        // Establish memory references for all aliased tables
+        this.cache.detalle_productos = this.cache['21 Detalle Presupuesto Producto'] || this.cache.detalle_productos || [];
+        this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+
+        this.cache.detalle_mano_obra = this.cache['11 Detalle Mano de Obra'] || this.cache.detalle_mano_obra || [];
+        this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+
+        this.cache.abonos_credito = this.cache['30 Abonos Creditos'] || this.cache.abonos_credito || [];
+        this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+
+        this.cache.movs_inventario = this.cache['29 Movs de Inventario'] || this.cache.movs_inventario || [];
+        this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+
+        this.cache.venta_rapida = this.cache['43 Venta Rapida'] || this.cache.venta_rapida || [];
+        this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+
+        this.cache.gastos = this.cache['46 Gastos'] || this.cache.gastos || [];
+        this.cache['46 Gastos'] = this.cache.gastos;
+
+        this.cache.pagos_vr = this.cache['45 Pagos VR'] || this.cache.pagos_vr || [];
+        this.cache['45 Pagos VR'] = this.cache.pagos_vr;
+
         // Initialize Firestore Native Offline Persistence if Firebase SDK is present
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
             try {
@@ -112,10 +152,19 @@ const dataService = {
         return this.cache;
     },
 
-    // Save cache state back to storage asynchronously
+    // Save cache state back to storage asynchronously with automated granular diffing
     async save(db) {
-        // Update the in-memory cache synchronously so reads immediately see updates
+        const oldCache = this.cache || {};
         this.cache = db;
+
+        // Re-align aliased array references in memory
+        this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+        this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+        this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+        this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+        this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+        this.cache['46 Gastos'] = this.cache.gastos;
+        this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
         // Perform I/O write operations asynchronously using setTimeout
         return new Promise((resolve) => {
@@ -134,19 +183,54 @@ const dataService = {
                     }
                 }
 
-                // If logged in, sync metadata (settings, saas states) to root document
+                // If logged in, sync metadata and collection differences to Firestore
                 if (this.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
                     try {
-                        await dbFirestore.collection("workshops").doc(this.activeUserUid).set({
+                        const docRef = dbFirestore.collection("workshops").doc(this.activeUserUid);
+
+                        // 1. Sync metadata to root document
+                        await docRef.set({
                             config_taller: db.config_taller || {},
                             saas_state: db.saas_state || {},
                             role_permissions: db.role_permissions || {},
                             saas_payments: db.saas_payments || [],
                             updatedAt: new Date().toISOString(),
                             updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system'
-                        }, { merge: true });
+                        }, { merge: mergeEnabled() });
+
+                        function mergeEnabled() { return true; }
+
+                        // 2. Perform automated granular diffing per subcollection
+                        for (const config of collectionConfigs) {
+                            const oldItems = oldCache[config.name] || [];
+                            const newItems = db[config.name] || [];
+
+                            // Find added or modified items
+                            for (const newItem of newItems) {
+                                const keyVal = newItem[config.key];
+                                if (!keyVal) continue;
+
+                                const oldItem = oldItems.find(x => x[config.key] === keyVal);
+                                if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+                                    // Save single document
+                                    await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
+                                }
+                            }
+
+                            // Find deleted items
+                            for (const oldItem of oldItems) {
+                                const keyVal = oldItem[config.key];
+                                if (!keyVal) continue;
+
+                                const exists = newItems.some(x => x[config.key] === keyVal);
+                                if (!exists) {
+                                    // Delete single document
+                                    await docRef.collection(config.path).doc(keyVal.toString()).delete();
+                                }
+                            }
+                        }
                     } catch (e) {
-                        console.error("Firestore Root Sync Error:", e);
+                        console.error("Firestore Auto-Sync Error:", e);
                     }
                 }
 
@@ -185,86 +269,45 @@ const dataService = {
         });
         this.listeners.push(rootListener);
 
-        // 2. Listen to Clientes subcollection updates
-        const clientesListener = docRef.collection("clientes").onSnapshot((snapshot) => {
-            let updated = false;
-            snapshot.docChanges().forEach((change) => {
-                const cliente = change.doc.data();
-                const idx = this.cache.clientes.findIndex(c => c.Codigo_Cliente === cliente.Codigo_Cliente);
-                if (change.type === "added" || change.type === "modified") {
-                    if (idx >= 0) {
-                        this.cache.clientes[idx] = cliente;
-                    } else {
-                        this.cache.clientes.push(cliente);
-                    }
-                    updated = true;
-                } else if (change.type === "removed") {
-                    if (idx >= 0) {
-                        this.cache.clientes.splice(idx, 1);
+        // 2. Setup reactive listeners dynamically for all 14 subcollections
+        collectionConfigs.forEach(config => {
+            const listener = docRef.collection(config.path).onSnapshot((snapshot) => {
+                let updated = false;
+                snapshot.docChanges().forEach((change) => {
+                    const item = change.doc.data();
+                    if (!this.cache[config.name]) this.cache[config.name] = [];
+                    const idx = this.cache[config.name].findIndex(x => x[config.key] === item[config.key]);
+                    
+                    if (change.type === "added" || change.type === "modified") {
+                        if (idx >= 0) {
+                            this.cache[config.name][idx] = item;
+                        } else {
+                            this.cache[config.name].push(item);
+                        }
                         updated = true;
+                    } else if (change.type === "removed") {
+                        if (idx >= 0) {
+                            this.cache[config.name].splice(idx, 1);
+                            updated = true;
+                        }
                     }
-                }
-            });
-            if (updated) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
-                if (typeof handleRouting === 'function') handleRouting();
-            }
-        });
-        this.listeners.push(clientesListener);
+                });
+                if (updated) {
+                    // Sync alias references in memory
+                    this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+                    this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+                    this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+                    this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+                    this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+                    this.cache['46 Gastos'] = this.cache.gastos;
+                    this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
-        // 3. Listen to Vehiculos subcollection updates
-        const vehiculosListener = docRef.collection("vehiculos").onSnapshot((snapshot) => {
-            let updated = false;
-            snapshot.docChanges().forEach((change) => {
-                const vehiculo = change.doc.data();
-                const idx = this.cache.vehiculos.findIndex(v => v.ID_Vehiculo === vehiculo.ID_Vehiculo);
-                if (change.type === "added" || change.type === "modified") {
-                    if (idx >= 0) {
-                        this.cache.vehiculos[idx] = vehiculo;
-                    } else {
-                        this.cache.vehiculos.push(vehiculo);
-                    }
-                    updated = true;
-                } else if (change.type === "removed") {
-                    if (idx >= 0) {
-                        this.cache.vehiculos.splice(idx, 1);
-                        updated = true;
-                    }
+                    localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                    if (typeof handleRouting === 'function') handleRouting();
                 }
             });
-            if (updated) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
-                if (typeof handleRouting === 'function') handleRouting();
-            }
+            this.listeners.push(listener);
         });
-        this.listeners.push(vehiculosListener);
-
-        // 4. Listen to Presupuestos subcollection updates
-        const presupuestosListener = docRef.collection("presupuestos").onSnapshot((snapshot) => {
-            let updated = false;
-            snapshot.docChanges().forEach((change) => {
-                const presupuesto = change.doc.data();
-                const idx = this.cache.presupuestos.findIndex(p => p['ID Presupuesto'] === presupuesto['ID Presupuesto']);
-                if (change.type === "added" || change.type === "modified") {
-                    if (idx >= 0) {
-                        this.cache.presupuestos[idx] = presupuesto;
-                    } else {
-                        this.cache.presupuestos.push(presupuesto);
-                    }
-                    updated = true;
-                } else if (change.type === "removed") {
-                    if (idx >= 0) {
-                        this.cache.presupuestos.splice(idx, 1);
-                        updated = true;
-                    }
-                }
-            });
-            if (updated) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
-                if (typeof handleRouting === 'function') handleRouting();
-            }
-        });
-        this.listeners.push(presupuestosListener);
     },
 
     stopSync() {
@@ -305,40 +348,21 @@ const dataService = {
             updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system-migration'
         }, { merge: true });
 
-        // 2. Upload Clientes in chunks of 100
-        const clients = this.cache.clientes || [];
-        for (let i = 0; i < clients.length; i += 100) {
-            const batch = db.batch();
-            const chunk = clients.slice(i, i + 100);
-            chunk.forEach(cliente => {
-                const ref = docRef.collection("clientes").doc(cliente.Codigo_Cliente);
-                batch.set(ref, cliente);
-            });
-            await batch.commit();
-        }
-
-        // 3. Upload Vehiculos in chunks of 100
-        const vehicles = this.cache.vehiculos || [];
-        for (let i = 0; i < vehicles.length; i += 100) {
-            const batch = db.batch();
-            const chunk = vehicles.slice(i, i + 100);
-            chunk.forEach(vehiculo => {
-                const ref = docRef.collection("vehiculos").doc(vehiculo.ID_Vehiculo);
-                batch.set(ref, vehiculo);
-            });
-            await batch.commit();
-        }
-
-        // 4. Upload Presupuestos in chunks of 100
-        const budgets = this.cache.presupuestos || [];
-        for (let i = 0; i < budgets.length; i += 100) {
-            const batch = db.batch();
-            const chunk = budgets.slice(i, i + 100);
-            chunk.forEach(budget => {
-                const ref = docRef.collection("presupuestos").doc(budget['ID Presupuesto']);
-                batch.set(ref, budget);
-            });
-            await batch.commit();
+        // 2. Upload all collections in chunks of 100
+        for (const config of collectionConfigs) {
+            const items = this.cache[config.name] || [];
+            for (let i = 0; i < items.length; i += 100) {
+                const batch = db.batch();
+                const chunk = items.slice(i, i + 100);
+                chunk.forEach(item => {
+                    const keyVal = item[config.key];
+                    if (keyVal) {
+                        const ref = docRef.collection(config.path).doc(keyVal.toString());
+                        batch.set(ref, item);
+                    }
+                });
+                await batch.commit();
+            }
         }
 
         if (typeof showToast === 'function') {
@@ -349,95 +373,47 @@ const dataService = {
 
     // Clientes operations
     clientes: {
-        async getAll() {
-            return dataService.cache.clientes || [];
-        },
+        async getAll() { return dataService.cache.clientes || []; },
         async save(cliente) {
             if (!dataService.cache.clientes) dataService.cache.clientes = [];
             const idx = dataService.cache.clientes.findIndex(c => c.Codigo_Cliente === cliente.Codigo_Cliente);
-            if (idx >= 0) {
-                dataService.cache.clientes[idx] = cliente;
-            } else {
-                dataService.cache.clientes.push(cliente);
-            }
+            if (idx >= 0) { dataService.cache.clientes[idx] = cliente; } else { dataService.cache.clientes.push(cliente); }
             await dataService.save(dataService.cache);
-
-            // Write to Firestore subcollection if logged in
-            if (dataService.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                await dbFirestore.collection("workshops").doc(dataService.activeUserUid)
-                    .collection("clientes").doc(cliente.Codigo_Cliente).set(cliente);
-            }
             return cliente;
         },
         async delete(codigo) {
             if (!dataService.cache.clientes) return;
             dataService.cache.clientes = dataService.cache.clientes.filter(c => c.Codigo_Cliente !== codigo);
             await dataService.save(dataService.cache);
-
-            // Delete from Firestore subcollection if logged in
-            if (dataService.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                await dbFirestore.collection("workshops").doc(dataService.activeUserUid)
-                    .collection("clientes").doc(codigo).delete();
-            }
         }
     },
 
     // Vehiculos operations
     vehiculos: {
-        async getAll() {
-            return dataService.cache.vehiculos || [];
-        },
+        async getAll() { return dataService.cache.vehiculos || []; },
         async save(vehiculo) {
             if (!dataService.cache.vehiculos) dataService.cache.vehiculos = [];
             const idx = dataService.cache.vehiculos.findIndex(v => v.ID_Vehiculo === vehiculo.ID_Vehiculo);
-            if (idx >= 0) {
-                dataService.cache.vehiculos[idx] = vehiculo;
-            } else {
-                dataService.cache.vehiculos.push(vehiculo);
-            }
+            if (idx >= 0) { dataService.cache.vehiculos[idx] = vehiculo; } else { dataService.cache.vehiculos.push(vehiculo); }
             await dataService.save(dataService.cache);
-
-            // Write to Firestore subcollection if logged in
-            if (dataService.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                await dbFirestore.collection("workshops").doc(dataService.activeUserUid)
-                    .collection("vehiculos").doc(vehiculo.ID_Vehiculo).set(vehiculo);
-            }
             return vehiculo;
         }
     },
 
     // Presupuestos operations
     presupuestos: {
-        async getAll() {
-            return dataService.cache.presupuestos || [];
-        },
+        async getAll() { return dataService.cache.presupuestos || []; },
         async save(presupuesto) {
             if (!dataService.cache.presupuestos) dataService.cache.presupuestos = [];
             const idx = dataService.cache.presupuestos.findIndex(p => p['ID Presupuesto'] === presupuesto['ID Presupuesto']);
-            if (idx >= 0) {
-                dataService.cache.presupuestos[idx] = presupuesto;
-            } else {
-                dataService.cache.presupuestos.push(presupuesto);
-            }
+            if (idx >= 0) { dataService.cache.presupuestos[idx] = presupuesto; } else { dataService.cache.presupuestos.push(presupuesto); }
             await dataService.save(dataService.cache);
-
-            // Write to Firestore subcollection if logged in
-            if (dataService.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                await dbFirestore.collection("workshops").doc(dataService.activeUserUid)
-                    .collection("presupuestos").doc(presupuesto['ID Presupuesto']).set(presupuesto);
-            }
             return presupuesto;
         },
         async delete(id) {
             if (!dataService.cache.presupuestos) return;
             dataService.cache.presupuestos = dataService.cache.presupuestos.filter(p => p['ID Presupuesto'] !== id);
             await dataService.save(dataService.cache);
-
-            // Delete from Firestore subcollection if logged in
-            if (dataService.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                await dbFirestore.collection("workshops").doc(dataService.activeUserUid)
-                    .collection("presupuestos").doc(id).delete();
-            }
         }
     }
 };
