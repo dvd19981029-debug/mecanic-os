@@ -96,7 +96,16 @@ function initFirebase() {
         }
         dbFirestore = firebase.firestore();
         isFirebaseConnected = true;
-        
+    } catch (err) {
+        console.error("Error al inicializar Firebase:", err);
+        updateCloudStatusUI(false, "offline");
+    }
+}
+
+function initFirebaseAuthListener() {
+    if (typeof firebase === 'undefined') return;
+    
+    try {
         firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
                 currentFirebaseUser = user;
@@ -110,9 +119,7 @@ function initFirebase() {
             }
         });
     } catch (err) {
-        console.error("Error al conectar con Firebase:", err);
-        isFirebaseConnected = false;
-        updateCloudStatusUI(false, "error");
+        console.error("Error al registrar el listener de autenticación:", err);
     }
 }
 
@@ -10563,9 +10570,10 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
 // ----------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', async () => {
+    initFirebase();
     await dataService.init();
     initDatabase();
-    initFirebase();
+    initFirebaseAuthListener();
     bindFirebaseEvents();
     updateUserUI();
     updateSidebarBrand();

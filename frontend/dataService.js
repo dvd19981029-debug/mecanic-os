@@ -169,7 +169,22 @@ const dataService = {
         // Perform I/O write operations asynchronously using setTimeout
         return new Promise((resolve) => {
             setTimeout(async () => {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+                if (this.activeUserUid) {
+                    const prunedDb = { ...db };
+                    collectionConfigs.forEach(config => {
+                        delete prunedDb[config.name];
+                    });
+                    delete prunedDb['21 Detalle Presupuesto Producto'];
+                    delete prunedDb['11 Detalle Mano de Obra'];
+                    delete prunedDb['30 Abonos Creditos'];
+                    delete prunedDb['29 Movs de Inventario'];
+                    delete prunedDb['43 Venta Rapida'];
+                    delete prunedDb['46 Gastos'];
+                    delete prunedDb['45 Pagos VR'];
+                    localStorage.setItem('mecanic_os_db', JSON.stringify(prunedDb));
+                } else {
+                    localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+                }
                 
                 if (db && db.saas_state && db.saas_state.workshopData) {
                     const wsData = db.saas_state.workshopData;
@@ -318,7 +333,22 @@ const dataService = {
                     this.cache['46 Gastos'] = this.cache.gastos;
                     this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                    if (this.activeUserUid) {
+                        const prunedDb = { ...this.cache };
+                        collectionConfigs.forEach(c => {
+                            delete prunedDb[c.name];
+                        });
+                        delete prunedDb['21 Detalle Presupuesto Producto'];
+                        delete prunedDb['11 Detalle Mano de Obra'];
+                        delete prunedDb['30 Abonos Creditos'];
+                        delete prunedDb['29 Movs de Inventario'];
+                        delete prunedDb['43 Venta Rapida'];
+                        delete prunedDb['46 Gastos'];
+                        delete prunedDb['45 Pagos VR'];
+                        localStorage.setItem('mecanic_os_db', JSON.stringify(prunedDb));
+                    } else {
+                        localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                    }
                     if (typeof handleRouting === 'function') handleRouting();
                 }
             });
