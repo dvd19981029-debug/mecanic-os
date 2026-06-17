@@ -212,6 +212,7 @@ const dataService = {
                             updatedAt: new Date().toISOString(),
                             updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system'
                         }, { merge: mergeEnabled() });
+                        this.saas.logOp('writes', 1);
 
                         function mergeEnabled() { return true; }
 
@@ -229,6 +230,7 @@ const dataService = {
                                 if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
                                     // Save single document
                                     await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
+                                    this.saas.logOp('writes', 1);
                                 }
                             }
 
@@ -241,6 +243,7 @@ const dataService = {
                                 if (!exists) {
                                     // Delete single document
                                     await docRef.collection(config.path).doc(keyVal.toString()).delete();
+                                    this.saas.logOp('deletes', 1);
                                 }
                             }
                         }
@@ -268,6 +271,7 @@ const dataService = {
 
         // 1. Listen to Root document updates (Metadata & Configs)
         const rootListener = docRef.onSnapshot((doc) => {
+            this.saas.logOp('reads', 1);
             if (doc.exists) {
                 const data = doc.data();
                 let changed = false;
@@ -299,6 +303,7 @@ const dataService = {
         // 2. Setup reactive listeners dynamically for all 14 subcollections
         collectionConfigs.forEach(config => {
             const listener = docRef.collection(config.path).onSnapshot((snapshot) => {
+                this.saas.logOp('reads', snapshot.docChanges().length || 1);
                 let updated = false;
                 snapshot.docChanges().forEach((change) => {
                     const item = change.doc.data();
@@ -465,11 +470,57 @@ const dataService = {
 
     // Global SaaS operations
     saas: {
+        localOps: { reads: 0, writes: 0, deletes: 0 },
+        syncTimeout: null,
+
+        logOp(type, count = 1) {
+            if (!this.localOps) this.localOps = { reads: 0, writes: 0, deletes: 0 };
+            this.localOps[type] += count;
+            if (!this.syncTimeout) {
+                this.syncTimeout = setTimeout(() => {
+                    this.syncOpsToCloud();
+                }, 5000);
+            }
+        },
+
+        async syncOpsToCloud() {
+            this.syncTimeout = null;
+            if (typeof dbFirestore === 'undefined' || !dbFirestore) return;
+            try {
+                const dateStr = new Date().toISOString().split('T')[0];
+                const updates = {};
+                let hasUpdates = false;
+                
+                if (this.localOps.reads > 0) {
+                    updates.reads = firebase.firestore.FieldValue.increment(this.localOps.reads);
+                    this.localOps.reads = 0;
+                    hasUpdates = true;
+                }
+                if (this.localOps.writes > 0) {
+                    updates.writes = firebase.firestore.FieldValue.increment(this.localOps.writes);
+                    this.localOps.writes = 0;
+                    hasUpdates = true;
+                }
+                if (this.localOps.deletes > 0) {
+                    updates.deletes = firebase.firestore.FieldValue.increment(this.localOps.deletes);
+                    this.localOps.deletes = 0;
+                    hasUpdates = true;
+                }
+                
+                if (hasUpdates) {
+                    await dbFirestore.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).set(updates, { merge: true });
+                }
+            } catch (e) {
+                console.error("Error syncing quota metrics:", e);
+            }
+        },
+
         async getPlans() {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     const snap = await dbFirestore.collection("saas_plans").get();
                     if (!snap.empty) {
+                        dataService.saas.logOp('reads', snap.size || 1);
                         const plans = [];
                         snap.forEach(doc => plans.push(doc.data()));
                         dataService.cache.saas_plans = plans;
@@ -487,6 +538,7 @@ const dataService = {
                 try {
                     const snap = await dbFirestore.collection("saas_coupons").get();
                     if (!snap.empty) {
+                        dataService.saas.logOp('reads', snap.size || 1);
                         const coupons = [];
                         snap.forEach(doc => coupons.push(doc.data()));
                         dataService.cache.saas_coupons = coupons;
@@ -511,6 +563,7 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_plans").doc(plan.id).set(plan);
+                    dataService.saas.logOp('writes', 1);
                 } catch (e) {
                     console.error("Error saving plan to Firestore:", e);
                 }
@@ -524,6 +577,7 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_plans").doc(planId).delete();
+                    dataService.saas.logOp('deletes', 1);
                 } catch (e) {
                     console.error("Error deleting plan from Firestore:", e);
                 }
@@ -541,6 +595,7 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_coupons").doc(coupon.codigo).set(coupon);
+                    dataService.saas.logOp('writes', 1);
                 } catch (e) {
                     console.error("Error saving coupon to Firestore:", e);
                 }
@@ -554,6 +609,7 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_coupons").doc(code).delete();
+                    dataService.saas.logOp('deletes', 1);
                 } catch (e) {
                     console.error("Error deleting coupon from Firestore:", e);
                 }
@@ -563,6 +619,7 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_requests").doc(requestData.id).set(requestData);
+                    dataService.saas.logOp('writes', 1);
                 } catch (e) {
                     console.error("Error creating request in Firestore:", e);
                     throw e;
@@ -585,10 +642,12 @@ const dataService = {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_requests").doc(requestId).update(updateObj);
+                    dataService.saas.logOp('writes', 1);
                 } catch (e) {
                     console.error("Error updating request status in Firestore:", e);
                     try {
                         await dbFirestore.collection("saas_requests").doc(requestId).set(updateObj, { merge: true });
+                        dataService.saas.logOp('writes', 1);
                     } catch (err2) {
                         console.error("Fallback set merge failed:", err2);
                         throw err2;

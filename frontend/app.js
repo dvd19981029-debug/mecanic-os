@@ -9703,6 +9703,104 @@ if (window.saasConfigWorkshopId) {
         }
     }
 
+    // Active quota listener cleanup
+    if (window.saasQuotaUnsubscribe) {
+        window.saasQuotaUnsubscribe();
+        window.saasQuotaUnsubscribe = null;
+    }
+
+    if (activeTab === 'metrics') {
+        setTimeout(() => {
+            const statusEl = document.getElementById('saas-perf-db-status');
+            const progressContainer = document.getElementById('saas-quota-progress-container');
+            
+            // 1. Update connectivity indicator
+            if (statusEl) {
+                if (typeof isFirebaseConnected !== 'undefined' && isFirebaseConnected) {
+                    statusEl.style.background = 'rgba(46, 204, 113, 0.15)';
+                    statusEl.style.color = '#2ecc71';
+                    statusEl.innerHTML = '<span class="dot" style="background:#2ecc71; width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px;"></span> CONECTADO';
+                } else {
+                    statusEl.style.background = 'rgba(231, 76, 60, 0.15)';
+                    statusEl.style.color = '#e74c3c';
+                    statusEl.innerHTML = '<span class="dot" style="background:#e74c3c; width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px;"></span> DESCONECTADO';
+                }
+            }
+
+            // 2. Real-time quota listener
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                const dateStr = new Date().toISOString().split('T')[0];
+                window.saasQuotaUnsubscribe = dbFirestore.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).onSnapshot((doc) => {
+                    if (!progressContainer) return;
+                    
+                    const data = doc.exists ? doc.data() : { reads: 0, writes: 0, deletes: 0 };
+                    const reads = data.reads || 0;
+                    const writes = data.writes || 0;
+                    const deletes = data.deletes || 0;
+                    
+                    const maxReads = 50000;
+                    const maxWrites = 20000;
+                    const maxDeletes = 20000;
+                    
+                    const readsPct = Math.min(100, (reads / maxReads) * 100);
+                    const writesPct = Math.min(100, (writes / maxWrites) * 100);
+                    const deletesPct = Math.min(100, (deletes / maxDeletes) * 100);
+                    
+                    const getBarColor = (pct) => {
+                        if (pct > 85) return '#e74c3c'; // Red
+                        if (pct > 60) return '#f39c12'; // Yellow/Orange
+                        return '#2ecc71'; // Green
+                    };
+                    
+                    progressContainer.innerHTML = `
+                        <!-- Lecturas -->
+                        <div style="margin-bottom:0.75rem;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.25rem; color:var(--text-primary);">
+                                <span><i class="fa-solid fa-eye" style="margin-right:4px; color:${getBarColor(readsPct)};"></i> Lecturas (Reads)</span>
+                                <strong>${reads.toLocaleString()} / ${maxReads.toLocaleString()} (${readsPct.toFixed(1)}%)</strong>
+                            </div>
+                            <div style="height:6px; background:var(--border-color); border-radius:3px; overflow:hidden; display:flex;">
+                                <div style="width:${readsPct}%; height:100%; background:${getBarColor(readsPct)}; border-radius:3px; transition: width 0.5s ease;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Escrituras -->
+                        <div style="margin-bottom:0.75rem;">
+                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.25rem; color:var(--text-primary);">
+                                <span><i class="fa-solid fa-pen" style="margin-right:4px; color:${getBarColor(writesPct)};"></i> Escrituras (Writes)</span>
+                                <strong style="color:${writesPct > 85 ? '#e74c3c' : 'var(--text-primary)'};">${writes.toLocaleString()} / ${maxWrites.toLocaleString()} (${writesPct.toFixed(1)}%)</strong>
+                            </div>
+                            <div style="height:6px; background:var(--border-color); border-radius:3px; overflow:hidden; display:flex;">
+                                <div style="width:${writesPct}%; height:100%; background:${getBarColor(writesPct)}; border-radius:3px; transition: width 0.5s ease;"></div>
+                            </div>
+                            ${writes > 15000 ? `<div style="color:#e74c3c; font-size:0.7rem; font-weight:bold; margin-top:3px;"><i class="fa-solid fa-triangle-exclamation"></i> ¡Advertencia: Acercándose al límite diario de 20k escrituras!</div>` : ''}
+                        </div>
+
+                        <!-- Eliminaciones -->
+                        <div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.25rem; color:var(--text-primary);">
+                                <span><i class="fa-solid fa-trash" style="margin-right:4px; color:${getBarColor(deletesPct)};"></i> Eliminaciones (Deletes)</span>
+                                <strong>${deletes.toLocaleString()} / ${maxDeletes.toLocaleString()} (${deletesPct.toFixed(1)}%)</strong>
+                            </div>
+                            <div style="height:6px; background:var(--border-color); border-radius:3px; overflow:hidden; display:flex;">
+                                <div style="width:${deletesPct}%; height:100%; background:${getBarColor(deletesPct)}; border-radius:3px; transition: width 0.5s ease;"></div>
+                            </div>
+                        </div>
+                    `;
+                }, (err) => {
+                    console.error("Error listening to real-time quota stats:", err);
+                    if (progressContainer) {
+                        progressContainer.innerHTML = `<span style="color:var(--danger); font-size:0.8rem;"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar cuotas: ${err.message}</span>`;
+                    }
+                });
+            } else {
+                if (progressContainer) {
+                    progressContainer.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">Conexión a Firebase inactiva (modo sin conexión). No se pueden leer cuotas de la nube.</span>';
+                }
+            }
+        }, 50);
+    }
+
     // Sub-renderers
     function renderRequestsTab() {
         if (solicitudes.length === 0) {
@@ -9956,6 +10054,46 @@ if (window.saasConfigWorkshopId) {
                     <span class="metric-label">Tasa de Churn (Suspensión)</span>
                     <div class="metric-val">${churnRate.toFixed(1)}%</div>
                     <small style="color:var(--text-muted); font-size:0.75rem;">${suspendedClients.length} de ${approvedClients.length} talleres suspendidos</small>
+                </div>
+            </div>
+            
+            <!-- Estado del Sistema y Límites de Google Cloud -->
+            <div class="glass-card" style="padding:1.5rem; margin-bottom:2rem;">
+                <h3 style="font-family:'Outfit', sans-serif; font-size:1.2rem; color:var(--text-primary); margin-bottom:1.25rem; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="fa-solid fa-server" style="color:var(--primary);"></i> Estado del Sistema y Límites de Google Cloud
+                </h3>
+                
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem;">
+                    <!-- Conectividad -->
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); padding:1.25rem; border-radius:8px;">
+                        <h4 style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-secondary); border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-family:'Outfit', sans-serif;">Canales de Comunicación</h4>
+                        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.8rem; color:var(--text-muted);">Base de Datos Central (GCP):</span>
+                                <span id="saas-perf-db-status" style="font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:bold; display:flex; align-items:center; gap:4px;">
+                                    <span class="dot" style="width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
+                                    <span>Cargando...</span>
+                                </span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.8rem; color:var(--text-muted);">Respaldo Local (IndexedDB):</span>
+                                <span style="font-size:0.75rem; padding:2px 8px; border-radius:10px; font-weight:bold; background:rgba(46, 204, 113, 0.15); color:#2ecc71; display:flex; align-items:center; gap:4px;">
+                                    <span class="dot" style="background:#2ecc71; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
+                                    <span>ACTIVO</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Límites de Operaciones -->
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); padding:1.25rem; border-radius:8px; grid-column: span 1;">
+                        <h4 style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-secondary); border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-family:'Outfit', sans-serif; display:flex; justify-content:space-between; align-items:center;">
+                            <span>Consumo Diario (Google Cloud Quotas)</span>
+                        </h4>
+                        <div style="display:flex; flex-direction:column; gap:0.85rem;" id="saas-quota-progress-container">
+                            <span style="font-size:0.8rem; color:var(--text-muted);">Cargando cuotas en tiempo real...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             

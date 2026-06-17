@@ -1268,6 +1268,9 @@ tr:hover td {
 @media screen and (max-width: 900px) {
     body {
         overflow-y: auto;
+        overflow-x: hidden;
+        height: auto;
+        min-height: 100vh;
     }
 
     .app-container {
@@ -1275,6 +1278,13 @@ tr:hover td {
         height: auto;
         min-height: 100vh;
         position: relative;
+        overflow-x: hidden;
+    }
+
+    .main-content {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
     }
 
     /* Sidebar Drawer */
