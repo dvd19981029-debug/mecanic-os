@@ -1377,10 +1377,18 @@ tr:hover td {
     }
 
     /* Modals adjustment */
+    .modal {
+        align-items: flex-start !important;
+        overflow-y: auto !important;
+        padding: 2rem 0;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .modal-content {
         width: 92% !important;
         padding: 1.25rem !important;
         border-radius: var(--radius-md);
+        margin: auto !important;
     }
 
     /* Checkpoint row styling for phone */
