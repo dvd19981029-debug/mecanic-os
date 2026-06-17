@@ -11046,7 +11046,7 @@ function renderSaaSAdminLogin(container) {
             if (pass === 'SuperAdminOS') {
                 sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
                 showToast("Acceso concedido como Super Administrador", "success");
-                renderAdminSolicitudes(container);
+                handleRouting();
             } else {
                 showToast("Contraseña incorrecta", "error");
                 const passInput = document.getElementById('saas-admin-pass');
