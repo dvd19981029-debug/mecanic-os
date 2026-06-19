@@ -553,7 +553,7 @@ const server = http.createServer((req, res) => {
                 
                 console.log(`FacturaLlama Test: Verifying API Key ${apiKey.substring(0,8)}...`);
                 
-                const targetUrl = 'https://api.facturallama.com/dte/test-connection-ping';
+                const targetUrl = 'https://api.facturallama.com/dte/12345678-1234-1234-1234-1234567890ab';
                 const options = {
                     method: 'GET',
                     headers: {
