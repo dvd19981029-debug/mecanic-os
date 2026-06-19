@@ -2600,13 +2600,17 @@ function renderBudgetEditor(container, budget) {
 
         laborContainer.innerHTML = '';
         tempLabor.forEach((item, index) => {
+            const moCatalog = db.mano_obra.find(m => m.ID_ManoObra === item.ID_ManoObra);
+            const isPriceEditable = !moCatalog || moCatalog.PrecioEditable !== 'NO';
+            const priceDisabled = isLocked || !isPriceEditable;
+
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
                 <div><small class="text-muted">${item.ID_ManoObra || 'MO'}</small></div>
                 <div><strong>${item.Descripcion}</strong></div>
                 <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
-                <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px;" ${isLocked ? 'disabled' : ''}></div>
+                <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; ${!isPriceEditable ? 'background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;' : ''}" ${priceDisabled ? 'disabled title="Este precio es fijo (no editable)"' : ''}></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
                 <div><button class="icon-btn btn-danger delete-row-btn" data-type="labor" data-idx="${index}" style="width: 30px; height: 30px;" ${isLocked ? 'disabled style="opacity: 0.4; pointer-events: none;"' : ''}><i class="fa-solid fa-trash"></i></button></div>
             `;
