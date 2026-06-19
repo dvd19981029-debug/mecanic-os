@@ -24,6 +24,7 @@ const collectionConfigs = [
 
 const dataService = {
     cache: null,
+    lastSyncedState: null,
     activeUserUid: null,      // UID de Firebase Auth del dueño (para writes propios)
     workshopOwnerUid: null,   // UID del taller (puede ser del dueño o compartido por empleados)
     readOnlyMode: false,      // true cuando el dispositivo es de un empleado (sin Firebase Auth propio)
@@ -164,12 +165,13 @@ const dataService = {
             }
         }
 
+        this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
         return this.cache;
     },
 
     // Save cache state back to storage asynchronously with automated granular diffing
     async save(db) {
-        const oldCache = this.cache || {};
+        const oldCache = this.lastSyncedState || {};
         this.cache = db;
 
         // Re-align aliased array references in memory
@@ -268,6 +270,9 @@ const dataService = {
                     }
                 }
 
+                // Update lastSyncedState to match the newly saved state
+                this.lastSyncedState = JSON.parse(JSON.stringify(db));
+
                 // Trigger notifications badge updates in UI
                 if (typeof updateNotifications === 'function') {
                     updateNotifications();
@@ -337,6 +342,7 @@ const dataService = {
                 
                 if (changed) {
                     localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                    this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     if (typeof handleRouting === 'function') handleRouting();
                 }
             }
@@ -400,6 +406,7 @@ const dataService = {
                     } else {
                         localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
                     }
+                    this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     // Solo refrescar UI si el cambio vino de otro dispositivo
                     if (isRemoteChange && typeof smartRefreshView === 'function') {
                         smartRefreshView(config.name);
