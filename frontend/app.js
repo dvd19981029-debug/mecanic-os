@@ -817,20 +817,42 @@ function getBudgetGrandTotal(budget, db) {
 
 // Helper: Calculate client unpaid credit balance
 function getClientPendingBalance(clientCode, db) {
-    // 1. Get all budgets for client that are CREDIT
-    const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientCode && p.Condicion === 'CREDITO');
+    // 1. Get all budgets for client that are CREDIT and NOT marked as paid (Pagado? !== 'SI')
+    const unpaidBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientCode && p.Condicion === 'CREDITO' && p['Pagado?'] !== 'SI');
     
-    // Sum their grand totals
-    let totalCreditBudgets = 0;
-    clientBudgets.forEach(b => {
-        totalCreditBudgets += getBudgetGrandTotal(b, db);
+    // All abonos for this client
+    const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
+    
+    // Sum remaining balances of unpaid budgets
+    let totalUnpaidRemaining = 0;
+    unpaidBudgets.forEach(b => {
+        const budgetId = b['ID Presupuesto'];
+        const budgetTotal = getBudgetGrandTotal(b, db);
+        
+        // Sum abonos linked to this specific budget (by ID_Presupuesto or fallback in Observaciones)
+        const linkedAbonos = clientAbonos.filter(ab => 
+            ab.ID_Presupuesto === budgetId || 
+            (ab.Observaciones && ab.Observaciones.includes(`presupuesto ${budgetId}`))
+        );
+        const totalLinkedAmount = linkedAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
+        
+        totalUnpaidRemaining += Math.max(0, budgetTotal - totalLinkedAmount);
     });
     
-    // 2. Subtract all abonos received for this client
-    const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
-    const totalAbonos = clientAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
+    // Sum general abonos (not linked to any budget, or linked to a budget that is NOT in unpaidBudgets, meaning it is paid)
+    const generalAbonos = clientAbonos.filter(ab => {
+        if (ab.ID_Presupuesto) {
+            return false;
+        }
+        if (ab.Observaciones && ab.Observaciones.includes('presupuesto ')) {
+            return false;
+        }
+        return true;
+    });
     
-    return Math.max(0, totalCreditBudgets - totalAbonos);
+    const totalGeneralAbonos = generalAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
+    
+    return Math.max(0, totalUnpaidRemaining - totalGeneralAbonos);
 }
 
 function generateUUID() {
@@ -3895,22 +3917,32 @@ function renderCuentasCobrar(container) {
                             <th>Fecha</th>
                             <th>Vehículo</th>
                             <th>Monto Total</th>
+                            <th>Saldo Pendiente</th>
                             <th style="text-align:right;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${pendingBudgets.length === 0 
-                            ? '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No hay presupuestos pendientes de liquidar.</td></tr>' 
+                            ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No hay presupuestos pendientes de liquidar.</td></tr>' 
                             : pendingBudgets.map(p => {
                                 const totalBudget = getBudgetGrandTotal(p, db);
+                                const budgetId = p['ID Presupuesto'];
+                                const linked = abonos.filter(ab => 
+                                    ab.ID_Presupuesto === budgetId || 
+                                    (ab.Observaciones && ab.Observaciones.includes(`presupuesto ${budgetId}`))
+                                );
+                                const totalPaid = linked.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
+                                const remaining = Math.max(0, totalBudget - totalPaid);
+                                
                                 return `
                                     <tr>
                                         <td><strong>${p['ID Presupuesto']}</strong></td>
                                         <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                                         <td>${p.Placas || 'N/A'}</td>
-                                        <td><strong>$ ${totalBudget.toFixed(2)}</strong></td>
+                                        <td>$ ${totalBudget.toFixed(2)}</td>
+                                        <td style="color:var(--danger); font-weight:700;">$ ${remaining.toFixed(2)}</td>
                                         <td style="text-align:right;">
-                                            <button class="btn btn-success btn-pay-budget" data-pres-id="${p['ID Presupuesto']}" data-total="${totalBudget}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-check"></i> Registrar Pago</button>
+                                            <button class="btn btn-success btn-pay-budget" data-pres-id="${p['ID Presupuesto']}" data-total="${remaining}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-check"></i> Registrar Pago</button>
                                             <button class="btn btn-secondary btn-liquidate-direct" data-pres-id="${p['ID Presupuesto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem; border-color:var(--danger); color:var(--danger);"><i class="fa-solid fa-ban"></i> Liquidar</button>
                                         </td>
                                     </tr>
@@ -4033,6 +4065,7 @@ function renderCuentasCobrar(container) {
         db['30 Abonos Creditos'].unshift({
             ID_Abono: abonoId,
             Codigo_Cliente: clientId,
+            ID_Presupuesto: presId || "",
             "Fecha Abono": Date.now(),
             "Monto Abono": amount,
             "Metodo Pago": method === '01' ? 'EFECTIVO' : method === '02' ? 'TARJETA' : 'TRANSFERENCIA',
@@ -4045,8 +4078,17 @@ function renderCuentasCobrar(container) {
         if (presId) {
             const budget = db.presupuestos.find(p => p['ID Presupuesto'] === presId);
             if (budget) {
-                budget['Pagado?'] = 'SI';
-                budget.Pagado = 'SI';
+                const budgetTotal = getBudgetGrandTotal(budget, db);
+                const existingLinked = (db['30 Abonos Creditos'] || []).filter(ab => 
+                    ab.Codigo_Cliente === clientId && 
+                    (ab.ID_Presupuesto === presId || (ab.Observaciones && ab.Observaciones.includes(`presupuesto ${presId}`)))
+                );
+                const totalAbonado = existingLinked.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
+                
+                if (totalAbonado >= budgetTotal - 0.01) {
+                    budget['Pagado?'] = 'SI';
+                    budget.Pagado = 'SI';
+                }
             }
         }
 
