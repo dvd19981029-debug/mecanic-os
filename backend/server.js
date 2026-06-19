@@ -525,6 +525,100 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // 1.5 FACTURALLAMA: TEST CONNECTION
+    if (req.method === 'POST' && req.url === '/api/dte/test-connection') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const { apiKey } = JSON.parse(body);
+                
+                if (!apiKey || apiKey.trim() === '') {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Debe ingresar una API Key para realizar la prueba." }));
+                    return;
+                }
+                
+                if (apiKey.startsWith('simulado_')) {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: true,
+                        simulated: true,
+                        message: "¡Conexión de prueba simulada exitosamente! (Modo Simulación activo)"
+                    }));
+                    return;
+                }
+                
+                console.log(`FacturaLlama Test: Verifying API Key ${apiKey.substring(0,8)}...`);
+                
+                const targetUrl = 'https://api.facturallama.com/dte/test-connection-ping';
+                const options = {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-API-Version': '1',
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+                    let proxyBody = '';
+                    proxyRes.on('data', chunk => proxyBody += chunk);
+                    proxyRes.on('end', () => {
+                        console.log(`FacturaLlama Test: Received status ${proxyRes.statusCode}`);
+                        
+                        let success = false;
+                        let message = '';
+                        
+                        if (proxyRes.statusCode === 404) {
+                            success = true;
+                            message = "¡Conexión establecida con éxito! Tu API Key de FacturaLlama es válida y activa.";
+                        } else if (proxyRes.statusCode === 403) {
+                            success = false;
+                            message = "API Key inválida. Por favor verifica tus credenciales en FacturaLlama.";
+                        } else if (proxyRes.statusCode === 401) {
+                            success = false;
+                            message = "No autorizado. Asegúrate de que el formato de la API Key sea correcto.";
+                        } else {
+                            success = true;
+                            message = `Conexión con el servidor establecida (Código de estado HTTP: ${proxyRes.statusCode})`;
+                        }
+                        
+                        res.statusCode = 200;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({
+                            success: success,
+                            statusCode: proxyRes.statusCode,
+                            message: message,
+                            details: proxyBody
+                        }));
+                    });
+                });
+                
+                proxyReq.on('error', (err) => {
+                    console.error("FacturaLlama Test Connection Error:", err);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: false,
+                        message: "No se pudo conectar con la API de FacturaLlama.",
+                        details: err.message
+                    }));
+                });
+                
+                proxyReq.end();
+            } catch (err) {
+                console.error("FacturaLlama Test Exception:", err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, message: err.message }));
+            }
+        });
+        return;
+    }
+
     if (req.method === 'POST' && req.url === '/api/dte') {
         let body = '';
         req.on('data', chunk => {

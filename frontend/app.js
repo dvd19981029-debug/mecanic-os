@@ -10096,9 +10096,10 @@ if (window.saasConfigWorkshopId) {
                         <input type="text" id="tech-fb-projectid" value="${fb.projectId || ''}" placeholder="taller-id" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                     </div>
                     
-                    <div style="display:flex; gap:1rem; margin-top:1.5rem;">
-                        <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Configuración Técnica</button>
-                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
+                    <div style="display:flex; gap:1rem; margin-top:1.5rem; flex-wrap:wrap;">
+                        <button type="submit" class="btn btn-primary" style="flex:1; min-width:180px; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Configuración</button>
+                        <button type="button" id="btn-test-tech-dte" class="btn btn-secondary" style="flex:1; min-width:180px; padding:0.75rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-invoice-dollar" style="color:var(--success);"></i> Probar API Key</button>
+                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; min-width:120px; padding:0.75rem;">Cancelar</button>
                     </div>
                 </form>
             </div>
@@ -10152,6 +10153,44 @@ if (window.saasConfigWorkshopId) {
                 window.saasCloseForm();
             }
         });
+
+        const testTechDteBtn = document.getElementById('btn-test-tech-dte');
+        if (testTechDteBtn) {
+            testTechDteBtn.addEventListener('click', () => {
+                const apiKey = document.getElementById('tech-api-key').value.trim();
+                const backendUrl = document.getElementById('tech-backend-url').value.trim();
+                
+                if (!apiKey) {
+                    showToast("Por favor, ingresa la API Key de FacturaLlama para probar.", "error");
+                    return;
+                }
+                
+                testTechDteBtn.disabled = true;
+                const originalText = testTechDteBtn.innerHTML;
+                testTechDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando...';
+                
+                fetch(`${backendUrl}/api/dte/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey: apiKey })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    testTechDteBtn.disabled = false;
+                    testTechDteBtn.innerHTML = originalText;
+                    if (data.success) {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(data.message || "Error al conectar.", "error");
+                    }
+                })
+                .catch(err => {
+                    testTechDteBtn.disabled = false;
+                    testTechDteBtn.innerHTML = originalText;
+                    showToast("Error de comunicación: " + err.message, "error");
+                });
+            });
+        }
         return;
     }
 
@@ -10559,6 +10598,50 @@ if (window.saasConfigWorkshopId) {
                     testWompiBtn.disabled = false;
                     testWompiBtn.innerHTML = originalText;
                     console.error("Error testing Wompi connection:", err);
+                    showToast("Error de comunicación con el servidor: " + err.message, "error");
+                });
+            });
+        }
+
+        const testDteBtn = document.getElementById('btn-test-dte-connection');
+        if (testDteBtn) {
+            testDteBtn.addEventListener('click', () => {
+                const apiKey = document.getElementById('global-dte-api-key').value.trim();
+                
+                if (!apiKey) {
+                    showToast("Por favor, ingresa la API Key de FacturaLlama para probar la conexión.", "error");
+                    return;
+                }
+                
+                testDteBtn.disabled = true;
+                const originalText = testDteBtn.innerHTML;
+                testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
+                
+                const currentDb = getDatabase();
+                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                
+                fetch(`${backendUrl}/api/dte/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey: apiKey })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    testDteBtn.disabled = false;
+                    testDteBtn.innerHTML = originalText;
+                    if (data.success) {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con FacturaLlama.'}`, "error");
+                        if (data.details) {
+                            console.error("FacturaLlama Test Details:", data.details);
+                        }
+                    }
+                })
+                .catch(err => {
+                    testDteBtn.disabled = false;
+                    testDteBtn.innerHTML = originalText;
+                    console.error("Error testing FacturaLlama connection:", err);
                     showToast("Error de comunicación con el servidor: " + err.message, "error");
                 });
             });
@@ -11329,9 +11412,10 @@ if (window.saasConfigWorkshopId) {
                         </div>
                     </div>
                     
-                    <div style="display:flex; gap:1rem;">
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                         <button type="button" id="btn-save-saas-global-config" class="btn btn-primary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content;"><i class="fa-solid fa-save"></i> Guardar Configuración Global</button>
                         <button type="button" id="btn-test-wompi-connection" class="btn btn-secondary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-signal" style="color:var(--primary);"></i> Probar Conexión Wompi</button>
+                        <button type="button" id="btn-test-dte-connection" class="btn btn-secondary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-invoice-dollar" style="color:var(--success);"></i> Probar Conexión FacturaLlama</button>
                     </div>
                 </div>
 
