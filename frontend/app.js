@@ -8704,7 +8704,7 @@ async function renderRegistroSaaS(container) {
             precio_mensual: finalPrice,
             cupon_usado: couponApplied,
             suscripcion_status: 'demo',
-            proximo_pago: Date.now() + 30 * 24 * 60 * 60 * 1000,
+            proximo_pago: Date.now() + 7 * 24 * 60 * 60 * 1000,
             dte_config: {
                 apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
                 ambiente: '00',
@@ -9565,7 +9565,7 @@ async function renderAdminSolicitudes(container) {
                         </div>
                         <div class="form-group">
                             <label>Vigencia Inicial (días)</label>
-                            <input type="number" id="man-taller-days" required value="30" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <input type="number" id="man-taller-days" required value="7" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
                     
@@ -10377,7 +10377,7 @@ if (window.saasConfigWorkshopId) {
                             plan: req.plan || 'Pro',
                             precio_mensual: req.precio_mensual || 75.00,
                             suscripcion_status: req.suscripcion_status || 'activo',
-                            proximo_pago: req.proximo_pago || (Date.now() + 30 * 24 * 60 * 60 * 1000)
+                            proximo_pago: req.proximo_pago || (Date.now() + 7 * 24 * 60 * 60 * 1000)
                         };
                         dataService.saas.updateRequestStatus(id, 'approved_terms_pending', updatedData)
                             .then(() => {
