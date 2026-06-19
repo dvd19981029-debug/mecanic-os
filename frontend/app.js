@@ -10283,6 +10283,53 @@ if (window.saasConfigWorkshopId) {
             });
         }
 
+        const testWompiBtn = document.getElementById('btn-test-wompi-connection');
+        if (testWompiBtn) {
+            testWompiBtn.addEventListener('click', () => {
+                const clientId = document.getElementById('global-wompi-client-id').value.trim();
+                const clientSecret = document.getElementById('global-wompi-client-secret').value.trim();
+                
+                if (!clientId || !clientSecret) {
+                    showToast("Por favor, ingresa el Client ID y el Client Secret para probar la conexión.", "error");
+                    return;
+                }
+                
+                testWompiBtn.disabled = true;
+                const originalText = testWompiBtn.innerHTML;
+                testWompiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
+                
+                fetch('/api/wompi/test-connection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wompiConfig: {
+                            clientId: clientId,
+                            clientSecret: clientSecret
+                        }
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    testWompiBtn.disabled = false;
+                    testWompiBtn.innerHTML = originalText;
+                    if (data.success) {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con Wompi SV.'}`, "error");
+                        if (data.details) {
+                            console.error("Wompi Test Details:", data.details);
+                        }
+                    }
+                })
+                .catch(err => {
+                    testWompiBtn.disabled = false;
+                    testWompiBtn.innerHTML = originalText;
+                    console.error("Error testing Wompi connection:", err);
+                    showToast("Error de comunicación con el servidor: " + err.message, "error");
+                });
+            });
+        }
+
         const addPlanBtn = document.getElementById('btn-add-saas-plan');
         if (addPlanBtn) {
             addPlanBtn.addEventListener('click', () => {
@@ -11044,7 +11091,10 @@ if (window.saasConfigWorkshopId) {
                         </div>
                     </div>
                     
-                    <button type="button" id="btn-save-saas-global-config" class="btn btn-primary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content;"><i class="fa-solid fa-save"></i> Guardar Configuración Global</button>
+                    <div style="display:flex; gap:1rem;">
+                        <button type="button" id="btn-save-saas-global-config" class="btn btn-primary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content;"><i class="fa-solid fa-save"></i> Guardar Configuración Global</button>
+                        <button type="button" id="btn-test-wompi-connection" class="btn btn-secondary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-signal" style="color:var(--primary);"></i> Probar Conexión Wompi</button>
+                    </div>
                 </div>
 
                 <!-- Catalog Section -->

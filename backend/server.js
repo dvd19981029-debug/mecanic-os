@@ -442,6 +442,89 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // 1.4 WOMPI: TEST CONNECTION
+    if (req.method === 'POST' && req.url === '/api/wompi/test-connection') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const { wompiConfig } = JSON.parse(body);
+                const config = wompiConfig || {};
+                const clientId = config.clientId;
+                const clientSecret = config.clientSecret;
+                
+                if (!clientId || !clientSecret || clientId.trim() === '' || clientSecret.trim() === '') {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Debe ingresar Client ID y Client Secret para realizar la prueba." }));
+                    return;
+                }
+                
+                // Get OAuth Token
+                const tokenUrl = 'https://id.wompi.sv/connect/token';
+                const tokenBody = new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    audience: 'wompi_api'
+                }).toString();
+                
+                console.log(`Wompi Test: Authenticating client ID ${clientId.substring(0,8)}...`);
+                const tokenRes = await makeWompiRequest(tokenUrl, 'POST', {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(tokenBody)
+                }, tokenBody);
+                
+                if (tokenRes.statusCode !== 200) {
+                    console.error("Wompi Test Auth Error:", tokenRes.body);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        message: "Fallo de autenticación con Wompi.",
+                        details: tokenRes.body
+                    }));
+                    return;
+                }
+                
+                const { access_token } = JSON.parse(tokenRes.body);
+                
+                // Fetch Aplicativo
+                console.log("Wompi Test: Fetching aplicativo...");
+                const appRes = await makeWompiRequest('https://api.wompi.sv/Aplicativo', 'GET', {
+                    'Authorization': `Bearer ${access_token}`
+                });
+                
+                if (appRes.statusCode === 200) {
+                    const appData = JSON.parse(appRes.body);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: true, 
+                        message: `¡Conexión establecida con éxito! Tu aplicativo '${appData.nombre || 'Sin nombre'}' está listo y conectado en Wompi SV.`,
+                        appName: appData.nombre,
+                        appId: appData.idAplicativo
+                    }));
+                } else {
+                    console.error("Wompi Test Fetch Aplicativo Error:", appRes.body);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        message: "Autenticación exitosa, pero no se pudo consultar el aplicativo. Verifica los permisos de tus llaves.",
+                        details: appRes.body
+                    }));
+                }
+            } catch (err) {
+                console.error("Wompi Test Exception:", err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "InternalError", message: err.message }));
+            }
+        });
+        return;
+    }
+
     if (req.method === 'POST' && req.url === '/api/dte') {
         let body = '';
         req.on('data', chunk => {
