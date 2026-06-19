@@ -2497,6 +2497,42 @@ function renderBudgetEditor(container, budget) {
     let tempProducts = [...budgetProducts];
     let tempLabor = [...budgetLabor];
 
+    function autoSaveBudget() {
+        if (!budget || !budget['ID Presupuesto']) return;
+
+        // Auto-update header fields if elements exist
+        const fallasEl = document.getElementById('editor-fallas');
+        if (fallasEl) {
+            budget.Fallas_Detectadas = fallasEl.value;
+        }
+        const techEl = document.getElementById('editor-tech-select');
+        if (techEl) {
+            budget.Tecnico_Asignado = techEl.value;
+        }
+        const stateEl = document.getElementById('editor-state');
+        if (stateEl) {
+            budget.Estado = parseInt(stateEl.value);
+        }
+        const odoEl = document.getElementById('editor-odo');
+        if (odoEl) {
+            budget.Kilometraje = odoEl.value;
+        }
+
+        // Save details
+        db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
+        db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+
+        // If it is a new budget and client+vehicle are selected, make sure it's in the list
+        if (isNew && budget.Codigo_Cliente && budget.ID_Vehiculo) {
+            const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
+            if (!exists) {
+                db.presupuestos.unshift(budget);
+            }
+        }
+
+        saveDatabase(db);
+    }
+
     // Helper functions for Creation Mode dropdowns
     if (isNew) {
         const clientSelect = document.getElementById('editor-client-select');
@@ -2552,6 +2588,7 @@ function renderBudgetEditor(container, budget) {
             // Enable items editor
             enableEditorModules();
             calculateTotals();
+            autoSaveBudget();
         });
         
         function disableEditorModules() {
@@ -2634,6 +2671,7 @@ function renderBudgetEditor(container, budget) {
                 }
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
             });
         });
 
@@ -2650,6 +2688,7 @@ function renderBudgetEditor(container, budget) {
                 }
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
             });
         });
     }
@@ -2732,6 +2771,7 @@ function renderBudgetEditor(container, budget) {
                 });
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
                 prodModal.classList.remove('active');
                 showToast("Repuesto añadido al presupuesto", "success");
             });
@@ -2779,6 +2819,7 @@ function renderBudgetEditor(container, budget) {
                 });
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
                 laborModal.classList.remove('active');
                 showToast("Servicio añadido al presupuesto", "success");
             });
@@ -2844,6 +2885,22 @@ function renderBudgetEditor(container, budget) {
     if (!isNew) {
         calculateTotals();
     }
+
+    // Wire up header listeners to auto-save on change/input
+    const odoEl = document.getElementById('editor-odo');
+    if (odoEl) odoEl.addEventListener('change', autoSaveBudget);
+    
+    const techEl = document.getElementById('editor-tech-select');
+    if (techEl) techEl.addEventListener('change', autoSaveBudget);
+    
+    const fallasEl = document.getElementById('editor-fallas');
+    if (fallasEl) {
+        fallasEl.addEventListener('input', autoSaveBudget);
+        fallasEl.addEventListener('change', autoSaveBudget);
+    }
+    
+    const stateEl = document.getElementById('editor-state');
+    if (stateEl) stateEl.addEventListener('change', autoSaveBudget);
 }
 
 // 5. KANBAN BOARD VIEW
