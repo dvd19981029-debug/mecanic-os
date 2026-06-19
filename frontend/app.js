@@ -12546,15 +12546,22 @@ function renderSaaSAdminLogin(container) {
     }
 }
 
-// Force reconnect when the page becomes visible again (handles tab sleep/inactivity)
+// Optimize connection state when tab is backgrounded / foregrounded
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        console.log("Mecanic OS: Tab visible. Refrescando conexiones...");
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0 && typeof dbFirestore !== 'undefined' && dbFirestore) {
+    if (typeof firebase !== 'undefined' && firebase.apps.length > 0 && typeof dbFirestore !== 'undefined' && dbFirestore) {
+        if (document.visibilityState === 'visible') {
+            console.log("Mecanic OS: Tab active. Re-enabling Firestore connection...");
             dbFirestore.enableNetwork().then(() => {
-                console.log("Firestore connection forced online.");
+                console.log("Firestore connection online.");
             }).catch(err => {
                 console.warn("Error enabling Firestore network:", err);
+            });
+        } else {
+            console.log("Mecanic OS: Tab backgrounded. Disabling Firestore connection to prevent background freeze...");
+            dbFirestore.disableNetwork().then(() => {
+                console.log("Firestore connection offline (suspended).");
+            }).catch(err => {
+                console.warn("Error disabling Firestore network:", err);
             });
         }
     }
@@ -13248,17 +13255,5 @@ function renderConfigurarTab(db, checkpoints) {
     `;
 }
 
-// Force reconnect when the page becomes visible again (handles tab sleep/inactivity)
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        console.log("Mecanic OS: Tab visible. Refrescando conexiones...");
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0 && typeof dbFirestore !== 'undefined' && dbFirestore) {
-            dbFirestore.enableNetwork().then(() => {
-                console.log("Firestore connection forced online.");
-            }).catch(err => {
-                console.warn("Error enabling Firestore network:", err);
-            });
-        }
-    }
-});
+
 
