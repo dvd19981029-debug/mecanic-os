@@ -817,20 +817,20 @@ function getBudgetGrandTotal(budget, db) {
 
 // Helper: Calculate client unpaid credit balance
 function getClientPendingBalance(clientCode, db) {
-    // 1. Get all budgets for client that are CREDIT and not paid (Pagado? !== 'SI')
-    const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientCode && p.Condicion === 'CREDITO' && p['Pagado?'] !== 'SI');
+    // 1. Get all budgets for client that are CREDIT
+    const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientCode && p.Condicion === 'CREDITO');
     
     // Sum their grand totals
-    let totalUnpaidBudgets = 0;
+    let totalCreditBudgets = 0;
     clientBudgets.forEach(b => {
-        totalUnpaidBudgets += getBudgetGrandTotal(b, db);
+        totalCreditBudgets += getBudgetGrandTotal(b, db);
     });
     
     // 2. Subtract all abonos received for this client
     const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
     const totalAbonos = clientAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
     
-    return Math.max(0, totalUnpaidBudgets - totalAbonos);
+    return Math.max(0, totalCreditBudgets - totalAbonos);
 }
 
 function generateUUID() {
@@ -3149,6 +3149,20 @@ function renderFacturador(container, queryParams) {
         const iva = parseFloat(emitBtn.dataset.iva);
         const ret = parseFloat(emitBtn.dataset.retention);
         const perc = parseFloat(emitBtn.dataset.perception);
+
+        // Credit validation
+        if (payCond === 'CREDITO') {
+            if (client['Credito?'] !== 'SI') {
+                showToast("Error: El cliente no tiene una línea de crédito autorizada.", "danger");
+                return;
+            }
+            const creditLimit = parseFloat(client['Monto Credito'] || client.Monto_Credito || 0);
+            const pendingBalance = getClientPendingBalance(client.Codigo_Cliente, db);
+            if (pendingBalance + grandTotal > creditLimit) {
+                showToast(`Límite de crédito excedido: Saldo actual $${pendingBalance.toFixed(2)} + Nueva Factura $${grandTotal.toFixed(2)} = $${(pendingBalance + grandTotal).toFixed(2)} (Límite: $${creditLimit.toFixed(2)}).`, "danger");
+                return;
+            }
+        }
         
         // Fetch FacturaLlama config
         const dteCfg = JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
@@ -3242,7 +3256,9 @@ function renderFacturador(container, queryParams) {
             p.controlNumber = genCode;
             p.Doc_a_Emitir = type === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA';
             p.Fecha_Facturacion = Date.now();
+            p.Condicion = payCond;
             p.Pagado = payCond === 'CONTADO' ? 'SI' : 'NO';
+            p['Pagado?'] = payCond === 'CONTADO' ? 'SI' : 'NO';
             
             // Save invoice payment or register credit
             if (payCond === 'CONTADO') {
@@ -3603,53 +3619,65 @@ function renderVentaRapida(container) {
 function renderCuentasCobrar(container) {
     const db = getDatabase();
     
-    // Clients with credit
+    // Calculate metric card values
     const creditClients = db.clientes.filter(c => c['Credito?'] === 'SI');
+    let totalPortfolio = 0;
+    let overlimitCount = 0;
     
-    // Real calculated balances
-    const balances = {};
     creditClients.forEach(c => {
-        balances[c.Codigo_Cliente] = getClientPendingBalance(c.Codigo_Cliente, db);
+        const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+        totalPortfolio += balance;
+        const limit = parseFloat(c['Monto Credito'] || c.Monto_Credito || 0);
+        if (balance > limit) {
+            overlimitCount++;
+        }
     });
 
+    let selectedClientId = null;
+
     container.innerHTML = `
-        <div class="glass-card" style="margin-bottom: 2rem;">
-            <h3>Saldos de Clientes de Crédito (Cuentas por Cobrar)</h3>
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Administra el financiamiento de cuentas corrientes y registra abonos a facturas pendientes.</p>
+        <!-- KPI summary metrics -->
+        <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.5rem;">
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Cartera Activa Total</span>
+                    <span class="stat-value" style="color: var(--cyan); font-weight: 700;">$ ${totalPortfolio.toFixed(2)}</span>
+                </div>
+                <div class="stat-icon" style="color: var(--cyan); background-color: rgba(0, 242, 254, 0.15);"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+            </div>
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Clientes con Crédito</span>
+                    <span class="stat-value" style="color: var(--primary);">${creditClients.length}</span>
+                </div>
+                <div class="stat-icon" style="color: var(--primary); background-color: var(--primary-glow);"><i class="fa-solid fa-users"></i></div>
+            </div>
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-label">Clientes Excedidos</span>
+                    <span class="stat-value" style="color: var(--danger);">${overlimitCount}</span>
+                </div>
+                <div class="stat-icon" style="color: var(--danger); background-color: var(--danger-glow);"><i class="fa-solid fa-circle-exclamation"></i></div>
+            </div>
+        </div>
+
+        <div class="master-detail-container">
+            <div class="glass-card list-panel">
+                <div class="search-bar-container" style="max-width: 100%; margin-bottom: 1rem;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="credit-client-search" placeholder="Buscar cliente por nombre o código...">
+                </div>
+                <div class="scrollable-list" id="credit-clients-list" style="max-height: 500px; overflow-y: auto;">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
             
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Código Cliente</th>
-                            <th>Nombre Fiscal</th>
-                            <th>Límite de Crédito</th>
-                            <th>Saldo Pendiente</th>
-                            <th>Último Pago / Abono</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${creditClients.map(c => {
-                            const unpaid = balances[c.Codigo_Cliente] || 0.00;
-                            const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === c.Codigo_Cliente);
-                            const lastAbono = clientAbonos[0] ? '$' + parseFloat(clientAbonos[0]['Monto Abono']).toFixed(2) : 'Sin abonos';
-                            
-                            return `
-                                <tr>
-                                    <td><strong>${c.Codigo_Cliente}</strong></td>
-                                    <td>${c.Nombre}</td>
-                                    <td>$ ${parseFloat(c.Monto_Credito || 1000).toFixed(2)}</td>
-                                    <td style="color:var(--danger); font-weight:700;">$ ${unpaid.toFixed(2)}</td>
-                                    <td>${lastAbono}</td>
-                                    <td>
-                                        <button class="btn btn-primary btn-abono" data-client-id="${c.Codigo_Cliente}" data-balance="${unpaid}" style="padding:0.35rem 0.6rem; font-size:0.8rem;"><i class="fa-solid fa-plus-circle"></i> Recibir Abono</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
+            <div class="glass-card detail-panel" id="credit-detail-panel" style="min-height: 450px;">
+                <div style="text-align: center; padding: 6rem 1rem; color: var(--text-secondary);">
+                    <i class="fa-solid fa-address-book" style="font-size: 4rem; color: var(--border-color); margin-bottom: 1.5rem;"></i>
+                    <h3>Selecciona un cliente de la lista</h3>
+                    <p>Para ver el estado de su cuenta corriente, configurar límites de crédito y registrar abonos.</p>
+                </div>
             </div>
         </div>
 
@@ -3657,11 +3685,12 @@ function renderCuentasCobrar(container) {
         <div id="abono-modal" class="modal">
             <div class="modal-content glass-card" style="max-width: 500px;">
                 <div class="modal-header">
-                    <h2>Registrar Abono a Crédito</h2>
+                    <h2>Registrar Abono / Pago</h2>
                     <button class="close-modal-btn" id="close-abono-modal">&times;</button>
                 </div>
                 <form id="abono-form">
                     <input type="hidden" id="abono-client-id">
+                    <input type="hidden" id="abono-pres-id">
                     <div class="form-group">
                         <label>Cliente</label>
                         <input type="text" id="abono-client-name" readonly style="background-color: var(--border-color);">
@@ -3701,18 +3730,242 @@ function renderCuentasCobrar(container) {
                 </form>
             </div>
         </div>
+
+        <!-- Configurar Credito Modal -->
+        <div id="config-credit-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2>Configurar Línea de Crédito</h2>
+                    <button class="close-modal-btn" id="close-config-credit-modal">&times;</button>
+                </div>
+                <form id="config-credit-form">
+                    <input type="hidden" id="config-client-id">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <input type="text" id="config-client-name" readonly style="background-color: var(--border-color);">
+                    </div>
+                    <div class="form-group">
+                        <label>¿Línea de Crédito Autorizada?</label>
+                        <select id="config-credit-enabled">
+                            <option value="SI">Sí (Permite Crédito)</option>
+                            <option value="NO">No (Solo Contado)</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monto de Crédito Autorizado ($)</label>
+                            <input type="number" id="config-credit-limit" required min="0" step="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Plazo de Pago (Días)</label>
+                            <input type="number" id="config-credit-days" required min="1">
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" id="cancel-config-credit">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
 
+    const listContainer = document.getElementById('credit-clients-list');
+    const detailPanel = document.getElementById('credit-detail-panel');
+    const searchInput = document.getElementById('credit-client-search');
+
+    // Modals & Forms
     const abonoModal = document.getElementById('abono-modal');
     const abonoForm = document.getElementById('abono-form');
+    const configModal = document.getElementById('config-credit-modal');
+    const configForm = document.getElementById('config-credit-form');
 
-    document.querySelectorAll('.btn-abono').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const clientId = btn.getAttribute('data-client-id');
-            const balance = parseFloat(btn.getAttribute('data-balance'));
-            const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+    function populateClientsList(filter = '') {
+        listContainer.innerHTML = '';
+        const allDbClients = db.clientes;
+        
+        // Filter clients: show clients that either have credit enabled OR have a balance > 0
+        const filtered = allDbClients.filter(c => {
+            const hasCreditSetting = c['Credito?'] === 'SI';
+            const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+            const matchesFilter = c.Nombre.toLowerCase().includes(filter.toLowerCase()) || c.Codigo_Cliente.toLowerCase().includes(filter.toLowerCase());
+            return matchesFilter && (hasCreditSetting || balance > 0);
+        });
+
+        if (filtered.length === 0) {
+            listContainer.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:1.5rem; text-align:center;">No se encontraron clientes de crédito.</div>';
+            return;
+        }
+
+        filtered.forEach(c => {
+            const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+            const limit = parseFloat(c['Monto Credito'] || c.Monto_Credito || 0);
+            const isExceeded = balance > limit;
+            const hasCreditEnabled = c['Credito?'] === 'SI';
+
+            const item = document.createElement('div');
+            item.className = `list-item ${selectedClientId === c.Codigo_Cliente ? 'active' : ''}`;
+            item.style.cursor = 'pointer';
+            item.style.padding = '1rem';
+            item.style.marginBottom = '0.5rem';
             
+            item.innerHTML = `
+                <div class="list-item-main" style="flex-grow:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="list-item-title" style="font-weight:600;">${c.Nombre}</span>
+                        ${isExceeded ? '<span class="badge-tag badge-danger" style="font-size:0.65rem; padding:0.15rem 0.35rem;">EXCEDIDO</span>' : ''}
+                        ${!hasCreditEnabled && balance > 0 ? '<span class="badge-tag badge-warning" style="font-size:0.65rem; padding:0.15rem 0.35rem;">BLOQUEADO</span>' : ''}
+                    </div>
+                    <span class="list-item-subtitle" style="display:flex; justify-content:space-between; margin-top:0.25rem;">
+                        <span>Cód: ${c.Codigo_Cliente}</span>
+                        <span style="font-weight:700; color: ${balance > 0 ? 'var(--danger)' : 'var(--success)'};">
+                            Saldo: $ ${balance.toFixed(2)}
+                        </span>
+                    </span>
+                </div>
+            `;
+
+            item.addEventListener('click', () => {
+                selectedClientId = c.Codigo_Cliente;
+                document.querySelectorAll('#credit-clients-list .list-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                renderClientDetails(c.Codigo_Cliente);
+            });
+
+            listContainer.appendChild(item);
+        });
+    }
+
+    function renderClientDetails(clientId) {
+        const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+        if (!client) return;
+
+        const balance = getClientPendingBalance(clientId, db);
+        const limit = parseFloat(client['Monto Credito'] || client.Monto_Credito || 0);
+        const termDays = parseInt(client['Plazo Credito Días'] || 30);
+        const availableCredit = Math.max(0, limit - balance);
+        const isExceeded = balance > limit;
+
+        // Fetch pending budgets (Condition = CREDIT and Pagado? !== SI)
+        const pendingBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientId && p.Condicion === 'CREDITO' && p['Pagado?'] !== 'SI');
+        
+        // Fetch client abonos
+        const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
+
+        detailPanel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1.5rem;">
+                <div>
+                    <h3 style="margin:0;">${client.Nombre}</h3>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Código: <strong>${client.Codigo_Cliente}</strong> • Tel: ${client['Telefono 1 '] || 'N/A'}</p>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-secondary" id="btn-config-credit-details" style="padding:0.5rem 0.75rem;"><i class="fa-solid fa-gears"></i> Configurar</button>
+                    <button class="btn btn-primary" id="btn-abono-general" style="padding:0.5rem 0.75rem;"><i class="fa-solid fa-plus-circle"></i> Recibir Abono</button>
+                </div>
+            </div>
+
+            <!-- Financial metrics dashboard -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem; margin-bottom:2rem;">
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:1rem;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Límite de Crédito</div>
+                    <div style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin-top:0.25rem;">$ ${limit.toFixed(2)}</div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Plazo: ${termDays} días</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:1rem;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Saldo Pendiente</div>
+                    <div style="font-size:1.5rem; font-weight:700; color:${balance > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top:0.25rem;">$ ${balance.toFixed(2)}</div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">
+                        ${isExceeded ? '<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Excede el límite!</span>' : 'Crédito Habilitado'}
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:1rem;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Crédito Disponible</div>
+                    <div style="font-size:1.5rem; font-weight:700; color:var(--success); margin-top:0.25rem;">$ ${availableCredit.toFixed(2)}</div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Disponible para compras</div>
+                </div>
+            </div>
+
+            <!-- Pending Invoices / Budgets section -->
+            <h4 style="margin-bottom:1rem; border-bottom:1px dashed var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-clock-rotate-left"></i> Presupuestos / DTEs al Crédito Pendientes (${pendingBudgets.length})</h4>
+            <div class="table-container" style="margin-bottom:2rem; max-height:220px; overflow-y:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Presupuesto</th>
+                            <th>Fecha</th>
+                            <th>Vehículo</th>
+                            <th>Monto Total</th>
+                            <th style="text-align:right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pendingBudgets.length === 0 
+                            ? '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No hay presupuestos pendientes de liquidar.</td></tr>' 
+                            : pendingBudgets.map(p => {
+                                const totalBudget = getBudgetGrandTotal(p, db);
+                                return `
+                                    <tr>
+                                        <td><strong>${p['ID Presupuesto']}</strong></td>
+                                        <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
+                                        <td>${p.Placas || 'N/A'}</td>
+                                        <td><strong>$ ${totalBudget.toFixed(2)}</strong></td>
+                                        <td style="text-align:right;">
+                                            <button class="btn btn-success btn-pay-budget" data-pres-id="${p['ID Presupuesto']}" data-total="${totalBudget}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-check"></i> Registrar Pago</button>
+                                            <button class="btn btn-secondary btn-liquidate-direct" data-pres-id="${p['ID Presupuesto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem; border-color:var(--danger); color:var(--danger);"><i class="fa-solid fa-ban"></i> Liquidar</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Abonos history section -->
+            <h4 style="margin-bottom:1rem; border-bottom:1px dashed var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-receipt"></i> Historial de Abonos Recibidos (${abonos.length})</h4>
+            <div class="table-container" style="max-height:200px; overflow-y:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Abono</th>
+                            <th>Fecha</th>
+                            <th>Monto</th>
+                            <th>Método</th>
+                            <th>Referencia</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${abonos.length === 0 
+                            ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No se han registrado abonos previos.</td></tr>' 
+                            : abonos.map(ab => `
+                                <tr>
+                                    <td><strong>${ab.ID_Abono}</strong></td>
+                                    <td>${ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A'}</td>
+                                    <td style="color:var(--success); font-weight:700;">$ ${parseFloat(ab['Monto Abono'] || ab.Monto || 0).toFixed(2)}</td>
+                                    <td>${ab['Metodo Pago'] || 'N/A'}</td>
+                                    <td>${ab['Num Doc/Auto'] || 'N/A'}</td>
+                                    <td><span style="font-size:0.75rem; color:var(--text-secondary);">${ab.Observaciones || '-'}</span></td>
+                                </tr>
+                            `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // Wire details-related click events
+        document.getElementById('btn-config-credit-details').addEventListener('click', () => {
+            document.getElementById('config-client-id').value = clientId;
+            document.getElementById('config-client-name').value = client.Nombre;
+            document.getElementById('config-credit-enabled').value = client['Credito?'] || 'NO';
+            document.getElementById('config-credit-limit').value = limit;
+            document.getElementById('config-credit-days').value = termDays;
+            
+            configModal.classList.add('active');
+        });
+
+        document.getElementById('btn-abono-general').addEventListener('click', () => {
             document.getElementById('abono-client-id').value = clientId;
+            document.getElementById('abono-pres-id').value = '';
             document.getElementById('abono-client-name').value = client.Nombre;
             document.getElementById('abono-current-balance').value = '$' + balance.toFixed(2);
             document.getElementById('abono-amount').value = '';
@@ -3720,14 +3973,55 @@ function renderCuentasCobrar(container) {
             
             abonoModal.classList.add('active');
         });
-    });
 
+        document.querySelectorAll('.btn-pay-budget').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presId = btn.getAttribute('data-pres-id');
+                const total = parseFloat(btn.getAttribute('data-total'));
+                
+                document.getElementById('abono-client-id').value = clientId;
+                document.getElementById('abono-pres-id').value = presId;
+                document.getElementById('abono-client-name').value = client.Nombre;
+                document.getElementById('abono-current-balance').value = '$' + total.toFixed(2);
+                document.getElementById('abono-amount').value = total.toFixed(2);
+                document.getElementById('abono-amount').max = total;
+                
+                abonoModal.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.btn-liquidate-direct').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presId = btn.getAttribute('data-pres-id');
+                if (confirm(`¿Estás seguro de que deseas liquidar directamente el presupuesto ${presId} sin registrar un abono financiero? (Esto saldará la deuda de este documento).`)) {
+                    const budget = db.presupuestos.find(p => p['ID Presupuesto'] === presId);
+                    if (budget) {
+                        budget['Pagado?'] = 'SI';
+                        budget.Pagado = 'SI';
+                        saveDatabase(db);
+                        showToast(`Presupuesto ${presId} liquidado correctamente`, "success");
+                        renderClientDetails(clientId);
+                        populateClientsList(searchInput.value);
+                    }
+                }
+            });
+        });
+    }
+
+    // Search bar event listener
+    searchInput.addEventListener('input', (e) => populateClientsList(e.target.value));
+
+    // Modal cancellation wiring
     document.getElementById('close-abono-modal').addEventListener('click', () => abonoModal.classList.remove('active'));
     document.getElementById('cancel-abono').addEventListener('click', () => abonoModal.classList.remove('active'));
+    document.getElementById('close-config-credit-modal').addEventListener('click', () => configModal.classList.remove('active'));
+    document.getElementById('cancel-config-credit').addEventListener('click', () => configModal.classList.remove('active'));
 
+    // Submit handlers
     abonoForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const clientId = document.getElementById('abono-client-id').value;
+        const presId = document.getElementById('abono-pres-id').value;
         const amount = parseFloat(document.getElementById('abono-amount').value);
         const method = document.getElementById('abono-method').value;
         const ref = document.getElementById('abono-ref').value;
@@ -3745,14 +4039,57 @@ function renderCuentasCobrar(container) {
             "Num Doc/Auto": ref,
             User: getActiveUser().Email || "jjmunoz932@gmail.com",
             "Fecha Registro": Date.now(),
-            Observaciones: notes
+            Observaciones: notes + (presId ? ` (Pago presupuesto ${presId})` : '')
         });
+
+        if (presId) {
+            const budget = db.presupuestos.find(p => p['ID Presupuesto'] === presId);
+            if (budget) {
+                budget['Pagado?'] = 'SI';
+                budget.Pagado = 'SI';
+            }
+        }
 
         saveDatabase(db);
         showToast(`Abono de $ ${amount.toFixed(2)} registrado con éxito`, "success");
         abonoModal.classList.remove('active');
-        renderCuentasCobrar(container);
+        
+        // Refresh views
+        renderClientDetails(clientId);
+        populateClientsList(searchInput.value);
     });
+
+    configForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const clientId = document.getElementById('config-client-id').value;
+        const enabled = document.getElementById('config-credit-enabled').value;
+        const limit = parseFloat(document.getElementById('config-credit-limit').value);
+        const days = parseInt(document.getElementById('config-credit-days').value);
+
+        const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+        if (client) {
+            client['Credito?'] = enabled;
+            client['Monto Credito'] = limit;
+            client.Monto_Credito = limit; // Keep both fields in sync
+            client['Plazo Credito Días'] = days;
+            
+            saveDatabase(db);
+            showToast("Configuración de crédito guardada", "success");
+            configModal.classList.remove('active');
+            
+            // Refresh views
+            renderClientDetails(clientId);
+            populateClientsList(searchInput.value);
+        }
+    });
+
+    // Run loaders
+    populateClientsList();
+    if (creditClients.length > 0) {
+        selectedClientId = creditClients[0].Codigo_Cliente;
+        renderClientDetails(selectedClientId);
+        populateClientsList(); // Set active style in list
+    }
 }
 
 // 9. INVENTARIO / KARDEX VIEW
