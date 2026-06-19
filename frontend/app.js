@@ -9229,6 +9229,13 @@ async function renderAdminSolicitudes(container) {
         window.activeSaaSTab = tabName;
         window.saasEditWorkshopId = null;
         window.saasPayWorkshopId = null;
+        window.saasViewWorkshopDetailsId = null;
+        renderAdminSolicitudes(container);
+    };
+
+    // Helper to switch sub-tabs in details view
+    window.switchSaasDetailsTab = function(tabName) {
+        window.saasActiveDetailsTab = tabName;
         renderAdminSolicitudes(container);
     };
     
@@ -9237,6 +9244,7 @@ async function renderAdminSolicitudes(container) {
         window.saasEditWorkshopId = null;
         window.saasPayWorkshopId = null;
         window.saasConfigWorkshopId = null;
+        window.saasViewWorkshopDetailsId = null;
         window.saasAddWorkshopForm = false;
         window.saasViewReceiptPaymentId = null;
         window.saasAddPlanForm = false;
@@ -9379,7 +9387,834 @@ async function renderAdminSolicitudes(container) {
         }
     };
 
-    // Render forms if active
+    if (window.saasViewWorkshopDetailsId) {
+        const id = window.saasViewWorkshopDetailsId;
+        const workshop = solicitudes.find(s => s.id === id);
+        if (!workshop) {
+            window.saasCloseForm();
+            return;
+        }
+
+        const wsPayments = payments.filter(p => p.workshopId === id);
+        const detailsTab = window.saasActiveDetailsTab || 'plan';
+        const plansList = db.saas_plans || [];
+        const saasConfig = db.saas_config || { wompi: {} };
+        const status = workshop.suscripcion_status || 'activo';
+        
+        let tabBodyHtml = '';
+
+        if (detailsTab === 'plan') {
+            let badgeColor = 'badge-success';
+            if (status === 'suspendido') badgeColor = 'badge-danger';
+            if (status === 'demo') badgeColor = 'badge-warning';
+
+            const nextPay = workshop.proximo_pago ? new Date(workshop.proximo_pago).toLocaleDateString() : 'N/A';
+            const nextPayRaw = workshop.proximo_pago ? new Date(workshop.proximo_pago).toISOString().split('T')[0] : '';
+
+            tabBodyHtml = `
+                <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1.5rem; align-items: start;">
+                    <!-- Columna Izquierda: Resumen y Membresía -->
+                    <div style="display:flex; flex-direction:column; gap:1rem;">
+                        <div class="glass-card" style="padding:1.25rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
+                            <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; color:var(--primary); margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.4rem; font-weight:700;"><i class="fa-solid fa-credit-card"></i> Estado de Membresía</h4>
+                            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">Plan Contratado:</span>
+                                    <strong style="color:var(--primary);">${workshop.plan ? workshop.plan.toUpperCase() : 'BASIC'}</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">Cuota Pactada:</span>
+                                    <strong style="color:var(--text-primary);">$${(workshop.precio_mensual || 75.00).toFixed(2)}/mes</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">Estado Actual:</span>
+                                    <span class="badge-tag ${badgeColor}">${status.toUpperCase()}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.8rem; color:var(--text-secondary);">Renovación:</span>
+                                    <span style="${workshop.proximo_pago && workshop.proximo_pago < Date.now() ? 'color:var(--danger); font-weight:bold;' : 'color:var(--text-primary);'}">
+                                        ${nextPay}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <hr style="border-color:var(--border-color); margin:1rem 0;">
+                            
+                            <!-- Acciones rápidas de membresía -->
+                            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                                <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${workshop.id}')" style="padding:0.4rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
+                                    <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar Acceso' : 'Suspender Acceso'}
+                                </button>
+                                <button class="btn btn-secondary btn-copy-pay-link-detail" data-id="${workshop.id}" style="padding:0.4rem; font-size:0.75rem; color:var(--success); border-color:var(--success);">
+                                    <i class="fa-solid fa-link"></i> Copiar Enlace de Pago
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Card de Ajuste de Membresía -->
+                        <div class="glass-card" style="padding:1.25rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
+                            <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; color:var(--primary); margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.4rem; font-weight:700;"><i class="fa-solid fa-edit"></i> Ajustar Plan</h4>
+                            <form id="saas-detail-plan-form" style="display:flex; flex-direction:column; gap:0.8rem;">
+                                <div class="form-group">
+                                    <label style="font-size:0.75rem; margin-bottom:0.25rem;">Cambiar Plan</label>
+                                    <select id="detail-saas-plan" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                        <option value="Basic" ${workshop.plan === 'Basic' ? 'selected' : ''}>Basic ($45/mes)</option>
+                                        <option value="Pro" ${workshop.plan === 'Pro' ? 'selected' : ''}>Pro ($75/mes)</option>
+                                        <option value="Enterprise" ${workshop.plan === 'Enterprise' ? 'selected' : ''}>Enterprise ($120/mes)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:0.75rem; margin-bottom:0.25rem;">Ajustar Cuota ($)</label>
+                                    <input type="number" step="0.01" id="detail-saas-price" value="${workshop.precio_mensual || 75.00}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:0.75rem; margin-bottom:0.25rem;">Próxima Renovación</label>
+                                    <input type="date" id="detail-saas-next-pay" value="${nextPayRaw}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="padding:0.45rem; font-size:0.75rem; margin-top:0.25rem; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Actualizar Plan</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Datos Generales / Fiscales -->
+                    <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-file-invoice"></i> Datos Fiscales y de Registro</h4>
+                        <form id="saas-detail-general-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                            <!-- Grid de Datos -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Nombre o Razón Social</label>
+                                    <input type="text" id="edit-saas-nombre" required value="${workshop.nombre || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Alias (Nombre Corto)</label>
+                                    <input type="text" id="edit-saas-alias" required value="${workshop.alias || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                            </div>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Nombre Comercial</label>
+                                    <input type="text" id="edit-saas-nombre-comercial" required value="${workshop.nombre_comercial || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Propietario / Administrador</label>
+                                    <input type="text" id="edit-saas-propietario" required value="${workshop.propietario || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                            </div>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Correo Electrónico</label>
+                                    <input type="email" id="edit-saas-correo" required value="${workshop.correo || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono</label>
+                                    <input type="text" id="edit-saas-telefono" required value="${workshop.telefono || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Tipo Persona</label>
+                                    <select id="edit-saas-tipo-persona" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="Natural" ${workshop.tipo_persona === 'Natural' ? 'selected' : ''}>Natural</option>
+                                        <option value="Jurídica" ${workshop.tipo_persona === 'Jurídica' ? 'selected' : ''}>Jurídica</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Clasificación</label>
+                                    <select id="edit-saas-clasificacion" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="Otros" ${workshop.clasificacion_tributaria === 'Otros' ? 'selected' : ''}>Otros</option>
+                                        <option value="Pequeño contribuyente" ${workshop.clasificacion_tributaria === 'Pequeño contribuyente' ? 'selected' : ''}>Pequeño contribuyente</option>
+                                        <option value="Mediano contribuyente" ${workshop.clasificacion_tributaria === 'Mediano contribuyente' ? 'selected' : ''}>Mediano contribuyente</option>
+                                        <option value="Gran contribuyente" ${workshop.clasificacion_tributaria === 'Gran contribuyente' ? 'selected' : ''}>Gran contribuyente</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>¿Sujeto Excluido?</label>
+                                    <select id="edit-saas-sujeto-excluido" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="No" ${workshop.sujeto_excluido === 'No' ? 'selected' : ''}>No</option>
+                                        <option value="Sí" ${workshop.sujeto_excluido === 'Sí' ? 'selected' : ''}>Sí</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Tipo Documento</label>
+                                    <select id="edit-saas-tipo-doc" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="NIT" ${workshop.tipo_documento === 'NIT' ? 'selected' : ''}>NIT</option>
+                                        <option value="DUI" ${workshop.tipo_documento === 'DUI' ? 'selected' : ''}>DUI</option>
+                                        <option value="Pasaporte" ${workshop.tipo_documento === 'Pasaporte' ? 'selected' : ''}>Pasaporte</option>
+                                        <option value="Carnet de Extranjería" ${workshop.tipo_documento === 'Carnet de Extranjería' ? 'selected' : ''}>Carnet</option>
+                                        <option value="Otro" ${workshop.tipo_documento === 'Otro' ? 'selected' : ''}>Otro</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>N° Documento</label>
+                                    <input type="text" id="edit-saas-num-doc" required value="${workshop.num_documento || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Registro NRC</label>
+                                    <input type="text" id="edit-saas-nrc" required value="${workshop.nrc || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Giro / Actividad Económica</label>
+                                    <select id="edit-saas-giro" required style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
+                                        ${getGirosOptionsHtml(workshop.actividad_economica || workshop.giro)}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>País</label>
+                                    <select id="edit-saas-pais" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="El Salvador" selected>El Salvador</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Departamento</label>
+                                    <select id="edit-saas-departamento" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <option value="Ahuachapán" ${workshop.departamento === 'Ahuachapán' ? 'selected' : ''}>Ahuachapán</option>
+                                        <option value="Cabañas" ${workshop.departamento === 'Cabañas' ? 'selected' : ''}>Cabañas</option>
+                                        <option value="Chalatenango" ${workshop.departamento === 'Chalatenango' ? 'selected' : ''}>Chalatenango</option>
+                                        <option value="Cuscatlán" ${workshop.departamento === 'Cuscatlán' ? 'selected' : ''}>Cuscatlán</option>
+                                        <option value="La Libertad" ${workshop.departamento === 'La Libertad' ? 'selected' : ''}>La Libertad</option>
+                                        <option value="La Paz" ${workshop.departamento === 'La Paz' ? 'selected' : ''}>La Paz</option>
+                                        <option value="La Unión" ${workshop.departamento === 'La Unión' ? 'selected' : ''}>La Unión</option>
+                                        <option value="Morazán" ${workshop.departamento === 'Morazán' ? 'selected' : ''}>Morazán</option>
+                                        <option value="San Miguel" ${workshop.departamento === 'San Miguel' ? 'selected' : ''}>San Miguel</option>
+                                        <option value="San Salvador" ${workshop.departamento === 'San Salvador' ? 'selected' : ''}>San Salvador</option>
+                                        <option value="San Vicente" ${workshop.departamento === 'San Vicente' ? 'selected' : ''}>San Vicente</option>
+                                        <option value="Santa Ana" ${workshop.departamento === 'Santa Ana' ? 'selected' : ''}>Santa Ana</option>
+                                        <option value="Sonsonate" ${workshop.departamento === 'Sonsonate' ? 'selected' : ''}>Sonsonate</option>
+                                        <option value="Usulután" ${workshop.departamento === 'Usulután' ? 'selected' : ''}>Usulután</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Municipio</label>
+                                    <select id="edit-saas-municipio" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                        <!-- Cargado dinámicamente -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Dirección del Taller</label>
+                                <input type="text" id="edit-saas-direccion" required value="${workshop.direccion || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Logotipo del Taller (Opcional)</label>
+                                <input type="file" id="edit-saas-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; font-size:0.8rem; width:100%;">
+                                <div id="detail-logo-preview-container" style="${workshop.logo ? 'display:block;' : 'display:none;'} margin-top:0.75rem;">
+                                    <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">Vista Previa del Logotipo:</span>
+                                    <img id="detail-logo-preview" src="${workshop.logo || ''}" style="max-height:60px; max-width:150px; object-fit:contain; border:1px solid var(--border-color); border-radius:4px; padding:4px; background:white;" />
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="padding:0.6rem; font-size:0.85rem; font-weight:700; margin-top:0.5rem;"><i class="fa-solid fa-save"></i> Guardar Cambios del Taller</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        } else if (detailsTab === 'payments') {
+            // Historial de Cuotas Tab
+            let paymentsTableHtml = '';
+            if (wsPayments.length === 0) {
+                paymentsTableHtml = `
+                    <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
+                        <div style="font-size:2.5rem; margin-bottom:1rem; opacity:0.4;"><i class="fa-solid fa-receipt"></i></div>
+                        <p style="font-size:0.9rem;">No hay pagos registrados para este taller.</p>
+                    </div>
+                `;
+            } else {
+                paymentsTableHtml = `
+                    <div class="table-container">
+                        <table style="font-size:0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Recibo ID</th>
+                                    <th>Factura</th>
+                                    <th>Método</th>
+                                    <th>Monto</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${wsPayments.map(p => {
+                                    const pDate = new Date(p.fecha).toLocaleDateString();
+                                    return `
+                                        <tr>
+                                            <td>${pDate}</td>
+                                            <td><code style="color:var(--primary); font-weight:bold;">${p.id}</code></td>
+                                            <td>${p.factura || 'N/A'}</td>
+                                            <td>${p.metodo || 'Efectivo'}</td>
+                                            <td><strong>$${Number(p.monto).toFixed(2)}</strong></td>
+                                            <td>
+                                                <button class="btn btn-secondary btn-view-receipt-detail" data-id="${p.id}" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-file-invoice"></i> Recibo</button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            tabBodyHtml = `
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.5rem; align-items: start;">
+                    <!-- Columna Izquierda: Tabla de Historial -->
+                    <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-list-check"></i> Registro de Pagos Recibidos</h4>
+                        ${paymentsTableHtml}
+                    </div>
+
+                    <!-- Columna Derecha: Registrar Pago Manual -->
+                    <div class="glass-card" style="padding:1.25rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; color:var(--primary); margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.4rem; font-weight:700;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota Manual</h4>
+                        <form id="saas-detail-pay-form" style="display:flex; flex-direction:column; gap:0.8rem;">
+                            <div class="form-group">
+                                <label style="font-size:0.75rem; margin-bottom:0.25rem;">Monto Recibido ($)</label>
+                                <input type="number" step="0.01" id="pay-form-monto" required value="${workshop.precio_mensual || 75.00}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:0.75rem; margin-bottom:0.25rem;">Fecha del Cobro</label>
+                                <input type="date" id="pay-form-fecha" required value="${new Date().toISOString().split('T')[0]}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:0.75rem; margin-bottom:0.25rem;">Método de Pago</label>
+                                <select id="pay-form-metodo" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                    <option value="Efectivo" selected>Efectivo</option>
+                                    <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Bitcoin (Chivo/Otros)">Bitcoin</option>
+                                    <option value="Wompi Pago Automático">Wompi Recurrente</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:0.75rem; margin-bottom:0.25rem;">N° Documento / Factura (Opcional)</label>
+                                <input type="text" id="pay-form-factura" placeholder="Ej: DTE-12345" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="padding:0.5rem; font-size:0.8rem; margin-top:0.25rem; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Registrar Pago y Habilitar</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        } else if (detailsTab === 'billing') {
+            // Facturación & Wompi Tab
+            const dte = workshop.dte_config || {
+                apiKey: '',
+                ambiente: '00',
+                mhCode: '0001',
+                posNumber: '1',
+                backendUrl: ''
+            };
+
+            tabBodyHtml = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; align-items: start;">
+                    <!-- Columna Izquierda: Configuración DTE -->
+                    <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-file-invoice"></i> Configuración Factura Llama (DTE)</h4>
+                        <form id="saas-detail-dte-form" style="display:flex; flex-direction:column; gap:1rem;">
+                            <div class="form-group">
+                                <label>Factura Llama API Key (Private Key)</label>
+                                <input type="password" id="detail-dte-apikey" value="${dte.apiKey || ''}" placeholder="sk_live_... o sk_test_..." style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
+                            </div>
+                            <div class="form-group">
+                                <label>Ambiente de Transmisión</label>
+                                <select id="detail-dte-ambiente" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
+                                    <option value="00" ${dte.ambiente === '00' ? 'selected' : ''}>00 - Pruebas / Sandbox (Hacienda)</option>
+                                    <option value="01" ${dte.ambiente === '01' ? 'selected' : ''}>01 - Producción / Live (Hacienda)</option>
+                                </select>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div class="form-group">
+                                    <label>Código de Establecimiento</label>
+                                    <input type="text" id="detail-dte-mhcode" value="${dte.mhCode || '0001'}" placeholder="0001" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Número de Caja (POS)</label>
+                                    <input type="text" id="detail-dte-posnumber" value="${dte.posNumber || '1'}" placeholder="1" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>URL de Proxy Servidor Backend (Opcional)</label>
+                                <input type="text" id="detail-dte-backendurl" value="${dte.backendUrl || ''}" placeholder="Ej: https://mi-servidor.com" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
+                            </div>
+                            <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+                                <button type="submit" class="btn btn-primary" style="flex:1; padding:0.5rem; font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-save"></i> Guardar DTE</button>
+                                <button type="button" id="btn-test-dte-conn" class="btn btn-secondary" style="flex:1; padding:0.5rem; font-size:0.8rem; color:var(--cyan); border-color:var(--cyan);"><i class="fa-solid fa-plug"></i> Probar Conexión</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Columna Derecha: Integración Wompi -->
+                    <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-money-bill-transfer"></i> Enlace de Suscripción Wompi SV</h4>
+                        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+                            ${workshop.idEnlace ? `
+                                <div style="background:rgba(46, 204, 113, 0.08); border:1px solid rgba(46, 204, 113, 0.2); padding:1rem; border-radius:8px;">
+                                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; color:#2ecc71;">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <strong style="font-size:0.9rem;">Enlace Vinculado Activo</strong>
+                                    </div>
+                                    <span style="font-size:0.75rem; color:var(--text-secondary); display:block; word-break:break-all; margin-bottom:0.5rem;">
+                                        ID Enlace: <code>${workshop.idEnlace}</code>
+                                    </span>
+                                    <a href="${workshop.urlEnlace}" target="_blank" class="btn btn-secondary" style="padding:0.4rem; font-size:0.75rem; text-align:center; display:block; text-decoration:none; color:var(--text-primary);"><i class="fa-solid fa-external-link"></i> Abrir Enlace de Pago Wompi</a>
+                                </div>
+                                <div style="display:flex; gap:0.75rem;">
+                                    <button id="btn-wompi-check-detail" class="btn btn-secondary" style="flex:1; padding:0.45rem; font-size:0.75rem; color:var(--info); border-color:var(--info);"><i class="fa-solid fa-sync"></i> Verificar Estado</button>
+                                    <button id="btn-wompi-cancel-detail" class="btn btn-secondary" style="flex:1; padding:0.45rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-ban"></i> Desactivar Enlace</button>
+                                </div>
+                            ` : `
+                                <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); padding:1rem; border-radius:8px; text-align:center; color:var(--text-secondary);">
+                                    <i class="fa-solid fa-unlink" style="font-size:1.5rem; margin-bottom:0.5rem; opacity:0.5;"></i>
+                                    <p style="font-size:0.8rem; margin:0;">Este taller no tiene un enlace de cobro Wompi vinculado.</p>
+                                </div>
+                                <form id="saas-detail-wompi-form" style="display:flex; flex-direction:column; gap:0.85rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                                    <div class="form-group">
+                                        <label style="font-size:0.75rem; margin-bottom:0.25rem;">Vincular ID de Enlace Manualmente (ID de Enlace Wompi)</label>
+                                        <input type="text" id="wompi-manual-id" placeholder="Ej: 108AADAS-C9C7-..." style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                    </div>
+                                    <button type="submit" class="btn btn-secondary" style="padding:0.45rem; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-link"></i> Vincular Enlace</button>
+                                </form>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            <div style="max-width:900px; margin:2rem auto; padding:2rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <!-- Header del Expediente -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            ${workshop.logo ? `<img src="${workshop.logo}" style="max-height:45px; max-width:100px; object-fit:contain; border-radius:4px; padding:2px; background:white;" />` : `<div style="font-size: 1.8rem; color: var(--primary);"><i class="fa-solid fa-gears"></i></div>`}
+                            <div>
+                                <h2 style="font-family:'Outfit', sans-serif; font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:0;">${workshop.nombre}</h2>
+                                <p style="color:var(--text-secondary); font-size:0.85rem; margin:0; margin-top:0.15rem;">Expediente del Taller: <code style="color:var(--primary);">${workshop.id}</code></p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.75rem; cursor:pointer;">&times;</button>
+                </div>
+                
+                <!-- Barra de Pestañas Internas -->
+                <div class="saas-tabs-container" style="margin-bottom:1.5rem; display:flex; gap:0.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">
+                    <button class="saas-tab-btn ${detailsTab === 'plan' ? 'active' : ''}" onclick="window.switchSaasDetailsTab('plan')"><i class="fa-solid fa-id-card"></i> Plan & Datos del Taller</button>
+                    <button class="saas-tab-btn ${detailsTab === 'payments' ? 'active' : ''}" onclick="window.switchSaasDetailsTab('payments')"><i class="fa-solid fa-receipt"></i> Historial de Cuotas (${wsPayments.length})</button>
+                    <button class="saas-tab-btn ${detailsTab === 'billing' ? 'active' : ''}" onclick="window.switchSaasDetailsTab('billing')"><i class="fa-solid fa-file-invoice-dollar"></i> Facturación & Wompi</button>
+                </div>
+                
+                <!-- Cuerpo de la Pestaña Activa -->
+                <div style="min-height:350px;">
+                    ${tabBodyHtml}
+                </div>
+            </div>
+        `;
+
+        // Event Bindings for Workshop Details View
+        if (detailsTab === 'plan') {
+            setTimeout(() => {
+                setupMunicipiosSelect('edit-saas-departamento', 'edit-saas-municipio', workshop.municipio);
+
+                // Logo file upload handler
+                const logoInput = document.getElementById('edit-saas-logo');
+                if (logoInput) {
+                    logoInput.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (readerEvent) => {
+                                const base64 = readerEvent.target.result;
+                                window.saasSelectedLogoBase64 = base64;
+                                const previewImg = document.getElementById('detail-logo-preview');
+                                const previewContainer = document.getElementById('detail-logo-preview-container');
+                                if (previewImg && previewContainer) {
+                                    previewImg.src = base64;
+                                    previewContainer.style.display = 'block';
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                }
+
+                // Copy Pay Link
+                const copyPayBtn = document.querySelector('.btn-copy-pay-link-detail');
+                if (copyPayBtn) {
+                    copyPayBtn.addEventListener('click', () => {
+                        const payUrl = window.location.origin + window.location.pathname + '#pago-suscripcion?id=' + id;
+                        navigator.clipboard.writeText(payUrl).then(() => {
+                            showToast("¡Enlace de pago copiado al portapapeles!", "success");
+                        }).catch(() => {
+                            showToast("Error al copiar enlace", "error");
+                        });
+                    });
+                }
+
+                // Membership adjust form submit
+                const planForm = document.getElementById('saas-detail-plan-form');
+                if (planForm) {
+                    planForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const planVal = document.getElementById('detail-saas-plan').value;
+                        const priceVal = parseFloat(document.getElementById('detail-saas-price').value);
+                        const statusVal = document.getElementById('detail-saas-status').value;
+                        const nextPayVal = document.getElementById('detail-saas-next-pay').value;
+
+                        workshop.plan = planVal;
+                        workshop.precio_mensual = priceVal;
+                        workshop.suscripcion_status = statusVal;
+                        workshop.proximo_pago = nextPayVal ? new Date(nextPayVal + 'T12:00:00').getTime() : null;
+
+                        if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
+                            db.saas_state.workshopData = workshop;
+                            db.saas_state.status = statusVal === 'suspendido' ? 'suspended' : 'active';
+                        }
+
+                        dataService.saas.updateRequestStatus(id, workshop.status, workshop)
+                            .then(() => {
+                                saveDatabase(db);
+                                showToast("Membresía del taller actualizada con éxito.", "success");
+                                renderAdminSolicitudes(container);
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                showToast("Error al guardar membresía: " + err.message, "error");
+                            });
+                    });
+                }
+
+                // General details form submit
+                const genForm = document.getElementById('saas-detail-general-form');
+                if (genForm) {
+                    genForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        workshop.nombre = document.getElementById('edit-saas-nombre').value;
+                        workshop.alias = document.getElementById('edit-saas-alias').value;
+                        workshop.nombre_comercial = document.getElementById('edit-saas-nombre-comercial').value;
+                        workshop.propietario = document.getElementById('edit-saas-propietario').value;
+                        workshop.correo = document.getElementById('edit-saas-correo').value;
+                        workshop.telefono = document.getElementById('edit-saas-telefono').value;
+                        workshop.tipo_persona = document.getElementById('edit-saas-tipo-persona').value;
+                        workshop.clasificacion_tributaria = document.getElementById('edit-saas-clasificacion').value;
+                        workshop.sujeto_excluido = document.getElementById('edit-saas-sujeto-excluido').value;
+                        workshop.tipo_documento = document.getElementById('edit-saas-tipo-doc').value;
+                        workshop.num_documento = document.getElementById('edit-saas-num-doc').value;
+                        workshop.nrc = document.getElementById('edit-saas-nrc').value;
+                        
+                        const giroEl = document.getElementById('edit-saas-giro');
+                        workshop.actividad_economica = giroEl.value;
+                        workshop.giro = giroEl.options[giroEl.selectedIndex].getAttribute('data-desc') || giroEl.value;
+                        
+                        workshop.pais = document.getElementById('edit-saas-pais').value;
+                        workshop.departamento = document.getElementById('edit-saas-departamento').value;
+                        workshop.municipio = document.getElementById('edit-saas-municipio').value;
+                        workshop.direccion = document.getElementById('edit-saas-direccion').value;
+
+                        if (window.saasSelectedLogoBase64) {
+                            workshop.logo = window.saasSelectedLogoBase64;
+                        }
+
+                        if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
+                            db.saas_state.workshopData = workshop;
+                        }
+
+                        dataService.saas.updateRequestStatus(id, workshop.status, workshop)
+                            .then(() => {
+                                saveDatabase(db);
+                                showToast("Datos generales y fiscales actualizados con éxito.", "success");
+                                renderAdminSolicitudes(container);
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                showToast("Error al guardar datos generales: " + err.message, "error");
+                            });
+                    });
+                }
+            }, 50);
+        }
+
+        if (detailsTab === 'payments') {
+            setTimeout(() => {
+                // Receipt detail button clicks
+                document.querySelectorAll('.btn-view-receipt-detail').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        window.saasViewReceiptPaymentId = btn.getAttribute('data-id');
+                        renderAdminSolicitudes(container);
+                    });
+                });
+
+                // Pay manual submit
+                const payForm = document.getElementById('saas-detail-pay-form');
+                if (payForm) {
+                    payForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const monto = parseFloat(document.getElementById('pay-form-monto').value);
+                        const fechaInput = document.getElementById('pay-form-fecha').value;
+                        const fecha = new Date(fechaInput + 'T12:00:00').getTime();
+                        const metodo = document.getElementById('pay-form-metodo').value;
+                        const factura = document.getElementById('pay-form-factura').value.trim() || 'N/A';
+
+                        const newPayment = {
+                            id: 'PAY-' + Date.now().toString().slice(-4),
+                            workshopId: id,
+                            workshopName: workshop.nombre,
+                            plan: workshop.plan,
+                            monto: monto,
+                            fecha: fecha,
+                            factura: factura,
+                            metodo: metodo,
+                            estado: 'completado'
+                        };
+
+                        db.saas_payments.push(newPayment);
+
+                        // Extend subscription for 30 days
+                        workshop.proximo_pago = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                        workshop.suscripcion_status = 'activo';
+
+                        if (db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
+                            db.saas_state.workshopData.proximo_pago = workshop.proximo_pago;
+                            db.saas_state.workshopData.suscripcion_status = 'activo';
+                            db.saas_state.status = 'active';
+                        }
+
+                        dataService.saas.updateRequestStatus(id, workshop.status, workshop)
+                            .then(() => {
+                                saveDatabase(db);
+                                emitSubscriptionDTE(newPayment, workshop);
+                                showToast("Pago registrado con éxito y vigencia extendida.", "success");
+                                renderAdminSolicitudes(container);
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                showToast("Error al registrar pago manual: " + err.message, "error");
+                            });
+                    });
+                }
+            }, 50);
+        }
+
+        if (detailsTab === 'billing') {
+            setTimeout(() => {
+                // API Key / DTE form submit
+                const dteForm = document.getElementById('saas-detail-dte-form');
+                if (dteForm) {
+                    dteForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const apiKey = document.getElementById('detail-dte-apikey').value.trim();
+                        const ambiente = document.getElementById('detail-dte-ambiente').value;
+                        const mhCode = document.getElementById('detail-dte-mhcode').value.trim();
+                        const posNumber = document.getElementById('detail-dte-posnumber').value.trim();
+                        const backendUrlVal = document.getElementById('detail-dte-backendurl').value.trim();
+
+                        workshop.dte_config = {
+                            apiKey,
+                            ambiente,
+                            mhCode,
+                            posNumber,
+                            backendUrl: backendUrlVal
+                        };
+
+                        if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
+                            db.saas_state.workshopData = workshop;
+                        }
+
+                        dataService.saas.updateRequestStatus(id, workshop.status, workshop)
+                            .then(() => {
+                                saveDatabase(db);
+                                showToast("Configuración DTE guardada.", "success");
+                                renderAdminSolicitudes(container);
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                showToast("Error al guardar DTE: " + err.message, "error");
+                            });
+                    });
+                }
+
+                // Test API connection
+                const testDteBtn = document.getElementById('btn-test-dte-conn');
+                if (testDteBtn) {
+                    testDteBtn.addEventListener('click', () => {
+                        const apiKey = document.getElementById('detail-dte-apikey').value.trim();
+                        if (!apiKey) {
+                            showToast("Ingrese la API Key para realizar la prueba.", "warning");
+                            return;
+                        }
+
+                        testDteBtn.disabled = true;
+                        const origText = testDteBtn.innerHTML;
+                        testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
+
+                        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                        fetch(`${backendUrl}/api/dte/test-connection`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ apiKey })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            testDteBtn.disabled = false;
+                            testDteBtn.innerHTML = origText;
+                            if (data.success) {
+                                showToast(data.message, "success");
+                            } else {
+                                showToast("Falla: " + data.message, "error");
+                            }
+                        })
+                        .catch(err => {
+                            testDteBtn.disabled = false;
+                            testDteBtn.innerHTML = origText;
+                            console.error(err);
+                            showToast("Error de conexión al probar API.", "error");
+                        });
+                    });
+                }
+
+                // Verification Wompi SV
+                const wompiCheckBtn = document.getElementById('btn-wompi-check-detail');
+                if (wompiCheckBtn) {
+                    wompiCheckBtn.addEventListener('click', () => {
+                        const idEnlace = workshop.idEnlace;
+                        if (idEnlace) {
+                            wompiCheckBtn.disabled = true;
+                            const origText = wompiCheckBtn.innerHTML;
+                            wompiCheckBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
+
+                            const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                            fetch(`${backendUrl}/api/wompi/check-subscription`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                wompiCheckBtn.disabled = false;
+                                wompiCheckBtn.innerHTML = origText;
+                                if (data.success) {
+                                    if (data.subscribed) {
+                                        showToast("Suscripción confirmada en Wompi (Afiliación activa)", "success");
+                                        if (workshop.suscripcion_status !== 'activo') {
+                                            workshop.suscripcion_status = 'activo';
+                                            dataService.saas.updateRequestStatus(id, workshop.status, { suscripcion_status: 'activo' }).then(() => {
+                                                saveDatabase(db);
+                                                renderAdminSolicitudes(container);
+                                            });
+                                        }
+                                    } else {
+                                        showToast("No se encontraron afiliaciones en Wompi para este enlace.", "warning");
+                                    }
+                                } else {
+                                    showToast(`Error al consultar Wompi: ${data.message || 'Error'}`, "error");
+                                }
+                            })
+                            .catch(err => {
+                                wompiCheckBtn.disabled = false;
+                                wompiCheckBtn.innerHTML = origText;
+                                console.error(err);
+                                showToast("Error de conexión al verificar enlace.", "error");
+                            });
+                        }
+                    });
+                }
+
+                // Deactivate Wompi SV Link
+                const wompiCancelBtn = document.getElementById('btn-wompi-cancel-detail');
+                if (wompiCancelBtn) {
+                    wompiCancelBtn.addEventListener('click', () => {
+                        const idEnlace = workshop.idEnlace;
+                        if (idEnlace) {
+                            if (confirm(`¿Está seguro de que desea DESACTIVAR la suscripción recurrente en Wompi para ${workshop.nombre}?\nEsto detendrá los cobros automáticos.`)) {
+                                wompiCancelBtn.disabled = true;
+                                const origText = wompiCancelBtn.innerHTML;
+                                wompiCancelBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
+
+                                const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                                fetch(`${backendUrl}/api/wompi/deactivate-link`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    wompiCancelBtn.disabled = false;
+                                    wompiCancelBtn.innerHTML = origText;
+                                    if (data.success) {
+                                        showToast("Enlace de cobro recurrente desactivado en Wompi.", "success");
+                                        workshop.suscripcion_status = 'suspendido';
+                                        delete workshop.idEnlace;
+                                        delete workshop.urlEnlace;
+                                        dataService.saas.updateRequestStatus(id, 'suspendido', { 
+                                            suscripcion_status: 'suspendido',
+                                            idEnlace: null,
+                                            urlEnlace: null
+                                        }).then(() => {
+                                            saveDatabase(db);
+                                            renderAdminSolicitudes(container);
+                                        });
+                                    } else {
+                                        showToast(`Error al desactivar Wompi: ${data.message || 'Error'}`, "error");
+                                    }
+                                })
+                                .catch(err => {
+                                    wompiCancelBtn.disabled = false;
+                                    wompiCancelBtn.innerHTML = origText;
+                                    console.error(err);
+                                    showToast("Error de conexión al cancelar Wompi.", "error");
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // Link Wompi manual
+                const wompiForm = document.getElementById('saas-detail-wompi-form');
+                if (wompiForm) {
+                    wompiForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const idLinkVal = document.getElementById('wompi-manual-id').value.trim();
+                        if (!idLinkVal) {
+                            showToast("Por favor ingrese un ID de enlace válido.", "warning");
+                            return;
+                        }
+
+                        workshop.idEnlace = idLinkVal;
+                        workshop.urlEnlace = `https://cargosautomaticos.wompi.sv/EnlaceSuscripcion?IdSupplierService=${idLinkVal}&IdSupplier=${saasConfig.wompi ? saasConfig.wompi.clientId : ''}`;
+
+                        dataService.saas.updateRequestStatus(id, workshop.status, {
+                            idEnlace: workshop.idEnlace,
+                            urlEnlace: workshop.urlEnlace
+                        }).then(() => {
+                            saveDatabase(db);
+                            showToast("Enlace Wompi vinculado manualmente con éxito.", "success");
+                            renderAdminSolicitudes(container);
+                        }).catch(err => {
+                            console.error(err);
+                            showToast("Error al guardar enlace: " + err.message, "error");
+                        });
+                    });
+                }
+            }, 50);
+        }
+
+        return;
+    }
+
     if (window.saasAddWorkshopForm) {
         const plans = db.saas_plans || [];
         window.saasSelectedLogoBase64 = ''; // Reset
@@ -9836,454 +10671,7 @@ if (window.saasViewReceiptPaymentId) {
         return;
     }
 
-    // Render forms if active
-    if (window.saasEditWorkshopId) {
-        const id = window.saasEditWorkshopId;
-        const workshop = solicitudes.find(s => s.id === id);
-        if (!workshop) {
-            window.saasCloseForm();
-            return;
-        }
-        
-        container.innerHTML = `
-            <div style="max-width:700px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
-                    <div>
-                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Ajustar Suscripción y Datos Fiscales</h2>
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Taller: <strong>${workshop.nombre}</strong></p>
-                    </div>
-                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                
-                <form onsubmit="window.handleSaasEditSubmit(event)" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <!-- Membresía -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>Plan de Suscripción</label>
-                            <select id="edit-saas-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="Basic" ${workshop.plan === 'Basic' ? 'selected' : ''}>Basic ($45/mes)</option>
-                                <option value="Pro" ${workshop.plan === 'Pro' ? 'selected' : ''}>Pro ($75/mes)</option>
-                                <option value="Enterprise" ${workshop.plan === 'Enterprise' ? 'selected' : ''}>Enterprise ($120/mes)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Cuota Pactada ($ USD)</label>
-                            <input type="number" step="0.01" id="edit-saas-price" required value="${workshop.precio_mensual || 75.00}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Estado</label>
-                            <select id="edit-saas-status" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="activo" ${workshop.suscripcion_status === 'activo' ? 'selected' : ''}>Activo</option>
-                                <option value="suspendido" ${workshop.suscripcion_status === 'suspendido' ? 'selected' : ''}>Suspendido</option>
-                                <option value="demo" ${workshop.suscripcion_status === 'demo' ? 'selected' : ''}>Demo</option>
-                            </select>
-                        </div>
-                    </div>
 
-                    <!-- Datos Generales -->
-                    <div class="form-group">
-                        <label>Nombre o Razón Social</label>
-                        <input type="text" id="edit-saas-nombre" required value="${workshop.nombre || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>Alias (Nombre Corto)</label>
-                            <input type="text" id="edit-saas-alias" required value="${workshop.alias || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Nombre Comercial</label>
-                            <input type="text" id="edit-saas-nombre-comercial" required value="${workshop.nombre_comercial || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>Correo Electrónico</label>
-                            <input type="email" id="edit-saas-correo" required value="${workshop.correo || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Teléfono</label>
-                            <input type="text" id="edit-saas-telefono" required value="${workshop.telefono || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>Tipo Persona</label>
-                            <select id="edit-saas-tipo-persona" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="Natural" ${workshop.tipo_persona === 'Natural' ? 'selected' : ''}>Natural</option>
-                                <option value="Jurídica" ${workshop.tipo_persona === 'Jurídica' ? 'selected' : ''}>Jurídica</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Clasificación Tributaria</label>
-                            <select id="edit-saas-clasificacion" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="Otros" ${workshop.clasificacion_tributaria === 'Otros' ? 'selected' : ''}>Otros</option>
-                                <option value="Pequeño contribuyente" ${workshop.clasificacion_tributaria === 'Pequeño contribuyente' ? 'selected' : ''}>Pequeño contribuyente</option>
-                                <option value="Mediano contribuyente" ${workshop.clasificacion_tributaria === 'Mediano contribuyente' ? 'selected' : ''}>Mediano contribuyente</option>
-                                <option value="Gran contribuyente" ${workshop.clasificacion_tributaria === 'Gran contribuyente' ? 'selected' : ''}>Gran contribuyente</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>¿Es sujeto excluido?</label>
-                            <select id="edit-saas-sujeto-excluido" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="No" ${workshop.sujeto_excluido === 'No' ? 'selected' : ''}>No</option>
-                                <option value="Sí" ${workshop.sujeto_excluido === 'Sí' ? 'selected' : ''}>Sí</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Datos Fiscales -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>Tipo Documento</label>
-                            <select id="edit-saas-tipo-doc" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="NIT" ${workshop.tipo_documento === 'NIT' ? 'selected' : ''}>NIT</option>
-                                <option value="DUI" ${workshop.tipo_documento === 'DUI' ? 'selected' : ''}>DUI</option>
-                                <option value="Pasaporte" ${workshop.tipo_documento === 'Pasaporte' ? 'selected' : ''}>Pasaporte</option>
-                                <option value="Carnet de Extranjería" ${workshop.tipo_documento === 'Carnet de Extranjería' ? 'selected' : ''}>Carnet de Extranjería</option>
-                                <option value="Otro" ${workshop.tipo_documento === 'Otro' ? 'selected' : ''}>Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Número Documento</label>
-                            <input type="text" id="edit-saas-num-doc" required value="${workshop.num_documento || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>NRC</label>
-                            <input type="text" id="edit-saas-nrc" required value="${workshop.nrc || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Giro / Actividad</label>
-                            <select id="edit-saas-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px; width: 100%;">
-                                ${getGirosOptionsHtml(workshop.actividad_economica || workshop.giro)}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Dirección -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
-                        <div class="form-group">
-                            <label>País</label>
-                            <select id="edit-saas-pais" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="El Salvador" selected>El Salvador</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Departamento</label>
-                            <select id="edit-saas-departamento" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                <option value="Ahuachapán" ${workshop.departamento === 'Ahuachapán' ? 'selected' : ''}>Ahuachapán</option>
-                                <option value="Cabañas" ${workshop.departamento === 'Cabañas' ? 'selected' : ''}>Cabañas</option>
-                                <option value="Chalatenango" ${workshop.departamento === 'Chalatenango' ? 'selected' : ''}>Chalatenango</option>
-                                <option value="Cuscatlán" ${workshop.departamento === 'Cuscatlán' ? 'selected' : ''}>Cuscatlán</option>
-                                <option value="La Libertad" ${workshop.departamento === 'La Libertad' ? 'selected' : ''}>La Libertad</option>
-                                <option value="La Paz" ${workshop.departamento === 'La Paz' ? 'selected' : ''}>La Paz</option>
-                                <option value="La Unión" ${workshop.departamento === 'La Unión' ? 'selected' : ''}>La Unión</option>
-                                <option value="Morazán" ${workshop.departamento === 'Morazán' ? 'selected' : ''}>Morazán</option>
-                                <option value="San Miguel" ${workshop.departamento === 'San Miguel' ? 'selected' : ''}>San Miguel</option>
-                                <option value="San Salvador" ${workshop.departamento === 'San Salvador' ? 'selected' : ''}>San Salvador</option>
-                                <option value="San Vicente" ${workshop.departamento === 'San Vicente' ? 'selected' : ''}>San Vicente</option>
-                                <option value="Santa Ana" ${workshop.departamento === 'Santa Ana' ? 'selected' : ''}>Santa Ana</option>
-                                <option value="Sonsonate" ${workshop.departamento === 'Sonsonate' ? 'selected' : ''}>Sonsonate</option>
-                                <option value="Usulután" ${workshop.departamento === 'Usulután' ? 'selected' : ''}>Usulután</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Municipio</label>
-                            <select id="edit-saas-municipio" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Dirección Comercial Detallada</label>
-                        <input type="text" id="edit-saas-direccion" required value="${workshop.direccion || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                    </div>
-
-                    <!-- Logotipo -->
-                    <div class="form-group">
-                        <label>Logotipo del Taller</label>
-                        <input type="file" id="edit-saas-logo" accept="image/*" style="padding:0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                    </div>
-                    <div id="edit-logo-preview-container" style="display:${workshop.logo ? 'block' : 'none'}; text-align:center; margin-top:0.5rem;">
-                        <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
-                        <img id="edit-logo-preview" src="${workshop.logo || ''}" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
-                    </div>
-                    
-                    <div style="display:flex; gap:1rem; margin-top:1rem;">
-                        <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
-                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        // Bind image loader for edit logo
-        setTimeout(() => {
-            window.saasSelectedLogoBase64 = workshop.logo || '';
-            const logoInput = document.getElementById('edit-saas-logo');
-            if (logoInput) {
-                logoInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (readerEvent) => {
-                            const base64 = readerEvent.target.result;
-                            window.saasSelectedLogoBase64 = base64;
-                            const previewImg = document.getElementById('edit-logo-preview');
-                            const previewContainer = document.getElementById('edit-logo-preview-container');
-                            if (previewImg && previewContainer) {
-                                previewImg.src = base64;
-                                previewContainer.style.display = 'block';
-                            }
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-            setupMunicipiosSelect('edit-saas-departamento', 'edit-saas-municipio', workshop.municipio);
-        }, 50);
-        return;
-    }
-if (window.saasConfigWorkshopId) {
-        const id = window.saasConfigWorkshopId;
-        const workshop = solicitudes.find(s => s.id === id);
-        if (!workshop) {
-            window.saasCloseForm();
-            return;
-        }
-
-        const dte = workshop.dte_config || {
-            apiKey: '',
-            ambiente: '00',
-            mhCode: '0001',
-            posNumber: '1',
-            backendUrl: ''
-        };
-        const fb = workshop.firebase_config || {
-            apiKey: '',
-            authDomain: '',
-            projectId: ''
-        };
-
-        container.innerHTML = `
-            <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
-                    <div>
-                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Configuración Técnica DTE & Nube</h2>
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Taller: <strong>${workshop.nombre}</strong></p>
-                    </div>
-                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                
-                <form id="saas-tech-config-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <h3 style="font-size:1.05rem; border-left:3px solid var(--primary); padding-left:0.5rem; color:var(--text-primary); margin:0;">Credenciales FacturaLlama (DTE)</h3>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Ambiente de Emisión</label>
-                            <select id="tech-ambiente" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                                <option value="00" ${dte.ambiente === '00' ? 'selected' : ''}>00 - Pruebas / Sandbox</option>
-                                <option value="01" ${dte.ambiente === '01' ? 'selected' : ''}>01 - Producción / En Vivo</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key de FacturaLlama</label>
-                            <input type="text" id="tech-api-key" value="${dte.apiKey || ''}" placeholder="sk_test_... o sk_live_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Código Establecimiento MH</label>
-                            <input type="text" id="tech-mh-code" value="${dte.mhCode || '0001'}" placeholder="0001" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Número de POS</label>
-                            <input type="number" id="tech-pos-number" value="${dte.posNumber || '1'}" placeholder="1" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>URL Servidor Proxy (Opcional, vacío usa local)</label>
-                        <input type="text" id="tech-backend-url" value="${dte.backendUrl || ''}" placeholder="https://..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                    </div>
-
-                    <h3 style="font-size:1.05rem; border-left:3px solid var(--primary); padding-left:0.5rem; color:var(--text-primary); margin-top:0.75rem; margin-bottom:0;">Base de Datos (Google Firebase Custom Config)</h3>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">Deja en blanco para usar la base de datos centralizada estándar de Mecanic OS.</p>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Firebase API Key</label>
-                            <input type="text" id="tech-fb-apikey" value="${fb.apiKey || ''}" placeholder="AIzaSy..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Auth Domain</label>
-                            <input type="text" id="tech-fb-authdomain" value="${fb.authDomain || ''}" placeholder="taller.firebaseapp.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Project ID</label>
-                        <input type="text" id="tech-fb-projectid" value="${fb.projectId || ''}" placeholder="taller-id" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                    </div>
-                    
-                    <div style="display:flex; gap:1rem; margin-top:1.5rem; flex-wrap:wrap;">
-                        <button type="submit" class="btn btn-primary" style="flex:1; min-width:180px; padding:0.75rem;"><i class="fa-solid fa-save"></i> Guardar Configuración</button>
-                        <button type="button" id="btn-test-tech-dte" class="btn btn-secondary" style="flex:1; min-width:180px; padding:0.75rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-invoice-dollar" style="color:var(--success);"></i> Probar API Key</button>
-                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; min-width:120px; padding:0.75rem;">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        document.getElementById('saas-tech-config-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const currentDb = getDatabase();
-            const target = currentDb.solicitudes_registro.find(s => s.id === id);
-            if (target) {
-                target.dte_config = {
-                    apiKey: document.getElementById('tech-api-key').value,
-                    ambiente: document.getElementById('tech-ambiente').value,
-                    mhCode: document.getElementById('tech-mh-code').value,
-                    posNumber: document.getElementById('tech-pos-number').value,
-                    backendUrl: document.getElementById('tech-backend-url').value
-                };
-
-                const fbKey = document.getElementById('tech-fb-apikey').value.trim();
-                const fbDomain = document.getElementById('tech-fb-authdomain').value.trim();
-                const fbProj = document.getElementById('tech-fb-projectid').value.trim();
-
-                if (fbKey && fbDomain && fbProj) {
-                    target.firebase_config = {
-                        apiKey: fbKey,
-                        authDomain: fbDomain,
-                        projectId: fbProj,
-                        storageBucket: `${fbProj}.appspot.com`,
-                        messagingSenderId: "1234567890",
-                        appId: `1:1234567890:web:${Math.random().toString(36).substring(7)}`
-                    };
-                } else {
-                    delete target.firebase_config;
-                }
-
-                const activeState = currentDb.saas_state;
-                if (activeState && activeState.workshopData && activeState.workshopData.id === id) {
-                    activeState.workshopData.dte_config = target.dte_config;
-                    activeState.workshopData.firebase_config = target.firebase_config;
-
-                    localStorage.setItem('mecanic_os_dte_config', JSON.stringify(target.dte_config));
-                    if (target.firebase_config) {
-                        localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(target.firebase_config));
-                    } else {
-                        localStorage.removeItem('mecanic_os_firebase_config');
-                    }
-                }
-
-                saveDatabase(currentDb);
-                showToast("Configuración técnica actualizada y aplicada.", "success");
-                window.saasCloseForm();
-            }
-        });
-
-        const testTechDteBtn = document.getElementById('btn-test-tech-dte');
-        if (testTechDteBtn) {
-            testTechDteBtn.addEventListener('click', () => {
-                const apiKey = document.getElementById('tech-api-key').value.trim();
-                const backendUrl = document.getElementById('tech-backend-url').value.trim();
-                
-                if (!apiKey) {
-                    showToast("Por favor, ingresa la API Key de FacturaLlama para probar.", "error");
-                    return;
-                }
-                
-                testTechDteBtn.disabled = true;
-                const originalText = testTechDteBtn.innerHTML;
-                testTechDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando...';
-                
-                fetch(`${backendUrl}/api/dte/test-connection`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKey: apiKey })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    testTechDteBtn.disabled = false;
-                    testTechDteBtn.innerHTML = originalText;
-                    if (data.success) {
-                        showToast(data.message, "success");
-                    } else {
-                        showToast(data.message || "Error al conectar.", "error");
-                    }
-                })
-                .catch(err => {
-                    testTechDteBtn.disabled = false;
-                    testTechDteBtn.innerHTML = originalText;
-                    showToast("Error de comunicación: " + err.message, "error");
-                });
-            });
-        }
-        return;
-    }
-
-    if (window.saasPayWorkshopId) {
-        const id = window.saasPayWorkshopId;
-        const workshop = solicitudes.find(s => s.id === id);
-        if (!workshop) {
-            window.saasCloseForm();
-            return;
-        }
-        
-        const todayStr = new Date().toISOString().split('T')[0];
-        const nextFacturaNum = 'SUS-' + new Date().getFullYear() + '-' + String(payments.length + 1).padStart(3, '0');
-        
-        container.innerHTML = `
-            <div style="max-width:600px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
-                    <div>
-                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:700; color:var(--text-primary);">Registrar Pago Recibido</h2>
-                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Taller: <strong>${workshop.nombre}</strong></p>
-                    </div>
-                    <button onclick="window.saasCloseForm()" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                
-                <form onsubmit="window.handleSaasPaySubmit(event)" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Monto Pagado ($ USD)</label>
-                            <input type="number" step="0.01" id="pay-saas-monto" required value="${workshop.precio_mensual || 75.00}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Método de Pago</label>
-                            <select id="pay-saas-metodo" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                                <option value="Transferencia Bancaria (Banco Agrícola)">Transferencia Bancaria</option>
-                                <option value="Efectivo">Efectivo</option>
-                                <option value="Tarjeta de Crédito (Visa)">Tarjeta de Crédito</option>
-                                <option value="Chivo Wallet (Bitcoin)">Chivo Wallet (Bitcoin)</option>
-                                <option value="Cheque">Cheque</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Número de Recibo / Factura</label>
-                            <input type="text" id="pay-saas-factura" required value="${nextFacturaNum}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha de Pago</label>
-                            <input type="date" id="pay-saas-fecha" required value="${todayStr}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex; gap:1rem; margin-top:1rem;">
-                        <button type="submit" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-file-invoice-dollar"></i> Registrar Pago y Activar</button>
-                        <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        `;
-        return;
-    }
     
     // Toggle Status Helper
     window.toggleWorkshopStatus = function(id) {
@@ -10429,21 +10817,10 @@ if (window.saasConfigWorkshopId) {
                 });
             });
         });
-        document.querySelectorAll('.btn-edit-sub').forEach(btn => {
+        document.querySelectorAll('.btn-view-saas-details').forEach(btn => {
             btn.addEventListener('click', () => {
-                window.saasEditWorkshopId = btn.getAttribute('data-id');
-                renderAdminSolicitudes(container);
-            });
-        });
-        document.querySelectorAll('.btn-pay-sub').forEach(btn => {
-            btn.addEventListener('click', () => {
-                window.saasPayWorkshopId = btn.getAttribute('data-id');
-                renderAdminSolicitudes(container);
-            });
-        });
-        document.querySelectorAll('.btn-config-saas').forEach(btn => {
-            btn.addEventListener('click', () => {
-                window.saasConfigWorkshopId = btn.getAttribute('data-id');
+                window.saasViewWorkshopDetailsId = btn.getAttribute('data-id');
+                window.saasActiveDetailsTab = 'plan';
                 renderAdminSolicitudes(container);
             });
         });
@@ -11050,19 +11427,9 @@ if (window.saasConfigWorkshopId) {
                                                 ${c.proximo_pago && c.proximo_pago < Date.now() ? '<br><small style="color:var(--danger);">VENCIDO</small>' : ''}
                                             </td>
                                             <td>
-                                                <div style="display:flex; flex-direction:column; gap:0.4rem; max-width:140px;">
-                                                    <button class="btn btn-secondary btn-edit-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-edit"></i> Ajustar Plan</button>
-                                                    <button class="btn btn-primary btn-pay-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota</button>
-                                                    <button class="btn btn-secondary btn-copy-pay-link" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--success); border-color:var(--success);"><i class="fa-solid fa-link"></i> Enlace de Pago</button>
-                                                    <button class="btn btn-secondary btn-config-saas" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--primary); border-color:var(--primary);"><i class="fa-solid fa-gears"></i> Configurar DTE/BD</button>
-                                                    ${c.idEnlace ? `
-                                                    <button class="btn btn-secondary btn-wompi-check" data-id="${c.id}" data-link="${c.idEnlace}" style="padding:0.35rem; font-size:0.75rem; color:var(--info); border-color:var(--info);"><i class="fa-solid fa-sync"></i> Verificar Wompi</button>
-                                                    <button class="btn btn-secondary btn-wompi-cancel" data-id="${c.id}" data-link="${c.idEnlace}" style="padding:0.35rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-unlink"></i> Cancelar Wompi</button>
-                                                    ` : ''}
-                                                    <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${c.id}')" style="padding:0.35rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
-                                                        <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar' : 'Suspender'}
-                                                    </button>
-                                                </div>
+                                                <button class="btn btn-primary btn-view-saas-details" data-id="${c.id}" style="padding:0.4rem 0.8rem; font-size:0.8rem; border-radius:6px; display:inline-flex; align-items:center; gap:6px;">
+                                                    <i class="fa-solid fa-folder-open"></i> Ver Detalles
+                                                </button>
                                             </td>
                                         </tr>
                                     `;
