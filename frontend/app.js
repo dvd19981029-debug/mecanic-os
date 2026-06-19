@@ -8980,6 +8980,9 @@ async function renderAdminSolicitudes(container) {
         window.saasConfigWorkshopId = null;
         window.saasAddWorkshopForm = false;
         window.saasViewReceiptPaymentId = null;
+        window.saasAddPlanForm = false;
+        window.saasAddCouponForm = false;
+        window.saasEditPlanId = null;
         renderAdminSolicitudes(container);
     };
 
