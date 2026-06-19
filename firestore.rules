@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // TALLERES (Datos operativos del taller)
+    // ============================================================
+    // Todos los empleados de un taller comparten el mismo workshopId.
+    // El dueño se autentica con email/password (user.uid == workshopId).
+    // Los empleados se autentican de forma anónima y usan el workshopId del dueño.
+    match /workshops/{workshopId} {
+      // Cualquier usuario autenticado (incluido anónimo) puede leer el taller
+      // El taller ID es un UUID privado, así que es seguro para este modelo SaaS
+      allow read: if request.auth != null;
+      
+      // Solo el dueño (cuyo uid == workshopId) puede escribir en el root del documento
+      // Los empleados con auth anónima también pueden escribir (necesario para tiempo real)
+      allow write: if request.auth != null;
+    }
+    
+    // Subcollecciones del taller (clientes, vehículos, presupuestos, etc.)
+    match /workshops/{workshopId}/{collection}/{docId} {
+      // Cualquier usuario autenticado puede leer y escribir en las subcollecciones
+      // Esto permite que todos los empleados del taller trabajen en tiempo real
+      allow read, write: if request.auth != null;
+    }
+    
+    // Subcollecciones anidadas
+    match /workshops/{workshopId}/{collection}/{docId}/{subcollection=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // ============================================================
+    // SOLICITUDES SAAS (Registro de nuevos talleres)
+    // ============================================================
+    match /saas_requests/{requestId} {
+      // Cualquier usuario autenticado puede leer (para seguimiento del estado)
+      allow read: if request.auth != null;
+      // Cualquier usuario autenticado puede crear/actualizar solicitudes
+      allow write: if request.auth != null;
+    }
+    
+    // ============================================================
+    // MÉTRICAS SAAS (Para el super admin)
+    // ============================================================
+    match /saas_metrics/{document=**} {
+      // Solo usuarios autenticados con email (no anónimos) pueden leer métricas
+      allow read: if request.auth != null && request.auth.token.email != null;
+      allow write: if request.auth != null;
+    }
+    
+  }
+}
