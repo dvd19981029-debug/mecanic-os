@@ -10057,7 +10057,7 @@ if (window.saasConfigWorkshopId) {
                         </div>
                         <div class="form-group">
                             <label>API Key de FacturaLlama</label>
-                            <input type="password" id="tech-api-key" value="${dte.apiKey || ''}" placeholder="sk_test_... o sk_live_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <input type="text" id="tech-api-key" value="${dte.apiKey || ''}" placeholder="sk_test_... o sk_live_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
 
@@ -11399,7 +11399,7 @@ if (window.saasConfigWorkshopId) {
                             <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; border-left:3px solid var(--success); padding-left:0.5rem; color:var(--text-primary); margin:0;">Facturación Electrónica (DTE) de la Plataforma</h4>
                             <div class="form-group">
                                 <label>API Key de FacturaLlama</label>
-                                <input type="password" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="sk_test_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                <input type="text" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="sk_test_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                             </div>
                             <div class="form-group">
                                 <label>URL de Producción del Servidor Backend (Render/Railway)</label>
