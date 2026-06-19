@@ -4519,8 +4519,10 @@ function renderConfiguracion(container) {
                                 <th>Código</th>
                                 <th>Descripción</th>
                                 <th>Presentación</th>
+                                <th style="text-align:right;">P. Compra</th>
                                 <th style="text-align:right;">Precio Neto</th>
                                 <th style="text-align:right;">Precio c/IVA</th>
+                                <th style="text-align:center;">% Ganancia</th>
                                 <th style="text-align:center;">Stock Mín.</th>
                                 <th style="text-align:center;">Acciones</th>
                             </tr>
@@ -4679,6 +4681,16 @@ function renderConfiguracion(container) {
                     <div class="form-group">
                         <label>Descripción / Nombre del Repuesto</label>
                         <input type="text" id="producto-descripcion" required placeholder="Ej. Balatas delanteras">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio Compra ($ Sin IVA)</label>
+                            <input type="number" id="producto-precio-compra" required min="0" step="0.01" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>% Ganancia (Estimado)</label>
+                            <input type="text" id="producto-ganancia-pct" readonly value="N/A" style="background:rgba(255,255,255,0.05); font-weight:bold; padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -5150,18 +5162,34 @@ function renderConfiguracion(container) {
             const limit = filtered.slice(0, 50);
 
             if (limit.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
                 return;
             }
 
             limit.forEach(p => {
+                const pCompra = parseFloat(p['Precio Compra'] || 0);
+                const pVenta = parseFloat(p['Precio Venta'] || 0);
+                let pctText = 'N/A';
+                let pctColor = 'var(--text-muted)';
+                
+                if (pCompra > 0) {
+                    const diff = pVenta - pCompra;
+                    const pct = (diff / pCompra) * 100;
+                    pctText = pct.toFixed(0) + '%';
+                    if (pct < 15) pctColor = 'var(--danger)';
+                    else if (pct < 30) pctColor = 'var(--warning)';
+                    else pctColor = 'var(--success)';
+                }
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><small style="color:var(--text-muted); font-family:monospace;">${p['ID_ Producto']}</small></td>
                     <td><strong>${p.Descripcion}</strong></td>
                     <td>${p.Presentacion || 'Unidad'}</td>
-                    <td style="text-align:right;">$ ${parseFloat(p['Precio Venta'] || 0).toFixed(2)}</td>
-                    <td style="text-align:right; color:var(--cyan);">$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || (p['Precio Venta'] * 1.13) || 0).toFixed(2)}</td>
+                    <td style="text-align:right; color:var(--text-muted);">$ ${pCompra.toFixed(2)}</td>
+                    <td style="text-align:right;">$ ${pVenta.toFixed(2)}</td>
+                    <td style="text-align:right; color:var(--cyan);">$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || (pVenta * 1.13) || 0).toFixed(2)}</td>
+                    <td style="text-align:center; font-weight:bold; color:${pctColor};">${pctText}</td>
                     <td style="text-align:center;">${p.Minimos || 1}</td>
                     <td style="text-align:center;">
                         <div style="display:flex; gap:0.35rem; justify-content:center;">
@@ -5182,12 +5210,15 @@ function renderConfiguracion(container) {
                         document.getElementById('producto-modal-title').textContent = 'Editar Producto / Repuesto';
                         document.getElementById('producto-id').value = p['ID_ Producto'];
                         document.getElementById('producto-descripcion').value = p.Descripcion || '';
+                        document.getElementById('producto-precio-compra').value = p['Precio Compra'] || 0;
                         document.getElementById('producto-precio-venta').value = p['Precio Venta'] || 0;
                         document.getElementById('producto-minimos').value = p.Minimos || 1;
                         document.getElementById('producto-presentacion').value = p.Presentacion || 'Unidad';
                         
-                        // Set Iva Inc
-                        document.getElementById('producto-precio-iva').value = '$ ' + parseFloat((p['Precio Venta'] || 0) * 1.13).toFixed(2);
+                        // Update calculations inside modal
+                        if (typeof updateProductCalculations === 'function') {
+                            updateProductCalculations();
+                        }
                         
                         document.getElementById('producto-modal').classList.add('active');
                     }
@@ -5217,25 +5248,59 @@ function renderConfiguracion(container) {
             populateProductos(e.target.value);
         });
 
+        // Define global calculation function for the product modal
+        window.updateProductCalculations = function() {
+            const pCompraInput = document.getElementById('producto-precio-compra');
+            const pVentaInput = document.getElementById('producto-precio-venta');
+            const pIvaInput = document.getElementById('producto-precio-iva');
+            const pGananciaInput = document.getElementById('producto-ganancia-pct');
+
+            if (!pCompraInput || !pVentaInput || !pIvaInput || !pGananciaInput) return;
+
+            const pCompra = parseFloat(pCompraInput.value || 0);
+            const pVenta = parseFloat(pVentaInput.value || 0);
+            
+            // 1. Calculate price with IVA (13%)
+            pIvaInput.value = '$ ' + parseFloat(pVenta * 1.13).toFixed(2);
+            
+            // 2. Calculate profit percentage
+            if (pCompra > 0) {
+                const diff = pVenta - pCompra;
+                const pct = (diff / pCompra) * 100;
+                pGananciaInput.value = pct.toFixed(1) + '%';
+                
+                if (pct < 15) {
+                    pGananciaInput.style.color = 'var(--danger)';
+                } else if (pct < 30) {
+                    pGananciaInput.style.color = 'var(--warning)';
+                } else {
+                    pGananciaInput.style.color = 'var(--success)';
+                }
+            } else {
+                pGananciaInput.value = 'N/A';
+                pGananciaInput.style.color = 'var(--text-muted)';
+            }
+        };
+
         // Add Product Trigger
         document.getElementById('btn-add-producto').addEventListener('click', () => {
             document.getElementById('producto-modal-title').textContent = 'Registrar Producto / Repuesto';
             document.getElementById('producto-id').value = '';
             document.getElementById('producto-descripcion').value = '';
+            document.getElementById('producto-precio-compra').value = '0.00';
             document.getElementById('producto-precio-venta').value = '0.00';
             document.getElementById('producto-minimos').value = '1';
             document.getElementById('producto-presentacion').value = 'Unidad';
-            document.getElementById('producto-precio-iva').value = '$ 0.00';
+            
+            // Reset calculations inside modal
+            updateProductCalculations();
+            
             document.getElementById('producto-modal').classList.add('active');
         });
 
-        // Auto-calculate IVA in modal
-        const valInput = document.getElementById('producto-precio-venta');
-        const ivaInput = document.getElementById('producto-precio-iva');
-        valInput.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value || 0);
-            ivaInput.value = '$ ' + parseFloat(val * 1.13).toFixed(2);
-        });
+        // Auto-calculate values on input
+        document.getElementById('producto-precio-compra').addEventListener('input', updateProductCalculations);
+        document.getElementById('producto-precio-venta').addEventListener('input', updateProductCalculations);
 
         // Bind Submit
         const prodForm = document.getElementById('producto-form');
@@ -5243,6 +5308,7 @@ function renderConfiguracion(container) {
             e.preventDefault();
             const id = document.getElementById('producto-id').value;
             const desc = document.getElementById('producto-descripcion').value.trim();
+            const compraInput = document.getElementById('producto-precio-compra');
             const precioInput = document.getElementById('producto-precio-venta');
             const minimosInput = document.getElementById('producto-minimos');
             const presInput = document.getElementById('producto-presentacion');
@@ -5250,6 +5316,11 @@ function renderConfiguracion(container) {
             if (!desc) {
                 showToast("Por favor, ingrese la descripción o nombre del repuesto", "danger");
                 document.getElementById('producto-descripcion').focus();
+                return;
+            }
+            if (compraInput.value === "" || parseFloat(compraInput.value) < 0) {
+                showToast("Por favor, ingrese un precio de compra válido (mayor o igual a 0)", "danger");
+                compraInput.focus();
                 return;
             }
             if (precioInput.value === "" || parseFloat(precioInput.value) < 0) {
@@ -5268,6 +5339,7 @@ function renderConfiguracion(container) {
                 return;
             }
 
+            const compra = parseFloat(compraInput.value || 0);
             const precio = parseFloat(precioInput.value || 0);
             const minimos = parseInt(minimosInput.value || 1);
             const pres = presInput.value.trim() || 'Unidad';
@@ -5278,6 +5350,7 @@ function renderConfiguracion(container) {
                 const p = currentDb.productos.find(x => x['ID_ Producto'] === id);
                 if (p) {
                     p.Descripcion = desc;
+                    p['Precio Compra'] = compra;
                     p['Precio Venta'] = precio;
                     p['Precio Unit'] = precio;
                     p['Precio Venta Unit Iva Inc'] = parseFloat((precio * 1.13).toFixed(2));
@@ -5294,6 +5367,7 @@ function renderConfiguracion(container) {
                 currentDb.productos.push({
                     "ID_ Producto": newId,
                     "Descripcion": desc,
+                    "Precio Compra": compra,
                     "Precio Venta": precio,
                     "Precio Unit": precio,
                     "Precio Venta Unit Iva Inc": parseFloat((precio * 1.13).toFixed(2)),
