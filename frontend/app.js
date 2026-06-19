@@ -297,6 +297,29 @@ const MUNICIPIOS_CODES = {
     "La Unión Norte": "19", "La Unión Sur": "20"
 };
 
+function getGirosOptionsHtml(selectedValue = '') {
+    const list = [
+        { code: "45201", desc: "Mantenimiento y reparación mecánica de vehículos" },
+        { code: "45202", desc: "Mantenimiento y reparación eléctrica de vehículos" },
+        { code: "45203", desc: "Mantenimiento y reparación de motocicletas" },
+        { code: "45204", desc: "Lavado y pulido de vehículos (carwash)" },
+        { code: "45205", desc: "Alineación y balanceo de vehículos automotores" },
+        { code: "45206", desc: "Reparación de carrocería y pintura (enderezado)" },
+        { code: "45300", desc: "Comercio de repuestos y accesorios de vehículos" },
+        { code: "45101", desc: "Comercio de vehículos automotores nuevos y usados" },
+        { code: "62020", desc: "Consultoría y gestión de servicios informáticos" },
+        { code: "99999", desc: "Otras actividades de servicios automotrices/comercio" }
+    ];
+    
+    // Normalize selected value for comparison
+    const normSelected = String(selectedValue || '').trim().toLowerCase();
+    
+    return list.map(item => {
+        const isSelected = normSelected === item.code.toLowerCase() || normSelected === item.desc.toLowerCase();
+        return `<option value="${item.code}" data-desc="${item.desc}" ${isSelected ? 'selected' : ''}>${item.code} - ${item.desc}</option>`;
+    }).join('');
+}
+
 async function emitSubscriptionDTE(payment, workshop) {
     if (!workshop) return;
     
@@ -335,7 +358,7 @@ async function emitSubscriptionDTE(payment, workshop) {
     
     if (isCCF) {
         recipientPayload.contributorType = workshop.tipo_persona === 'Jurídica' ? 'JURIDICA' : 'NATURAL';
-        recipientPayload.economicActivity = '62020';
+        recipientPayload.economicActivity = workshop.actividad_economica || '45201';
         recipientPayload.nrc = workshop.nrc.replace(/\D/g, '').slice(0, 8);
         recipientPayload.identificationDocument = {
             type: workshop.tipo_documento === 'DUI' ? 'DUI' : 'NIT',
@@ -4386,7 +4409,9 @@ function renderConfiguracion(container) {
                                 </div>
                                 <div class="form-group">
                                     <label>Giro / Actividad</label>
-                                    <input type="text" id="cfg-taller-giro" value="${ws.giro || ''}" required style="padding:0.6rem;">
+                                    <select id="cfg-taller-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px; width: 100%;">
+                                        ${getGirosOptionsHtml(ws.actividad_economica || ws.giro)}
+                                    </select>
                                 </div>
                             </div>
 
@@ -4865,7 +4890,7 @@ function renderConfiguracion(container) {
                     nombre: document.getElementById('cfg-taller-nombre').value,
                     alias: document.getElementById('cfg-taller-alias').value,
                     nombre_comercial: document.getElementById('cfg-taller-nombre-comercial').value,
-                    giro: document.getElementById('cfg-taller-giro').value,
+                    giro: (() => { const el = document.getElementById('cfg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
                     direccion: document.getElementById('cfg-taller-direccion').value,
                     telefono: document.getElementById('cfg-taller-telefono').value,
                     correo: document.getElementById('cfg-taller-correo').value,
@@ -8447,7 +8472,9 @@ async function renderRegistroSaaS(container) {
                         </div>
                         <div class="form-group">
                             <label>Giro / Actividad Económica</label>
-                            <input type="text" id="reg-taller-giro" required placeholder="Ej: Mantenimiento y reparación de vehículos" style="padding:0.6rem;">
+                            <select id="reg-taller-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px; width: 100%;">
+                                ${getGirosOptionsHtml()}
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -8650,7 +8677,7 @@ async function renderRegistroSaaS(container) {
             nombre: document.getElementById('reg-taller-nombre').value,
             alias: document.getElementById('reg-taller-alias').value,
             nombre_comercial: document.getElementById('reg-taller-nombre-comercial').value,
-            giro: document.getElementById('reg-taller-giro').value,
+            giro: (() => { const el = document.getElementById('reg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
             direccion: document.getElementById('reg-taller-direccion').value,
             telefono: document.getElementById('reg-taller-telefono').value,
             correo: document.getElementById('reg-taller-correo').value,
@@ -9236,7 +9263,7 @@ async function renderAdminSolicitudes(container) {
             workshop.nombre = document.getElementById('edit-saas-nombre').value;
             workshop.alias = document.getElementById('edit-saas-alias').value;
             workshop.nombre_comercial = document.getElementById('edit-saas-nombre-comercial').value;
-            workshop.giro = document.getElementById('edit-saas-giro').value;
+            workshop.giro = (() => { const el = document.getElementById('edit-saas-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })();
             workshop.direccion = document.getElementById('edit-saas-direccion').value;
             workshop.telefono = document.getElementById('edit-saas-telefono').value;
             workshop.correo = document.getElementById('edit-saas-correo').value;
@@ -9445,7 +9472,9 @@ async function renderAdminSolicitudes(container) {
                         </div>
                         <div class="form-group">
                             <label>Giro / Actividad Económica</label>
-                            <input type="text" id="man-taller-giro" required placeholder="Ej: Reparación y mantenimiento de vehículos" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <select id="man-taller-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px; width: 100%;">
+                                ${getGirosOptionsHtml()}
+                            </select>
                         </div>
                     </div>
 
@@ -9605,7 +9634,7 @@ async function renderAdminSolicitudes(container) {
                     nombre: document.getElementById('man-taller-nombre').value,
                     alias: document.getElementById('man-taller-alias').value,
                     nombre_comercial: document.getElementById('man-taller-nombre-comercial').value,
-                    giro: document.getElementById('man-taller-giro').value,
+                    giro: (() => { const el = document.getElementById('man-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
                     direccion: document.getElementById('man-taller-direccion').value,
                     telefono: document.getElementById('man-taller-telefono').value,
                     correo: document.getElementById('man-taller-correo').value,
@@ -9926,7 +9955,9 @@ if (window.saasViewReceiptPaymentId) {
                         </div>
                         <div class="form-group">
                             <label>Giro / Actividad</label>
-                            <input type="text" id="edit-saas-giro" required value="${workshop.giro || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <select id="edit-saas-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px; width: 100%;">
+                                ${getGirosOptionsHtml(workshop.actividad_economica || workshop.giro)}
+                            </select>
                         </div>
                     </div>
 
@@ -10909,7 +10940,7 @@ if (window.saasConfigWorkshopId) {
                         <tbody>
                             ${solicitudes.map(s => {
                                 let badgeColor = 'badge-warning';
-                                if (s.status === 'aprobado') badgeColor = 'badge-success';
+                                if (s.status === 'aprobado' || s.status === 'active') badgeColor = 'badge-success';
                                 if (s.status === 'rechazado') badgeColor = 'badge-danger';
                                 
                                 return `
@@ -10951,7 +10982,7 @@ if (window.saasConfigWorkshopId) {
     }
     
     function renderSubscriptionsTab() {
-        const approvedClients = solicitudes.filter(s => s.status === 'aprobado');
+        const approvedClients = solicitudes.filter(s => s.status === 'aprobado' || s.status === 'active');
         
         return `
             <div class="glass-card" style="padding:1.5rem;">
@@ -11107,7 +11138,7 @@ if (window.saasConfigWorkshopId) {
     }
     
     function renderMetricsTab() {
-        const approvedClients = solicitudes.filter(s => s.status === 'aprobado');
+        const approvedClients = solicitudes.filter(s => s.status === 'aprobado' || s.status === 'active');
         const activeClients = approvedClients.filter(c => c.suscripcion_status === 'activo' || c.suscripcion_status === 'demo');
         const suspendedClients = approvedClients.filter(c => c.suscripcion_status === 'suspendido');
         
