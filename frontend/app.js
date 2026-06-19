@@ -1640,6 +1640,130 @@ function renderClientesVehiculos(container, queryParams) {
             </div>
         </div>
 
+        <!-- Edit Client Modal -->
+        <div id="edit-client-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2>Editar Datos del Cliente</h2>
+                    <button class="close-modal-btn" id="close-edit-client-modal">&times;</button>
+                </div>
+                <form id="edit-client-form">
+                    <input type="hidden" id="edit-client-code">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre Completo / Razón Social</label>
+                            <input type="text" id="edit-client-name" required placeholder="Nombre completo">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Cliente</label>
+                            <select id="edit-client-type">
+                                <option value="NATURAL">Persona Natural</option>
+                                <option value="JURIDICA">Persona Jurídica (Empresa)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Contribuyente (IVA)?</label>
+                            <select id="edit-client-contrib">
+                                <option value="NO">No (Sujeto Excluido/Final)</option>
+                                <option value="SI">Sí (Emite Crédito Fiscal)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Documento</label>
+                            <select id="edit-client-doc-type">
+                                <option value="DUI">DUI</option>
+                                <option value="NIT">NIT</option>
+                                <option value="PASAPORTE">Pasaporte</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nº de Documento</label>
+                            <input type="text" id="edit-client-doc-num" required placeholder="00000000-0">
+                        </div>
+                        <div class="form-group">
+                            <label>NIT (si aplica)</label>
+                            <input type="text" id="edit-client-nit" placeholder="0000-000000-000-0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>NRC (Nº de Registro Contribuyente)</label>
+                            <input type="text" id="edit-client-nrc" placeholder="00000-0">
+                        </div>
+                        <div class="form-group">
+                            <label>Giro Comercial (Actividad Económica)</label>
+                            <input type="text" id="edit-client-giro" placeholder="Servicios, Comercio, etc.">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoría Contribuyente (DTE El Salvador)</label>
+                            <select id="edit-client-cat">
+                                <option value="OTROS">Otros Contribuyentes</option>
+                                <option value="MEDIANO">Mediano Contribuyente</option>
+                                <option value="GRANDE">Gran Contribuyente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Línea de Crédito Autorizada?</label>
+                            <select id="edit-client-has-credit">
+                                <option value="NO">No (Solo Contado)</option>
+                                <option value="SI">Sí (Permite Crédito)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Retención IVA (1% - Compras Grandes)</label>
+                            <select id="edit-client-ret">
+                                <option value="0">No aplica</option>
+                                <option value="0.01">Aplica 1% Retención (Agente Gran Contribuyente)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Percepción IVA (2%)</label>
+                            <select id="edit-client-perc">
+                                <option value="0">No aplica</option>
+                                <option value="0.02">Aplica 2% Percepción</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" id="edit-credit-fields-row" style="display: none;">
+                        <div class="form-group">
+                            <label>Monto de Crédito ($)</label>
+                            <input type="number" id="edit-client-credit-limit" value="0" min="0" step="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Plazo de Crédito (Días)</label>
+                            <input type="number" id="edit-client-credit-days" value="30" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Correo Electrónico (Envío DTE)</label>
+                            <input type="email" id="edit-client-email" required placeholder="cliente@correo.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono 1</label>
+                            <input type="text" id="edit-client-phone" required placeholder="7000-0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección Completa</label>
+                        <input type="text" id="edit-client-address" required placeholder="Calle, pasaje, colonia, casa #">
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" id="cancel-edit-client">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Add Vehicle Modal -->
         <div id="add-vehicle-modal" class="modal">
             <div class="modal-content glass-card" style="max-width: 600px;">
@@ -1749,7 +1873,9 @@ function renderClientesVehiculos(container, queryParams) {
                     <span class="badge-tag badge-primary" style="margin-top: 0.5rem;">${client['Tipo Cliente'] || 'Persona Natural'}</span>
                     ${client['Contribuyente?'] === 'SI' ? '<span class="badge-tag badge-success">Contribuyente IVA</span>' : '<span class="badge-tag badge-warning">Consumidor Final</span>'}
                 </div>
-                <div style="display: flex; gap: 0.75rem;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="edit-client-trigger-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-user-pen"></i> Editar</button>
+                    <button class="btn btn-secondary" id="delete-client-trigger-btn" style="background:rgba(220,53,69,0.1); border:1px solid rgba(220,53,69,0.4); color:#ff6b6b;"><i class="fa-solid fa-user-xmark"></i> Eliminar</button>
                     <button class="btn btn-secondary" id="add-vehicle-trigger-btn"><i class="fa-solid fa-car-side"></i> Agregar Auto</button>
                     <button class="btn btn-primary" id="start-ins-trigger-btn"><i class="fa-solid fa-clipboard-check"></i> Nueva Recepción</button>
                 </div>
@@ -1832,6 +1958,52 @@ function renderClientesVehiculos(container, queryParams) {
         `;
         
         // Wire up triggers inside detail panel
+        document.getElementById('edit-client-trigger-btn').addEventListener('click', () => {
+            document.getElementById('edit-client-code').value = client.Codigo_Cliente;
+            document.getElementById('edit-client-name').value = client.Nombre;
+            document.getElementById('edit-client-type').value = client['Tipo Cliente'] || 'NATURAL';
+            document.getElementById('edit-client-contrib').value = client['Contribuyente?'] || 'NO';
+            document.getElementById('edit-client-doc-type').value = client['Tipo Doc'] || 'DUI';
+            document.getElementById('edit-client-doc-num').value = client['Num Doc'] || '';
+            document.getElementById('edit-client-nit').value = client.NIT || '';
+            document.getElementById('edit-client-nrc').value = client.NRC || '';
+            document.getElementById('edit-client-giro').value = client.Giro || '';
+            document.getElementById('edit-client-cat').value = client['Categoría Contribuyente'] || 'OTROS';
+            document.getElementById('edit-client-has-credit').value = client['Credito?'] || 'NO';
+            document.getElementById('edit-client-ret').value = client.AplicaRetencion || '0';
+            document.getElementById('edit-client-perc').value = client.AplicaPercepcion || '0';
+            document.getElementById('edit-client-credit-limit').value = client['Monto Credito'] || client.Monto_Credito || 0;
+            document.getElementById('edit-client-credit-days').value = client['Plazo Credito Días'] || 30;
+            document.getElementById('edit-client-email').value = client.Correo || '';
+            document.getElementById('edit-client-phone').value = client['Telefono 1 '] || '';
+            document.getElementById('edit-client-address').value = client.Direccion || '';
+            
+            const creditRow = document.getElementById('edit-credit-fields-row');
+            if (client['Credito?'] === 'SI') {
+                creditRow.style.display = 'grid';
+            } else {
+                creditRow.style.display = 'none';
+            }
+            
+            document.getElementById('edit-client-modal').classList.add('active');
+        });
+
+        document.getElementById('delete-client-trigger-btn').addEventListener('click', () => {
+            if (confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente ${client.Nombre}? Esta acción no se puede deshacer y afectará a sus registros.`)) {
+                db.clientes = db.clientes.filter(c => c.Codigo_Cliente !== client.Codigo_Cliente);
+                saveDatabase(db);
+                showToast("Cliente eliminado correctamente", "success");
+                clientDetailContainer.innerHTML = `
+                    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
+                        <i class="fa-solid fa-id-card-user" style="font-size: 4rem; color: var(--border-color); margin-bottom: 1.5rem;"></i>
+                        <h3>Selecciona un cliente de la lista</h3>
+                        <p>Para ver su información fiscal, flota de vehículos e historial del taller.</p>
+                    </div>
+                `;
+                populateClientsList(clientSearch.value);
+            }
+        });
+
         document.getElementById('add-vehicle-trigger-btn').addEventListener('click', () => {
             document.getElementById('vehicle-client-code').value = client.Codigo_Cliente;
             document.getElementById('add-vehicle-modal').classList.add('active');
@@ -1934,6 +2106,67 @@ function renderClientesVehiculos(container, queryParams) {
         document.getElementById('credit-fields-row').style.display = 'none'; // hide credit inputs again
         populateClientsList();
     });
+
+    // Close/Cancel Edit Client Modal
+    if (document.getElementById('close-edit-client-modal')) {
+        document.getElementById('close-edit-client-modal').addEventListener('click', () => {
+            document.getElementById('edit-client-modal').classList.remove('active');
+        });
+    }
+    if (document.getElementById('cancel-edit-client')) {
+        document.getElementById('cancel-edit-client').addEventListener('click', () => {
+            document.getElementById('edit-client-modal').classList.remove('active');
+        });
+    }
+    
+    // Toggle edit credit limit/days input display based on credit setting
+    if (document.getElementById('edit-client-has-credit')) {
+        document.getElementById('edit-client-has-credit').addEventListener('change', (e) => {
+            const row = document.getElementById('edit-credit-fields-row');
+            if (e.target.value === 'SI') {
+                row.style.display = 'grid';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Handle Edit Client Submit
+    if (document.getElementById('edit-client-form')) {
+        document.getElementById('edit-client-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('edit-client-code').value;
+            const client = db.clientes.find(c => c.Codigo_Cliente === code);
+            if (client) {
+                client.Nombre = document.getElementById('edit-client-name').value.toUpperCase();
+                client['Tipo Cliente'] = document.getElementById('edit-client-type').value;
+                client['Contribuyente?'] = document.getElementById('edit-client-contrib').value;
+                client['Tipo Doc'] = document.getElementById('edit-client-doc-type').value;
+                client['Num Doc'] = document.getElementById('edit-client-doc-num').value;
+                client.NIT = document.getElementById('edit-client-nit').value;
+                client.NRC = document.getElementById('edit-client-nrc').value;
+                client.Giro = document.getElementById('edit-client-giro').value;
+                client['Categoría Contribuyente'] = document.getElementById('edit-client-cat').value;
+                client['Credito?'] = document.getElementById('edit-client-has-credit').value;
+                client.AplicaRetencion = parseFloat(document.getElementById('edit-client-ret').value || 0);
+                client.AplicaPercepcion = parseFloat(document.getElementById('edit-client-perc').value || 0);
+                client['Monto Credito'] = parseFloat(document.getElementById('edit-client-credit-limit').value || 0);
+                client.Monto_Credito = client['Monto Credito'];
+                client['Plazo Credito Días'] = parseInt(document.getElementById('edit-client-credit-days').value || 30);
+                client.Correo = document.getElementById('edit-client-email').value;
+                client['Telefono 1 '] = document.getElementById('edit-client-phone').value;
+                client.Direccion = document.getElementById('edit-client-address').value;
+                
+                saveDatabase(db);
+                showToast("Datos del cliente actualizados correctamente", "success");
+                document.getElementById('edit-client-modal').classList.remove('active');
+                
+                // Refresh views
+                showClientDetail(client);
+                populateClientsList();
+            }
+        });
+    }
     
     // Handle Add Vehicle Submit
     document.getElementById('add-vehicle-form').addEventListener('submit', (e) => {
