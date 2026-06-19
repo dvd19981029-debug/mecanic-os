@@ -12603,7 +12603,7 @@ function getInspectionCheckpoints(db) {
 
 window.switchInspeccionTab = function(tabName) {
     window.saasActiveInspeccionTab = tabName;
-    const container = document.getElementById('main-content') || document.querySelector('.main-content');
+    const container = document.getElementById('view-container');
     if (container) {
         const hash = window.location.hash;
         const queryParams = {};
