@@ -18,7 +18,8 @@ const collectionConfigs = [
     { name: 'movs_inventario', path: 'movs_inventario', key: 'id_Mov' },
     { name: 'venta_rapida', path: 'venta_rapida', key: 'ID_Venta_Rapida' },
     { name: 'gastos', path: 'gastos', key: 'ID Gasto' },
-    { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' }
+    { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' },
+    { name: 'pagos', path: 'pagos', key: 'ID Pago' }
 ];
 
 const dataService = {
@@ -98,6 +99,7 @@ const dataService = {
             if (!this.cache.presupuestos) { this.cache.presupuestos = []; changed = true; }
             if (!this.cache.revisiones) { this.cache.revisiones = []; changed = true; }
             if (!this.cache.tecnicos) { this.cache.tecnicos = []; changed = true; }
+            if (!this.cache.pagos) { this.cache.pagos = []; changed = true; }
             if (!this.cache.role_permissions) { this.cache.role_permissions = defaultRolePermissions; changed = true; }
             if (!this.cache.saas_state) {
                 this.cache.saas_state = {
@@ -288,6 +290,24 @@ const dataService = {
 
         const docRef = dbFirestore.collection("workshops").doc(uid);
 
+        const handleSyncError = (error) => {
+            console.error("Mecanic OS: Firestore Sync Error:", error);
+            if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+                if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+                    console.log("Mecanic OS: Auth session expired or permission denied. Refreshing token to reconnect...");
+                    firebase.auth().currentUser.getIdToken(true).then(() => {
+                        console.log("Mecanic OS: Firebase token refreshed successfully. Restoring sync listeners...");
+                        const ownerUid = getWorkshopOwnerUid();
+                        if (ownerUid) {
+                            this.startSync(ownerUid, this.readOnlyMode);
+                        }
+                    }).catch(err => {
+                        console.error("Mecanic OS: Failed to refresh Firebase token:", err);
+                    });
+                }
+            }
+        };
+
         // 1. Listen to Root document updates (Metadata & Configs)
         const rootListener = docRef.onSnapshot((doc) => {
             this.saas.logOp('reads', 1);
@@ -320,10 +340,10 @@ const dataService = {
                     if (typeof handleRouting === 'function') handleRouting();
                 }
             }
-        });
+        }, handleSyncError);
         this.listeners.push(rootListener);
 
-        // 2. Setup reactive listeners dynamically for all 14 subcollections
+        // 2. Setup reactive listeners dynamically for all subcollections
         collectionConfigs.forEach(config => {
             const listener = docRef.collection(config.path).onSnapshot((snapshot) => {
                 this.saas.logOp('reads', snapshot.docChanges().length || 1);
@@ -391,7 +411,7 @@ const dataService = {
                         updateNotifications();
                     }
                 }
-            });
+            }, handleSyncError);
             this.listeners.push(listener);
         });
     },
