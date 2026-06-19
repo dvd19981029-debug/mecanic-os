@@ -11073,7 +11073,7 @@ if (window.saasConfigWorkshopId) {
                             </div>
                             <div class="form-group">
                                 <label>Client Secret</label>
-                                <input type="password" id="global-wompi-client-secret" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientSecret) || ''}" placeholder="••••••••••••" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                <input type="text" id="global-wompi-client-secret" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientSecret) || ''}" placeholder="Ej: bd534de2..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                             </div>
                             <div class="form-group">
                                 <label>ID Aplicativo (Opcional - Auto-recuperar si vacío)</label>
