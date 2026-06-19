@@ -8737,7 +8737,8 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
                     wompiConfig: saasConfig.wompi
                 };
 
-                fetch('/api/wompi/create-link', {
+                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                fetch(`${backendUrl}/api/wompi/create-link`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -8866,7 +8867,8 @@ function renderPagoSuscripcionWompiCallback(container, queryParams) {
 
         if (actionContainer) actionContainer.style.display = 'none';
 
-        fetch('/api/wompi/check-subscription', {
+        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+        fetch(`${backendUrl}/api/wompi/check-subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idEnlace: idEnlace, wompiConfig: saasConfig.wompi })
@@ -10157,9 +10159,8 @@ if (window.saasConfigWorkshopId) {
                     const origText = btn.innerHTML;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
                     
-                    const saasConfig = db.saas_config || { wompi: {} };
-                    
-                    fetch('/api/wompi/check-subscription', {
+                    const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                    fetch(`${backendUrl}/api/wompi/check-subscription`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
@@ -10207,9 +10208,8 @@ if (window.saasConfigWorkshopId) {
                         const origText = btn.innerHTML;
                         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
                         
-                        const saasConfig = db.saas_config || { wompi: {} };
-                        
-                        fetch('/api/wompi/deactivate-link', {
+                        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                        fetch(`${backendUrl}/api/wompi/deactivate-link`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
@@ -10264,6 +10264,7 @@ if (window.saasConfigWorkshopId) {
             saveGlobalConfigBtn.addEventListener('click', () => {
                 const currentDb = getDatabase();
                 currentDb.saas_config = {
+                    backendUrl: document.getElementById('global-backend-url').value.trim(),
                     wompi: {
                         clientId: document.getElementById('global-wompi-client-id').value.trim(),
                         clientSecret: document.getElementById('global-wompi-client-secret').value.trim(),
@@ -10298,7 +10299,10 @@ if (window.saasConfigWorkshopId) {
                 const originalText = testWompiBtn.innerHTML;
                 testWompiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
                 
-                fetch('/api/wompi/test-connection', {
+                const currentDb = getDatabase();
+                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                
+                fetch(`${backendUrl}/api/wompi/test-connection`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -11083,6 +11087,10 @@ if (window.saasConfigWorkshopId) {
                             <div class="form-group">
                                 <label>API Key de FacturaLlama</label>
                                 <input type="password" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="sk_test_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>URL de Producción del Servidor Backend (Render/Railway)</label>
+                                <input type="text" id="global-backend-url" value="${(db.saas_config && db.saas_config.backendUrl) || ''}" placeholder="https://mecanic-os-backend.onrender.com" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                             </div>
                             <div style="background:rgba(99, 102, 241, 0.05); border:1px solid rgba(99, 102, 241, 0.15); border-radius:6px; padding:0.85rem; font-size:0.75rem; color:var(--text-secondary); line-height:1.4; display:flex; gap:0.5rem; align-items:flex-start; margin-top:1.15rem;">
                                 <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1rem; margin-top:0.1rem;"></i>
