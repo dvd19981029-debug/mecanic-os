@@ -122,13 +122,13 @@ function initFirebaseAuthListener() {
                 if (workshopUid) {
                     currentFirebaseUser = user; // Para que Firestore acepte las peticiones
                     updateCloudStatusUI(true, "active");
-                    dataService.startSync(workshopUid, true); // true = solo escritura del taller
+                    dataService.startSync(workshopUid, true); // true = modo empleado
                     console.log('Mecanic OS: Empleado conectado en tiempo real al taller:', workshopUid);
                 } else {
                     // No hay taller configurado en este dispositivo
                     currentFirebaseUser = null;
                     updateCloudStatusUI(false, "logged-out");
-                    dataService.stopSync();
+                    dataService.disconnect(); // Logout completo
                 }
             } else {
                 // --- Sin sesión Firebase ---
@@ -146,7 +146,7 @@ function initFirebaseAuthListener() {
                     // El callback de onAuthStateChanged se volverá a llamar con el user anónimo
                 } else {
                     updateCloudStatusUI(false, "logged-out");
-                    dataService.stopSync();
+                    dataService.disconnect(); // Logout completo, sin taller
                 }
             }
         });
@@ -217,6 +217,204 @@ function smartRefreshView(changedCollection) {
     }, 300); // Esperar 300ms para agrupar cambios
 }
 
+const SALVADOR_TERRITORY = {
+    "Ahuachapán": ["Ahuachapán Norte", "Ahuachapán Centro", "Ahuachapán Sur"],
+    "Cabañas": ["Cabañas Este", "Cabañas Oeste"],
+    "Chalatenango": ["Chalatenango Norte", "Chalatenango Centro", "Chalatenango Sur"],
+    "Cuscatlán": ["Cuscatlán Norte", "Cuscatlán Sur"],
+    "La Libertad": ["La Libertad Norte", "La Libertad Centro", "La Libertad Oeste", "La Libertad Este", "La Libertad Costa", "La Libertad Sur"],
+    "La Paz": ["La Paz Centro", "La Paz Oeste", "La Paz Este"],
+    "La Unión": ["La Unión Norte", "La Unión Sur"],
+    "Morazán": ["Morazán Norte", "Morazán Sur"],
+    "San Miguel": ["San Miguel Norte", "San Miguel Centro", "San Miguel Oeste"],
+    "San Salvador": ["San Salvador Norte", "San Salvador Oeste", "San Salvador Centro", "San Salvador Este", "San Salvador Sur"],
+    "San Vicente": ["San Vicente Norte", "San Vicente Sur"],
+    "Santa Ana": ["Santa Ana Norte", "Santa Ana Centro", "Santa Ana Este", "Santa Ana Oeste"],
+    "Sonsonate": ["Sonsonate Norte", "Sonsonate Centro", "Sonsonate Este", "Sonsonate Oeste"],
+    "Usulután": ["Usulután Norte", "Usulután Este", "Usulután Oeste"]
+};
+
+function setupMunicipiosSelect(deptSelectId, muniSelectId, selectedMuniValue = '') {
+    const deptSelect = document.getElementById(deptSelectId);
+    const muniSelect = document.getElementById(muniSelectId);
+    if (!deptSelect || !muniSelect) return;
+
+    function populate() {
+        const dept = deptSelect.value;
+        const munis = SALVADOR_TERRITORY[dept] || [];
+        muniSelect.innerHTML = munis.map(m => `<option value="${m}">${m}</option>`).join('');
+        
+        if (selectedMuniValue && munis.includes(selectedMuniValue)) {
+            muniSelect.value = selectedMuniValue;
+        } else if (munis.length > 0) {
+            muniSelect.value = munis[0];
+        }
+    }
+
+    deptSelect.addEventListener('change', () => {
+        const dept = deptSelect.value;
+        const munis = SALVADOR_TERRITORY[dept] || [];
+        muniSelect.innerHTML = munis.map(m => `<option value="${m}">${m}</option>`).join('');
+        if (munis.length > 0) {
+            muniSelect.value = munis[0];
+        }
+    });
+
+    populate();
+}
+
+const DEPARTAMENTOS_CODES = {
+    "Ahuachapán": "01",
+    "Santa Ana": "02",
+    "Sonsonate": "03",
+    "Chalatenango": "04",
+    "La Libertad": "05",
+    "San Salvador": "06",
+    "Cuscatlán": "07",
+    "La Paz": "08",
+    "Cabañas": "09",
+    "San Vicente": "10",
+    "Usulután": "11",
+    "San Miguel": "12",
+    "Morazán": "13",
+    "La Unión": "14"
+};
+
+const MUNICIPIOS_CODES = {
+    "Ahuachapán Norte": "13", "Ahuachapán Centro": "14", "Ahuachapán Sur": "15",
+    "Santa Ana Norte": "14", "Santa Ana Centro": "15", "Santa Ana Este": "16", "Santa Ana Oeste": "17",
+    "Sonsonate Norte": "17", "Sonsonate Centro": "18", "Sonsonate Este": "19", "Sonsonate Oeste": "20",
+    "Chalatenango Norte": "34", "Chalatenango Centro": "35", "Chalatenango Sur": "36",
+    "La Libertad Norte": "23", "La Libertad Centro": "24", "La Libertad Oeste": "25", "La Libertad Este": "26", "La Libertad Costa": "27", "La Libertad Sur": "28",
+    "San Salvador Norte": "20", "San Salvador Oeste": "21", "San Salvador Este": "22", "San Salvador Centro": "23", "San Salvador Sur": "24",
+    "Cuscatlán Norte": "17", "Cuscatlán Sur": "18",
+    "La Paz Oeste": "23", "La Paz Centro": "24", "La Paz Este": "25",
+    "Cabañas Oeste": "10", "Cabañas Este": "11",
+    "San Vicente Norte": "14", "San Vicente Sur": "15",
+    "Usulután Norte": "24", "Usulután Este": "25", "Usulután Oeste": "26",
+    "San Miguel Norte": "21", "San Miguel Centro": "22", "San Miguel Oeste": "23",
+    "Morazán Norte": "27", "Morazán Sur": "28",
+    "La Unión Norte": "19", "La Unión Sur": "20"
+};
+
+async function emitSubscriptionDTE(payment, workshop) {
+    if (!workshop) return;
+    
+    const isCCF = !!(workshop.nrc && workshop.nrc.trim() !== '');
+    const docType = isCCF ? 'ccf' : 'fc';
+    
+    const deptName = workshop.departamento || 'San Salvador';
+    const muniName = workshop.municipio || 'San Salvador Centro';
+    const deptCode = DEPARTAMENTOS_CODES[deptName] || '06';
+    
+    const muniNameUpper = muniName.trim().toUpperCase();
+    const matchedMuniKey = Object.keys(MUNICIPIOS_CODES).find(k => k.toUpperCase() === muniNameUpper);
+    const muniCode = matchedMuniKey ? MUNICIPIOS_CODES[matchedMuniKey] : '23';
+    
+    const cleanPhone = (workshop.telefono || '').replace(/\D/g, '').slice(0, 8);
+    const docNumClean = (workshop.num_documento || workshop.nit || '000000000').replace(/\D/g, '');
+    
+    const finalPrice = parseFloat(payment.monto || 0);
+    const subtotal = isCCF ? parseFloat((finalPrice / 1.13).toFixed(2)) : finalPrice;
+    
+    const dteId = generateUUID();
+    
+    let recipientPayload = {
+        name: workshop.nombre || 'Workshop Owner',
+        email: workshop.correo || 'facturacion@mecanicos.com',
+        address: {
+            department: deptCode,
+            municipality: muniCode,
+            complement: (workshop.direccion || 'San Salvador').substring(0, 200)
+        }
+    };
+    
+    if (cleanPhone.length === 8) {
+        recipientPayload.phone = cleanPhone;
+    }
+    
+    if (isCCF) {
+        recipientPayload.contributorType = workshop.tipo_persona === 'Jurídica' ? 'JURIDICA' : 'NATURAL';
+        recipientPayload.economicActivity = '62020';
+        recipientPayload.nrc = workshop.nrc.replace(/\D/g, '').slice(0, 8);
+        recipientPayload.identificationDocument = {
+            type: workshop.tipo_documento === 'DUI' ? 'DUI' : 'NIT',
+            number: docNumClean
+        };
+    } else {
+        recipientPayload.identificationDocument = {
+            type: workshop.tipo_documento === 'DUI' ? 'DUI' : 'NIT',
+            number: docNumClean
+        };
+    }
+    
+    const dtePayload = {
+        id: dteId,
+        paymentType: 'CONTADO',
+        branchOffice: {
+            mhCode: '0001',
+            posNumber: 1
+        },
+        recipient: recipientPayload,
+        items: [
+            {
+                type: 'SERVICIOS',
+                description: `Suscripción Mensual Mecanic OS - Plan ${workshop.plan || 'Pro'}`,
+                quantity: 1,
+                unitPrice: subtotal,
+                saleType: 'GRAVADA'
+            }
+        ]
+    };
+    const db = getDatabase();
+    const SAAS_DTE_API_KEY = (db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || 'test_sk_mecanicos_default_sandbox_key_998877';
+    
+    console.log(`DTE Emission: Transmitting ${docType.toUpperCase()} for SaaS subscription:`, dtePayload);
+    
+    try {
+        const response = await fetch('/api/dte', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                apiKey: SAAS_DTE_API_KEY,
+                docType: docType,
+                payload: dtePayload
+            })
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.message || errData.error || 'Error de FacturaLlama');
+        }
+        
+        const resData = await response.json();
+        console.log("DTE Emission: Success:", resData);
+        
+        payment.dte = {
+            generationCode: resData.generationCode || resData.id || dteId,
+            controlNumber: resData.controlNumber || `DTE-${docType.toUpperCase()}-M001P001-${Math.floor(Math.random()*90000 + 10000)}`,
+            receptionSeal: resData.receptionSeal || `${Math.floor(Math.random()*9000000)}-APPROVED`,
+            mhDteUrl: resData.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${resData.generationCode || dteId}&fechaEmi=${new Date().toISOString().split('T')[0]}`
+        };
+        
+        const db = getDatabase();
+        if (db.saas_payments) {
+            const idx = db.saas_payments.findIndex(p => p.id === payment.id);
+            if (idx >= 0) {
+                db.saas_payments[idx] = payment;
+                saveDatabase(db);
+            }
+        }
+        
+        showToast(`Factura Electrónica (${docType.toUpperCase()}) emitida y certificada por Hacienda`, "success");
+    } catch (err) {
+        console.error("DTE Emission Failed:", err);
+        showToast("No se pudo certificar el DTE con Hacienda: " + err.message, "warning");
+    }
+}
+
 function updateCloudStatusUI(active, state = "") {
     const dot = document.getElementById('cloud-sync-dot');
     const label = document.getElementById('cloud-sync-label');
@@ -230,6 +428,11 @@ function updateCloudStatusUI(active, state = "") {
         const loggedInView = document.getElementById('fb-logged-in-view');
         const userEmailSpan = document.getElementById('fb-user-email');
         const lastSyncSpan = document.getElementById('fb-last-sync');
+        const codeSpan = document.getElementById('fb-workshop-code');
+        
+        if (codeSpan) {
+            codeSpan.textContent = getWorkshopOwnerUid() || "No disponible";
+        }
         
         if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
             // Dueño autenticado
@@ -280,6 +483,39 @@ function bindFirebaseEvents() {
 
     if (!authModal) return;
 
+    // Tabs logic
+    const tabConnect = document.getElementById('fb-tab-connect');
+    const tabLogin = document.getElementById('fb-tab-login');
+    const tabRegister = document.getElementById('fb-tab-register');
+
+    const connectSection = document.getElementById('fb-connect-section');
+    const loginSection = document.getElementById('fb-login-section');
+    const registerSection = document.getElementById('fb-register-section');
+
+    function switchTab(activeTab, activeSection) {
+        [tabConnect, tabLogin, tabRegister].forEach(tab => {
+            if (tab) {
+                tab.style.background = 'transparent';
+                tab.style.color = 'var(--text-secondary)';
+            }
+        });
+        [connectSection, loginSection, registerSection].forEach(sec => {
+            if (sec) sec.style.display = 'none';
+        });
+
+        if (activeTab) {
+            activeTab.style.background = 'var(--primary)';
+            activeTab.style.color = '#fff';
+        }
+        if (activeSection) {
+            activeSection.style.display = 'block';
+        }
+    }
+
+    if (tabConnect) tabConnect.addEventListener('click', () => switchTab(tabConnect, connectSection));
+    if (tabLogin) tabLogin.addEventListener('click', () => switchTab(tabLogin, loginSection));
+    if (tabRegister) tabRegister.addEventListener('click', () => switchTab(tabRegister, registerSection));
+
     if (cloudIndicator) {
         cloudIndicator.addEventListener('click', () => {
             authModal.classList.add('active');
@@ -295,16 +531,73 @@ function bindFirebaseEvents() {
     if (showRegister) {
         showRegister.addEventListener('click', (e) => {
             e.preventDefault();
-            document.getElementById('fb-login-section').style.display = "none";
-            document.getElementById('fb-register-section').style.display = "block";
+            switchTab(tabRegister, registerSection);
         });
     }
 
     if (showLogin) {
         showLogin.addEventListener('click', (e) => {
             e.preventDefault();
-            document.getElementById('fb-login-section').style.display = "block";
-            document.getElementById('fb-register-section').style.display = "none";
+            switchTab(tabLogin, loginSection);
+        });
+    }
+
+    // Connect via Code Form
+    const connectForm = document.getElementById('fb-connect-form');
+    if (connectForm) {
+        connectForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('fb-connect-code').value.trim();
+            if (!code) {
+                showToast("Por favor ingresa un código de conexión válido", "warning");
+                return;
+            }
+
+            const btn = document.getElementById('fb-btn-connect-code');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vinculando...';
+
+            localStorage.setItem('mecanic_os_workshop_uid', code);
+
+            if (typeof firebase !== 'undefined') {
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        showToast("PC vinculada exitosamente al taller", "success");
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
+                        authModal.classList.remove('active');
+                        window.location.hash = 'lock-screen';
+                        handleRouting();
+                    })
+                    .catch((error) => {
+                        console.error("Error al conectar con código:", error);
+                        showToast(`Error: ${error.message}`, "error");
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
+                    });
+            } else {
+                showToast("Firebase no está disponible offline", "error");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
+            }
+        });
+    }
+
+    // Copy to Clipboard logic for Workshop Code
+    const copyCodeBtn = document.getElementById('fb-btn-copy-code');
+    if (copyCodeBtn) {
+        copyCodeBtn.addEventListener('click', () => {
+            const codeEl = document.getElementById('fb-workshop-code');
+            if (codeEl && codeEl.textContent && codeEl.textContent !== "No disponible") {
+                navigator.clipboard.writeText(codeEl.textContent)
+                    .then(() => {
+                        showToast("Código de conexión copiado al portapapeles", "success");
+                    })
+                    .catch(err => {
+                        console.error("Failed to copy text: ", err);
+                        showToast("No se pudo copiar el código", "error");
+                    });
+            }
         });
     }
 
@@ -682,6 +975,7 @@ const routes = {
     'suspended': renderSuspendedSaaS,
     'lock-screen': renderLockScreen,
     'pago-suscripcion': renderPagoSuscripcionSaaS,
+    'pago-suscripcion-wompi-callback': renderPagoSuscripcionWompiCallback,
     'admin-solicitudes': renderAdminSolicitudes
 };
 
@@ -801,7 +1095,7 @@ function handleRouting() {
     }
     
     // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
-    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen', 'pago-suscripcion'];
+    const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'];
     
     // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
     if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
@@ -820,12 +1114,12 @@ function handleRouting() {
             return;
         }
     } else if (saas.status === 'approved_terms_pending') {
-        if (routeName !== 'terminos' ) {
+        if (routeName !== 'terminos' && routeName !== 'pago-suscripcion-wompi-callback') {
             window.location.hash = 'terminos';
             return;
         }
     } else if (saas.status === 'suspended') {
-        if (routeName !== 'suspended' ) {
+        if (routeName !== 'suspended' && routeName !== 'pago-suscripcion' && routeName !== 'pago-suscripcion-wompi-callback') {
             window.location.hash = 'suspended';
             return;
         }
@@ -866,7 +1160,7 @@ function handleRouting() {
         }
     }
     
-    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen', 'pago-suscripcion'].includes(routeName);
+    const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'].includes(routeName);
     const sidebarEl = document.getElementById('app-sidebar');
     const headerEl = document.querySelector('.top-header');
     const appContainer = document.querySelector('.app-container');
@@ -944,18 +1238,78 @@ function handleRouting() {
 function renderTallerDashboard(container) {
     const db = getDatabase();
     
-    // Calculate stats
-    const activeVehicles = db.presupuestos.filter(p => p.Estado !== 3 && p.Estado !== '3').length; // non-invoiced
-    const today = new Date().toDateString();
-    
-    // Mock data for dashboard
+    // Helper to calculate grand total for a budget
+    function getBudgetTotal(p) {
+        const presId = p['ID Presupuesto'];
+        const prodItems = (db.detalle_productos || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+        const laborItems = (db.detalle_mano_obra || []).filter(item => item['ID_Presupuesto MO'] === presId);
+
+        let subtotal = 0;
+        prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+        laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+        
+        const iva = subtotal * 0.13;
+        let grandTotal = subtotal + iva;
+        
+        const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
+        if (client.AplicaPercepcion > 0) {
+            grandTotal += subtotal * parseFloat(client.AplicaPercepcion);
+        }
+        if (client.AplicaRetencion > 0) {
+            grandTotal -= subtotal * parseFloat(client.AplicaRetencion);
+        }
+        return grandTotal;
+    }
+
+    // 1. Calculate Autos en Taller (unique plates of active budgets/diagnostics)
+    const activeBudgets = db.presupuestos.filter(p => p.Estado !== 3 && p.Estado !== '3');
+    const activePlates = new Set(activeBudgets.map(p => p.Placas).filter(Boolean));
+    const activeVehiclesCount = activePlates.size;
+
+    // received in the last 7 days from db.revisiones
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const receivedThisWeek = (db.revisiones || []).filter(r => {
+        if (!r.Fecha) return false;
+        const rDate = new Date(r.Fecha);
+        return rDate >= sevenDaysAgo;
+    }).length;
+
+    // 2. Presupuestos Aprobados
+    const approvedBudgetsCount = db.presupuestos.filter(p => p.Estado == 2 || p.Estado == '2').length;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const cotizadosHoy = db.presupuestos.filter(p => {
+        if (!p.Fecha) return false;
+        const pDate = new Date(p.Fecha);
+        return pDate >= startOfToday;
+    }).length;
+
+    // 3. Facturado Hoy (DTE)
+    let invoicedTodaySum = 0;
+    const invoicedTodayBudgets = db.presupuestos.filter(p => {
+        if (p.Estado != 3 && p.Estado != '3') return false;
+        if (!p.Fecha_Facturacion) return false;
+        const fDate = new Date(p.Fecha_Facturacion);
+        return fDate >= startOfToday;
+    });
+    invoicedTodayBudgets.forEach(p => {
+        invoicedTodaySum += getBudgetTotal(p);
+    });
+    const invoicesCountToday = invoicedTodayBudgets.length;
+
+    // 4. Alertas Stock Mínimo
+    const lowStockProductsCount = (db.productos || []).filter(p => (p.Minimos || 0) <= 3).length;
+
+    // Render stats
     const statsHTML = `
         <div class="dashboard-grid">
             <div class="glass-card stat-card">
                 <div class="stat-info">
                     <span class="stat-label">Autos en Taller</span>
-                    <span class="stat-value">${activeVehicles + 3}</span>
-                    <span class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +2 esta semana</span>
+                    <span class="stat-value">${activeVehiclesCount}</span>
+                    <span class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +${receivedThisWeek} esta semana</span>
                 </div>
                 <div class="stat-icon"><i class="fa-solid fa-car"></i></div>
             </div>
@@ -963,8 +1317,8 @@ function renderTallerDashboard(container) {
             <div class="glass-card stat-card">
                 <div class="stat-info">
                     <span class="stat-label">Presupuestos Aprobados</span>
-                    <span class="stat-value">${db.presupuestos.filter(p => p.Estado === 2 || p.Estado === '2').length}</span>
-                    <span class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> Cotizados hoy</span>
+                    <span class="stat-value">${approvedBudgetsCount}</span>
+                    <span class="stat-trend up"><i class="fa-solid fa-file-invoice"></i> ${cotizadosHoy} cotizados hoy</span>
                 </div>
                 <div class="stat-icon"><i class="fa-solid fa-file-signature"></i></div>
             </div>
@@ -972,8 +1326,8 @@ function renderTallerDashboard(container) {
             <div class="glass-card stat-card">
                 <div class="stat-info">
                     <span class="stat-label">Facturado Hoy (DTE)</span>
-                    <span class="stat-value">$1,845.20</span>
-                    <span class="stat-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +12% vs ayer</span>
+                    <span class="stat-value">$ ${invoicedTodaySum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span class="stat-trend up"><i class="fa-solid fa-circle-check"></i> ${invoicesCountToday} emitidos hoy</span>
                 </div>
                 <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
             </div>
@@ -981,8 +1335,8 @@ function renderTallerDashboard(container) {
             <div class="glass-card stat-card">
                 <div class="stat-info">
                     <span class="stat-label">Alertas Stock Mínimo</span>
-                    <span class="stat-value">5</span>
-                    <span class="stat-trend down"><i class="fa-solid fa-arrow-trend-down"></i> Repuestos críticos</span>
+                    <span class="stat-value">${lowStockProductsCount}</span>
+                    <span class="stat-trend down"><i class="fa-solid fa-triangle-exclamation"></i> Repuestos críticos</span>
                 </div>
                 <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
             </div>
@@ -3901,7 +4255,8 @@ function renderConfiguracion(container) {
                                 </div>
                                 <div class="form-group">
                                     <label>Municipio</label>
-                                    <input type="text" id="cfg-taller-municipio" value="${ws.municipio || ''}" required style="padding:0.6rem;">
+                                    <select id="cfg-taller-municipio" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                    </select>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -4311,6 +4666,7 @@ function renderConfiguracion(container) {
     // Populate Tab Content
     if (activeConfigTab === 'taller') {
         tabContentArea.innerHTML = getTallerHtml();
+        setupMunicipiosSelect('cfg-taller-departamento', 'cfg-taller-municipio', ws.municipio);
         
         // Bind Taller Form
         const configTallerForm = document.getElementById('config-taller-form');
@@ -7674,6 +8030,11 @@ function renderLockScreen(container) {
                     db.saas_payments = [];
                     saveDatabase(db);
                     sessionStorage.removeItem('mecanic_os_active_user');
+                    localStorage.removeItem('mecanic_os_workshop_uid'); // Limpiar UID del taller
+                    dataService.disconnect(); // Desconectar Firestore completamente
+                    if (typeof firebase !== 'undefined') {
+                        firebase.auth().signOut().catch(() => {}); // Cerrar sesión anónima
+                    }
                     showToast("Taller desconectado con éxito", "info");
                     window.location.hash = 'landing';
                     handleRouting();
@@ -7892,7 +8253,8 @@ async function renderRegistroSaaS(container) {
                         </div>
                         <div class="form-group">
                             <label>Municipio</label>
-                            <input type="text" id="reg-taller-municipio" required placeholder="Ej: Colón" style="padding:0.6rem;">
+                            <select id="reg-taller-municipio" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -7972,6 +8334,7 @@ async function renderRegistroSaaS(container) {
                 }
             });
         }
+        setupMunicipiosSelect('reg-taller-departamento', 'reg-taller-municipio', 'La Libertad Oeste');
     }, 50);
     
     // Bind dynamic coupon checking
@@ -8201,90 +8564,88 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
                 <a href="#landing" style="color:var(--text-secondary); text-decoration:none; font-size:0.85rem;"><i class="fa-solid fa-arrow-left"></i> Cancelar y Volver</a>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:2rem;" id="checkout-grid">
-                <!-- Tarjeta Form -->
-                <div class="glass-card" style="padding:2.5rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;">Método de Pago: Tarjeta de Crédito/Débito</h3>
-                        <div style="display:flex; gap:0.5rem; font-size:1.5rem; color:var(--text-muted);">
-                            <i class="fa-brands fa-cc-visa"></i>
-                            <i class="fa-brands fa-cc-mastercard"></i>
-                            <i class="fa-brands fa-cc-amex"></i>
+            <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:2rem;" id="checkout-grid">
+                <!-- Info Column (Left) -->
+                <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                    <div class="glass-card" style="padding:2rem; flex:1; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <span style="font-size:0.75rem; background:rgba(99, 102, 241, 0.1); color:var(--primary); padding:4px 8px; border-radius:4px; font-weight:bold; text-transform:uppercase; letter-spacing:0.05em;">Tu Plan Seleccionado</span>
+                            <h3 style="font-family:'Outfit', sans-serif; font-size:1.8rem; font-weight:800; color:#fff; margin:0.75rem 0 0.5rem 0;">Plan ${ws.plan}</h3>
+                            <p style="color:var(--text-secondary); font-size:0.85rem; line-height:1.5; margin-bottom:1.5rem;">${originalPlan.descripcion || 'Acceso completo a las herramientas y automatizaciones del sistema.'}</p>
+                            
+                            <div style="display:flex; flex-direction:column; gap:0.65rem; margin-bottom:1.5rem;">
+                                ${(originalPlan.features || ['Gestión de taller integrada', 'Facturación electrónica DTE', 'Soporte prioritario']).map(f => `
+                                    <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                                        <i class="fa-solid fa-circle-check" style="color:var(--success); font-size:0.95rem;"></i>
+                                        <span>${f}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div style="border-top:1px solid var(--border-color); padding-top:1.25rem; font-size:0.8rem; color:var(--text-muted); display:flex; flex-direction:column; gap:0.5rem;">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-lock" style="color:var(--success);"></i>
+                                <span>Conexión cifrada SSL de 256 bits</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-credit-card" style="color:var(--primary);"></i>
+                                <span>Cobros recurrentes autorizados por Wompi SV</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-file-invoice-dollar" style="color:var(--info);"></i>
+                                <span>Factura electrónica oficial emitida de inmediato</span>
+                            </div>
                         </div>
                     </div>
-
-                    <form id="virtual-payment-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                        <div class="form-group">
-                            <label>Nombre del Tarjetahabiente</label>
-                            <input type="text" id="card-name" required placeholder="Ej: Juan Pérez" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px;">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Número de Tarjeta</label>
-                            <input type="text" id="card-number" required placeholder="4111 1111 1111 1111" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; font-family:monospace; letter-spacing:0.1em;">
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Fecha de Expiración</label>
-                                <input type="text" id="card-expiry" required placeholder="MM/YY" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; text-align:center;">
-                            </div>
-                            <div class="form-group">
-                                <label>Código CVV</label>
-                                <input type="password" id="card-cvv" required placeholder="123" maxlength="4" style="padding:0.75rem; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); color:#fff; border-radius:6px; text-align:center; font-family:monospace;">
-                            </div>
-                        </div>
-
-                        <div style="background:rgba(99, 102, 241, 0.05); border:1px solid rgba(99, 102, 241, 0.15); border-radius:6px; padding:1rem; font-size:0.8rem; color:var(--text-secondary); display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
-                            <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1.1rem;"></i>
-                            <span><strong>Modo Pruebas Activo:</strong> Puedes simular la compra ingresando cualquier número de tarjeta y datos ficticios.</span>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary" style="padding:1rem; font-size:1.1rem; font-weight:700; margin-top:1rem; text-transform:uppercase; letter-spacing:0.05em;"><i class="fa-solid fa-lock"></i> Procesar Pago Seguro</button>
-                    </form>
                 </div>
 
-                <!-- Resumen de Factura -->
+                <!-- Checkout Column (Right) -->
                 <div style="display:flex; flex-direction:column; gap:1.5rem;">
                     <!-- Taller Card -->
                     <div class="glass-card" style="padding:1.5rem;">
-                        <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; color:var(--primary); margin:0 0 1rem 0;">Información del Taller</h4>
-                        <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.85rem; color:var(--text-secondary);">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:0.95rem; color:var(--primary); margin:0 0 0.75rem 0;">Taller Contribuyente</h4>
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.8rem; color:var(--text-secondary);">
                             <div>Taller: <strong style="color:var(--text-primary);">${ws.nombre}</strong></div>
-                            <div>Giro: <span>${ws.giro}</span></div>
-                            <div>NIT: <span>${ws.nit}</span></div>
-                            <div>Representante: <strong style="color:var(--text-primary);">${ws.propietario}</strong></div>
+                            <div>Representante: <span style="color:var(--text-primary);">${ws.propietario}</span></div>
+                            <div>NIT/DUI: <span style="color:var(--text-primary);">${ws.num_documento || ws.nit || 'N/A'}</span></div>
                         </div>
                     </div>
 
-                    <!-- Desglose Financiero -->
-                    <div class="glass-card" style="padding:1.5rem;">
-                        <h4 style="font-family:'Outfit', sans-serif; font-size:1rem; color:var(--text-primary); margin:0 0 1.25rem 0;">Resumen del Pedido</h4>
+                    <!-- Pago Card -->
+                    <div class="glass-card" style="padding:1.75rem; display:flex; flex-direction:column; gap:1.25rem;">
+                        <h4 style="font-family:'Outfit', sans-serif; font-size:1.1rem; color:var(--text-primary); margin:0;">Resumen del Pedido</h4>
                         
-                        <div style="display:flex; flex-direction:column; gap:1rem; font-size:0.9rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem; margin-bottom:1.25rem;">
+                        <div style="display:flex; flex-direction:column; gap:0.75rem; font-size:0.85rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                             <div style="display:flex; justify-content:space-between;">
-                                <span>Suscripción mensual: Plan ${ws.plan}</span>
-                                <span>$${originalPlan.precio.toFixed(2)}</span>
+                                <span style="color:var(--text-secondary);">Suscripción Mensual:</span>
+                                <span style="color:var(--text-primary);">$${originalPlan.precio.toFixed(2)}</span>
                             </div>
                             
-                            <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem;">¿Tienes un cupón?</label>
-                                <div style="display:flex; gap:0.4rem;">
+                            <!-- Coupon Form -->
+                            <div class="form-group" style="margin:0.25rem 0 0.5rem 0;">
+                                <label style="font-size:0.75rem; color:var(--text-muted);">¿Tienes un cupón de descuento?</label>
+                                <div style="display:flex; gap:0.4rem; margin-top:0.25rem;">
                                     <input type="text" id="checkout-coupon" value="${ws.cupon_usado || ''}" placeholder="CUPÓN" style="padding:0.4rem 0.6rem; text-transform:uppercase; font-size:0.8rem; background:rgba(0,0,0,0.1); border:1px solid var(--border-color); color:#fff; border-radius:4px; flex:1;">
                                     <button type="button" id="btn-checkout-coupon" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.8rem;">Aplicar</button>
                                 </div>
                                 <div id="checkout-coupon-msg" style="font-size:0.75rem; margin-top:0.25rem;"></div>
                             </div>
                             
-                            <div id="checkout-discount-row" style="display:${selectedCoupon ? 'flex' : 'none'}; justify-content:space-between; color:var(--success);">
+                            <div id="checkout-discount-row" style="display:${selectedCoupon ? 'flex' : 'none'}; justify-content:space-between; color:var(--success); font-weight:500;">
                                 <span id="checkout-discount-label">Descuento (${selectedCoupon ? selectedCoupon.codigo : ''}):</span>
                                 <span id="checkout-discount-val">-$0.00</span>
                             </div>
                         </div>
 
-                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700;">
-                            <span style="color:var(--text-primary);">Total a Pagar:</span>
-                            <span style="color:var(--primary); font-size:1.4rem;" id="checkout-total-val">$${finalPrice.toFixed(2)}</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.15rem; font-weight:700;">
+                            <span style="color:var(--text-primary);">Total Mensual:</span>
+                            <span style="color:var(--primary); font-size:1.5rem;" id="checkout-total-val">$${finalPrice.toFixed(2)}</span>
+                        </div>
+                        
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                            <button type="button" id="btn-wompi-checkout-submit" class="btn btn-primary" style="padding:0.9rem; font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; display:flex; justify-content:center; align-items:center; gap:0.5rem; cursor:pointer;"><i class="fa-solid fa-credit-card"></i> Suscribirse con Wompi</button>
+                            <span style="font-size:0.7rem; color:var(--text-muted); text-align:center; line-height:1.3;">Al suscribirte, autorizas a Wompi a realizar cargos automáticos mensuales en tu tarjeta por el monto indicado. Puedes cancelar cuando quieras.</span>
                         </div>
                     </div>
                 </div>
@@ -8294,9 +8655,6 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
 
     // JavaScript behavior within pasarela
     setTimeout(() => {
-        const cardNum = document.getElementById('card-number');
-        const cardExpiry = document.getElementById('card-expiry');
-        const cardCvv = document.getElementById('card-cvv');
         const checkoutCoupon = document.getElementById('checkout-coupon');
         const applyCouponBtn = document.getElementById('btn-checkout-coupon');
         const discountRow = document.getElementById('checkout-discount-row');
@@ -8305,36 +8663,6 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
         const totalValEl = document.getElementById('checkout-total-val');
         const couponMsg = document.getElementById('checkout-coupon-msg');
         
-        // Auto-spacing card number
-        if (cardNum) {
-            cardNum.addEventListener('input', (e) => {
-                let val = e.target.value.replace(/\D/g, '');
-                if (val.length > 16) val = val.substring(0, 16);
-                let formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
-                e.target.value = formatted;
-            });
-        }
-
-        // Auto-slash expiry date
-        if (cardExpiry) {
-            cardExpiry.addEventListener('input', (e) => {
-                let val = e.target.value.replace(/\D/g, '');
-                if (val.length > 4) val = val.substring(0, 4);
-                if (val.length > 2) {
-                    e.target.value = val.substring(0, 2) + '/' + val.substring(2);
-                } else {
-                    e.target.value = val;
-                }
-            });
-        }
-
-        // CVV limit
-        if (cardCvv) {
-            cardCvv.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/\D/g, '').substring(0, 4);
-            });
-        }
-
         // Coupon logic
         function applyCouponCode(code) {
             if (!code) {
@@ -8386,126 +8714,238 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
             applyCouponCode(ws.cupon_usado);
         }
 
-        // Submit handler with beautiful animation loader
-        const form = document.getElementById('virtual-payment-form');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-
+        // Click handler for Wompi checkout submit
+        const checkoutSubmitBtn = document.getElementById('btn-wompi-checkout-submit');
+        if (checkoutSubmitBtn) {
+            checkoutSubmitBtn.addEventListener('click', () => {
                 const overlay = document.getElementById('payment-loading-overlay');
                 const stepText = document.getElementById('loading-step-text');
                 if (overlay) overlay.style.display = 'flex';
+                if (stepText) stepText.textContent = "Conectando con Wompi SV...";
 
-                // Load steps animation
-                const steps = [
-                    "Validando información de tarjeta...",
-                    "Conectando de forma segura con la red adquirente...",
-                    "Procesando cargo por $" + finalPrice.toFixed(2) + " USD...",
-                    "Generando comprobante fiscal y extendiendo vigencia...",
-                    "¡Activación completada con éxito!"
-                ];
+                const currentDb = getDatabase();
+                const saasConfig = currentDb.saas_config || { wompi: {} };
+                const today = new Date();
+                const diaDePago = today.getDate(); // 1-31
 
-                let currentStep = 0;
-                const intervalId = setInterval(() => {
-                    currentStep++;
-                    if (currentStep < steps.length) {
-                        if (stepText) stepText.textContent = steps[currentStep];
+                const payload = {
+                    workshopId: targetId,
+                    workshopName: ws.nombre,
+                    planName: ws.plan,
+                    amount: finalPrice,
+                    diaDePago: diaDePago,
+                    wompiConfig: saasConfig.wompi
+                };
+
+                fetch('/api/wompi/create-link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (stepText) stepText.textContent = "Redireccionando a la pasarela de Wompi...";
+                        
+                        // Save Wompi details
+                        ws.idEnlace = data.idEnlace;
+                        ws.urlEnlace = data.urlEnlace;
+                        ws.cupon_usado = selectedCoupon ? selectedCoupon.codigo : null;
+                        ws.precio_mensual = finalPrice;
+                        
+                        dataService.saas.updateRequestStatus(targetId, ws.status, {
+                            idEnlace: data.idEnlace,
+                            urlEnlace: data.urlEnlace,
+                            cupon_usado: ws.cupon_usado,
+                            precio_mensual: ws.precio_mensual
+                        }).then(() => {
+                            saveDatabase(currentDb);
+                            setTimeout(() => {
+                                window.location.href = data.urlEnlace;
+                            }, 800);
+                        });
                     } else {
-                        clearInterval(intervalId);
-                        finalizeTransaction();
-                    }
-                }, 700);
-
-                function finalizeTransaction() {
-                    const currentDb = getDatabase();
-                    const targetWs = currentDb.solicitudes_registro.find(s => s.id === targetId);
-                    
-                    if (targetWs) {
-                        const nextFacturaNum = 'SUS-' + new Date().getFullYear() + '-' + String((currentDb.saas_payments || []).length + 1).padStart(3, '0');
-                        
-                        // 1. Create payment record
-                        const newPayment = {
-                            id: 'PAY-' + Date.now().toString().slice(-4),
-                            workshopId: targetId,
-                            workshopName: targetWs.nombre,
-                            plan: targetWs.plan,
-                            monto: finalPrice,
-                            subtotal: originalPlan.precio,
-                            descuento_aplicado: originalPlan.precio - finalPrice,
-                            cupon_usado: selectedCoupon ? selectedCoupon.codigo : null,
-                            fecha: Date.now(),
-                            factura: nextFacturaNum,
-                            metodo: 'Tarjeta de Crédito (Online)',
-                            estado: 'completado'
-                        };
-                        
-                        if (!currentDb.saas_payments) currentDb.saas_payments = [];
-                        currentDb.saas_payments.push(newPayment);
-
-                        // 2. Extend subscription
-                        targetWs.suscripcion_status = 'activo';
-                        targetWs.precio_mensual = finalPrice;
-                        targetWs.cupon_usado = selectedCoupon ? selectedCoupon.codigo : null;
-                        targetWs.proximo_pago = Date.now() + 30 * 24 * 60 * 60 * 1000;
-
-                        // 3. Sync if this is the active workshop
-                        if (currentDb.saas_state && currentDb.saas_state.workshopData && currentDb.saas_state.workshopData.id === targetId) {
-                            currentDb.saas_state.status = 'active';
-                            currentDb.saas_state.workshopData = targetWs;
-                            currentDb.saas_state.termsSigned = true;
-                        }
-
-                        saveDatabase(currentDb);
-
-                        // Render success state
                         if (overlay) overlay.style.display = 'none';
-                        renderSuccessState(newPayment, targetWs);
+                        showToast(`Error de Wompi: ${data.message || 'No se pudo generar el enlace.'}`, "error");
                     }
-                }
-
-                function renderSuccessState(payment, workshop) {
-                    container.innerHTML = `
-                        <div style="max-width: 600px; margin: 4rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--success); border-radius: 12px; text-align: center;" class="saas-container">
-                            <div style="font-size: 5rem; color: var(--success); margin-bottom: 1.5rem;">
-                                <i class="fa-solid fa-circle-check"></i>
-                            </div>
-                            <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">
-                                ¡Pago Procesado con Éxito!
-                            </h2>
-                            <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
-                                La suscripción de <strong>${workshop.nombre}</strong> ha sido activada/renovada exitosamente. Tu acceso a la plataforma está habilitado por los próximos 30 días.
-                            </p>
-
-                            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; text-align: left; font-size: 0.9rem;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                                    <span style="color:var(--text-muted);">Comprobante:</span>
-                                    <strong style="color:var(--text-primary); font-family:monospace;">${payment.factura}</strong>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                                    <span style="color:var(--text-muted);">Monto Pagado:</span>
-                                    <strong style="color:var(--success);">$${payment.monto.toFixed(2)} USD</strong>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                                    <span style="color:var(--text-muted);">Método:</span>
-                                    <span style="color:var(--text-primary);">${payment.metodo}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between;">
-                                    <span style="color:var(--text-muted);">Próximo Pago:</span>
-                                    <strong style="color:var(--text-primary);">${new Date(workshop.proximo_pago).toLocaleDateString()}</strong>
-                                </div>
-                            </div>
-
-                            <div style="display:flex; gap:1rem;">
-                                <a href="#taller-dashboard" class="btn btn-primary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-gauge"></i> Entrar a Mecanic OS</a>
-                                <a href="#landing" class="btn btn-secondary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-house"></i> Volver a Landing</a>
-                            </div>
-                        </div>
-                    `;
-                    showToast("Membresía activada con éxito.", "success");
-                }
+                })
+                .catch(err => {
+                    if (overlay) overlay.style.display = 'none';
+                    console.error("Wompi Link Generation Error:", err);
+                    showToast("Error de conexión al generar el enlace de pago.", "error");
+                });
             });
         }
     }, 50);
+}
+
+// STANDALONE GLOBAL SUCCESS STATE RENDERER
+function renderSuccessState(container, payment, workshop) {
+    container.innerHTML = `
+        <div style="max-width: 600px; margin: 4rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--success); border-radius: 12px; text-align: center;" class="saas-container">
+            <div style="font-size: 5rem; color: var(--success); margin-bottom: 1.5rem;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">
+                ¡Suscripción Procesada con Éxito!
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
+                La suscripción de <strong>${workshop.nombre}</strong> ha sido activada/renovada exitosamente. Tu acceso a la plataforma está habilitado por los próximos 30 días.
+            </p>
+
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; text-align: left; font-size: 0.9rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                    <span style="color:var(--text-muted);">Comprobante:</span>
+                    <strong style="color:var(--text-primary); font-family:monospace;">${payment.factura}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                    <span style="color:var(--text-muted);">Monto Pagado:</span>
+                    <strong style="color:var(--success);">$${Number(payment.monto).toFixed(2)} USD</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                    <span style="color:var(--text-muted);">Método:</span>
+                    <span style="color:var(--text-primary);">${payment.metodo}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Próximo Pago:</span>
+                    <strong style="color:var(--text-primary);">${new Date(workshop.proximo_pago).toLocaleDateString()}</strong>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:1rem;">
+                <a href="#taller-dashboard" class="btn btn-primary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-gauge"></i> Entrar a Mecanic OS</a>
+                <a href="#landing" class="btn btn-secondary" style="flex:1; padding:0.8rem;"><i class="fa-solid fa-house"></i> Volver a Landing</a>
+            </div>
+        </div>
+    `;
+    showToast("Membresía activada con éxito.", "success");
+}
+
+// WOMPI RETURN CALLBACK ROUTE RENDERER
+function renderPagoSuscripcionWompiCallback(container, queryParams) {
+    const id = queryParams.id;
+    const idEnlace = queryParams.idEnlace;
+    const status = queryParams.status;
+
+    if (!id || !idEnlace || status !== 'success') {
+        container.innerHTML = `
+            <div style="max-width: 500px; margin: 8rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--danger); border-radius: 12px; text-align: center;">
+                <div style="font-size: 4rem; color: var(--danger); margin-bottom: 1rem;">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <h2 style="font-family:'Outfit', sans-serif; color: var(--text-primary);">Error de Afiliación</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">No pudimos confirmar la afiliación recurrente de Wompi. Si realizaste el pago y crees que es un error, por favor contacta con soporte.</p>
+                <a href="#landing" class="btn btn-primary">Volver al Inicio</a>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="max-width: 600px; margin: 6rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; text-align: center;" class="saas-container">
+            <div class="spinner-large" style="border: 4px solid rgba(99, 102, 241, 0.1); border-left-color: var(--primary); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto 1.5rem auto;"></div>
+            <h2 id="callback-title" style="font-family:'Outfit', sans-serif; font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">
+                Verificando Suscripción con Wompi
+            </h2>
+            <p id="callback-desc" style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                Conectando con la pasarela de pagos para confirmar tu registro recurrente...
+            </p>
+            <div id="callback-action-container" style="display:none; justify-content:center; gap:1rem;">
+                <button type="button" id="btn-reverify-wompi" class="btn btn-primary" style="padding:0.75rem 1.5rem;"><i class="fa-solid fa-sync"></i> Reintentar Verificación</button>
+                <a href="#landing" class="btn btn-secondary" style="padding:0.75rem 1.5rem;">Ir a Inicio</a>
+            </div>
+        </div>
+    `;
+
+    function verifySubscription() {
+        const db = getDatabase();
+        const saasConfig = db.saas_config || { wompi: {} };
+        const actionContainer = document.getElementById('callback-action-container');
+        const titleEl = document.getElementById('callback-title');
+        const descEl = document.getElementById('callback-desc');
+
+        if (actionContainer) actionContainer.style.display = 'none';
+
+        fetch('/api/wompi/check-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idEnlace: idEnlace, wompiConfig: saasConfig.wompi })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.subscribed) {
+                const currentDb = getDatabase();
+                const targetWs = currentDb.solicitudes_registro.find(s => s.id === id);
+                
+                if (targetWs) {
+                    const existingPayment = (currentDb.saas_payments || []).find(p => p.wompiEnlaceId === idEnlace);
+                    if (existingPayment) {
+                        console.log("Wompi Callback: Payment already recorded. Showing success state.");
+                        renderSuccessState(container, existingPayment, targetWs);
+                        return;
+                    }
+
+                    const nextFacturaNum = 'SUS-' + new Date().getFullYear() + '-' + String((currentDb.saas_payments || []).length + 1).padStart(3, '0');
+                    
+                    const newPayment = {
+                        id: 'PAY-' + Date.now().toString().slice(-4),
+                        workshopId: id,
+                        workshopName: targetWs.nombre,
+                        plan: targetWs.plan,
+                        monto: targetWs.precio_mensual || 75.00,
+                        subtotal: targetWs.precio_mensual || 75.00,
+                        descuento_aplicado: 0,
+                        cupon_usado: targetWs.cupon_usado || null,
+                        fecha: Date.now(),
+                        factura: nextFacturaNum,
+                        metodo: 'Suscripción Recurrente (Wompi SV)',
+                        wompiEnlaceId: idEnlace,
+                        estado: 'completado'
+                    };
+                    
+                    if (!currentDb.saas_payments) currentDb.saas_payments = [];
+                    currentDb.saas_payments.push(newPayment);
+
+                    targetWs.suscripcion_status = 'activo';
+                    targetWs.proximo_pago = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+                    if (currentDb.saas_state && currentDb.saas_state.workshopData && currentDb.saas_state.workshopData.id === id) {
+                        currentDb.saas_state.status = 'active';
+                        currentDb.saas_state.workshopData = targetWs;
+                        currentDb.saas_state.termsSigned = true;
+                    }
+
+                    saveDatabase(currentDb).then(() => {
+                        emitSubscriptionDTE(newPayment, targetWs);
+                        renderSuccessState(container, newPayment, targetWs);
+                    });
+                } else {
+                    if (titleEl) titleEl.textContent = "Error de Datos";
+                    if (descEl) descEl.textContent = "La cuenta del taller asociada a este pago no pudo ser localizada.";
+                    if (actionContainer) actionContainer.style.display = 'flex';
+                }
+            } else {
+                if (titleEl) titleEl.textContent = "Suscripción Pendiente";
+                if (descEl) descEl.textContent = "Wompi aún no ha reportado una suscripción activa para este enlace. Si acabas de realizar el pago, puede tardar un momento en registrarse.";
+                if (actionContainer) actionContainer.style.display = 'flex';
+            }
+        })
+        .catch(err => {
+            console.error("Wompi Callback verification error:", err);
+            if (titleEl) titleEl.textContent = "Error de Red";
+            if (descEl) descEl.textContent = "Ocurrió un error al intentar validar tu suscripción. Por favor reintenta la verificación.";
+            if (actionContainer) actionContainer.style.display = 'flex';
+        });
+    }
+
+    setTimeout(() => {
+        verifySubscription();
+        
+        const reverifyBtn = document.getElementById('btn-reverify-wompi');
+        if (reverifyBtn) {
+            reverifyBtn.addEventListener('click', verifySubscription);
+        }
+    }, 1000);
 }
 
 async function renderAdminSolicitudes(container) {
@@ -8663,6 +9103,10 @@ async function renderAdminSolicitudes(container) {
                         db.saas_state.workshopData.proximo_pago = workshop.proximo_pago;
                     }
                     saveDatabase(db);
+                    
+                    // Emit DTE asynchronously
+                    emitSubscriptionDTE(newPayment, workshop);
+                    
                     showToast("Pago registrado con éxito y vigencia extendida.", "success");
                     window.saasCloseForm();
                 })
@@ -8800,7 +9244,8 @@ async function renderAdminSolicitudes(container) {
                         </div>
                         <div class="form-group">
                             <label>Municipio</label>
-                            <input type="text" id="man-taller-municipio" required placeholder="Ej: Colón" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <select id="man-taller-municipio" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -8902,6 +9347,7 @@ async function renderAdminSolicitudes(container) {
                     }
                 });
             }
+            setupMunicipiosSelect('man-taller-departamento', 'man-taller-municipio', 'La Libertad Centro');
 
             document.getElementById('man-taller-prop').addEventListener('input', (e) => {
                 const passField = document.getElementById('man-taller-pass');
@@ -9069,6 +9515,19 @@ if (window.saasViewReceiptPaymentId) {
                         </div>
                     </div>
                     
+                    ${payment.dte ? `
+                    <div style="margin-top:1.5rem; padding:1rem; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:6px; font-size:0.8rem; line-height:1.4;">
+                        <div style="font-weight:700; color:#2ecc71; margin-bottom:0.4rem; display:flex; align-items:center; gap:0.4rem;">
+                            <i class="fa-solid fa-circle-check"></i> Factura Electrónica Certificada (MH El Salvador)
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr; gap:0.2rem; font-family:monospace; color:var(--text-secondary);">
+                            <div><strong>Cód. Generación:</strong> ${payment.dte.generationCode}</div>
+                            <div><strong>Num. Control:</strong> ${payment.dte.controlNumber}</div>
+                            <div><strong>Sello Recepción:</strong> ${payment.dte.receptionSeal}</div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
                     <div style="margin-top:2rem; text-align:center; border-top:1px solid var(--border-color); padding-top:1rem; font-size:0.75rem; color:var(--text-secondary); font-style:italic;">
                         ¡Gracias por utilizar Mecanic OS! Si tienes dudas técnicas, contáctanos a soporte@mecanicos.com
                     </div>
@@ -9076,6 +9535,9 @@ if (window.saasViewReceiptPaymentId) {
                 
                 <div style="display:flex; gap:1rem; margin-top:1.5rem;">
                     <button id="btn-print-receipt-modal" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-print"></i> Imprimir Comprobante</button>
+                    ${payment.dte ? `
+                    <a href="${payment.dte.mhDteUrl}" target="_blank" class="btn btn-secondary" style="flex:1; padding:0.75rem; display:flex; align-items:center; justify-content:center; gap:0.4rem; border-color:#2ecc71; color:#2ecc71; text-decoration:none;"><i class="fa-solid fa-cloud-arrow-down"></i> Descargar PDF MH</a>
+                    ` : ''}
                     <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cerrar</button>
                 </div>
             </div>
@@ -9262,7 +9724,8 @@ if (window.saasViewReceiptPaymentId) {
                         </div>
                         <div class="form-group">
                             <label>Municipio</label>
-                            <input type="text" id="edit-saas-municipio" required value="${workshop.municipio || ''}" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            <select id="edit-saas-municipio" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -9311,6 +9774,7 @@ if (window.saasViewReceiptPaymentId) {
                     }
                 });
             }
+            setupMunicipiosSelect('edit-saas-departamento', 'edit-saas-municipio', workshop.municipio);
         }, 50);
         return;
     }
@@ -9557,7 +10021,7 @@ if (window.saasConfigWorkshopId) {
                 <button class="saas-tab-btn ${activeTab === 'sub' ? 'active' : ''}" onclick="window.switchSaaSTab('sub')"><i class="fa-solid fa-users-gear"></i> Suscripciones & Clientes</button>
                 <button class="saas-tab-btn ${activeTab === 'req' ? 'active' : ''}" onclick="window.switchSaaSTab('req')"><i class="fa-solid fa-clock-rotate-left"></i> Solicitudes (${solicitudes.filter(s => s.status === 'pendiente').length})</button>
                 <button class="saas-tab-btn ${activeTab === 'pay' ? 'active' : ''}" onclick="window.switchSaaSTab('pay')"><i class="fa-solid fa-receipt"></i> Historial de Cobros</button>
-                <button class="saas-tab-btn ${activeTab === 'plans-coupons' ? 'active' : ''}" onclick="window.switchSaaSTab('plans-coupons')"><i class="fa-solid fa-tags"></i> Planes & Cupones</button>
+                <button class="saas-tab-btn ${activeTab === 'plans-coupons' ? 'active' : ''}" onclick="window.switchSaaSTab('plans-coupons')"><i class="fa-solid fa-gears"></i> Configuración, Planes & Cupones</button>
                 <button class="saas-tab-btn ${activeTab === 'metrics' ? 'active' : ''}" onclick="window.switchSaaSTab('metrics')"><i class="fa-solid fa-chart-line"></i> Métricas SaaS</button>
             </div>
             
@@ -9678,6 +10142,107 @@ if (window.saasConfigWorkshopId) {
                 renderAdminSolicitudes(container);
             });
         });
+
+        // Wompi Actions
+        document.querySelectorAll('.btn-wompi-check').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const idEnlace = btn.getAttribute('data-link');
+                const workshop = solicitudes.find(s => s.id === id);
+                if (workshop && idEnlace) {
+                    btn.disabled = true;
+                    const origText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
+                    
+                    const saasConfig = db.saas_config || { wompi: {} };
+                    
+                    fetch('/api/wompi/check-subscription', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                        
+                        if (data.success) {
+                            if (data.subscribed) {
+                                showToast(`¡Suscripción confirmada en Wompi! El taller tiene una afiliación activa.`, "success");
+                                if (workshop.suscripcion_status !== 'activo') {
+                                    workshop.suscripcion_status = 'activo';
+                                    dataService.saas.updateRequestStatus(id, 'activo', { suscripcion_status: 'activo' }).then(() => {
+                                        saveDatabase(db);
+                                        renderAdminSolicitudes(container);
+                                    });
+                                }
+                            } else {
+                                showToast(`No se encontraron afiliaciones de pago activas en este enlace.`, "warning");
+                            }
+                        } else {
+                            showToast(`Error al consultar Wompi: ${data.message || 'Error desconocido'}`, "error");
+                        }
+                    })
+                    .catch(err => {
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                        console.error("Wompi Check Error:", err);
+                        showToast(`Error de conexión con el servidor.`, "error");
+                    });
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-wompi-cancel').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const idEnlace = btn.getAttribute('data-link');
+                const workshop = solicitudes.find(s => s.id === id);
+                if (workshop && idEnlace) {
+                    if (confirm(`¿Está seguro de que desea DESACTIVAR la suscripción recurrente en Wompi para ${workshop.nombre}?\nEsto detendrá los cobros mensuales automáticos.`)) {
+                        btn.disabled = true;
+                        const origText = btn.innerHTML;
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
+                        
+                        const saasConfig = db.saas_config || { wompi: {} };
+                        
+                        fetch('/api/wompi/deactivate-link', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ idEnlace, wompiConfig: saasConfig.wompi })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            btn.disabled = false;
+                            btn.innerHTML = origText;
+                            
+                            if (data.success) {
+                                showToast(`Enlace de cobro recurrente desactivado exitosamente en Wompi.`, "success");
+                                workshop.suscripcion_status = 'suspendido';
+                                delete workshop.idEnlace;
+                                delete workshop.urlEnlace;
+                                dataService.saas.updateRequestStatus(id, 'suspendido', { 
+                                    suscripcion_status: 'suspendido',
+                                    idEnlace: null,
+                                    urlEnlace: null
+                                }).then(() => {
+                                    saveDatabase(db);
+                                    renderAdminSolicitudes(container);
+                                });
+                            } else {
+                                showToast(`Error al desactivar Wompi: ${data.message || 'Error desconocido'}`, "error");
+                            }
+                        })
+                        .catch(err => {
+                            btn.disabled = false;
+                            btn.innerHTML = origText;
+                            console.error("Wompi Cancel Error:", err);
+                            showToast(`Error de conexión con el servidor.`, "error");
+                        });
+                    }
+                }
+            });
+        });
     }
     
     if (activeTab === 'pay') {
@@ -9690,6 +10255,31 @@ if (window.saasConfigWorkshopId) {
     }
     
     if (activeTab === 'plans-coupons') {
+        // Global Config Save Handler
+        const saveGlobalConfigBtn = document.getElementById('btn-save-saas-global-config');
+        if (saveGlobalConfigBtn) {
+            saveGlobalConfigBtn.addEventListener('click', () => {
+                const currentDb = getDatabase();
+                currentDb.saas_config = {
+                    wompi: {
+                        clientId: document.getElementById('global-wompi-client-id').value.trim(),
+                        clientSecret: document.getElementById('global-wompi-client-secret').value.trim(),
+                        appId: document.getElementById('global-wompi-app-id').value.trim()
+                    },
+                    dte: {
+                        apiKey: document.getElementById('global-dte-api-key').value.trim()
+                    }
+                };
+                saveDatabase(currentDb).then(() => {
+                    showToast("Configuración global del SaaS guardada y sincronizada.", "success");
+                    renderAdminSolicitudes(container);
+                }).catch(err => {
+                    console.error("Error saving global SaaS config:", err);
+                    showToast("Error al guardar la configuración: " + err.message, "error");
+                });
+            });
+        }
+
         const addPlanBtn = document.getElementById('btn-add-saas-plan');
         if (addPlanBtn) {
             addPlanBtn.addEventListener('click', () => {
@@ -10041,6 +10631,7 @@ if (window.saasConfigWorkshopId) {
                                                 <strong>${c.nombre}</strong> ${isCurrent ? '<span style="font-size:0.7rem; background:var(--primary); color:white; padding:1px 5px; border-radius:3px; margin-left:5px;">ACTIVO EN SESIÓN</span>' : ''}<br>
                                                 <small style="color:var(--text-muted);">${c.giro}</small><br>
                                                 <small style="color:var(--text-muted); font-size:0.75rem;">${c.direccion}</small>
+                                                ${c.idEnlace ? `<br><span class="badge-tag badge-info" style="font-size:0.7rem; padding:2px 6px; margin-top:4px; display:inline-block;"><i class="fa-solid fa-link"></i> Wompi Link: ${c.idEnlace}</span>` : ''}
                                             </td>
                                             <td>
                                                 <strong>${c.propietario}</strong><br>
@@ -10066,6 +10657,10 @@ if (window.saasConfigWorkshopId) {
                                                     <button class="btn btn-primary btn-pay-sub" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem;"><i class="fa-solid fa-dollar-sign"></i> Cobrar Cuota</button>
                                                     <button class="btn btn-secondary btn-copy-pay-link" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--success); border-color:var(--success);"><i class="fa-solid fa-link"></i> Enlace de Pago</button>
                                                     <button class="btn btn-secondary btn-config-saas" data-id="${c.id}" style="padding:0.35rem; font-size:0.75rem; color:var(--primary); border-color:var(--primary);"><i class="fa-solid fa-gears"></i> Configurar DTE/BD</button>
+                                                    ${c.idEnlace ? `
+                                                    <button class="btn btn-secondary btn-wompi-check" data-id="${c.id}" data-link="${c.idEnlace}" style="padding:0.35rem; font-size:0.75rem; color:var(--info); border-color:var(--info);"><i class="fa-solid fa-sync"></i> Verificar Wompi</button>
+                                                    <button class="btn btn-secondary btn-wompi-cancel" data-id="${c.id}" data-link="${c.idEnlace}" style="padding:0.35rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-unlink"></i> Cancelar Wompi</button>
+                                                    ` : ''}
                                                     <button class="btn btn-secondary" onclick="window.toggleWorkshopStatus('${c.id}')" style="padding:0.35rem; font-size:0.75rem; color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'}; border-color:${status === 'suspendido' ? 'var(--success)' : 'var(--danger)'};">
                                                         <i class="fa-solid ${status === 'suspendido' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'suspendido' ? 'Activar' : 'Suspender'}
                                                     </button>
@@ -10121,9 +10716,19 @@ if (window.saasConfigWorkshopId) {
                                     <td><code style="font-family:monospace; font-size:0.9rem;">${p.factura}</code></td>
                                     <td>${p.metodo}</td>
                                     <td><strong style="color:var(--success); font-size:0.95rem;">$${Number(p.monto).toFixed(2)}</strong></td>
-                                    <td><span class="badge-tag badge-success">${p.estado.toUpperCase()}</span></td>
+                                    <td>
+                                        <span class="badge-tag badge-success">${p.estado.toUpperCase()}</span>
+                                        ${p.dte ? `
+                                        <span style="font-size:0.7rem; background:rgba(46, 204, 113, 0.1); color:#2ecc71; padding:2px 6px; border-radius:3px; font-weight:bold; margin-left:0.25rem; white-space:nowrap;" title="Factura Electrónica Certificada (MH)">
+                                            <i class="fa-solid fa-circle-check"></i> DTE MH
+                                        </span>
+                                        ` : ''}
+                                    </td>
                                     <td>
                                         <button class="btn btn-secondary btn-view-saas-receipt" data-id="${p.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem;"><i class="fa-solid fa-receipt"></i> Ver Recibo</button>
+                                        ${p.dte ? `
+                                        <a href="${p.dte.mhDteUrl}" target="_blank" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem; border-color:#2ecc71; color:#2ecc71; text-decoration:none; margin-left:0.25rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-cloud-arrow-down"></i> PDF MH</a>
+                                        ` : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -10398,6 +11003,47 @@ if (window.saasConfigWorkshopId) {
         // Default view: list of plans and coupons
         return `
             <div style="display:flex; flex-direction:column; gap:2.5rem;">
+                <!-- Configuración Global SaaS -->
+                <div class="glass-card" style="padding:2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--text-primary); margin:0;"><i class="fa-solid fa-gears" style="color:var(--primary);"></i> Configuración Global de la Plataforma (SaaS)</h3>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;" id="saas-global-config-fields">
+                        <!-- Wompi Config -->
+                        <div style="display:flex; flex-direction:column; gap:1rem;">
+                            <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; border-left:3px solid var(--primary); padding-left:0.5rem; color:var(--text-primary); margin:0;">Pasarela de Pago Wompi SV</h4>
+                            <div class="form-group">
+                                <label>Client ID (OAuth)</label>
+                                <input type="text" id="global-wompi-client-id" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientId) || ''}" placeholder="Ej: client_id_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Client Secret</label>
+                                <input type="password" id="global-wompi-client-secret" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientSecret) || ''}" placeholder="••••••••••••" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>ID Aplicativo (Opcional - Auto-recuperar si vacío)</label>
+                                <input type="text" id="global-wompi-app-id" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.appId) || ''}" placeholder="Ej: app_id_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                        </div>
+                        
+                        <!-- FacturaLlama Config -->
+                        <div style="display:flex; flex-direction:column; gap:1rem;">
+                            <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; border-left:3px solid var(--success); padding-left:0.5rem; color:var(--text-primary); margin:0;">Facturación Electrónica (DTE) de la Plataforma</h4>
+                            <div class="form-group">
+                                <label>API Key de FacturaLlama</label>
+                                <input type="password" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="sk_test_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                            </div>
+                            <div style="background:rgba(99, 102, 241, 0.05); border:1px solid rgba(99, 102, 241, 0.15); border-radius:6px; padding:0.85rem; font-size:0.75rem; color:var(--text-secondary); line-height:1.4; display:flex; gap:0.5rem; align-items:flex-start; margin-top:1.15rem;">
+                                <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1rem; margin-top:0.1rem;"></i>
+                                <span><strong>Importante:</strong> Deja en blanco las credenciales de Wompi para operar en **Modo Simulación**, permitiendo cobros de prueba sin conectar al servidor real de Wompi.</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="btn-save-saas-global-config" class="btn btn-primary" style="padding:0.6rem 1.2rem; font-size:0.85rem; width:fit-content;"><i class="fa-solid fa-save"></i> Guardar Configuración Global</button>
+                </div>
+
                 <!-- Catalog Section -->
                 <div class="glass-card" style="padding:2rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">

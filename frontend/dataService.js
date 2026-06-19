@@ -79,7 +79,11 @@ const dataService = {
                 solicitudes_registro: [],
                 saas_payments: [],
                 saas_plans: defaultPlans,
-                saas_coupons: defaultCoupons
+                saas_coupons: defaultCoupons,
+                saas_config: {
+                    wompi: { clientId: '', clientSecret: '', appId: '' },
+                    dte: { apiKey: 'test_sk_mecanicos_default_sandbox_key_998877' }
+                }
             };
             localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
         } else {
@@ -109,6 +113,13 @@ const dataService = {
             if (!this.cache.saas_payments) { this.cache.saas_payments = []; changed = true; }
             if (!this.cache.saas_plans) { this.cache.saas_plans = defaultPlans; changed = true; }
             if (!this.cache.saas_coupons) { this.cache.saas_coupons = defaultCoupons; changed = true; }
+            if (!this.cache.saas_config) {
+                this.cache.saas_config = {
+                    wompi: { clientId: '', clientSecret: '', appId: '' },
+                    dte: { apiKey: 'test_sk_mecanicos_default_sandbox_key_998877' }
+                };
+                changed = true;
+            }
             
             if (changed) {
                 localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
@@ -211,6 +222,7 @@ const dataService = {
                             saas_state: db.saas_state || {},
                             role_permissions: db.role_permissions || {},
                             saas_payments: db.saas_payments || [],
+                            saas_config: db.saas_config || {},
                             updatedAt: new Date().toISOString(),
                             updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system'
                         }, { merge: mergeEnabled() });
@@ -270,10 +282,9 @@ const dataService = {
         if (!uid || typeof dbFirestore === 'undefined' || !dbFirestore) return;
         this.workshopOwnerUid = uid;
         this.readOnlyMode = employeeMode;
-        // En modo propietario, activeUserUid = uid (para escrituras propias)
-        // En modo empleado, activeUserUid = uid también (escribe al taller del dueño)
+        this.stopSync(); // Cancelar listeners anteriores (NO limpia activeUserUid)
+        // IMPORTANTE: setear activeUserUid DESPUÉS de stopSync para que no se pierda
         this.activeUserUid = uid;
-        this.stopSync(); // Unsubscribe active listeners first
 
         const docRef = dbFirestore.collection("workshops").doc(uid);
 
@@ -297,6 +308,10 @@ const dataService = {
                 }
                 if (data.saas_payments && JSON.stringify(this.cache.saas_payments) !== JSON.stringify(data.saas_payments)) { 
                     this.cache.saas_payments = data.saas_payments; 
+                    changed = true; 
+                }
+                if (data.saas_config && JSON.stringify(this.cache.saas_config) !== JSON.stringify(data.saas_config)) { 
+                    this.cache.saas_config = data.saas_config; 
                     changed = true; 
                 }
                 
@@ -381,9 +396,17 @@ const dataService = {
         });
     },
 
+    // Solo cancela los listeners de Firestore (NO limpia activeUserUid).
+    // Llamar disconnect() para un cierre de sesión completo.
     stopSync() {
         this.listeners.forEach(unsubscribe => unsubscribe());
         this.listeners = [];
+        // activeUserUid se preserva intencionalmente para que save() siga escribiendo
+    },
+
+    // Desconectar completamente (cierre de sesión / logout real)
+    disconnect() {
+        this.stopSync();
         this.activeUserUid = null;
         this.workshopOwnerUid = null;
         this.readOnlyMode = false;
@@ -417,6 +440,7 @@ const dataService = {
             saas_state: this.cache.saas_state || {},
             role_permissions: this.cache.role_permissions || {},
             saas_payments: this.cache.saas_payments || [],
+            saas_config: this.cache.saas_config || {},
             updatedAt: new Date().toISOString(),
             updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system-migration'
         }, { merge: true });

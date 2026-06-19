@@ -57,6 +57,391 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // HELPER FUNCTION FOR WOMPI API REQUESTS
+    function makeWompiRequest(url, method, headers, body) {
+        return new Promise((resolve, reject) => {
+            const u = new URL(url);
+            const options = {
+                method: method,
+                hostname: u.hostname,
+                path: u.pathname + u.search,
+                headers: headers
+            };
+            const req = https.request(options, (res) => {
+                let resBody = '';
+                res.on('data', chunk => resBody += chunk);
+                res.on('end', () => {
+                    resolve({
+                        statusCode: res.statusCode,
+                        body: resBody
+                    });
+                });
+            });
+            req.on('error', err => reject(err));
+            if (body) {
+                req.write(body);
+            }
+            req.end();
+        });
+    }
+
+    // 1.1 WOMPI: CREATE RECURRING PAYMENT LINK
+    if (req.method === 'POST' && req.url === '/api/wompi/create-link') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const { workshopId, workshopName, planName, amount, diaDePago, wompiConfig } = JSON.parse(body);
+                
+                const config = wompiConfig || {};
+                const clientId = config.clientId || process.env.WOMPI_CLIENT_ID;
+                const clientSecret = config.clientSecret || process.env.WOMPI_CLIENT_SECRET;
+                let appId = config.appId || process.env.WOMPI_APP_ID;
+                
+                const isSimulation = !clientId || !clientSecret || 
+                                    clientId.trim() === '' || clientSecret.trim() === '' || 
+                                    clientId.startsWith('simulado_') || clientSecret.startsWith('simulado_') ||
+                                    clientId.startsWith('test_') || clientSecret.startsWith('test_');
+                
+                if (isSimulation) {
+                    console.log("Wompi: Running in SIMULATION MODE. Generating local redirect URL.");
+                    const mockIdEnlace = "MOCK-ENLACE-" + Math.floor(Date.now() / 1000).toString() + "-" + Math.floor(Math.random()*10000);
+                    // Use host from header or default localhost
+                    const host = req.headers.host || `localhost:${PORT}`;
+                    const protocol = req.headers['x-forwarded-proto'] || 'http';
+                    const redirectUrl = `${protocol}://${host}/#pago-suscripcion-wompi-callback?id=${workshopId}&idEnlace=${mockIdEnlace}&status=success`;
+                    
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: true,
+                        simulated: true,
+                        idEnlace: mockIdEnlace,
+                        urlEnlace: redirectUrl
+                    }));
+                    return;
+                }
+                
+                console.log(`Wompi: Connecting to Wompi SV with Client ID: ${clientId.substring(0,8)}...`);
+                
+                // 1. Get OAuth Token
+                const tokenUrl = 'https://id.wompi.sv/connect/token';
+                const tokenBody = new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    audience: 'wompi_api'
+                }).toString();
+                
+                const tokenRes = await makeWompiRequest(tokenUrl, 'POST', {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(tokenBody)
+                }, tokenBody);
+                
+                if (tokenRes.statusCode !== 200) {
+                    console.error("Wompi OAuth Token Error:", tokenRes.body);
+                    res.statusCode = tokenRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "AuthError", 
+                        message: "Error de autenticación con Wompi. Por favor verifica tus credenciales.", 
+                        details: tokenRes.body 
+                    }));
+                    return;
+                }
+                
+                const { access_token } = JSON.parse(tokenRes.body);
+                
+                // 2. Fetch appId if not provided
+                if (!appId || appId.trim() === '') {
+                    console.log("Wompi: Fetching idAplicativo automatically...");
+                    const appRes = await makeWompiRequest('https://api.wompi.sv/Aplicativo', 'GET', {
+                        'Authorization': `Bearer ${access_token}`
+                    });
+                    
+                    if (appRes.statusCode === 200) {
+                        const appData = JSON.parse(appRes.body);
+                        appId = appData.idAplicativo;
+                        console.log("Wompi: Retrieved idAplicativo:", appId);
+                    } else {
+                        console.error("Wompi Fetch Aplicativo Error:", appRes.body);
+                        res.statusCode = appRes.statusCode;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ 
+                            success: false, 
+                            error: "AppFetchError", 
+                            message: "No se pudo recuperar el ID del aplicativo desde Wompi.", 
+                            details: appRes.body 
+                        }));
+                        return;
+                    }
+                }
+                
+                // 3. Create EnlacePagoRecurrente
+                const createLinkUrl = 'https://api.wompi.sv/EnlacePagoRecurrente';
+                const linkPayload = JSON.stringify({
+                    diaDePago: parseInt(diaDePago) || 1,
+                    nombre: `Mecanic OS - Plan ${planName}`,
+                    idAplicativo: appId,
+                    monto: parseFloat(amount),
+                    descripcionProducto: `Suscripción mensual a Mecanic OS - Taller ${workshopName}`
+                });
+                
+                console.log("Wompi: Creating EnlacePagoRecurrente...");
+                const linkRes = await makeWompiRequest(createLinkUrl, 'POST', {
+                    'Authorization': `Bearer ${access_token}`,
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(linkPayload)
+                }, linkPayload);
+                
+                if (linkRes.statusCode !== 200 && linkRes.statusCode !== 201) {
+                    console.error("Wompi Create Link Error:", linkRes.body);
+                    res.statusCode = linkRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "CreateLinkError", 
+                        message: "Error al generar enlace de cobro recurrente en Wompi.", 
+                        details: linkRes.body 
+                    }));
+                    return;
+                }
+                
+                const linkData = JSON.parse(linkRes.body);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({
+                    success: true,
+                    simulated: false,
+                    idEnlace: linkData.idEnlace,
+                    urlEnlace: linkData.urlEnlace
+                }));
+                
+            } catch (err) {
+                console.error("Wompi Exception:", err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "InternalError", message: err.message }));
+            }
+        });
+        return;
+    }
+
+    // 1.2 WOMPI: CHECK SUBSCRIPTION STATUS
+    if (req.method === 'POST' && req.url === '/api/wompi/check-subscription') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const { idEnlace, wompiConfig } = JSON.parse(body);
+                
+                if (!idEnlace) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "idEnlace es requerido" }));
+                    return;
+                }
+                
+                if (idEnlace.startsWith('MOCK-ENLACE-')) {
+                    console.log(`Wompi Check: Simulating active subscription for ${idEnlace}`);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: true,
+                        subscribed: true,
+                        simulated: true,
+                        details: {
+                            status: 'activo',
+                            nombreCliente: 'Taller Simulado (Modo Pruebas)',
+                            fechaAfiliacion: new Date().toISOString()
+                        }
+                    }));
+                    return;
+                }
+                
+                const config = wompiConfig || {};
+                const clientId = config.clientId || process.env.WOMPI_CLIENT_ID;
+                const clientSecret = config.clientSecret || process.env.WOMPI_CLIENT_SECRET;
+                
+                if (!clientId || !clientSecret || clientId.trim() === '' || clientSecret.trim() === '') {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Credenciales de Wompi faltantes para verificar la suscripción." }));
+                    return;
+                }
+                
+                // 1. Get OAuth Token
+                const tokenUrl = 'https://id.wompi.sv/connect/token';
+                const tokenBody = new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    audience: 'wompi_api'
+                }).toString();
+                
+                const tokenRes = await makeWompiRequest(tokenUrl, 'POST', {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(tokenBody)
+                }, tokenBody);
+                
+                if (tokenRes.statusCode !== 200) {
+                    res.statusCode = tokenRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "AuthError", 
+                        message: "Error de autenticación con Wompi al verificar suscripción.", 
+                        details: tokenRes.body 
+                    }));
+                    return;
+                }
+                
+                const { access_token } = JSON.parse(tokenRes.body);
+                
+                // 2. Fetch subscriptions for link
+                const subUrl = `https://api.wompi.sv/EnlacePagoRecurrente/${idEnlace}/suscripciones`;
+                console.log(`Wompi: Checking subscriptions for link ${idEnlace}...`);
+                
+                const subRes = await makeWompiRequest(subUrl, 'GET', {
+                    'Authorization': `Bearer ${access_token}`
+                });
+                
+                if (subRes.statusCode !== 200) {
+                    res.statusCode = subRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "CheckSubError", 
+                        message: "Error al consultar las suscripciones en Wompi.", 
+                        details: subRes.body 
+                    }));
+                    return;
+                }
+                
+                const list = JSON.parse(subRes.body);
+                const hasActive = Array.isArray(list) && list.length > 0;
+                
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({
+                    success: true,
+                    subscribed: hasActive,
+                    simulated: false,
+                    list: list
+                }));
+                
+            } catch (err) {
+                console.error("Wompi Check Exception:", err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "InternalError", message: err.message }));
+            }
+        });
+        return;
+    }
+
+    // 1.3 WOMPI: DEACTIVATE RECURRING PAYMENT LINK
+    if (req.method === 'POST' && req.url === '/api/wompi/deactivate-link') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const { idEnlace, wompiConfig } = JSON.parse(body);
+                
+                if (!idEnlace) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "idEnlace es requerido" }));
+                    return;
+                }
+                
+                if (idEnlace.startsWith('MOCK-ENLACE-')) {
+                    console.log(`Wompi Deactivate: Simulating deactivation for ${idEnlace}`);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: true, deactivated: true, simulated: true }));
+                    return;
+                }
+                
+                const config = wompiConfig || {};
+                const clientId = config.clientId || process.env.WOMPI_CLIENT_ID;
+                const clientSecret = config.clientSecret || process.env.WOMPI_CLIENT_SECRET;
+                
+                if (!clientId || !clientSecret || clientId.trim() === '' || clientSecret.trim() === '') {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Credenciales de Wompi faltantes para desactivar la suscripción." }));
+                    return;
+                }
+                
+                // 1. Get OAuth Token
+                const tokenUrl = 'https://id.wompi.sv/connect/token';
+                const tokenBody = new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    audience: 'wompi_api'
+                }).toString();
+                
+                const tokenRes = await makeWompiRequest(tokenUrl, 'POST', {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(tokenBody)
+                }, tokenBody);
+                
+                if (tokenRes.statusCode !== 200) {
+                    res.statusCode = tokenRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "AuthError", 
+                        message: "Error de autenticación con Wompi al desactivar.", 
+                        details: tokenRes.body 
+                    }));
+                    return;
+                }
+                
+                const { access_token } = JSON.parse(tokenRes.body);
+                
+                // 2. Deactivate link
+                const deactivateUrl = `https://api.wompi.sv/EnlacePagoRecurrente/${idEnlace}`;
+                console.log(`Wompi: Deactivating recurring link ${idEnlace}...`);
+                
+                const deactivateRes = await makeWompiRequest(deactivateUrl, 'POST', {
+                    'Authorization': `Bearer ${access_token}`,
+                    'Content-Length': '0'
+                });
+                
+                if (deactivateRes.statusCode !== 200 && deactivateRes.statusCode !== 204) {
+                    res.statusCode = deactivateRes.statusCode;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ 
+                        success: false, 
+                        error: "DeactivateError", 
+                        message: "Error al desactivar el enlace de cobro en Wompi.", 
+                        details: deactivateRes.body 
+                    }));
+                    return;
+                }
+                
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({
+                    success: true,
+                    deactivated: true,
+                    simulated: false
+                }));
+                
+            } catch (err) {
+                console.error("Wompi Deactivate Exception:", err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "InternalError", message: err.message }));
+            }
+        });
+        return;
+    }
+
     if (req.method === 'POST' && req.url === '/api/dte') {
         let body = '';
         req.on('data', chunk => {
