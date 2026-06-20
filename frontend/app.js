@@ -15055,16 +15055,75 @@ window.exportInspectionPDF = function(revId) {
 <html>
 <head>
     <title>Reporte de Inspección - ${revision.ID_Revision}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             color: #1e293b;
-            background: #fff;
+            background-color: #f8fafc;
             margin: 0;
-            padding: 30px;
+            padding: 0;
             font-size: 13px;
             line-height: 1.5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .no-print-toolbar {
+            background-color: #1e293b;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            font-family: 'Inter', sans-serif;
+        }
+        .no-print-toolbar h3 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .toolbar-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-print {
+            background-color: #10b981;
+            color: #fff;
+        }
+        .btn-print:hover {
+            background-color: #059669;
+        }
+        .btn-close {
+            background-color: #64748b;
+            color: #fff;
+        }
+        .btn-close:hover {
+            background-color: #475569;
+        }
+        .page-container {
+            width: 820px;
+            margin: 30px auto;
+            background-color: #fff;
+            padding: 40px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 8px;
         }
         .header {
             display: flex;
@@ -15160,89 +15219,107 @@ window.exportInspectionPDF = function(revId) {
             color: #475569;
         }
         @media print {
-            body { padding: 0; }
-            button { display: none; }
+            body {
+                background-color: #fff;
+                color: #000;
+                padding: 0;
+            }
+            .no-print-toolbar {
+                display: none !important;
+            }
+            .page-container {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            @page {
+                size: portrait;
+                margin: 1.2cm;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            ${logoHtml}
-            <div style="font-size:11px; color:#475569; margin-top:5px;">
-                <strong>${ws.nombre || ''}</strong><br>
-                ${ws.direccion || ''}<br>
-                Teléfono: ${ws.telefono || ''} | Correo: ${ws.correo || ''}
+    <div class="no-print-toolbar">
+        <h3>Hoja de Recepción e Inspección - ${revision.ID_Revision}</h3>
+        <div class="toolbar-buttons">
+            <button class="btn-action btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir o Guardar PDF</button>
+            <button class="btn-action btn-close" onclick="window.close()"><i class="fa-solid fa-xmark"></i> Cerrar Vista</button>
+        </div>
+    </div>
+    <div class="page-container">
+        <div class="header">
+            <div class="header-left">
+                ${logoHtml}
+                <div style="font-size:11px; color:#475569; margin-top:5px;">
+                    <strong>${ws.nombre || ''}</strong><br>
+                    ${ws.direccion || ''}<br>
+                    Teléfono: ${ws.telefono || ''} | Correo: ${ws.correo || ''}
+                </div>
+            </div>
+            <div class="header-right">
+                <h1 class="doc-title">HOJA DE RECEPCIÓN E INSPECCIÓN</h1>
+                <div style="margin-top:8px; font-size:12px;">
+                    <span>ID Reporte: <strong>${revision.ID_Revision}</strong></span><br>
+                    <span>Fecha: <strong>${revision.Fecha}</strong></span>
+                </div>
             </div>
         </div>
-        <div class="header-right">
-            <h1 class="doc-title">HOJA DE RECEPCIÓN E INSPECCIÓN</h1>
-            <div style="margin-top:8px; font-size:12px;">
-                <span>ID Reporte: <strong>${revision.ID_Revision}</strong></span><br>
-                <span>Fecha: <strong>${revision.Fecha}</strong></span>
+
+        <div class="meta-grid">
+            <div class="meta-card">
+                <h3>Datos del Cliente</h3>
+                <p><strong>Nombre:</strong> ${client.Nombre}</p>
+                <p><strong>Documento:</strong> ${client.DUI || client.NIT || revision.Correo || 'N/A'}</p>
+                <p><strong>Teléfono:</strong> ${revision['Telefono 1 '] || 'N/A'}</p>
+                <p><strong>Correo:</strong> ${revision.Correo || 'N/A'}</p>
+            </div>
+            <div class="meta-card">
+                <h3>Datos del Vehículo</h3>
+                <p><strong>Marca / Modelo:</strong> ${revision.Marca || 'N/A'} ${revision.Modelo || ''}</p>
+                <p><strong>Año:</strong> ${revision.Año || 'N/A'}</p>
+                <p><strong>Número de Placas:</strong> ${revision.Placas || 'N/A'}</p>
+                <p><strong>Kilometraje / Odómetro:</strong> ${revision.Odometro || 'N/A'}</p>
+            </div>
+        </div>
+
+        <div class="section-title">Fallas Reportadas por el Cliente / Motivo de Ingreso</div>
+        <div class="block-text">
+            ${revision.Fallas_Reportadas || 'No se reportaron fallas específicas.'}
+        </div>
+
+        <div class="section-title">Resultados del Semáforo de Revisión Técnica</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding: 10px;">Punto de Inspección</th>
+                    <th style="text-align: center; padding: 10px;">Estado de Inspección</th>
+                    <th style="text-align: left; padding: 10px;">Observaciones / Detalles Técnicos</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${checksRows}
+            </tbody>
+        </table>
+
+        <div class="section-title">Observaciones Generales de la Inspección</div>
+        <div class="block-text">
+            ${revision.Observaciones_Generales || 'Ninguna observación adicional.'}
+        </div>
+
+        <div class="signatures">
+            <div>
+                <div style="height: 60px;"></div>
+                <div class="signature-line">Firma del Técnico Evaluador</div>
+            </div>
+            <div>
+                <div style="height: 60px;"></div>
+                <div class="signature-line">Firma de Recepción del Cliente</div>
             </div>
         </div>
     </div>
-
-    <div class="meta-grid">
-        <div class="meta-card">
-            <h3>Datos del Cliente</h3>
-            <p><strong>Nombre:</strong> ${client.Nombre}</p>
-            <p><strong>Documento:</strong> ${client.DUI || client.NIT || revision.Correo || 'N/A'}</p>
-            <p><strong>Teléfono:</strong> ${revision['Telefono 1 '] || 'N/A'}</p>
-            <p><strong>Correo:</strong> ${revision.Correo || 'N/A'}</p>
-        </div>
-        <div class="meta-card">
-            <h3>Datos del Vehículo</h3>
-            <p><strong>Marca / Modelo:</strong> ${revision.Marca || 'N/A'} ${revision.Modelo || ''}</p>
-            <p><strong>Año:</strong> ${revision.Año || 'N/A'}</p>
-            <p><strong>Número de Placas:</strong> ${revision.Placas || 'N/A'}</p>
-            <p><strong>Kilometraje / Odómetro:</strong> ${revision.Odometro || 'N/A'}</p>
-        </div>
-    </div>
-
-    <div class="section-title">Fallas Reportadas por el Cliente / Motivo de Ingreso</div>
-    <div class="block-text">
-        ${revision.Fallas_Reportadas || 'No se reportaron fallas específicas.'}
-    </div>
-
-    <div class="section-title">Resultados del Semáforo de Revisión Técnica</div>
-    <table>
-        <thead>
-            <tr>
-                <th style="text-align: left; padding: 10px;">Punto de Inspección</th>
-                <th style="text-align: center; padding: 10px;">Estado de Inspección</th>
-                <th style="text-align: left; padding: 10px;">Observaciones / Detalles Técnicos</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${checksRows}
-        </tbody>
-    </table>
-
-    <div class="section-title">Observaciones Generales de la Inspección</div>
-    <div class="block-text">
-        ${revision.Observaciones_Generales || 'Ninguna observación adicional.'}
-    </div>
-
-    <div class="signatures">
-        <div>
-            <div style="height: 60px;"></div>
-            <div class="signature-line">Firma del Técnico Evaluador</div>
-        </div>
-        <div>
-            <div style="height: 60px;"></div>
-            <div class="signature-line">Firma de Recepción del Cliente</div>
-        </div>
-    </div>
-
-    <script>
-        window.onload = function() {
-            setTimeout(function() {
-                window.print();
-            }, 500);
-        }
-    </script>
 </body>
 </html>
     `;
