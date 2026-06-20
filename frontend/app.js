@@ -442,7 +442,7 @@ async function emitSubscriptionDTE(payment, workshop) {
     console.log(`DTE Emission: Transmitting ${docType.toUpperCase()} for SaaS subscription:`, dtePayload);
     
     try {
-        const response = await fetch('/api/dte', {
+        const response = await fetch(`${getBackendUrl(db)}/api/dte`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
