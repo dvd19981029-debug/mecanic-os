@@ -1608,7 +1608,7 @@ function renderClientesVehiculos(container, queryParams) {
                             </select>
                         </div>
                     </div>
-                    <div class="form-row" id="credit-fields-row" style="display: none;">
+                    <div class="form-row" id="credit-fields-row">
                         <div class="form-group">
                             <label>Monto de Crédito ($)</label>
                             <input type="number" id="new-client-credit-limit" value="0" min="0" step="100">
@@ -1732,7 +1732,7 @@ function renderClientesVehiculos(container, queryParams) {
                             </select>
                         </div>
                     </div>
-                    <div class="form-row" id="edit-credit-fields-row" style="display: none;">
+                    <div class="form-row" id="edit-credit-fields-row">
                         <div class="form-group">
                             <label>Monto de Crédito ($)</label>
                             <input type="number" id="edit-client-credit-limit" value="0" min="0" step="100">
@@ -1978,13 +1978,6 @@ function renderClientesVehiculos(container, queryParams) {
             document.getElementById('edit-client-phone').value = client['Telefono 1 '] || '';
             document.getElementById('edit-client-address').value = client.Direccion || '';
             
-            const creditRow = document.getElementById('edit-credit-fields-row');
-            if (client['Credito?'] === 'SI') {
-                creditRow.style.display = 'grid';
-            } else {
-                creditRow.style.display = 'none';
-            }
-            
             document.getElementById('edit-client-modal').classList.add('active');
         });
 
@@ -2038,19 +2031,6 @@ function renderClientesVehiculos(container, queryParams) {
     document.getElementById('cancel-add-vehicle').addEventListener('click', () => {
         document.getElementById('add-vehicle-modal').classList.remove('active');
     });
-    
-    // Toggle credit limit/days input display based on credit setting
-    if (document.getElementById('new-client-has-credit')) {
-        document.getElementById('new-client-has-credit').addEventListener('change', (e) => {
-            const row = document.getElementById('credit-fields-row');
-            if (e.target.value === 'SI') {
-                row.style.display = 'grid';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
-
     // Handle Add Client Submit
     document.getElementById('add-client-form').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -2118,19 +2098,6 @@ function renderClientesVehiculos(container, queryParams) {
             document.getElementById('edit-client-modal').classList.remove('active');
         });
     }
-    
-    // Toggle edit credit limit/days input display based on credit setting
-    if (document.getElementById('edit-client-has-credit')) {
-        document.getElementById('edit-client-has-credit').addEventListener('change', (e) => {
-            const row = document.getElementById('edit-credit-fields-row');
-            if (e.target.value === 'SI') {
-                row.style.display = 'grid';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
-
     // Handle Edit Client Submit
     if (document.getElementById('edit-client-form')) {
         document.getElementById('edit-client-form').addEventListener('submit', (e) => {
