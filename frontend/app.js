@@ -3835,6 +3835,31 @@ function renderInvoicingWorkspace(container, presId) {
     }
     
     const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+
+    if (p.Estado == 3) {
+        container.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <a href="#facturador" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
+            </div>
+            
+            <div class="glass-card" style="text-align: center; padding: 3rem 1.5rem; border-color: var(--warning);">
+                <i class="fa-solid fa-circle-check" style="font-size: 4rem; color: var(--success); margin-bottom: 1rem;"></i>
+                <h3 style="color: var(--success);">Presupuesto ya Facturado</h3>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem; max-width: 500px; margin-left: auto; margin-right: auto; font-size: 0.95rem;">
+                    Este presupuesto (ID: <strong>${presId}</strong>) ya ha sido procesado y transmitido con éxito al Ministerio de Hacienda.
+                </p>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; max-width: 450px; margin: 1.5rem auto; text-align: left; font-size: 0.85rem;">
+                    <p style="margin-bottom: 0.4rem;"><strong>Documento Emitido:</strong> ${p.Doc_a_Emitir || 'N/A'}</p>
+                    <p style="margin-bottom: 0.4rem;"><strong>Código de Generación:</strong> <code style="color: var(--cyan); word-break: break-all;">${p.controlNumber || 'N/A'}</code></p>
+                    <p style="margin-bottom: 0;"><strong>Fecha de Facturación:</strong> ${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString() : 'N/A'}</p>
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+                    <a href="#facturador" onclick="localStorage.setItem('mecanic_os_facturador_active_tab', 'issued')" class="btn btn-primary"><i class="fa-solid fa-list-check"></i> Ver Historial de DTEs</a>
+                </div>
+            </div>
+        `;
+        return;
+    }
     
     container.innerHTML = `
         <div style="margin-bottom: 1.5rem;">
@@ -4142,6 +4167,16 @@ function renderInvoicingWorkspace(container, presId) {
 
             saveDatabase(db);
             showToast("DTE Generado y Aprobado por MH El Salvador!", "success");
+
+            // Hide billing settings and make layout full-width to prevent re-emission
+            const billingSettings = document.getElementById('invoice-billing-settings');
+            if (billingSettings) {
+                billingSettings.style.display = 'none';
+            }
+            const gridEl = container.querySelector('.form-row');
+            if (gridEl) {
+                gridEl.style.gridTemplateColumns = '1fr';
+            }
             
             const wsConfig = getWorkshopConfig(db);
             
