@@ -10471,6 +10471,10 @@ async function renderAdminSolicitudes(container) {
                                 <label>Factura Llama API Key (Private Key)</label>
                                 <input type="text" id="detail-dte-apikey" value="${dte.apiKey || ''}" placeholder="sk_live_... o sk_test_..." style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
                             </div>
+                            <div class="form-group">
+                                <label>URL de Servidor Backend / Proxy (Opcional - Usar Global si vacío)</label>
+                                <input type="text" id="detail-dte-backendurl" value="${dte.backendUrl || ''}" placeholder="https://mecanic-os-backend.onrender.com" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
+                            </div>
                             <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
                                 <button type="submit" class="btn btn-primary" style="flex:1; padding:0.5rem; font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-save"></i> Guardar DTE</button>
                                 <button type="button" id="btn-test-dte-conn" class="btn btn-secondary" style="flex:1; padding:0.5rem; font-size:0.8rem; color:var(--cyan); border-color:var(--cyan);"><i class="fa-solid fa-plug"></i> Probar Conexión</button>
@@ -10738,13 +10742,14 @@ async function renderAdminSolicitudes(container) {
                     dteForm.addEventListener('submit', (e) => {
                         e.preventDefault();
                         const apiKey = document.getElementById('detail-dte-apikey').value.trim();
+                        const backendUrl = document.getElementById('detail-dte-backendurl').value.trim();
 
                         workshop.dte_config = {
                             apiKey,
                             ambiente: apiKey.startsWith('live_') ? '01' : '00',
                             mhCode: '0001',
                             posNumber: '1',
-                            backendUrl: ''
+                            backendUrl
                         };
 
                         if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
@@ -10769,6 +10774,7 @@ async function renderAdminSolicitudes(container) {
                 if (testDteBtn) {
                     testDteBtn.addEventListener('click', () => {
                         const apiKey = document.getElementById('detail-dte-apikey').value.trim();
+                        const customBackendUrl = document.getElementById('detail-dte-backendurl').value.trim();
                         if (!apiKey) {
                             showToast("Ingrese la API Key para realizar la prueba.", "warning");
                             return;
@@ -10778,7 +10784,7 @@ async function renderAdminSolicitudes(container) {
                         const origText = testDteBtn.innerHTML;
                         testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
 
-                        const backendUrl = getBackendUrl(db);
+                        const backendUrl = customBackendUrl || getBackendUrl(db);
                         fetch(`${backendUrl}/api/dte/test-connection`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
