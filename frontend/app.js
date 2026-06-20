@@ -3461,6 +3461,7 @@ function renderFacturador(container, queryParams) {
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'BIENES',
+                    internalCode: item['ID_Producto DPP'] || '',
                     description: item.Descripcion || 'Producto',
                     quantity: parseInt(item.Cantidad || 1),
                     unitPrice: unitPrice,
@@ -3472,6 +3473,7 @@ function renderFacturador(container, queryParams) {
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'SERVICIOS',
+                    internalCode: item['ID_ManoObra'] || '',
                     description: item.Descripcion || 'Mano de Obra',
                     quantity: parseInt(item.Cantidad || 1),
                     unitPrice: unitPrice,
@@ -3480,17 +3482,32 @@ function renderFacturador(container, queryParams) {
             })
         ];
 
+        const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || { Placas: p.Placas || 'N/A' };
+        const vehicleInfo = `${vehicle.Placas || 'n/a'} ${vehicle.Marca || ''} ${vehicle.Modelo || ''} ${vehicle.Año || vehicle.Anio || ''}`;
+        const ws = (db.saas_state && db.saas_state.workshopData) || {};
+
         const dtePayload = {
             id: generateUUID(),
-            generatedAt: new Date().toISOString().split('T')[0],
-            paymentType: payCond === 'CREDITO' ? 'CREDITO' : 'CONTADO',
-            branchOffice: {
-                mhCode: dteCfg.mhCode || '0001',
-                posNumber: parseInt(dteCfg.posNumber || 1)
-            },
+            economicActivity: ws.actividad_economica || '45301',
             recipient: recipientPayload,
-            items: formattedItems
+            items: formattedItems,
+            apendice: [
+                {
+                    campo: "Orden-Compra",
+                    etiqueta: "OC",
+                    valor: "n/a"
+                }
+            ],
+            retentionRenta: 0.00,
+            retentionIva: 0.00,
+            comments: `Presupuesto: ${presId} | Vehiculo: ${vehicleInfo.trim()}`
         };
+
+        if (payCond === 'CREDITO') {
+            dtePayload.paymentType = 'CREDITO';
+        } else {
+            dtePayload.paymentType = 'CONTADO';
+        }
 
         // Loading state
         emitBtn.disabled = true;
