@@ -2587,9 +2587,8 @@ function renderPresupuestos(container, queryParams) {
                             <th>Fecha</th>
                             <th>Cliente</th>
                             <th>Placas Auto</th>
-                            <th>Fallas / Diagnóstico</th>
+                            <th>Total (Con IVA)</th>
                             <th>Estado</th>
-                            <th>DTE Relacionado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -2605,6 +2604,9 @@ function renderPresupuestos(container, queryParams) {
     const searchInput = document.getElementById('budget-search');
 
     function populateBudgetsList(filter = '') {
+        if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+        if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+
         rowsContainer.innerHTML = '';
         const filtered = db.presupuestos.filter(p => 
             (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
@@ -2613,7 +2615,7 @@ function renderPresupuestos(container, queryParams) {
         );
 
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
+            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
             return;
         }
 
@@ -2631,15 +2633,35 @@ function renderPresupuestos(container, queryParams) {
                 ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
                 : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
             
+            // Calculate total for this budget
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+            
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            if (client.AplicaRetencion > 0) {
+                retVal = subtotal * parseFloat(client.AplicaRetencion);
+            }
+            if (client.AplicaPercepcion > 0) {
+                percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            }
+            const grandTotal = subtotal + iva + percVal - retVal;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${p['ID Presupuesto']}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${p.Nombre}</td>
                 <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
-                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.Fallas_Detectadas || 'Diagnóstico de taller'}</td>
+                <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>${statusBadge}</td>
-                <td><small>${p.controlNumber || 'Sin Emitir (Pendiente)'}</small></td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
