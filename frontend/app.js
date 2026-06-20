@@ -4003,40 +4003,17 @@ function renderInvoicingWorkspace(container, presId) {
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
         const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
-        const endpoint = baseUrl ? `${baseUrl}/api/dte` : '/api/dte';
+        const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                apiKey: dteCfg.apiKey,
-                docType: type.toLowerCase(),
-                payload: dtePayload
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 404 && (!dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_'))) {
-                    return {
-                        success: true,
-                        simulated: true,
-                        code: "00",
-                        description: "DTE Simulado Exitosamente (Frontend Fallback)",
-                        generationCode: "MOCK-DTE-" + Math.floor(Date.now() / 1000).toString() + "-" + Math.floor(Math.random()*10000),
-                        controlNumber: "DTE-" + (type === 'CCF' ? '03' : '01') + "-M001P001-" + Math.floor(Math.random()*90000 + 10000),
-                        receptionSeal: Math.floor(Math.random()*9000000).toString() + "-APPROVED-" + Math.floor(Math.random()*9000),
-                        mhDteUrl: `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=MOCK&fechaEmi=${new Date().toISOString().split('T')[0]}`
-                    };
-                }
-                return response.json().then(errData => {
-                    throw new Error(errData.message || errData.error || 'Error al emitir DTE');
-                });
-            }
-            return response.json();
-        })
-        .then(resData => {
+        if (!baseUrl && !isSimulated) {
+            showToast("Error: Debe configurar la 'URL del Servidor Backend' en Ajustes para transmitir con su API Key real.", "danger");
+            emitBtn.disabled = false;
+            emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
+            return;
+        }
+
+        // Helper to process DTE emission success
+        function processSuccess(resData) {
             const genCode = resData.generationCode || resData.id || generateUUID();
             const ctrlNum = resData.controlNumber || ("DTE-" + (type === 'CCF' ? '03' : '01') + "-M001P001-0000" + Math.floor(Math.random()*9000 + 1000));
             const seal = resData.receptionSeal || (Math.floor(Math.random()*900000) + "-APPROVED");
@@ -4154,6 +4131,58 @@ function renderInvoicingWorkspace(container, presId) {
             document.getElementById('btn-done-goto-history').addEventListener('click', (ev) => {
                 localStorage.setItem('mecanic_os_facturador_active_tab', 'issued');
             });
+            
+            emitBtn.disabled = false;
+            emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
+        }
+
+        if (isSimulated) {
+            // Frontend Simulation Fallback
+            setTimeout(() => {
+                const simulatedRes = {
+                    success: true,
+                    simulated: true,
+                    code: "00",
+                    description: "DTE Simulado Exitosamente (Frontend Fallback)",
+                    generationCode: "MOCK-DTE-" + Math.floor(Date.now() / 1000).toString() + "-" + Math.floor(Math.random()*10000),
+                    controlNumber: "DTE-" + (type === 'CCF' ? '03' : '01') + "-M001P001-" + Math.floor(Math.random()*90000 + 10000),
+                    receptionSeal: Math.floor(Math.random()*9000000).toString() + "-APPROVED-" + Math.floor(Math.random()*9000),
+                    mhDteUrl: `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=MOCK&fechaEmi=${new Date().toISOString().split('T')[0]}`
+                };
+                processSuccess(simulatedRes);
+            }, 1200);
+            return;
+        }
+
+        const endpoint = `${baseUrl}/api/dte`;
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                apiKey: dteCfg.apiKey,
+                docType: type.toLowerCase(),
+                payload: dtePayload
+            })
+        })
+        .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("html")) {
+                throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL del backend en Ajustes.");
+            }
+            if (!response.ok) {
+                return response.json().then(errData => {
+                    throw new Error(errData.message || errData.error || 'Error al emitir DTE');
+                }).catch(() => {
+                    throw new Error(`Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.`);
+                });
+            }
+            return response.json();
+        })
+        .then(resData => {
+            processSuccess(resData);
         })
         .catch(err => {
             console.error(err);
@@ -4183,25 +4212,9 @@ function queryDteStatusMH(dteId) {
     document.body.appendChild(modal);
     
     const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
-    const endpoint = baseUrl ? `${baseUrl}/api/dte/retrieve` : '/api/dte/retrieve';
-    
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            apiKey: dteCfg.apiKey,
-            dteId: dteId
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.message || "Error al consultar DTE"); });
-        }
-        return response.json();
-    })
-    .then(data => {
+    const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
+
+    function renderQueryResult(data) {
         modal.innerHTML = `
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
@@ -4220,10 +4233,69 @@ function queryDteStatusMH(dteId) {
                 </div>
             </div>
         `;
-        
         const close = () => { modal.remove(); };
         document.getElementById('close-query-modal').addEventListener('click', close);
         document.getElementById('close-query-modal-btn').addEventListener('click', close);
+    }
+
+    if (isSimulated && !baseUrl) {
+        setTimeout(() => {
+            renderQueryResult({
+                id: dteId,
+                status: "APPROVED",
+                environment: "01",
+                controlNumber: "DTE-01-M001P001-99887",
+                message: "Consulta de DTE simulada con éxito (Modo Demo)"
+            });
+        }, 1000);
+        return;
+    }
+
+    if (!baseUrl) {
+        modal.innerHTML = `
+            <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2 style="color:var(--danger);">Error de Configuración</h2>
+                    <button class="close-modal-btn" id="close-query-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                <p>Debe configurar la 'URL del Servidor Backend' en Ajustes para consultar DTEs reales.</p>
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button class="btn btn-secondary" id="close-query-modal-btn">Cerrar</button>
+                </div>
+            </div>
+        `;
+        const close = () => { modal.remove(); };
+        document.getElementById('close-query-modal').addEventListener('click', close);
+        document.getElementById('close-query-modal-btn').addEventListener('click', close);
+        return;
+    }
+
+    const endpoint = `${baseUrl}/api/dte/retrieve`;
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            apiKey: dteCfg.apiKey,
+            dteId: dteId
+        })
+    })
+    .then(response => {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("html")) {
+            throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL en Ajustes.");
+        }
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.message || "Error al consultar DTE"); }).catch(() => {
+                throw new Error(`Error de conexión (Código ${response.status}).`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        renderQueryResult(data);
     })
     .catch(err => {
         modal.innerHTML = `
@@ -4301,7 +4373,39 @@ function openInvalidateDteModal(dteId, presId) {
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Anulando...';
         
         const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
-        const endpoint = baseUrl ? `${baseUrl}/api/dte/invalidate` : '/api/dte/invalidate';
+        const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
+
+        function processLocalInvalidation() {
+            const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
+            if (p) {
+                p.Estado = 2; // Return to Aprobado
+                delete p.controlNumber;
+                delete p.Fecha_Facturacion;
+                delete p.Doc_a_Emitir;
+                
+                if (db.pagos) {
+                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
+                }
+                saveDatabase(db);
+            }
+            closeModal();
+            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. El presupuesto regresó a estado Aprobado.", "success");
+            handleRouting();
+        }
+
+        if (isSimulated && !baseUrl) {
+            setTimeout(processLocalInvalidation, 1000);
+            return;
+        }
+
+        if (!baseUrl) {
+            showToast("Error: Debe configurar la URL del servidor backend en Ajustes para anular DTEs reales.", "danger");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-ban"></i> Confirmar Anulación';
+            return;
+        }
+
+        const endpoint = `${baseUrl}/api/dte/invalidate`;
         
         fetch(endpoint, {
             method: 'POST',
@@ -4317,28 +4421,19 @@ function openInvalidateDteModal(dteId, presId) {
             })
         })
         .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("html")) {
+                throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL del backend en Ajustes.");
+            }
             if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.message || "Error al invalidar DTE"); });
+                return response.json().then(err => { throw new Error(err.message || "Error al invalidar DTE"); }).catch(() => {
+                    throw new Error(`Error de conexión (Código ${response.status}).`);
+                });
             }
             return response.json();
         })
         .then(data => {
-            const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
-            if (p) {
-                p.Estado = 2; // Return to Aprobado
-                delete p.controlNumber;
-                delete p.Fecha_Facturacion;
-                delete p.Doc_a_Emitir;
-                
-                if (db.pagos) {
-                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
-                }
-                saveDatabase(db);
-            }
-            
-            closeModal();
-            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. El presupuesto regresó a estado Aprobado.", "success");
-            handleRouting();
+            processLocalInvalidation();
         })
         .catch(err => {
             submitBtn.disabled = false;
