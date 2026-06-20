@@ -3387,7 +3387,8 @@ function renderFacturador(container, queryParams) {
         }
         
         // Fetch FacturaLlama config
-        const dteCfg = JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
+        const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                       JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
             apiKey: '',
             ambiente: '00',
             mhCode: '0001',
@@ -3431,7 +3432,7 @@ function renderFacturador(container, queryParams) {
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
-        const baseUrl = dteCfg.backendUrl || '';
+        const baseUrl = dteCfg.backendUrl || (db.saas_config && db.saas_config.backendUrl) || '';
         const endpoint = baseUrl ? `${baseUrl}/api/dte` : '/api/dte';
 
         fetch(endpoint, {
@@ -4889,7 +4890,8 @@ function renderConfiguracion(container) {
     const db = getDatabase();
     
     // Load DTE configuration
-    const dteCfg = JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
+    const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
         apiKey: '',
         ambiente: '00',
         mhCode: '0001',
@@ -10388,27 +10390,6 @@ async function renderAdminSolicitudes(container) {
                                 <label>Factura Llama API Key (Private Key)</label>
                                 <input type="text" id="detail-dte-apikey" value="${dte.apiKey || ''}" placeholder="sk_live_... o sk_test_..." style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
                             </div>
-                            <div class="form-group">
-                                <label>Ambiente de Transmisión</label>
-                                <select id="detail-dte-ambiente" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
-                                    <option value="00" ${dte.ambiente === '00' ? 'selected' : ''}>00 - Pruebas / Sandbox (Hacienda)</option>
-                                    <option value="01" ${dte.ambiente === '01' ? 'selected' : ''}>01 - Producción / Live (Hacienda)</option>
-                                </select>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                                <div class="form-group">
-                                    <label>Código de Establecimiento</label>
-                                    <input type="text" id="detail-dte-mhcode" value="${dte.mhCode || '0001'}" placeholder="0001" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
-                                </div>
-                                <div class="form-group">
-                                    <label>Número de Caja (POS)</label>
-                                    <input type="text" id="detail-dte-posnumber" value="${dte.posNumber || '1'}" placeholder="1" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>URL de Proxy Servidor Backend (Opcional)</label>
-                                <input type="text" id="detail-dte-backendurl" value="${dte.backendUrl || ''}" placeholder="Ej: https://mi-servidor.com" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; width:100%;">
-                            </div>
                             <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
                                 <button type="submit" class="btn btn-primary" style="flex:1; padding:0.5rem; font-size:0.8rem; font-weight:700;"><i class="fa-solid fa-save"></i> Guardar DTE</button>
                                 <button type="button" id="btn-test-dte-conn" class="btn btn-secondary" style="flex:1; padding:0.5rem; font-size:0.8rem; color:var(--cyan); border-color:var(--cyan);"><i class="fa-solid fa-plug"></i> Probar Conexión</button>
@@ -10676,17 +10657,13 @@ async function renderAdminSolicitudes(container) {
                     dteForm.addEventListener('submit', (e) => {
                         e.preventDefault();
                         const apiKey = document.getElementById('detail-dte-apikey').value.trim();
-                        const ambiente = document.getElementById('detail-dte-ambiente').value;
-                        const mhCode = document.getElementById('detail-dte-mhcode').value.trim();
-                        const posNumber = document.getElementById('detail-dte-posnumber').value.trim();
-                        const backendUrlVal = document.getElementById('detail-dte-backendurl').value.trim();
 
                         workshop.dte_config = {
                             apiKey,
-                            ambiente,
-                            mhCode,
-                            posNumber,
-                            backendUrl: backendUrlVal
+                            ambiente: apiKey.startsWith('live_') ? '01' : '00',
+                            mhCode: '0001',
+                            posNumber: '1',
+                            backendUrl: ''
                         };
 
                         if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
