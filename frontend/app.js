@@ -2627,6 +2627,10 @@ function renderPresupuestos(container, queryParams) {
             const isFacturado = p.Estado == 3;
             const actionText = isFacturado ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
             
+            const deleteBtnHtml = isFacturado 
+                ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
+                : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${p['ID Presupuesto']}</strong></td>
@@ -2640,6 +2644,7 @@ function renderPresupuestos(container, queryParams) {
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        ${deleteBtnHtml}
                     </div>
                 </td>
             `;
@@ -2652,6 +2657,20 @@ function renderPresupuestos(container, queryParams) {
                 e.preventDefault();
                 const id = btn.getAttribute('data-id');
                 exportBudgetPDF(id);
+            });
+        });
+
+        // Bind delete buttons
+        rowsContainer.querySelectorAll('.btn-delete-budget').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = btn.getAttribute('data-id');
+                if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el presupuesto ${id}? Esta acción no se puede deshacer.`)) {
+                    db.presupuestos = db.presupuestos.filter(b => b['ID Presupuesto'] !== id);
+                    saveDatabase(db);
+                    showToast("Presupuesto eliminado correctamente", "success");
+                    populateBudgetsList(searchInput.value);
+                }
             });
         });
     }
