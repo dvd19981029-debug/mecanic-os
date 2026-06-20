@@ -53,7 +53,7 @@ function getBackendUrl(db) {
     const config = db || getDatabase();
     let url = (config && config.saas_config && config.saas_config.backendUrl) || '';
     if (!url && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        return 'http://localhost:3000';
+        return 'http://localhost:3005';
     }
     return url;
 }
