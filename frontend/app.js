@@ -4417,7 +4417,8 @@ async function viewDtePdf(dteId) {
 
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
+        const pdfWin = window.open(blobUrl, '_blank');
+        if (pdfWin) pdfWin.opener = null;
     } catch (err) {
         console.error(err);
         showToast("Error al obtener el PDF del DTE: " + err.message, "danger");
@@ -4792,6 +4793,7 @@ function printDteTicket(presId) {
 </html>
     `);
     ticketWindow.document.close();
+    ticketWindow.opener = null;
 }
 
 function reemitBudget(presId) {
@@ -8496,6 +8498,7 @@ function renderPlanilla(container, queryParams) {
                         </html>
                     `);
                     printWin.document.close();
+                    printWin.opener = null;
                 });
             });
         });
@@ -8625,6 +8628,7 @@ function exportPlanillaConsolidada(year, month, periodType, payrollData) {
         </html>
     `);
     printWin.document.close();
+    printWin.opener = null;
 }
 
 // Helper function: Convert number to Spanish words (uppercase)
@@ -12789,6 +12793,7 @@ if (window.saasViewReceiptPaymentId) {
                     </html>
                 `);
                 printWindow.document.close();
+                printWindow.opener = null;
             });
         }, 50);
         return;
@@ -15243,6 +15248,7 @@ window.exportInspectionPDF = function(revId) {
     `;
     printWindow.document.write(pdfHTML);
     printWindow.document.close();
+    printWindow.opener = null;
 };
 
 function renderRegistrarTab(db, checkpoints) {
