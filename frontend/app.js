@@ -10819,7 +10819,7 @@ async function renderAdminSolicitudes(container) {
                             const origText = wompiCheckBtn.innerHTML;
                             wompiCheckBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
 
-                            const backendUrl = getBackendUrl(db);
+                            const backendUrl = (workshop.dte_config && workshop.dte_config.backendUrl) || getBackendUrl(db);
                             fetch(`${backendUrl}/api/wompi/check-subscription`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -10867,7 +10867,7 @@ async function renderAdminSolicitudes(container) {
                                 const origText = wompiCancelBtn.innerHTML;
                                 wompiCancelBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
 
-                                const backendUrl = getBackendUrl(db);
+                                const backendUrl = (workshop.dte_config && workshop.dte_config.backendUrl) || getBackendUrl(db);
                                 fetch(`${backendUrl}/api/wompi/deactivate-link`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
