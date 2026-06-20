@@ -2716,9 +2716,10 @@ function renderPresupuestos(container, queryParams) {
 
         rowsContainer.innerHTML = '';
         const filtered = db.presupuestos.filter(p => 
-            (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
+            p.Estado != 2 && p.Estado != 3 &&
+            ((p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
             (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Placas || '').toLowerCase().includes(filter.toLowerCase())
+            (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
         );
 
         if (filtered.length === 0) {
@@ -2905,7 +2906,7 @@ function renderBudgetEditor(container, budget) {
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
-                        <select id="editor-tech-select" style="padding: 0.5rem;" ${budget.Estado == 3 ? 'disabled' : ''}>
+                        <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
                             ${techsHTML}
                         </select>
                     </div>
@@ -2913,7 +2914,7 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
-                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${budget.Estado == 3 ? 'disabled' : ''}>
+                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -2975,7 +2976,7 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Estado del Presupuesto</label>
-                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${budget.Estado == 3 ? 'disabled' : ''}>
+                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
                         <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Creado</option>
                         <option value="2" ${budget.Estado == 2 ? 'selected' : ''} ${!isAdmin ? 'disabled' : ''}>2 - Aprobado ${!isAdmin ? '(Solo Admin)' : ''}</option>
                         <option value="3" ${budget.Estado == 3 ? 'selected' : ''} disabled>3 - Facturado</option>
@@ -2995,19 +2996,19 @@ function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
-                ${budget.Estado == 3 ? `
+                ${(budget.Estado == 2 || budget.Estado == 3) ? `
                 <div style="background: rgba(46, 204, 113, 0.1); border: 1px solid var(--success); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span>Presupuesto facturado (Lectura).</span>
+                    <span>${budget.Estado == 2 ? 'Presupuesto aprobado (Lectura).' : 'Presupuesto facturado (Lectura).'}</span>
                 </div>
                 ` : ''}
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
                     ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
-                    <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado == 3 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
+                    <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
-                    <button class="btn btn-secondary" onclick="window.location.hash='#presupuestos'"><i class="fa-solid fa-arrow-left"></i> Volver a Lista</button>
+                    <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
             </div>
         </div>
@@ -3184,7 +3185,7 @@ function renderBudgetEditor(container, budget) {
     }
 
     function renderTempRows() {
-        const isLocked = budget.Estado == 3;
+        const isLocked = budget.Estado == 2 || budget.Estado == 3;
         productsContainer.innerHTML = '';
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
@@ -3681,7 +3682,10 @@ function renderPendingTab(container) {
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td><span class="badge-tag badge-primary" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;">Aprobado</span></td>
                 <td>
-                    <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-signature"></i> Facturar DTE</a>
+                    <div style="display: flex; gap: 0.35rem;">
+                        <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-signature"></i> Facturar DTE</a>
+                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-eye"></i> Ver Detalle</a>
+                    </div>
                 </td>
             `;
             rowsContainer.appendChild(tr);
@@ -3783,6 +3787,7 @@ function renderIssuedTab(container) {
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>
                     <div style="display: flex; gap: 0.35rem;">
+                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
                         <button class="btn btn-secondary btn-view-dte-pdf" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
