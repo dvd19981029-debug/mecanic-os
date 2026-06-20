@@ -7979,14 +7979,6 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
             </table>
         </div>
     </div>
-
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                window.print();
-            }, 600);
-        });
-    </script>
 </body>
 </html>
     `;
@@ -8508,14 +8500,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             </div>
         </div>
     </div>
-
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                window.print();
-            }, 600);
-        });
-    </script>
 </body>
 </html>
     `;
@@ -8944,14 +8928,6 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             Este presupuesto es válido por un período de 15 días a partir de su emisión. Los trabajos adicionales no contemplados en este documento serán consultados previamente con el cliente.
         </div>
     </div>
-
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                window.print();
-            }, 600);
-        });
-    </script>
 </body>
 </html>
     `;
