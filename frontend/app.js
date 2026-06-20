@@ -3784,6 +3784,7 @@ function renderIssuedTab(container) {
                 <td>
                     <div style="display: flex; gap: 0.35rem;">
                         <button class="btn btn-secondary btn-view-dte-pdf" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
                         <button class="btn btn-danger btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #e74c3c; border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
                     </div>
@@ -3797,6 +3798,14 @@ function renderIssuedTab(container) {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 viewDtePdf(btn.getAttribute('data-id'));
+            });
+        });
+        
+        // Bind Ticket Buttons
+        rowsContainer.querySelectorAll('.btn-print-dte-ticket').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                printDteTicket(btn.getAttribute('data-id'));
             });
         });
         
@@ -4142,6 +4151,8 @@ function renderInvoicingWorkspace(container, presId) {
 
             p.Estado = 3;
             p.controlNumber = genCode;
+            p.mhControlNumber = ctrlNum;
+            p.receptionSeal = seal;
             p.Doc_a_Emitir = type === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA';
             p.Fecha_Facturacion = Date.now();
             p.Condicion = payCond;
@@ -4374,6 +4385,173 @@ async function viewDtePdf(dteId) {
         console.error(err);
         showToast("Error al obtener el PDF del DTE: " + err.message, "danger");
     }
+}
+
+function printDteTicket(presId) {
+    const db = getDatabase();
+    const p = db.presupuestos.find(pres => pres['ID Presupuesto'] === presId);
+    if (!p) {
+        showToast("Error: Presupuesto no encontrado.", "danger");
+        return;
+    }
+
+    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+    const wsConfig = getWorkshopConfig(db);
+
+    const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+    const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
+
+    let subtotal = 0;
+    prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+    laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+    
+    const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL';
+    const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+    const iva = subtotal * taxRate;
+    
+    let retention = 0;
+    let perception = 0;
+    if (client.AplicaPercepcion > 0) {
+        perception = subtotal * parseFloat(client.AplicaPercepcion);
+    }
+    if (client.AplicaRetencion > 0) {
+        retention = subtotal * parseFloat(client.AplicaRetencion);
+    }
+    const grandTotal = subtotal + iva + perception - retention;
+
+    const genCode = p.controlNumber || 'N/A';
+    
+    const ticketWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!ticketWindow) {
+        showToast("Error: El navegador bloqueó la ventana emergente de impresión.", "danger");
+        return;
+    }
+
+    ticketWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Ticket DTE - ${presId}</title>
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 72mm;
+            margin: 0;
+            padding: 4mm;
+            font-size: 11px;
+            color: black;
+            background-color: white;
+            line-height: 1.2;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed black; margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10px; }
+        th, td { padding: 2px 0; }
+        tr.border-bottom { border-bottom: 1px solid black; }
+        .word-break { word-break: break-all; }
+        @media print {
+            body { width: 72mm; margin: 0; padding: 0; }
+            html, body { height: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="text-center">
+        <h3 style="margin: 0 0 5px 0; font-size: 13px;">\${wsConfig.nombre || 'TALLER MECÁNICO'}</h3>
+        <p style="margin: 2px 0;">\${wsConfig.giro || ''}</p>
+        <p style="margin: 2px 0;">\${wsConfig.direccion || ''}</p>
+        <p style="margin: 2px 0;">TEL: \${wsConfig.telefono || ''}</p>
+        <p style="margin: 2px 0;">NIT: \${wsConfig.nit || ''} • NRC: \${wsConfig.nrc || ''}</p>
+        <div class="divider"></div>
+        <h4 style="margin: 5px 0; font-size: 11px;">DOCUMENTO TRIBUTARIO ELECTRÓNICO</h4>
+        <h4 style="margin: 5px 0; font-size: 11px;"><strong>\${isCCF ? 'COMPROBANTE DE CRÉDITO FISCAL' : 'FACTURA DE CONSUMIDOR FINAL'}</strong></h4>
+    </div>
+    <div class="divider"></div>
+    <p style="margin: 4px 0;"><strong>Código Gen:</strong><br><span class="word-break">\${genCode}</span></p>
+    <p style="margin: 4px 0;"><strong>Num Control:</strong> \${p.mhControlNumber || p.controlNumber || 'N/A'}</p>
+    <p style="margin: 4px 0;"><strong>Sello Rec:</strong><br><span class="word-break">\${p.receptionSeal || 'APROBADO-MH'}</span></p>
+    <p style="margin: 4px 0;"><strong>Fecha Emisión:</strong> \${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV')}</p>
+    <div class="divider"></div>
+    <p style="margin: 4px 0;"><strong>CLIENTE:</strong> \${client.Nombre}</p>
+    <p style="margin: 4px 0;"><strong>NIT/DUI:</strong> \${client.NIT || client['Num Doc'] || 'N/A'}</p>
+    <p style="margin: 4px 0;"><strong>AUTO PLACA:</strong> \${p.Placas || 'N/A'}</p>
+    <div class="divider"></div>
+    <table>
+        <thead>
+            <tr class="border-bottom">
+                <th style="text-align: left; width: 55%;">DESCRIPCIÓN</th>
+                <th style="text-align: center; width: 10%;">CANT</th>
+                <th style="text-align: right; width: 15%;">P.UNIT</th>
+                <th style="text-align: right; width: 20%;">TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            \${prodItems.map(item => \`
+                <tr>
+                    <td>\${item.Descripcion.substring(0, 20)}</td>
+                    <td style="text-align: center;">\${item.Cantidad}</td>
+                    <td style="text-align: right;">$\${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
+                    <td style="text-align: right;">$\$\{(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)\}</td>
+                </tr>
+            \`).join('')}
+            \${laborItems.map(item => \`
+                <tr>
+                    <td>\${item.Descripcion.substring(0, 20)}</td>
+                    <td style="text-align: center;">\${item.Cantidad}</td>
+                    <td style="text-align: right;">$\${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
+                    <td style="text-align: right;">$\$\{(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)\}</td>
+                </tr>
+            \`).join('')}
+        </tbody>
+    </table>
+    <div class="divider"></div>
+    <div style="margin-left: 15mm;">
+        <table style="font-size: 10px;">
+            <tr>
+                <td>Subtotal Neto:</td>
+                <td class="text-right">$ \${subtotal.toFixed(2)}</td>
+            </tr>
+            <tr>
+                <td>IVA (13%):</td>
+                <td class="text-right">$ \${iva.toFixed(2)}</td>
+            </tr>
+            \${perception > 0 ? \`
+            <tr>
+                <td>Percepción (2%):</td>
+                <td class="text-right">$ \${perception.toFixed(2)}</td>
+            </tr>\` : ''}
+            \${retention > 0 ? \`
+            <tr>
+                <td>Retención (1%):</td>
+                <td class="text-right">$ \${retention.toFixed(2)}</td>
+            </tr>\` : ''}
+            <tr class="bold">
+                <td>TOTAL:</td>
+                <td class="text-right">$ \${grandTotal.toFixed(2)}</td>
+            </tr>
+        </table>
+    </div>
+    <div class="divider"></div>
+    <div class="text-center" style="font-size: 8px; margin-top: 10px;">
+        <p>¡Gracias por su preferencia!</p>
+        <p>Software de Facturación MecanicOS</p>
+    </div>
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
+    `);
+    ticketWindow.document.close();
 }
 
 function queryDteStatusMH(dteId) {
