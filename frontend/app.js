@@ -272,6 +272,44 @@ function setupMunicipiosSelect(deptSelectId, muniSelectId, selectedMuniValue = '
     populate();
 }
 
+function setupOfficialCatalogsSelect(deptSelectId, muniSelectId, selectedDeptValue = '', selectedMuniValue = '') {
+    const deptSelect = document.getElementById(deptSelectId);
+    const muniSelect = document.getElementById(muniSelectId);
+    if (!deptSelect || !muniSelect || typeof DEPARTAMENTOS_CATALOG === 'undefined' || typeof MUNICIPIOS_CATALOG === 'undefined') return;
+
+    // Populate departments
+    deptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>' + 
+        DEPARTAMENTOS_CATALOG.map(d => `<option value="${d.id}">${d.nombre.toUpperCase()}</option>`).join('');
+
+    function updateMunicipios(deptId, preselectedValue = '') {
+        if (!deptId) {
+            muniSelect.innerHTML = '<option value="">-- Seleccione Municipio --</option>';
+            muniSelect.disabled = true;
+            return;
+        }
+        
+        const filtered = MUNICIPIOS_CATALOG.filter(m => m.departamentoId === deptId);
+        muniSelect.innerHTML = '<option value="">-- Seleccione Municipio --</option>' +
+            filtered.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
+        muniSelect.disabled = false;
+        
+        if (preselectedValue) {
+            muniSelect.value = preselectedValue;
+        }
+    }
+
+    deptSelect.addEventListener('change', (e) => {
+        updateMunicipios(e.target.value);
+    });
+
+    if (selectedDeptValue) {
+        deptSelect.value = selectedDeptValue;
+        updateMunicipios(selectedDeptValue, selectedMuniValue);
+    } else {
+        updateMunicipios('');
+    }
+}
+
 const DEPARTAMENTOS_CODES = {
     "Ahuachapán": "01",
     "Santa Ana": "02",
@@ -1591,7 +1629,7 @@ function renderClientesVehiculos(container, queryParams) {
                         </div>
                         <div class="form-group">
                             <label>Giro Comercial (Actividad Económica)</label>
-                            <input type="text" id="new-client-giro" placeholder="Servicios, Comercio, etc.">
+                            <input type="text" id="new-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
                         </div>
                     </div>
                     <div class="form-row">
@@ -1647,8 +1685,22 @@ function renderClientesVehiculos(container, queryParams) {
                             <input type="text" id="new-client-phone" required placeholder="7000-0000">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Departamento</label>
+                            <select id="new-client-departamento" required>
+                                <option value="">-- Seleccione Departamento --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Municipio / Distrito</label>
+                            <select id="new-client-municipio" required disabled>
+                                <option value="">-- Seleccione Municipio --</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="form-group">
-                        <label>Dirección Completa</label>
+                        <label>Dirección Completa (Detallada)</label>
                         <input type="text" id="new-client-address" required placeholder="Calle, pasaje, colonia, casa #">
                     </div>
                     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
@@ -1715,7 +1767,7 @@ function renderClientesVehiculos(container, queryParams) {
                         </div>
                         <div class="form-group">
                             <label>Giro Comercial (Actividad Económica)</label>
-                            <input type="text" id="edit-client-giro" placeholder="Servicios, Comercio, etc.">
+                            <input type="text" id="edit-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
                         </div>
                     </div>
                     <div class="form-row">
@@ -1771,8 +1823,22 @@ function renderClientesVehiculos(container, queryParams) {
                             <input type="text" id="edit-client-phone" required placeholder="7000-0000">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Departamento</label>
+                            <select id="edit-client-departamento" required>
+                                <option value="">-- Seleccione Departamento --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Municipio / Distrito</label>
+                            <select id="edit-client-municipio" required disabled>
+                                <option value="">-- Seleccione Municipio --</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="form-group">
-                        <label>Dirección Completa</label>
+                        <label>Dirección Completa (Detallada)</label>
                         <input type="text" id="edit-client-address" required placeholder="Calle, pasaje, colonia, casa #">
                     </div>
                     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
@@ -1909,7 +1975,21 @@ function renderClientesVehiculos(container, queryParams) {
                         <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">NIT/NRC:</td><td>${client.NIT || 'N/A'} / ${client.NRC || 'N/A'}</td></tr>
                         <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Giro:</td><td>${client.Giro || 'N/A'}</td></tr>
                         <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Correo:</td><td>${client.Correo || 'N/A'}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Dirección:</td><td>${client.Direccion || 'N/A'}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Departamento:</td><td>${(() => {
+                            if (client.Departamento && typeof DEPARTAMENTOS_CATALOG !== 'undefined') {
+                                const d = DEPARTAMENTOS_CATALOG.find(x => x.id === client.Departamento);
+                                return d ? d.nombre.toUpperCase() : client.Departamento;
+                            }
+                            return 'N/A';
+                        })()}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Municipio:</td><td>${(() => {
+                            if (client.Municipio && typeof MUNICIPIOS_CATALOG !== 'undefined') {
+                                const m = MUNICIPIOS_CATALOG.find(x => x.id === client.Municipio && x.departamentoId === client.Departamento);
+                                return m ? m.nombre.toUpperCase() : client.Municipio;
+                            }
+                            return 'N/A';
+                        })()}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Dirección Detalle:</td><td>${client.Direccion || 'N/A'}</td></tr>
                     </table>
                 </div>
                 
@@ -1997,6 +2077,9 @@ function renderClientesVehiculos(container, queryParams) {
             document.getElementById('edit-client-phone').value = client['Telefono 1 '] || '';
             document.getElementById('edit-client-address').value = client.Direccion || '';
             
+            // Populate and select department & municipality
+            setupOfficialCatalogsSelect('edit-client-departamento', 'edit-client-municipio', client.Departamento || '', client.Municipio || '');
+
             document.getElementById('edit-client-modal').classList.add('active');
         });
 
@@ -2034,6 +2117,7 @@ function renderClientesVehiculos(container, queryParams) {
     // Open/Close Add Client Modal
     document.getElementById('add-client-btn').addEventListener('click', () => {
         document.getElementById('add-client-modal').classList.add('active');
+        setupOfficialCatalogsSelect('new-client-departamento', 'new-client-municipio');
     });
     
     document.getElementById('close-add-client-modal').addEventListener('click', () => {
@@ -2065,6 +2149,8 @@ function renderClientesVehiculos(container, queryParams) {
         const email = document.getElementById('new-client-email').value;
         const phone = document.getElementById('new-client-phone').value;
         const address = document.getElementById('new-client-address').value;
+        const departamento = document.getElementById('new-client-departamento').value;
+        const municipio = document.getElementById('new-client-municipio').value;
         
         // DTE & Credit settings
         const cat = document.getElementById('new-client-cat').value;
@@ -2087,6 +2173,8 @@ function renderClientesVehiculos(container, queryParams) {
             Correo: email,
             "Telefono 1 ": phone,
             Direccion: address,
+            Departamento: departamento,
+            Municipio: municipio,
             "Categoría Contribuyente": cat,
             "Credito?": hasCredit,
             AplicaRetencion: ret,
@@ -2142,6 +2230,8 @@ function renderClientesVehiculos(container, queryParams) {
                 client.Correo = document.getElementById('edit-client-email').value;
                 client['Telefono 1 '] = document.getElementById('edit-client-phone').value;
                 client.Direccion = document.getElementById('edit-client-address').value;
+                client.Departamento = document.getElementById('edit-client-departamento').value;
+                client.Municipio = document.getElementById('edit-client-municipio').value;
                 
                 saveDatabase(db);
                 showToast("Datos del cliente actualizados correctamente", "success");
@@ -2194,6 +2284,17 @@ function renderClientesVehiculos(container, queryParams) {
 
     // Run initial loaders
     populateClientsList();
+
+    // Populate Giros datalist dynamically
+    let girosDatalist = document.getElementById('giros-list');
+    if (!girosDatalist) {
+        girosDatalist = document.createElement('datalist');
+        girosDatalist.id = 'giros-list';
+        document.body.appendChild(girosDatalist);
+    }
+    if (girosDatalist && typeof GIROS_CATALOG !== 'undefined') {
+        girosDatalist.innerHTML = GIROS_CATALOG.map(g => `<option value="${g.codigo} - ${g.descripcion}"></option>`).join('');
+    }
     
     // Auto select client if parameter was passed
     if (queryParams.id) {
@@ -3463,7 +3564,17 @@ function renderFacturador(container, queryParams) {
 
         if (isCCF) {
             recipientPayload.contributorType = client['Tipo Cliente'] === 'JURIDICA' ? 'JURIDICA' : 'NATURAL';
-            recipientPayload.economicActivity = client.Giro || '45201'; // Mantenimiento y reparación mecánica
+            // Extract the first 5 digits of the Giro string to get the numeric code
+            let giroCode = '45201'; // Default
+            if (client.Giro) {
+                const match = client.Giro.match(/^\d{5}/);
+                if (match) {
+                    giroCode = match[0];
+                } else {
+                    giroCode = client.Giro.replace(/\D/g, '').slice(0, 5) || '45201';
+                }
+            }
+            recipientPayload.economicActivity = giroCode;
             recipientPayload.nrc = (client.NRC || '').replace(/\D/g, '').slice(0, 8);
         }
 
