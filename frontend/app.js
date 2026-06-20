@@ -1669,7 +1669,7 @@ function renderClientesVehiculos(container, queryParams) {
                             </div>
                         </div>
                     </div>
-                    <div class="form-row" id="credit-fields-row">
+                    <div class="form-row" id="credit-fields-row" style="display: none;">
                         <div class="form-group">
                             <label>Monto de Crédito ($)</label>
                             <input type="number" id="new-client-credit-limit" value="0" min="0" step="100">
@@ -1811,7 +1811,7 @@ function renderClientesVehiculos(container, queryParams) {
                             </div>
                         </div>
                     </div>
-                    <div class="form-row" id="edit-credit-fields-row">
+                    <div class="form-row" id="edit-credit-fields-row" style="display: none;">
                         <div class="form-group">
                             <label>Monto de Crédito ($)</label>
                             <input type="number" id="edit-client-credit-limit" value="0" min="0" step="100">
@@ -2092,6 +2092,10 @@ function renderClientesVehiculos(container, queryParams) {
             const isContrib = client['Contribuyente?'] === 'SI';
             document.getElementById('edit-client-contrib-section').style.display = isContrib ? 'block' : 'none';
 
+            // Show/hide credit section based on current client state
+            const hasCredit = client['Credito?'] === 'SI';
+            document.getElementById('edit-credit-fields-row').style.display = hasCredit ? 'flex' : 'none';
+
             document.getElementById('edit-client-modal').classList.add('active');
         });
 
@@ -2130,6 +2134,10 @@ function renderClientesVehiculos(container, queryParams) {
     document.getElementById('add-client-btn').addEventListener('click', () => {
         document.getElementById('add-client-modal').classList.add('active');
         document.getElementById('new-client-contrib-section').style.display = 'none'; // reset to default
+        document.getElementById('new-client-has-credit').value = 'NO';
+        document.getElementById('credit-fields-row').style.display = 'none';
+        document.getElementById('new-client-credit-limit').value = 0;
+        document.getElementById('new-client-credit-days').value = 0;
         setupOfficialCatalogsSelect('new-client-departamento', 'new-client-municipio');
     });
     
