@@ -1114,16 +1114,44 @@ function handleRouting() {
         }
     }
 
-    // 2. Reactive Status Listener for Active/Suspended Workshop (checks for status/suspension changes)
+    // 2. Reactive Status Listener for Active/Suspended Workshop (checks for status/suspension changes and config updates)
     if (saas.status === 'active' && saas.workshopData && saas.workshopData.id) {
         if (!window.saasActiveListener) {
             const reqId = saas.workshopData.id;
             window.saasActiveListener = dataService.saas.listenRequest(reqId, (updatedRequest) => {
                 if (updatedRequest) {
+                    let changed = false;
+                    
+                    // Sync DTE config if changed
+                    const localDte = db.saas_state.workshopData.dte_config || {};
+                    const remoteDte = updatedRequest.dte_config || {};
+                    if (JSON.stringify(localDte) !== JSON.stringify(remoteDte)) {
+                        db.saas_state.workshopData.dte_config = remoteDte;
+                        if (remoteDte.apiKey) {
+                            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(remoteDte));
+                        }
+                        changed = true;
+                    }
+                    
+                    // Sync SaaS properties
+                    const saasFields = ['suscripcion_status', 'plan', 'precio_mensual', 'proximo_pago'];
+                    saasFields.forEach(field => {
+                        if (updatedRequest[field] !== undefined && db.saas_state.workshopData[field] !== updatedRequest[field]) {
+                            db.saas_state.workshopData[field] = updatedRequest[field];
+                            changed = true;
+                        }
+                    });
+                    
                     if (updatedRequest.suscripcion_status === 'suspendido') {
                         db.saas_state.status = 'suspended';
+                        changed = true;
+                    }
+                    
+                    if (changed) {
                         saveDatabase(db);
-                        window.location.hash = 'suspended';
+                        if (db.saas_state.status === 'suspended') {
+                            window.location.hash = 'suspended';
+                        }
                         handleRouting();
                     }
                 }
@@ -1134,10 +1162,38 @@ function handleRouting() {
             const reqId = saas.workshopData.id;
             window.saasActiveListener = dataService.saas.listenRequest(reqId, (updatedRequest) => {
                 if (updatedRequest) {
+                    let changed = false;
+                    
+                    // Sync DTE config if changed
+                    const localDte = db.saas_state.workshopData.dte_config || {};
+                    const remoteDte = updatedRequest.dte_config || {};
+                    if (JSON.stringify(localDte) !== JSON.stringify(remoteDte)) {
+                        db.saas_state.workshopData.dte_config = remoteDte;
+                        if (remoteDte.apiKey) {
+                            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(remoteDte));
+                        }
+                        changed = true;
+                    }
+                    
+                    // Sync SaaS properties
+                    const saasFields = ['suscripcion_status', 'plan', 'precio_mensual', 'proximo_pago'];
+                    saasFields.forEach(field => {
+                        if (updatedRequest[field] !== undefined && db.saas_state.workshopData[field] !== updatedRequest[field]) {
+                            db.saas_state.workshopData[field] = updatedRequest[field];
+                            changed = true;
+                        }
+                    });
+                    
                     if (updatedRequest.suscripcion_status === 'activo' || updatedRequest.suscripcion_status === 'demo') {
                         db.saas_state.status = 'active';
+                        changed = true;
+                    }
+                    
+                    if (changed) {
                         saveDatabase(db);
-                        window.location.hash = 'taller-dashboard';
+                        if (db.saas_state.status === 'active') {
+                            window.location.hash = 'taller-dashboard';
+                        }
                         handleRouting();
                     }
                 }
