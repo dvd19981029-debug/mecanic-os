@@ -1599,46 +1599,8 @@ function renderClientesVehiculos(container, queryParams) {
                         <div class="form-group">
                             <label>Contribuyente (IVA)?</label>
                             <select id="new-client-contrib">
-                                <option value="NO">No (Sujeto Excluido/Final)</option>
-                                <option value="SI">Sí (Emite Crédito Fiscal)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Tipo de Documento</label>
-                            <select id="new-client-doc-type">
-                                <option value="DUI">DUI</option>
-                                <option value="NIT">NIT</option>
-                                <option value="PASAPORTE">Pasaporte</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Nº de Documento</label>
-                            <input type="text" id="new-client-doc-num" required placeholder="00000000-0">
-                        </div>
-                        <div class="form-group">
-                            <label>NIT (si aplica)</label>
-                            <input type="text" id="new-client-nit" placeholder="0000-000000-000-0">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>NRC (Nº de Registro Contribuyente)</label>
-                            <input type="text" id="new-client-nrc" placeholder="00000-0">
-                        </div>
-                        <div class="form-group">
-                            <label>Giro Comercial (Actividad Económica)</label>
-                            <input type="text" id="new-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Categoría Contribuyente (DTE El Salvador)</label>
-                            <select id="new-client-cat">
-                                <option value="OTROS">Otros Contribuyentes</option>
-                                <option value="MEDIANO">Mediano Contribuyente</option>
-                                <option value="GRANDE">Gran Contribuyente</option>
+                                <option value="NO">No (Consumidor Final)</option>
+                                <option value="SI">Sí (Crédito Fiscal)</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1651,18 +1613,60 @@ function renderClientesVehiculos(container, queryParams) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Retención IVA (1% - Compras Grandes)</label>
-                            <select id="new-client-ret">
-                                <option value="0">No aplica</option>
-                                <option value="0.01">Aplica 1% Retención (Agente Gran Contribuyente)</option>
+                            <label>Tipo de Documento</label>
+                            <select id="new-client-doc-type">
+                                <option value="DUI">DUI</option>
+                                <option value="NIT">NIT</option>
+                                <option value="PASAPORTE">Pasaporte</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Percepción IVA (2%)</label>
-                            <select id="new-client-perc">
-                                <option value="0">No aplica</option>
-                                <option value="0.02">Aplica 2% Percepción</option>
-                            </select>
+                            <label>Nº de Documento</label>
+                            <input type="text" id="new-client-doc-num" required placeholder="00000000-0">
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de Contribuyente (Oculta por defecto) -->
+                    <div id="new-client-contrib-section" style="display: none; border-left: 3px solid var(--primary); padding-left: 1rem; margin: 1.25rem 0; background: rgba(255,255,255,0.01); padding-top: 0.75rem; padding-bottom: 0.75rem; border-radius: 0 8px 8px 0;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>NIT (Contribuyente)</label>
+                                <input type="text" id="new-client-nit" placeholder="0000-000000-000-0">
+                            </div>
+                            <div class="form-group">
+                                <label>NRC (Nº de Registro Contribuyente)</label>
+                                <input type="text" id="new-client-nrc" placeholder="00000-0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Giro Comercial (Actividad Económica)</label>
+                                <input type="text" id="new-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
+                            </div>
+                            <div class="form-group">
+                                <label>Categoría Contribuyente (DTE El Salvador)</label>
+                                <select id="new-client-cat">
+                                    <option value="OTROS">Otros Contribuyentes</option>
+                                    <option value="MEDIANO">Mediano Contribuyente</option>
+                                    <option value="GRANDE">Gran Contribuyente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Retención IVA (1% - Compras Grandes)</label>
+                                <select id="new-client-ret">
+                                    <option value="0">No aplica</option>
+                                    <option value="0.01">Aplica 1% Retención (Gran Contribuyente)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Percepción IVA (2%)</label>
+                                <select id="new-client-perc">
+                                    <option value="0">No aplica</option>
+                                    <option value="0.02">Aplica 2% Percepción</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="form-row" id="credit-fields-row">
@@ -1737,46 +1741,8 @@ function renderClientesVehiculos(container, queryParams) {
                         <div class="form-group">
                             <label>Contribuyente (IVA)?</label>
                             <select id="edit-client-contrib">
-                                <option value="NO">No (Sujeto Excluido/Final)</option>
-                                <option value="SI">Sí (Emite Crédito Fiscal)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Tipo de Documento</label>
-                            <select id="edit-client-doc-type">
-                                <option value="DUI">DUI</option>
-                                <option value="NIT">NIT</option>
-                                <option value="PASAPORTE">Pasaporte</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Nº de Documento</label>
-                            <input type="text" id="edit-client-doc-num" required placeholder="00000000-0">
-                        </div>
-                        <div class="form-group">
-                            <label>NIT (si aplica)</label>
-                            <input type="text" id="edit-client-nit" placeholder="0000-000000-000-0">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>NRC (Nº de Registro Contribuyente)</label>
-                            <input type="text" id="edit-client-nrc" placeholder="00000-0">
-                        </div>
-                        <div class="form-group">
-                            <label>Giro Comercial (Actividad Económica)</label>
-                            <input type="text" id="edit-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Categoría Contribuyente (DTE El Salvador)</label>
-                            <select id="edit-client-cat">
-                                <option value="OTROS">Otros Contribuyentes</option>
-                                <option value="MEDIANO">Mediano Contribuyente</option>
-                                <option value="GRANDE">Gran Contribuyente</option>
+                                <option value="NO">No (Consumidor Final)</option>
+                                <option value="SI">Sí (Crédito Fiscal)</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1789,18 +1755,60 @@ function renderClientesVehiculos(container, queryParams) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Retención IVA (1% - Compras Grandes)</label>
-                            <select id="edit-client-ret">
-                                <option value="0">No aplica</option>
-                                <option value="0.01">Aplica 1% Retención (Agente Gran Contribuyente)</option>
+                            <label>Tipo de Documento</label>
+                            <select id="edit-client-doc-type">
+                                <option value="DUI">DUI</option>
+                                <option value="NIT">NIT</option>
+                                <option value="PASAPORTE">Pasaporte</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Percepción IVA (2%)</label>
-                            <select id="edit-client-perc">
-                                <option value="0">No aplica</option>
-                                <option value="0.02">Aplica 2% Percepción</option>
-                            </select>
+                            <label>Nº de Documento</label>
+                            <input type="text" id="edit-client-doc-num" required placeholder="00000000-0">
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de Contribuyente (Oculta por defecto) -->
+                    <div id="edit-client-contrib-section" style="display: none; border-left: 3px solid var(--primary); padding-left: 1rem; margin: 1.25rem 0; background: rgba(255,255,255,0.01); padding-top: 0.75rem; padding-bottom: 0.75rem; border-radius: 0 8px 8px 0;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>NIT (Contribuyente)</label>
+                                <input type="text" id="edit-client-nit" placeholder="0000-000000-000-0">
+                            </div>
+                            <div class="form-group">
+                                <label>NRC (Nº de Registro Contribuyente)</label>
+                                <input type="text" id="edit-client-nrc" placeholder="00000-0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Giro Comercial (Actividad Económica)</label>
+                                <input type="text" id="edit-client-giro" list="giros-list" placeholder="Escribe para buscar giro...">
+                            </div>
+                            <div class="form-group">
+                                <label>Categoría Contribuyente (DTE El Salvador)</label>
+                                <select id="edit-client-cat">
+                                    <option value="OTROS">Otros Contribuyentes</option>
+                                    <option value="MEDIANO">Mediano Contribuyente</option>
+                                    <option value="GRANDE">Gran Contribuyente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Retención IVA (1% - Compras Grandes)</label>
+                                <select id="edit-client-ret">
+                                    <option value="0">No aplica</option>
+                                    <option value="0.01">Aplica 1% Retención (Gran Contribuyente)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Percepción IVA (2%)</label>
+                                <select id="edit-client-perc">
+                                    <option value="0">No aplica</option>
+                                    <option value="0.02">Aplica 2% Percepción</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="form-row" id="edit-credit-fields-row">
@@ -2080,6 +2088,10 @@ function renderClientesVehiculos(container, queryParams) {
             // Populate and select department & municipality
             setupOfficialCatalogsSelect('edit-client-departamento', 'edit-client-municipio', client.Departamento || '', client.Municipio || '');
 
+            // Show/hide contributor section based on current client state
+            const isContrib = client['Contribuyente?'] === 'SI';
+            document.getElementById('edit-client-contrib-section').style.display = isContrib ? 'block' : 'none';
+
             document.getElementById('edit-client-modal').classList.add('active');
         });
 
@@ -2117,6 +2129,7 @@ function renderClientesVehiculos(container, queryParams) {
     // Open/Close Add Client Modal
     document.getElementById('add-client-btn').addEventListener('click', () => {
         document.getElementById('add-client-modal').classList.add('active');
+        document.getElementById('new-client-contrib-section').style.display = 'none'; // reset to default
         setupOfficialCatalogsSelect('new-client-departamento', 'new-client-municipio');
     });
     
@@ -2294,6 +2307,24 @@ function renderClientesVehiculos(container, queryParams) {
     }
     if (girosDatalist && typeof GIROS_CATALOG !== 'undefined') {
         girosDatalist.innerHTML = GIROS_CATALOG.map(g => `<option value="${g.codigo} - ${g.descripcion}"></option>`).join('');
+    }
+
+    // Toggle new client contributor fields dynamically
+    const newClientContrib = document.getElementById('new-client-contrib');
+    const newClientContribSec = document.getElementById('new-client-contrib-section');
+    if (newClientContrib && newClientContribSec) {
+        newClientContrib.addEventListener('change', (e) => {
+            newClientContribSec.style.display = e.target.value === 'SI' ? 'block' : 'none';
+        });
+    }
+
+    // Toggle edit client contributor fields dynamically
+    const editClientContrib = document.getElementById('edit-client-contrib');
+    const editClientContribSec = document.getElementById('edit-client-contrib-section');
+    if (editClientContrib && editClientContribSec) {
+        editClientContrib.addEventListener('change', (e) => {
+            editClientContribSec.style.display = e.target.value === 'SI' ? 'block' : 'none';
+        });
     }
     
     // Auto select client if parameter was passed
