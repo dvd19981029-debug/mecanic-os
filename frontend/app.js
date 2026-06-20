@@ -2334,6 +2334,40 @@ function renderClientesVehiculos(container, queryParams) {
             editClientContribSec.style.display = e.target.value === 'SI' ? 'block' : 'none';
         });
     }
+
+    // Toggle new client credit fields dynamically
+    const newClientHasCredit = document.getElementById('new-client-has-credit');
+    const newCreditFieldsRow = document.getElementById('credit-fields-row');
+    if (newClientHasCredit && newCreditFieldsRow) {
+        newClientHasCredit.addEventListener('change', (e) => {
+            const hasCredit = e.target.value === 'SI';
+            newCreditFieldsRow.style.display = hasCredit ? 'flex' : 'none';
+            if (!hasCredit) {
+                document.getElementById('new-client-credit-limit').value = 0;
+                document.getElementById('new-client-credit-days').value = 0;
+            } else {
+                document.getElementById('new-client-credit-limit').value = 500;
+                document.getElementById('new-client-credit-days').value = 30;
+            }
+        });
+    }
+
+    // Toggle edit client credit fields dynamically
+    const editClientHasCredit = document.getElementById('edit-client-has-credit');
+    const editCreditFieldsRow = document.getElementById('edit-credit-fields-row');
+    if (editClientHasCredit && editCreditFieldsRow) {
+        editClientHasCredit.addEventListener('change', (e) => {
+            const hasCredit = e.target.value === 'SI';
+            editCreditFieldsRow.style.display = hasCredit ? 'flex' : 'none';
+            if (!hasCredit) {
+                document.getElementById('edit-client-credit-limit').value = 0;
+                document.getElementById('edit-client-credit-days').value = 0;
+            } else {
+                document.getElementById('edit-client-credit-limit').value = 500;
+                document.getElementById('edit-client-credit-days').value = 30;
+            }
+        });
+    }
     
     // Auto select client if parameter was passed
     if (queryParams.id) {
