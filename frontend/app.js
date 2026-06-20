@@ -3408,33 +3408,88 @@ function renderFacturador(container, queryParams) {
         const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
 
         // Build Payload
+        const isCCF = type === 'CCF';
+        
+        // Resolve Depto & Municipio Codes
+        const deptName = client.Depto || 'San Salvador';
+        const muniName = client.Municipio || 'San Salvador Centro';
+        
+        let deptCode = DEPARTAMENTOS_CODES[deptName] || deptName;
+        if (isNaN(deptCode)) {
+            deptCode = DEPARTAMENTOS_CODES[Object.keys(DEPARTAMENTOS_CODES).find(k => k.toLowerCase() === deptName.trim().toLowerCase())] || '06';
+        }
+        
+        let muniCode = muniName;
+        if (muniName && isNaN(muniName)) {
+            const matchedMuniKey = Object.keys(MUNICIPIOS_CODES).find(k => k.toUpperCase() === muniName.trim().toUpperCase());
+            muniCode = matchedMuniKey ? MUNICIPIOS_CODES[matchedMuniKey] : '23';
+        } else if (muniName && muniName.length >= 4) {
+            muniCode = muniName.substring(muniName.length - 2);
+        }
+
+        const phoneClean = (client['Telefono 1 '] || client.Telefono || '').replace(/\D/g, '').slice(0, 8);
+        const docTypeVal = client['Tipo Doc'] === 'NIT' ? 'NIT' : 'DUI';
+        const docNumClean = (client['Num Doc'] || client.NIT || '').replace(/\D/g, '');
+
+        let recipientPayload = {
+            name: client.Nombre || 'Consumidor Final',
+            email: client.Correo || 'facturacion@mecanicos.com',
+            address: {
+                department: deptCode,
+                municipality: muniCode,
+                complement: (client.Direccion || 'San Salvador').substring(0, 200)
+            },
+            identificationDocument: {
+                type: docTypeVal,
+                number: docNumClean
+            }
+        };
+
+        if (phoneClean && phoneClean.length === 8) {
+            recipientPayload.phone = phoneClean;
+        }
+
+        if (isCCF) {
+            recipientPayload.contributorType = client['Tipo Cliente'] === 'JURIDICA' ? 'JURIDICA' : 'NATURAL';
+            recipientPayload.economicActivity = client.Giro || '45201'; // Mantenimiento y reparación mecánica
+            recipientPayload.nrc = (client.NRC || '').replace(/\D/g, '').slice(0, 8);
+        }
+
+        const formattedItems = [
+            ...prodItems.map(item => {
+                const rawPrice = parseFloat(item.PrecioUnitario || 0);
+                const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                return {
+                    type: 'BIENES',
+                    description: item.Descripcion || 'Producto',
+                    quantity: parseInt(item.Cantidad || 1),
+                    unitPrice: unitPrice,
+                    saleType: 'GRAVADA'
+                };
+            }),
+            ...laborItems.map(item => {
+                const rawPrice = parseFloat(item.PrecioUnitario || 0);
+                const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                return {
+                    type: 'SERVICIOS',
+                    description: item.Descripcion || 'Mano de Obra',
+                    quantity: parseInt(item.Cantidad || 1),
+                    unitPrice: unitPrice,
+                    saleType: 'GRAVADA'
+                };
+            })
+        ];
+
         const dtePayload = {
             id: generateUUID(),
             generatedAt: new Date().toISOString().split('T')[0],
-            paymentType: payCond,
+            paymentType: payCond === 'CREDITO' ? 'CREDITO' : 'CONTADO',
             branchOffice: {
                 mhCode: dteCfg.mhCode || '0001',
                 posNumber: parseInt(dteCfg.posNumber || 1)
             },
-            recipient: {
-                name: client.Nombre,
-                nit: client.NIT || client['Num Doc'] || '',
-                nrc: client.NRC || '',
-                email: client.Correo || '',
-                address: client.Direccion || ''
-            },
-            items: [
-                ...prodItems.map(item => ({
-                    name: item.Descripcion,
-                    quantity: parseInt(item.Cantidad || 1),
-                    price: parseFloat(item.PrecioUnitario || 0)
-                })),
-                ...laborItems.map(item => ({
-                    name: item.Descripcion,
-                    quantity: parseInt(item.Cantidad || 1),
-                    price: parseFloat(item.PrecioUnitario || 0)
-                }))
-            ]
+            recipient: recipientPayload,
+            items: formattedItems
         };
 
         // Loading state
