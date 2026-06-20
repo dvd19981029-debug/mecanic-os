@@ -708,6 +708,140 @@ const server = http.createServer((req, res) => {
         });
         return;
     }
+
+    // 1.7 FACTURALLAMA: INVALIDATE DTE
+    if (req.method === 'POST' && req.url === '/api/dte/invalidate') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const { apiKey, payload } = JSON.parse(body);
+                
+                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                    console.log("FacturaLlama Invalidate: Simulated invalidation.");
+                    const crypto = require('crypto');
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: true,
+                        simulated: true,
+                        id: crypto.randomUUID ? crypto.randomUUID() : 'simulated-invalidate-uuid-998877',
+                        status: "APPROVED",
+                        message: "DTE Anulado Simulado Exitosamente"
+                    }));
+                    return;
+                }
+                
+                const targetUrl = 'https://api.facturallama.com/dte/invalidate';
+                const payloadString = JSON.stringify(payload);
+                
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-API-Version': '1',
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(payloadString)
+                    }
+                };
+                
+                const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+                    let proxyBody = '';
+                    proxyRes.on('data', chunk => proxyBody += chunk);
+                    proxyRes.on('end', () => {
+                        res.statusCode = proxyRes.statusCode;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(proxyBody);
+                    });
+                });
+                
+                proxyReq.on('error', (err) => {
+                    console.error("FacturaLlama Invalidate Proxy Error:", err);
+                    res.statusCode = 502;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Error de conexión con la API de FacturaLlama", details: err.message }));
+                });
+                
+                proxyReq.write(payloadString);
+                proxyReq.end();
+            } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "Bad Request", message: "Formato JSON inválido" }));
+            }
+        });
+        return;
+    }
+
+    // 1.8 FACTURALLAMA: RETRIEVE DTE
+    if (req.method === 'POST' && req.url === '/api/dte/retrieve') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const { apiKey, dteId } = JSON.parse(body);
+                
+                if (!dteId) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Debe proveer el dteId para consultar." }));
+                    return;
+                }
+                
+                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                    console.log("FacturaLlama Retrieve: Returning simulated DTE details.");
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({
+                        success: true,
+                        simulated: true,
+                        id: dteId,
+                        status: "APPROVED",
+                        environment: "TEST",
+                        type: "FC",
+                        controlNumber: "DTE-01-M001P001-99887",
+                        message: "Consulta de DTE simulada con éxito"
+                    }));
+                    return;
+                }
+                
+                const targetUrl = `https://api.facturallama.com/dte/${dteId}`;
+                
+                const options = {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-API-Version': '1',
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+                    let proxyBody = '';
+                    proxyRes.on('data', chunk => proxyBody += chunk);
+                    proxyRes.on('end', () => {
+                        res.statusCode = proxyRes.statusCode;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(proxyBody);
+                    });
+                });
+                
+                proxyReq.on('error', (err) => {
+                    console.error("FacturaLlama Retrieve Proxy Error:", err);
+                    res.statusCode = 502;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Error de conexión con la API de FacturaLlama", details: err.message }));
+                });
+                
+                proxyReq.end();
+            } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "Bad Request", message: "Formato JSON inválido" }));
+            }
+        });
+        return;
+    }
     
     // 2. STATIC FILE SERVING
     let safeUrl = req.url.split('?')[0];
