@@ -4475,114 +4475,317 @@ function printDteTicket(presId) {
             size: 80mm auto;
             margin: 0;
         }
-        body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 72mm;
+        html, body {
             margin: 0;
-            padding: 4mm;
-            font-size: 11px;
-            color: black;
-            background-color: white;
-            line-height: 1.2;
+            padding: 0;
+            background-color: #eaeaea;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 12px;
+            color: #111;
+            -webkit-print-color-adjust: exact;
+        }
+        .control-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .control-bar span {
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .btn-action {
+            padding: 6px 14px;
+            font-size: 13px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+        .btn-print {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .btn-print:hover {
+            background-color: #27ae60;
+        }
+        .btn-close {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .btn-close:hover {
+            background-color: #c0392b;
+        }
+        .receipt-container {
+            width: 80mm;
+            min-height: 100vh;
+            margin: 70px auto 30px auto;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            padding: 8mm 6mm;
+            position: relative;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .bold { font-weight: bold; }
-        .divider { border-top: 1px dashed black; margin: 5px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 10px; }
-        th, td { padding: 2px 0; }
-        tr.border-bottom { border-bottom: 1px solid black; }
-        .word-break { word-break: break-all; }
+        .divider {
+            border-top: 1px dashed #444;
+            margin: 8px 0;
+            height: 0;
+        }
+        .double-divider {
+            border-top: 3px double #444;
+            margin: 8px 0;
+            height: 0;
+        }
+        .info-table {
+            width: 100%;
+            font-size: 11px;
+            margin: 6px 0;
+        }
+        .info-table td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+        .info-table td.label {
+            font-weight: bold;
+            width: 35%;
+            color: #333;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 11px;
+        }
+        .items-table th {
+            border-bottom: 1px solid #000;
+            padding: 4px 0;
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .items-table td {
+            padding: 5px 0;
+            vertical-align: top;
+        }
+        .totals-table {
+            width: 100%;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        .totals-table td {
+            padding: 3px 0;
+        }
+        .totals-table tr.total-row td {
+            font-size: 13px;
+            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+        }
+        .code-box {
+            font-family: monospace;
+            font-size: 9px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 4px;
+            border-radius: 3px;
+            word-break: break-all;
+            display: block;
+            margin-top: 2px;
+            color: #333;
+        }
+        .qr-section {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .qr-image {
+            width: 90px;
+            height: 90px;
+            border: 1px solid #ddd;
+            padding: 4px;
+            background: #fff;
+        }
+        .qr-label {
+            font-size: 8px;
+            color: #666;
+            text-align: center;
+            max-width: 150px;
+        }
         @media print {
-            body { width: 72mm; margin: 0; padding: 0; }
-            html, body { height: auto; }
+            html, body {
+                background-color: white;
+            }
+            .control-bar {
+                display: none !important;
+            }
+            .receipt-container {
+                width: 76mm;
+                margin: 0;
+                padding: 4mm 2mm;
+                box-shadow: none;
+                min-height: auto;
+            }
+            .divider {
+                border-top: 1px dashed black;
+            }
+            .double-divider {
+                border-top: 3px double black;
+            }
+            .code-box {
+                background: none;
+                border: none;
+                padding: 0;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="text-center">
-        <h3 style="margin: 0 0 5px 0; font-size: 13px;">\${wsConfig.nombre || 'TALLER MECÁNICO'}</h3>
-        <p style="margin: 2px 0;">\${wsConfig.giro || ''}</p>
-        <p style="margin: 2px 0;">\${wsConfig.direccion || ''}</p>
-        <p style="margin: 2px 0;">TEL: \${wsConfig.telefono || ''}</p>
-        <p style="margin: 2px 0;">NIT: \${wsConfig.nit || ''} • NRC: \${wsConfig.nrc || ''}</p>
-        <div class="divider"></div>
-        <h4 style="margin: 5px 0; font-size: 11px;">DOCUMENTO TRIBUTARIO ELECTRÓNICO</h4>
-        <h4 style="margin: 5px 0; font-size: 11px;"><strong>\${isCCF ? 'COMPROBANTE DE CRÉDITO FISCAL' : 'FACTURA DE CONSUMIDOR FINAL'}</strong></h4>
+    <div class="control-bar no-print">
+        <span>Vista Previa del Ticket DTE</span>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.print()" class="btn-action btn-print">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>Imprimir
+            </button>
+            <button onclick="window.close()" class="btn-action btn-close">Cerrar Ventana</button>
+        </div>
     </div>
-    <div class="divider"></div>
-    <p style="margin: 4px 0;"><strong>Código Gen:</strong><br><span class="word-break">\${genCode}</span></p>
-    <p style="margin: 4px 0;"><strong>Num Control:</strong> \${p.mhControlNumber || p.controlNumber || 'N/A'}</p>
-    <p style="margin: 4px 0;"><strong>Sello Rec:</strong><br><span class="word-break">\${p.receptionSeal || 'APROBADO-MH'}</span></p>
-    <p style="margin: 4px 0;"><strong>Fecha Emisión:</strong> \${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV')}</p>
-    <div class="divider"></div>
-    <p style="margin: 4px 0;"><strong>CLIENTE:</strong> \${client.Nombre}</p>
-    <p style="margin: 4px 0;"><strong>NIT/DUI:</strong> \${client.NIT || client['Num Doc'] || 'N/A'}</p>
-    <p style="margin: 4px 0;"><strong>AUTO PLACA:</strong> \${p.Placas || 'N/A'}</p>
-    <div class="divider"></div>
-    <table>
-        <thead>
-            <tr class="border-bottom">
-                <th style="text-align: left; width: 55%;">DESCRIPCIÓN</th>
-                <th style="text-align: center; width: 10%;">CANT</th>
-                <th style="text-align: right; width: 15%;">P.UNIT</th>
-                <th style="text-align: right; width: 20%;">TOTAL</th>
+    <div class="receipt-container">
+        <div class="text-center">
+            <h3 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 800; text-transform: uppercase;">${wsConfig.nombre || 'TALLER MECÁNICO'}</h3>
+            <p style="margin: 2px 0; font-size: 11px;">${wsConfig.giro || 'Servicios Mecánicos'}</p>
+            <p style="margin: 2px 0; font-size: 10px; color: #555;">${wsConfig.direccion || ''}</p>
+            <p style="margin: 2px 0; font-size: 10px;">TEL: ${wsConfig.telefono || ''}</p>
+            <p style="margin: 2px 0; font-size: 10px;">NIT: ${wsConfig.nit || ''} • NRC: ${wsConfig.nrc || ''}</p>
+            <div class="divider"></div>
+            <h4 style="margin: 4px 0; font-size: 11px; letter-spacing: 0.5px; font-weight: 700;">DOCUMENTO TRIBUTARIO ELECTRÓNICO</h4>
+            <h4 style="margin: 2px 0; font-size: 12px; font-weight: 800; color: #000;">${isCCF ? 'COMPROBANTE DE CRÉDITO FISCAL' : 'FACTURA DE CONSUMIDOR FINAL'}</h4>
+        </div>
+        <div class="divider"></div>
+        <table class="info-table">
+            <tr>
+                <td class="label">Código Gen:</td>
+                <td><span class="code-box">${genCode}</span></td>
             </tr>
-        </thead>
-        <tbody>
-            \${prodItems.map(item => \`
+            <tr>
+                <td class="label">Num Control:</td>
+                <td><strong>${p.mhControlNumber || p.controlNumber || 'N/A'}</strong></td>
+            </tr>
+            <tr>
+                <td class="label">Sello Rec:</td>
+                <td><span class="code-box">${p.receptionSeal || 'APROBADO-MH'}</span></td>
+            </tr>
+            <tr>
+                <td class="label">Fecha Emisión:</td>
+                <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV')}</td>
+            </tr>
+        </table>
+        <div class="divider"></div>
+        <table class="info-table">
+            <tr>
+                <td class="label">Cliente:</td>
+                <td>${client.Nombre}</td>
+            </tr>
+            <tr>
+                <td class="label">NIT/DUI:</td>
+                <td>${client.NIT || client['Num Doc'] || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="label">Placa Auto:</td>
+                <td>${p.Placas || 'N/A'}</td>
+            </tr>
+        </table>
+        <div class="divider"></div>
+        <table class="items-table">
+            <thead>
                 <tr>
-                    <td>\${item.Descripcion.substring(0, 20)}</td>
-                    <td style="text-align: center;">\${item.Cantidad}</td>
-                    <td style="text-align: right;">$\${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
-                    <td style="text-align: right;">$\$\{(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)\}</td>
+                    <th style="text-align: left; width: 45%;">DESCRIPCIÓN</th>
+                    <th style="text-align: center; width: 10%;">CANT</th>
+                    <th style="text-align: right; width: 20%;">P.UNIT</th>
+                    <th style="text-align: right; width: 25%;">TOTAL</th>
                 </tr>
-            \`).join('')}
-            \${laborItems.map(item => \`
-                <tr>
-                    <td>\${item.Descripcion.substring(0, 20)}</td>
-                    <td style="text-align: center;">\${item.Cantidad}</td>
-                    <td style="text-align: right;">$\${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
-                    <td style="text-align: right;">$\$\{(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)\}</td>
-                </tr>
-            \`).join('')}
-        </tbody>
-    </table>
-    <div class="divider"></div>
-    <div style="margin-left: 15mm;">
-        <table style="font-size: 10px;">
+            </thead>
+            <tbody>
+                ${prodItems.map(item => `
+                    <tr>
+                        <td style="word-break: break-word;">${item.Descripcion}</td>
+                        <td style="text-align: center;">${item.Cantidad}</td>
+                        <td style="text-align: right;">$${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
+                        <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+                ${laborItems.map(item => `
+                    <tr>
+                        <td style="word-break: break-word;">${item.Descripcion}</td>
+                        <td style="text-align: center;">${item.Cantidad}</td>
+                        <td style="text-align: right;">$${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
+                        <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario) * parseInt(item.Cantidad)).toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <div class="double-divider"></div>
+        <table class="totals-table">
             <tr>
                 <td>Subtotal Neto:</td>
-                <td class="text-right">$ \${subtotal.toFixed(2)}</td>
+                <td class="text-right">$ ${subtotal.toFixed(2)}</td>
             </tr>
             <tr>
                 <td>IVA (13%):</td>
-                <td class="text-right">$ \${iva.toFixed(2)}</td>
+                <td class="text-right">$ ${iva.toFixed(2)}</td>
             </tr>
-            \${perception > 0 ? \`
+            ${perception > 0 ? `
             <tr>
                 <td>Percepción (2%):</td>
-                <td class="text-right">$ \${perception.toFixed(2)}</td>
-            </tr>\` : ''}
-            \${retention > 0 ? \`
+                <td class="text-right">$ ${perception.toFixed(2)}</td>
+            </tr>` : ''}
+            ${retention > 0 ? `
             <tr>
                 <td>Retención (1%):</td>
-                <td class="text-right">$ \${retention.toFixed(2)}</td>
-            </tr>\` : ''}
-            <tr class="bold">
-                <td>TOTAL:</td>
-                <td class="text-right">$ \${grandTotal.toFixed(2)}</td>
+                <td class="text-right">$ ${retention.toFixed(2)}</td>
+            </tr>` : ''}
+            <tr class="total-row">
+                <td>TOTAL A PAGAR:</td>
+                <td class="text-right">$ ${grandTotal.toFixed(2)}</td>
             </tr>
         </table>
-    </div>
-    <div class="divider"></div>
-    <div class="text-center" style="font-size: 8px; margin-top: 10px;">
-        <p>¡Gracias por su preferencia!</p>
-        <p>Software de Facturación MecanicOS</p>
+        <div class="divider"></div>
+        
+        <div class="qr-section">
+            <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('https://admin.facturallama.com/dte/validate/' + genCode)}" alt="QR DTE Verification" onerror="this.style.display='none'">
+            <div class="qr-label">Escanee para verificar el documento electrónico DTE ante el Ministerio de Hacienda</div>
+        </div>
+        
+        <div class="divider"></div>
+        <div class="text-center" style="font-size: 9px; margin-top: 10px; color: #555;">
+            <p style="margin: 2px 0; font-weight: bold;">¡Gracias por su preferencia!</p>
+            <p style="margin: 2px 0;">Software de Facturación MecanicOS</p>
+        </div>
     </div>
     <script>
         window.onload = function() {
-            window.print();
+            setTimeout(function() {
+                window.print();
+            }, 500);
         }
     </script>
 </body>
