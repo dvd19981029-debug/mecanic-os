@@ -4257,9 +4257,15 @@ function renderInvoicingWorkspace(container, presId) {
             }
             if (!response.ok) {
                 return response.json().then(errData => {
-                    throw new Error(errData.message || errData.error || 'Error al emitir DTE');
-                }).catch(() => {
-                    throw new Error(`Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.`);
+                    let errMsg = '';
+                    if (Array.isArray(errData.message)) {
+                        errMsg = errData.message.join(', ');
+                    } else {
+                        errMsg = errData.message || errData.error || 'Error al emitir DTE';
+                    }
+                    return Promise.reject(new Error(errMsg));
+                }, () => {
+                    return Promise.reject(new Error(`Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.`));
                 });
             }
             return response.json();
@@ -4371,8 +4377,16 @@ function queryDteStatusMH(dteId) {
             throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL en Ajustes.");
         }
         if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.message || "Error al consultar DTE"); }).catch(() => {
-                throw new Error(`Error de conexión (Código ${response.status}).`);
+            return response.json().then(errData => {
+                let errMsg = '';
+                if (Array.isArray(errData.message)) {
+                    errMsg = errData.message.join(', ');
+                } else {
+                    errMsg = errData.message || errData.error || 'Error al consultar DTE';
+                }
+                return Promise.reject(new Error(errMsg));
+            }, () => {
+                return Promise.reject(new Error(`Error de conexión (Código ${response.status}).`));
             });
         }
         return response.json();
@@ -4509,8 +4523,16 @@ function openInvalidateDteModal(dteId, presId) {
                 throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL del backend en Ajustes.");
             }
             if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.message || "Error al invalidar DTE"); }).catch(() => {
-                    throw new Error(`Error de conexión (Código ${response.status}).`);
+                return response.json().then(errData => {
+                    let errMsg = '';
+                    if (Array.isArray(errData.message)) {
+                        errMsg = errData.message.join(', ');
+                    } else {
+                        errMsg = errData.message || errData.error || 'Error al invalidar DTE';
+                    }
+                    return Promise.reject(new Error(errMsg));
+                }, () => {
+                    return Promise.reject(new Error(`Error de conexión (Código ${response.status}).`));
                 });
             }
             return response.json();
