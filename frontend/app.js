@@ -3783,7 +3783,7 @@ function renderIssuedTab(container) {
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>
                     <div style="display: flex; gap: 0.35rem;">
-                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-view-dte-pdf" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
                         <button class="btn btn-danger btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #e74c3c; border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
                     </div>
@@ -3792,11 +3792,11 @@ function renderIssuedTab(container) {
             rowsContainer.appendChild(tr);
         });
         
-        // Bind PDF Buttons
-        rowsContainer.querySelectorAll('.btn-print-budget-pdf').forEach(btn => {
+        // Bind PDF DTE Buttons
+        rowsContainer.querySelectorAll('.btn-view-dte-pdf').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                exportBudgetPDF(btn.getAttribute('data-id'));
+                viewDtePdf(btn.getAttribute('data-id'));
             });
         });
         
@@ -4330,6 +4330,50 @@ function renderInvoicingWorkspace(container, presId) {
             emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
         });
     });
+}
+
+async function viewDtePdf(dteId) {
+    try {
+        const db = getDatabase();
+        const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                       JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {};
+        
+        const apiKey = dteCfg.apiKey || '';
+        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+        const isSimulated = !apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_');
+
+        if (isSimulated) {
+            showToast("Simulación: Abriendo representación gráfica del DTE...", "info");
+            alert("En modo de simulación, no hay un PDF real en los servidores de FacturaLlama. Cuando use su API Key real en producción, este botón abrirá la representación gráfica oficial del DTE.");
+            return;
+        }
+
+        if (!baseUrl) {
+            showToast("Error: Configure la URL de su servidor backend proxy en Ajustes para descargar el PDF.", "danger");
+            return;
+        }
+
+        showToast("Generando representación gráfica del DTE...", "info");
+
+        const response = await fetch(`${baseUrl}/api/dte/pdf`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ apiKey, dteId })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error al recuperar PDF (Código ${response.status})`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+    } catch (err) {
+        console.error(err);
+        showToast("Error al obtener el PDF del DTE: " + err.message, "danger");
+    }
 }
 
 function queryDteStatusMH(dteId) {

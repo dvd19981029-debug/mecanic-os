@@ -846,6 +846,82 @@ const server = http.createServer((req, res) => {
         });
         return;
     }
+
+    // 1.9 FACTURALLAMA: DOWNLOAD DTE PDF
+    if (req.method === 'POST' && req.url === '/api/dte/pdf') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const { apiKey, dteId } = JSON.parse(body);
+                
+                if (!dteId) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Debe proveer el dteId." }));
+                    return;
+                }
+                
+                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                    console.log("FacturaLlama PDF: Returning simulated PDF stream.");
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/pdf');
+                    // Return a very minimal valid blank PDF structure as a mock
+                    const mockPdf = Buffer.from(
+                        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+                        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+                        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n" +
+                        "4 0 obj\n<< /Length 51 >>\nstream\nBT\n/F1 12 Tf\n70 700 Td\n(DTE Simulado PDF - FacturaLlama) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000204 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n306\n%%EOF"
+                    );
+                    res.end(mockPdf);
+                    return;
+                }
+                
+                const targetUrl = `https://api.facturallama.com/dte/${dteId}/download/pdf`;
+                
+                const options = {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-API-Version': '1'
+                    }
+                };
+                
+                const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+                    res.statusCode = proxyRes.statusCode;
+                    
+                    if (proxyRes.statusCode === 200) {
+                        res.setHeader('Content-Type', 'application/pdf');
+                        if (proxyRes.headers['content-disposition']) {
+                            res.setHeader('Content-Disposition', proxyRes.headers['content-disposition']);
+                        }
+                        proxyRes.pipe(res);
+                    } else {
+                        res.setHeader('Content-Type', 'application/json');
+                        let proxyErrorBody = '';
+                        proxyRes.on('data', chunk => proxyErrorBody += chunk);
+                        proxyRes.on('end', () => {
+                            res.end(proxyErrorBody);
+                        });
+                    }
+                });
+                
+                proxyReq.on('error', (err) => {
+                    console.error("FacturaLlama PDF Proxy Error:", err);
+                    res.statusCode = 502;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Error de conexión al obtener PDF", details: err.message }));
+                });
+                
+                proxyReq.end();
+            } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, error: "Bad Request", message: "Formato JSON inválido" }));
+            }
+        });
+        return;
+    }
     
     // 2. STATIC FILE SERVING
     let safeUrl = req.url.split('?')[0];
