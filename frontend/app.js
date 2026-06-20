@@ -1599,6 +1599,7 @@ function renderTallerDashboard(container) {
                                 if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
                                 else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
                                 else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
+                                else if (p.Estado == 4) statusBadge = '<span class="badge-tag badge-danger">Anulado</span>';
                                 else statusBadge = '<span class="badge-tag badge-success">En Espera</span>';
                                 
                                 return `
@@ -2732,13 +2733,16 @@ function renderPresupuestos(container, queryParams) {
             if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
             else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
             else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
+            else if (p.Estado == 4) statusBadge = '<span class="badge-tag badge-danger">Anulado</span>';
             else statusBadge = '<span class="badge-tag badge-success">En Espera</span>';
             
             const isFacturado = p.Estado == 3;
-            const actionText = isFacturado ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
+            const isAnulado = p.Estado == 4;
+            const isReadonly = isFacturado || isAnulado;
+            const actionText = isReadonly ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
             
-            const deleteBtnHtml = isFacturado 
-                ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
+            const deleteBtnHtml = isReadonly 
+                ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
                 : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
             
             // Calculate total for this budget
@@ -2906,7 +2910,7 @@ function renderBudgetEditor(container, budget) {
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
-                        <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
+                        <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                             ${techsHTML}
                         </select>
                     </div>
@@ -2914,7 +2918,7 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
-                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
+                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -2976,10 +2980,11 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Estado del Presupuesto</label>
-                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled' : ''}>
+                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                         <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Creado</option>
                         <option value="2" ${budget.Estado == 2 ? 'selected' : ''} ${!isAdmin ? 'disabled' : ''}>2 - Aprobado ${!isAdmin ? '(Solo Admin)' : ''}</option>
                         <option value="3" ${budget.Estado == 3 ? 'selected' : ''} disabled>3 - Facturado</option>
+                        <option value="4" ${budget.Estado == 4 ? 'selected' : ''} disabled>4 - Anulado</option>
                     </select>
                 </div>
                 
@@ -2996,19 +3001,19 @@ function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
-                ${(budget.Estado == 2 || budget.Estado == 3) ? `
-                <div style="background: rgba(46, 204, 113, 0.1); border: 1px solid var(--success); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span>${budget.Estado == 2 ? 'Presupuesto aprobado (Lectura).' : 'Presupuesto facturado (Lectura).'}</span>
+                ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? `
+                <div style="background: ${budget.Estado == 4 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)'}; border: 1px solid ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                    <i class="fa-solid ${budget.Estado == 4 ? 'fa-ban' : 'fa-circle-check'}"></i>
+                    <span>${budget.Estado == 2 ? 'Presupuesto aprobado (Lectura).' : budget.Estado == 4 ? 'DTE Anulado / Invalidado (Lectura).' : 'Presupuesto facturado (Lectura).'}</span>
                 </div>
                 ` : ''}
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
                     ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
-                    <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
+                    <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
-                    <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+                    <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
             </div>
         </div>
@@ -3185,7 +3190,7 @@ function renderBudgetEditor(container, budget) {
     }
 
     function renderTempRows() {
-        const isLocked = budget.Estado == 2 || budget.Estado == 3;
+        const isLocked = budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4;
         productsContainer.innerHTML = '';
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
@@ -3701,7 +3706,7 @@ function renderIssuedTab(container) {
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
-    const issued = db.presupuestos.filter(p => p.Estado == 3);
+    const issued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4);
     
     container.innerHTML = `
         <div class="glass-card">
@@ -3773,25 +3778,44 @@ function renderIssuedTab(container) {
             }
             const grandTotal = subtotal + iva + percVal - retVal;
             
+            const isAnulado = p.Estado == 4 || p.Anulado;
             const dteLabel = p.Doc_a_Emitir === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
+            const typeBadge = isAnulado 
+                ? `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); font-weight: bold; font-size: 0.75rem;">ANULADO</span>`
+                : `<span class="badge-tag badge-secondary">${dteLabel}</span>`;
+                
             const genCode = p.controlNumber || 'MOCK-DTE-123456';
             const displayCode = genCode.length > 20 ? genCode.substring(0, 15) + '...' : genCode;
             
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong title="${genCode}">${displayCode}</strong></td>
-                <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
-                <td>${p.Nombre}</td>
-                <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
-                <td><span class="badge-tag badge-secondary">${dteLabel}</span></td>
-                <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                <td>
-                    <div style="display: flex; gap: 0.35rem;">
+            const actionsHtml = isAnulado
+                ? `
+                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
+                        <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                        <button class="btn btn-success btn-reemit-dte" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--success); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
+                  `
+                : `
                         <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
                         <button class="btn btn-secondary btn-view-dte-pdf" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
                         <button class="btn btn-danger btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #e74c3c; border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                  `;
+            
+            const tr = document.createElement('tr');
+            if (isAnulado) {
+                tr.style.opacity = '0.75';
+                tr.style.background = 'rgba(231, 76, 60, 0.03)';
+            }
+            tr.innerHTML = `
+                <td><strong title="${genCode}">${displayCode}</strong></td>
+                <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td>${p.Nombre}</td>
+                <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
+                <td>${typeBadge}</td>
+                <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                <td>
+                    <div style="display: flex; gap: 0.35rem;">
+                        ${actionsHtml}
                     </div>
                 </td>
             `;
@@ -3827,6 +3851,14 @@ function renderIssuedTab(container) {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 openInvalidateDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
+            });
+        });
+
+        // Bind Re-emit Buttons
+        rowsContainer.querySelectorAll('.btn-reemit-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                reemitBudget(btn.getAttribute('data-id'));
             });
         });
     }
@@ -4559,6 +4591,58 @@ function printDteTicket(presId) {
     ticketWindow.document.close();
 }
 
+function reemitBudget(presId) {
+    const db = getDatabase();
+    const orig = db.presupuestos.find(b => b['ID Presupuesto'] === presId);
+    if (!orig) return;
+
+    if (!confirm(`¿Está seguro de que desea re-emitir el presupuesto ${presId}? Se creará una copia en estado 'Aprobado' para poder facturarlo de nuevo.`)) {
+        return;
+    }
+
+    const newId = "PRES-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
+    const newBudget = {
+        ...orig,
+        "ID Presupuesto": newId,
+        Fecha: Date.now(),
+        Estado: 2,
+        "Pagado?": "NO"
+    };
+    
+    delete newBudget.controlNumber;
+    delete newBudget.mhControlNumber;
+    delete newBudget.receptionSeal;
+    delete newBudget.Fecha_Facturacion;
+    delete newBudget.Anulado;
+    delete newBudget.Fecha_Anulacion;
+
+    db.presupuestos.unshift(newBudget);
+
+    const origProds = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+    origProds.forEach(item => {
+        const newDppId = "DPP-" + Math.floor(Math.random()*900000);
+        db.detalle_productos.push({
+            ...item,
+            "ID Detalle Presupuesto Producto": newDppId,
+            "ID_Presupuesto DPP": newId
+        });
+    });
+
+    const origLabor = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
+    origLabor.forEach(item => {
+        const newMoId = "DMO-" + Math.floor(Math.random()*900000);
+        db.detalle_mano_obra.push({
+            ...item,
+            "ID Detalle Presupuesto Mano de Obra": newMoId,
+            "ID_Presupuesto MO": newId
+        });
+    });
+
+    saveDatabase(db);
+    showToast(`Presupuesto clonado con éxito como ${newId} en Pendientes de Facturar.`, "success");
+    handleRouting();
+}
+
 function queryDteStatusMH(dteId) {
     const db = getDatabase();
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
@@ -4750,10 +4834,9 @@ function openInvalidateDteModal(dteId, presId) {
         function processLocalInvalidation() {
             const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
             if (p) {
-                p.Estado = 2; // Return to Aprobado
-                delete p.controlNumber;
-                delete p.Fecha_Facturacion;
-                delete p.Doc_a_Emitir;
+                p.Estado = 4; // 4 = Anulado/Invalidado
+                p.Anulado = true;
+                p.Fecha_Anulacion = Date.now();
                 
                 if (db.pagos) {
                     db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
@@ -4761,7 +4844,7 @@ function openInvalidateDteModal(dteId, presId) {
                 saveDatabase(db);
             }
             closeModal();
-            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. El presupuesto regresó a estado Aprobado.", "success");
+            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. Quedará registrado en el historial como ANULADO.", "success");
             handleRouting();
         }
 
