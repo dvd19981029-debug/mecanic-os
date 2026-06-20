@@ -3422,35 +3422,334 @@ function renderKanban(container) {
 function renderFacturador(container, queryParams) {
     const db = getDatabase();
     
-    // Approved budgets pending invoice
-    const pendingBudgets = db.presupuestos.filter(p => p.Estado == 2);
-    let selectedPresId = queryParams.presId || '';
+    // Check if we are in direct invoicing mode (presId is present)
+    const selectedPresId = queryParams.presId || '';
+    
+    if (selectedPresId) {
+        // Render Invoicing Form Workspace
+        renderInvoicingWorkspace(container, selectedPresId);
+    } else {
+        // Render Tabbed List Workspace
+        renderTabbedListWorkspace(container);
+    }
+}
+
+function renderTabbedListWorkspace(container) {
+    container.innerHTML = `
+        <div class="tabs-container" style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+            <button class="tab-btn" id="tab-btn-pending" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Pendientes de Facturar
+            </button>
+            <button class="tab-btn" id="tab-btn-issued" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Historial DTEs Emitidos
+            </button>
+        </div>
+        
+        <div id="tab-content-area">
+            <!-- Dynamic Tab Content -->
+        </div>
+    `;
+    
+    const tabBtnPending = document.getElementById('tab-btn-pending');
+    const tabBtnIssued = document.getElementById('tab-btn-issued');
+    const tabContentArea = document.getElementById('tab-content-area');
+    
+    let currentTab = localStorage.getItem('mecanic_os_facturador_active_tab') || 'pending';
+    
+    function switchTab(tabName) {
+        currentTab = tabName;
+        localStorage.setItem('mecanic_os_facturador_active_tab', tabName);
+        
+        // Remove active styles from both
+        tabBtnPending.classList.remove('active');
+        tabBtnPending.style.color = 'var(--text-secondary)';
+        tabBtnPending.style.borderBottom = 'none';
+        
+        tabBtnIssued.classList.remove('active');
+        tabBtnIssued.style.color = 'var(--text-secondary)';
+        tabBtnIssued.style.borderBottom = 'none';
+        
+        if (tabName === 'pending') {
+            tabBtnPending.classList.add('active');
+            tabBtnPending.style.color = 'var(--text-primary)';
+            tabBtnPending.style.borderBottom = '2px solid var(--primary)';
+            renderPendingTab(tabContentArea);
+        } else {
+            tabBtnIssued.classList.add('active');
+            tabBtnIssued.style.color = 'var(--text-primary)';
+            tabBtnIssued.style.borderBottom = '2px solid var(--primary)';
+            renderIssuedTab(tabContentArea);
+        }
+    }
+    
+    tabBtnPending.addEventListener('click', () => switchTab('pending'));
+    tabBtnIssued.addEventListener('click', () => switchTab('issued'));
+    
+    // Initial load
+    switchTab(currentTab);
+}
+
+function renderPendingTab(container) {
+    const db = getDatabase();
+    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+
+    const pending = db.presupuestos.filter(p => p.Estado == 2);
     
     container.innerHTML = `
+        <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                <h3 style="margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Presupuestos Aprobados por Facturar</h3>
+                <div class="search-bar-container" style="max-width: 350px; flex-grow: 1; margin: 0;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="pending-dte-search" placeholder="Buscar por número, cliente o placa...">
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código Presupuesto</th>
+                            <th>Fecha Aprobación</th>
+                            <th>Cliente</th>
+                            <th>Placas Auto</th>
+                            <th>Total (Con IVA)</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-dte-rows">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    const rowsContainer = document.getElementById('pending-dte-rows');
+    const searchInput = document.getElementById('pending-dte-search');
+    
+    function populate(filter = '') {
+        rowsContainer.innerHTML = '';
+        
+        const filtered = pending.filter(p => 
+            (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
+            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+            (p.Placas || '').toLowerCase().includes(filter.toLowerCase())
+        );
+        
+        if (filtered.length === 0) {
+            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay presupuestos pendientes de facturación</td></tr>';
+            return;
+        }
+        
+        filtered.forEach(p => {
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+            
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            if (client.AplicaRetencion > 0) {
+                retVal = subtotal * parseFloat(client.AplicaRetencion);
+            }
+            if (client.AplicaPercepcion > 0) {
+                percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            }
+            const grandTotal = subtotal + iva + percVal - retVal;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${p['ID Presupuesto']}</strong></td>
+                <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td>${p.Nombre}</td>
+                <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
+                <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                <td><span class="badge-tag badge-primary" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;">Aprobado</span></td>
+                <td>
+                    <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-signature"></i> Facturar DTE</a>
+                </td>
+            `;
+            rowsContainer.appendChild(tr);
+        });
+    }
+    
+    searchInput.addEventListener('input', (e) => populate(e.target.value));
+    populate();
+}
+
+function renderIssuedTab(container) {
+    const db = getDatabase();
+    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+
+    const issued = db.presupuestos.filter(p => p.Estado == 3);
+    
+    container.innerHTML = `
+        <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                <h3 style="margin: 0;"><i class="fa-solid fa-file-invoice-dollar"></i> Historial de DTEs Emitidos a Hacienda</h3>
+                <div class="search-bar-container" style="max-width: 350px; flex-grow: 1; margin: 0;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="issued-dte-search" placeholder="Buscar por DTE, cliente o placa...">
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código Generación / DTE</th>
+                            <th>Fecha Emisión</th>
+                            <th>Cliente</th>
+                            <th>Placas Auto</th>
+                            <th>Tipo DTE</th>
+                            <th>Total (Con IVA)</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="issued-dte-rows">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    const rowsContainer = document.getElementById('issued-dte-rows');
+    const searchInput = document.getElementById('issued-dte-search');
+    
+    function populate(filter = '') {
+        rowsContainer.innerHTML = '';
+        
+        const filtered = issued.filter(p => 
+            (p.controlNumber || '').toLowerCase().includes(filter.toLowerCase()) ||
+            (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
+            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+            (p.Placas || '').toLowerCase().includes(filter.toLowerCase())
+        );
+        
+        if (filtered.length === 0) {
+            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay DTEs emitidos registrados</td></tr>';
+            return;
+        }
+        
+        filtered.forEach(p => {
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+            
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            if (client.AplicaRetencion > 0) {
+                retVal = subtotal * parseFloat(client.AplicaRetencion);
+            }
+            if (client.AplicaPercepcion > 0) {
+                percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            }
+            const grandTotal = subtotal + iva + percVal - retVal;
+            
+            const dteLabel = p.Doc_a_Emitir === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
+            const genCode = p.controlNumber || 'MOCK-DTE-123456';
+            const displayCode = genCode.length > 20 ? genCode.substring(0, 15) + '...' : genCode;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong title="${genCode}">${displayCode}</strong></td>
+                <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td>${p.Nombre}</td>
+                <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
+                <td><span class="badge-tag badge-secondary">${dteLabel}</span></td>
+                <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                <td>
+                    <div style="display: flex; gap: 0.35rem;">
+                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+                        <button class="btn btn-danger btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #e74c3c; border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                    </div>
+                </td>
+            `;
+            rowsContainer.appendChild(tr);
+        });
+        
+        // Bind PDF Buttons
+        rowsContainer.querySelectorAll('.btn-print-budget-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                exportBudgetPDF(btn.getAttribute('data-id'));
+            });
+        });
+        
+        // Bind Query Buttons
+        rowsContainer.querySelectorAll('.btn-query-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                queryDteStatusMH(btn.getAttribute('data-id'));
+            });
+        });
+        
+        // Bind Invalidate Buttons
+        rowsContainer.querySelectorAll('.btn-invalidate-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openInvalidateDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
+            });
+        });
+    }
+    
+    searchInput.addEventListener('input', (e) => populate(e.target.value));
+    populate();
+}
+
+function renderInvoicingWorkspace(container, presId) {
+    const db = getDatabase();
+    const p = db.presupuestos.find(b => b['ID Presupuesto'] === presId);
+    if (!p) {
+        container.innerHTML = `
+            <div class="glass-card" style="text-align: center; padding: 3rem;">
+                <h3 style="color: var(--danger);">Presupuesto no encontrado</h3>
+                <a href="#facturador" class="btn btn-secondary" style="margin-top: 1rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
+            </div>
+        `;
+        return;
+    }
+    
+    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 1.5rem;">
+            <a href="#facturador" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
+        </div>
+        
         <div class="glass-card" style="margin-bottom: 2rem;">
             <h3>Emitir Documento Tributario Electrónico (DTE MH)</h3>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Genera y firma comprobantes de facturación digital con validación directa del Ministerio de Hacienda de El Salvador.</p>
             
-            <div class="form-row" style="grid-template-columns: 1.5fr 1fr;">
+            <div class="form-row" style="grid-template-columns: 1.5fr 1fr; gap: 1.5rem;">
                 <div>
-                    <div class="form-group">
-                        <label>Seleccionar Presupuesto Aprobado</label>
-                        <select id="invoice-presupuesto-select" style="padding: 0.65rem;">
-                            <option value="">-- Elige presupuesto a facturar --</option>
-                            ${pendingBudgets.map(p => `<option value="${p['ID Presupuesto']}" ${selectedPresId === p['ID Presupuesto'] ? 'selected' : ''}>${p['ID Presupuesto']} - ${p.Nombre} (${p.Placas})</option>`).join('')}
-                        </select>
-                    </div>
-                    
-                    <div id="invoice-details-box" style="display: none; background-color: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+                    <div id="invoice-details-box" style="background-color: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
                         <!-- Injected -->
                     </div>
                 </div>
                 
-                <div class="glass-card" id="invoice-billing-settings" style="display: none; height: fit-content;">
+                <div class="glass-card" id="invoice-billing-settings" style="height: fit-content; margin: 0; padding: 1.25rem; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);">
                     <h3>Ajustes de Emisión</h3>
                     <div class="form-group" style="margin-top: 1rem;">
                         <label>Tipo de DTE a Emitir</label>
-                        <select id="dte-doc-type">
+                        <select id="dte-doc-type" style="padding:0.6rem; width:100%;">
                             <option value="FE">Factura Electrónica (Consumidor Final)</option>
                             <option value="CCF">Comprobante de Crédito Fiscal (Empresas)</option>
                         </select>
@@ -3458,53 +3757,103 @@ function renderFacturador(container, queryParams) {
                     
                     <div class="form-group">
                         <label>Condición de Pago</label>
-                        <select id="dte-pay-condition">
+                        <select id="dte-pay-condition" style="padding:0.6rem; width:100%;">
                             <option value="CONTADO">Contado (Efectivo/Tarjeta/Transferencia)</option>
                             <option value="CREDITO">Crédito (Abonos)</option>
                         </select>
                     </div>
-
+                    
                     <div class="form-group" id="credit-days-group" style="display: none;">
                         <label>Días de Plazo</label>
-                        <input type="number" id="dte-credit-days" value="30" min="1">
+                        <input type="number" id="dte-credit-days" value="30" min="1" style="padding:0.6rem; width:100%;">
                     </div>
-
+                    
                     <div class="form-group">
                         <label>Forma de Pago Principal</label>
-                        <select id="dte-pay-method">
+                        <select id="dte-pay-method" style="padding:0.6rem; width:100%;">
                             <option value="01">01 - Efectivo</option>
                             <option value="02">02 - Tarjeta de Crédito/Débito</option>
                             <option value="03">03 - Transferencia / Depósito</option>
                         </select>
                     </div>
-
-                    <button class="btn btn-success" id="emit-dte-btn" style="width: 100%; margin-top: 1rem;"><i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH</button>
+                    
+                    <button class="btn btn-success" id="emit-dte-btn" style="width: 100%; margin-top: 1rem; padding: 0.75rem;"><i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH</button>
                 </div>
             </div>
         </div>
-
+        
         <!-- Print/DTE Preview area -->
         <div id="dte-emission-result" class="glass-card" style="display: none; border-color: var(--success); margin-top: 2rem;">
             <!-- Render MH seal, generation code and print structure -->
         </div>
     `;
-
-    const selectPres = document.getElementById('invoice-presupuesto-select');
+    
     const detailsBox = document.getElementById('invoice-details-box');
-    const settingsBox = document.getElementById('invoice-billing-settings');
     const dteType = document.getElementById('dte-doc-type');
     const dtePayCond = document.getElementById('dte-pay-condition');
     const creditDaysGroup = document.getElementById('credit-days-group');
     const emitBtn = document.getElementById('emit-dte-btn');
     const resultBox = document.getElementById('dte-emission-result');
+    
+    // Load calculations
+    const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+    const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
 
-    if (selectedPresId) {
-        loadPresupuestoForInvoice(selectedPresId);
+    let subtotal = 0;
+    prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+    laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+    
+    const iva = subtotal * 0.13;
+    let grandTotal = subtotal + iva;
+    
+    let retention = 0;
+    let perception = 0;
+    if (client.AplicaPercepcion > 0) {
+        perception = subtotal * parseFloat(client.AplicaPercepcion);
+        grandTotal += perception;
+    }
+    if (client.AplicaRetencion > 0) {
+        retention = subtotal * parseFloat(client.AplicaRetencion);
+        grandTotal -= retention;
     }
 
-    selectPres.addEventListener('change', (e) => {
-        loadPresupuestoForInvoice(e.target.value);
-    });
+    // Auto select DTE document type based on client data
+    if (client['Contribuyente?'] === 'SI') {
+        dteType.value = 'CCF';
+    } else {
+        dteType.value = 'FE';
+    }
+    
+    // Auto select payment condition if budget has it set
+    if (p.Condicion === 'CREDITO') {
+        dtePayCond.value = 'CREDITO';
+        creditDaysGroup.style.display = 'block';
+    }
+    
+    detailsBox.innerHTML = `
+        <h4>Detalle del Presupuesto a Facturar</h4>
+        <div style="margin: 1rem 0; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.4rem;">
+            <p>Cliente: <strong>${client.Nombre}</strong></p>
+            <p>NIT/DUI: ${client.NIT || client['Num Doc'] || 'N/A'}</p>
+            <p>Vehículo Placas: <strong style="color: var(--primary);">${p.Placas || 'N/A'}</strong></p>
+        </div>
+        
+        <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+            <h5 style="margin-bottom:0.75rem;">Ítems a Emitir</h5>
+            <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                ${prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
+                ${laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem;">
+            <div style="display:flex; justify-content:space-between;"><span>Subtotal Neto:</span><span>$ ${subtotal.toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>IVA (13%):</span><span>$ ${iva.toFixed(2)}</span></div>
+            ${perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : ''}
+            ${retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : ''}
+            <div style="display:flex; justify-content:space-between; font-weight:700; margin-top:0.5rem; font-size:1.1rem; color:var(--cyan);"><span>TOTAL DTE:</span><span>$ ${grandTotal.toFixed(2)}</span></div>
+        </div>
+    `;
 
     dtePayCond.addEventListener('change', (e) => {
         if (e.target.value === 'CREDITO') {
@@ -3514,100 +3863,11 @@ function renderFacturador(container, queryParams) {
         }
     });
 
-    function loadPresupuestoForInvoice(presId) {
-        resultBox.style.display = 'none';
-        if (!presId) {
-            detailsBox.style.display = 'none';
-            settingsBox.style.display = 'none';
-            return;
-        }
-
-        const p = db.presupuestos.find(b => b['ID Presupuesto'] === presId);
-        if (!p) return;
-
-        const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
-        
-        // Load details
-        const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
-        const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
-
-        let subtotal = 0;
-        prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
-        laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
-        
-        const iva = subtotal * 0.13;
-        let grandTotal = subtotal + iva;
-        
-        let retention = 0;
-        let perception = 0;
-        if (client.AplicaPercepcion > 0) {
-            perception = subtotal * parseFloat(client.AplicaPercepcion);
-            grandTotal += perception;
-        }
-        if (client.AplicaRetencion > 0) {
-            retention = subtotal * parseFloat(client.AplicaRetencion);
-            grandTotal -= retention;
-        }
-
-        // Auto select DTE document type based on client data
-        if (client['Contribuyente?'] === 'SI') {
-            dteType.value = 'CCF';
-        } else {
-            dteType.value = 'FE';
-        }
-
-        detailsBox.style.display = 'block';
-        settingsBox.style.display = 'block';
-        
-        detailsBox.innerHTML = `
-            <h4>Detalle del Presupuesto a Facturar</h4>
-            <div style="margin: 1rem 0; font-size: 0.85rem;">
-                <p>Cliente: <strong>${client.Nombre}</strong></p>
-                <p>NIT/DUI: ${client.NIT || client['Num Doc'] || 'N/A'}</p>
-                <p>Vehículo Placas: <strong style="color: var(--primary);">${p.Placas || 'N/A'}</strong></p>
-            </div>
-            
-            <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
-                <h5>Ítems a Emitir</h5>
-                ${prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem; margin: 0.25rem 0;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
-                ${laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem; margin: 0.25rem 0;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
-            </div>
-
-            <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; font-size: 0.9rem;">
-                <div style="display:flex; justify-content:space-between; margin:0.25rem 0;"><span>Subtotal Neto:</span><span>$ ${subtotal.toFixed(2)}</span></div>
-                <div style="display:flex; justify-content:space-between; margin:0.25rem 0;"><span>IVA (13%):</span><span>$ ${iva.toFixed(2)}</span></div>
-                ${perception > 0 ? `<div style="display:flex; justify-content:space-between; margin:0.25rem 0;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : ''}
-                ${retention > 0 ? `<div style="display:flex; justify-content:space-between; margin:0.25rem 0;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : ''}
-                <div style="display:flex; justify-content:space-between; font-weight:700; margin:0.5rem 0; font-size:1.1rem; color:var(--cyan);"><span>TOTAL DTE:</span><span>$ ${grandTotal.toFixed(2)}</span></div>
-            </div>
-        `;
-
-        // Store calculations for click event
-        emitBtn.dataset.subtotal = subtotal;
-        emitBtn.dataset.grandTotal = grandTotal;
-        emitBtn.dataset.iva = iva;
-        emitBtn.dataset.retention = retention;
-        emitBtn.dataset.perception = perception;
-    }
-
-    // Handle DTE emission
     emitBtn.addEventListener('click', () => {
-        const presId = selectPres.value;
-        const p = db.presupuestos.find(b => b['ID Presupuesto'] === presId);
-        if (!p) return;
-
-        const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
-        
         const type = dteType.value;
         const payCond = dtePayCond.value;
         const payMethod = document.getElementById('dte-pay-method').value;
         
-        const subtotal = parseFloat(emitBtn.dataset.subtotal);
-        const grandTotal = parseFloat(emitBtn.dataset.grandTotal);
-        const iva = parseFloat(emitBtn.dataset.iva);
-        const ret = parseFloat(emitBtn.dataset.retention);
-        const perc = parseFloat(emitBtn.dataset.perception);
-
         // Credit validation
         if (payCond === 'CREDITO') {
             if (client['Credito?'] !== 'SI') {
@@ -3631,13 +3891,7 @@ function renderFacturador(container, queryParams) {
             posNumber: '1'
         };
 
-        const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
-        const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
-
-        // Build Payload
         const isCCF = type === 'CCF';
-        
-        // Resolve Depto & Municipio Codes
         const deptName = client.Depto || 'San Salvador';
         const muniName = client.Municipio || 'San Salvador Centro';
         
@@ -3678,8 +3932,7 @@ function renderFacturador(container, queryParams) {
 
         if (isCCF) {
             recipientPayload.contributorType = client['Tipo Cliente'] === 'JURIDICA' ? 'JURIDICA' : 'NATURAL';
-            // Extract the first 5 digits of the Giro string to get the numeric code
-            let giroCode = '45201'; // Default
+            let giroCode = '45201';
             if (client.Giro) {
                 const match = client.Giro.match(/^\d{5}/);
                 if (match) {
@@ -3746,7 +3999,6 @@ function renderFacturador(container, queryParams) {
             dtePayload.paymentType = 'CONTADO';
         }
 
-        // Loading state
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
@@ -3760,15 +4012,13 @@ function renderFacturador(container, queryParams) {
             },
             body: JSON.stringify({
                 apiKey: dteCfg.apiKey,
-                docType: type.toLowerCase(), // 'fc' or 'ccf'
+                docType: type.toLowerCase(),
                 payload: dtePayload
             })
         })
         .then(response => {
             if (!response.ok) {
-                // Fallback de simulación local si no hay backend activo (ej. en GitHub Pages)
                 if (response.status === 404 && (!dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_'))) {
-                    console.log("Servidor estático detectado. Usando simulación de DTE en el frontend.");
                     return {
                         success: true,
                         simulated: true,
@@ -3792,7 +4042,6 @@ function renderFacturador(container, queryParams) {
             const seal = resData.receptionSeal || (Math.floor(Math.random()*900000) + "-APPROVED");
             const mhUrl = resData.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
 
-            // Update budget record state to Facturado
             p.Estado = 3;
             p.controlNumber = genCode;
             p.Doc_a_Emitir = type === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA';
@@ -3801,7 +4050,6 @@ function renderFacturador(container, queryParams) {
             p.Pagado = payCond === 'CONTADO' ? 'SI' : 'NO';
             p['Pagado?'] = payCond === 'CONTADO' ? 'SI' : 'NO';
             
-            // Save invoice payment or register credit
             if (payCond === 'CONTADO') {
                 const payId = "PAGO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
                 db.pagos = db.pagos || [];
@@ -3815,36 +4063,34 @@ function renderFacturador(container, queryParams) {
                     User: getActiveUser().Email || "jjmunoz932@gmail.com",
                     Cliente: p.Codigo_Cliente
                 });
-                
-                // Add cash flow entry
-                db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
             } else {
-                // Credit: increment accounts receivable
                 showToast("Registrado en Cuentas por Cobrar del cliente", "warning");
             }
 
             saveDatabase(db);
             showToast("DTE Generado y Aprobado por MH El Salvador!", "success");
             
-            const ws = getWorkshopConfig(db);
+            const wsConfig = getWorkshopConfig(db);
             
-            // Render MH invoice print preview
             resultBox.style.display = 'block';
             resultBox.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--success); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--success); padding-bottom: 1rem; margin-bottom: 1.5rem; flex-wrap:wrap; gap:1rem;">
                     <div>
                         <h3 style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> DOCUMENTO TRANSMITIDO CON ÉXITO</h3>
                         <p style="font-size:0.8rem; color:var(--text-secondary);">Validación de Sello y Código Generado</p>
                     </div>
-                    <button class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir Representación Gráfica</button>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir</button>
+                        <a href="#facturador" class="btn btn-primary" id="btn-done-goto-history" style="text-decoration:none;"><i class="fa-solid fa-list-check"></i> Ver Historial DTEs</a>
+                    </div>
                 </div>
                 
                 <div id="print-section" style="background-color: white; color: black; padding: 2rem; border-radius: 4px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; border: 1px solid #ccc;">
                     <div style="text-align: center; margin-bottom: 1rem;">
-                        <h3>${ws.nombre}</h3>
-                        <p>${ws.giro}</p>
-                        <p>${ws.direccion}</p>
-                        <p>TEL: ${ws.telefono} • NIT: ${ws.nit} • NRC: ${ws.nrc}</p>
+                        <h3>${wsConfig.nombre}</h3>
+                        <p>${wsConfig.giro}</p>
+                        <p>${wsConfig.direccion}</p>
+                        <p>TEL: ${wsConfig.telefono} • NIT: ${wsConfig.nit} • NRC: ${wsConfig.nrc}</p>
                         <p>--------------------------------------------------</p>
                         <h4>DOCUMENTO TRIBUTARIO ELECTRÓNICO</h4>
                         <p><strong>${type === 'CCF' ? 'COMPROBANTE DE CRÉDITO FISCAL' : 'FACTURA DE CONSUMIDOR FINAL'}</strong></p>
@@ -3892,8 +4138,8 @@ function renderFacturador(container, queryParams) {
                     <div style="text-align:right;">
                         <p>Subtotal Neto: $ ${subtotal.toFixed(2)}</p>
                         <p>IVA (13%): $ ${iva.toFixed(2)}</p>
-                        ${perc > 0 ? `<p>Percepción (2%): $ ${perc.toFixed(2)}</p>` : ''}
-                        ${ret > 0 ? `<p>Retención (1%): $ ${ret.toFixed(2)}</p>` : ''}
+                        ${perception > 0 ? `<p>Percepción (2%): $ ${perception.toFixed(2)}</p>` : ''}
+                        ${retention > 0 ? `<p>Retención (1%): $ ${retention.toFixed(2)}</p>` : ''}
                         <p><strong>TOTAL: $ ${grandTotal.toFixed(2)}</strong></p>
                     </div>
                     <p>--------------------------------------------------</p>
@@ -3905,11 +4151,9 @@ function renderFacturador(container, queryParams) {
                 </div>
             `;
             
-            // Refresh selection dropdown
-            const pending = db.presupuestos.filter(bud => bud.Estado == 2);
-            selectPres.innerHTML = `<option value="">-- Elige presupuesto a facturar --</option>` + pending.map(bud => `<option value="${bud['ID Presupuesto']}">${bud['ID Presupuesto']} - ${bud.Nombre} (${bud.Placas})</option>`).join('');
-            detailsBox.style.display = 'none';
-            settingsBox.style.display = 'none';
+            document.getElementById('btn-done-goto-history').addEventListener('click', (ev) => {
+                localStorage.setItem('mecanic_os_facturador_active_tab', 'issued');
+            });
         })
         .catch(err => {
             console.error(err);
@@ -3918,6 +4162,188 @@ function renderFacturador(container, queryParams) {
         .finally(() => {
             emitBtn.disabled = false;
             emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
+        });
+    });
+}
+
+function queryDteStatusMH(dteId) {
+    const db = getDatabase();
+    const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || { apiKey: '' };
+                   
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content glass-card" style="max-width: 500px; text-align: center; padding: 2rem;">
+            <h3><i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i> Consultando Ministerio de Hacienda...</h3>
+            <p style="margin-top: 1rem; color: var(--text-secondary); font-size:0.85rem;">Consultando estado para el DTE:<br><strong style="word-break:break-all;">${dteId}</strong></p>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
+    const endpoint = baseUrl ? `${baseUrl}/api/dte/retrieve` : '/api/dte/retrieve';
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            apiKey: dteCfg.apiKey,
+            dteId: dteId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.message || "Error al consultar DTE"); });
+        }
+        return response.json();
+    })
+    .then(data => {
+        modal.innerHTML = `
+            <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2>Resultado de Consulta MH</h2>
+                    <button class="close-modal-btn" id="close-query-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                <div style="font-size:0.9rem; display:flex; flex-direction:column; gap:0.75rem;">
+                    <p>DTE ID: <strong style="word-break:break-all;">${data.id || dteId}</strong></p>
+                    <p>Estado en MH: <span class="badge-tag badge-success" style="font-size:0.85rem; font-weight:700;">${data.status || 'APPROVED'}</span></p>
+                    <p>Ambiente: <strong>${data.environment === '00' ? 'PRODUCCIÓN' : 'PRUEBAS'}</strong></p>
+                    <p>Código Control: <strong>${data.controlNumber || 'N/A'}</strong></p>
+                    <p>Mensaje API: <span style="color:var(--success); font-weight:600;">${data.message || 'Consulta exitosa'}</span></p>
+                </div>
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button class="btn btn-secondary" id="close-query-modal-btn">Cerrar</button>
+                </div>
+            </div>
+        `;
+        
+        const close = () => { modal.remove(); };
+        document.getElementById('close-query-modal').addEventListener('click', close);
+        document.getElementById('close-query-modal-btn').addEventListener('click', close);
+    })
+    .catch(err => {
+        modal.innerHTML = `
+            <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2 style="color:var(--danger);">Error de Consulta</h2>
+                    <button class="close-modal-btn" id="close-query-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                <p style="color:var(--danger);">${err.message}</p>
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button class="btn btn-secondary" id="close-query-modal-btn">Cerrar</button>
+                </div>
+            </div>
+        `;
+        const close = () => { modal.remove(); };
+        document.getElementById('close-query-modal').addEventListener('click', close);
+        document.getElementById('close-query-modal-btn').addEventListener('click', close);
+    });
+}
+
+function openInvalidateDteModal(dteId, presId) {
+    const db = getDatabase();
+    const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || { apiKey: '' };
+                   
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2>Anulación de Documento DTE</h2>
+                <button class="close-modal-btn" id="close-invalidate-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <form id="invalidate-dte-form" style="display:flex; flex-direction:column; gap:1rem;">
+                <p style="font-size:0.85rem; color:var(--text-secondary);">Esta acción transmitirá una anulación oficial al Ministerio de Hacienda para el DTE: <br><strong style="word-break:break-all;">${dteId}</strong>.<br><br>Una vez invalidado, el presupuesto volverá a estado "Aprobado" para que puedas corregirlo, facturarlo nuevamente o eliminarlo.</p>
+                
+                <div class="form-group">
+                    <label>Motivo de Anulación</label>
+                    <select id="inv-reason" required style="width:100%; padding:0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color);">
+                        <option value="ERROR_ESCRITURA">Error de digitación o escritura en datos</option>
+                        <option value="OPERACION_SUSPENDIDA">La operación comercial se suspendió / canceló</option>
+                        <option value="TIPO_DOC_INCORRECTO">Cambio de tipo de documento</option>
+                        <option value="OTRO">Otro motivo justificable</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Comentario / Justificación</label>
+                    <input type="text" id="inv-comment" placeholder="Ej. El cliente canceló el pedido de repuestos" required style="width:100%; padding:0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color);">
+                </div>
+                
+                <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary" id="close-invalidate-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" style="background:#e74c3c; border:none;"><i class="fa-solid fa-ban"></i> Confirmar Anulación</button>
+                </div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const closeModal = () => { modal.remove(); };
+    document.getElementById('close-invalidate-modal').addEventListener('click', closeModal);
+    document.getElementById('close-invalidate-btn').addEventListener('click', closeModal);
+    
+    document.getElementById('invalidate-dte-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const reason = document.getElementById('inv-reason').value;
+        const comment = document.getElementById('inv-comment').value;
+        
+        const submitBtn = modal.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Anulando...';
+        
+        const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
+        const endpoint = baseUrl ? `${baseUrl}/api/dte/invalidate` : '/api/dte/invalidate';
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                apiKey: dteCfg.apiKey,
+                payload: {
+                    dteId: dteId,
+                    reason: `${reason}: ${comment}`.substring(0, 250)
+                }
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || "Error al invalidar DTE"); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
+            if (p) {
+                p.Estado = 2; // Return to Aprobado
+                delete p.controlNumber;
+                delete p.Fecha_Facturacion;
+                delete p.Doc_a_Emitir;
+                
+                if (db.pagos) {
+                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
+                }
+                saveDatabase(db);
+            }
+            
+            closeModal();
+            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. El presupuesto regresó a estado Aprobado.", "success");
+            handleRouting();
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-ban"></i> Confirmar Anulación';
+            showToast(err.message, "danger");
         });
     });
 }
