@@ -10386,7 +10386,7 @@ async function renderAdminSolicitudes(container) {
                         <form id="saas-detail-dte-form" style="display:flex; flex-direction:column; gap:1rem;">
                             <div class="form-group">
                                 <label>Factura Llama API Key (Private Key)</label>
-                                <input type="password" id="detail-dte-apikey" value="${dte.apiKey || ''}" placeholder="sk_live_... o sk_test_..." style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
+                                <input type="text" id="detail-dte-apikey" value="${dte.apiKey || ''}" placeholder="sk_live_... o sk_test_..." style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
                             </div>
                             <div class="form-group">
                                 <label>Ambiente de Transmisión</label>
