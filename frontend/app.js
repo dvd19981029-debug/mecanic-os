@@ -55,7 +55,34 @@ function getBackendUrl(db) {
     if (!url && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
         return 'http://localhost:3005';
     }
-    return url;
+    return sanitizeBackendUrl(url);
+}
+
+function sanitizeBackendUrl(url) {
+    if (!url) return '';
+    let clean = url.trim();
+    if (clean.endsWith('/')) {
+        clean = clean.slice(0, -1);
+    }
+    if (clean.endsWith('/api/dte/test-connection')) {
+        clean = clean.slice(0, -24);
+    }
+    if (clean.endsWith('/api/dte/invalidate')) {
+        clean = clean.slice(0, -19);
+    }
+    if (clean.endsWith('/api/dte/retrieve')) {
+        clean = clean.slice(0, -17);
+    }
+    if (clean.endsWith('/api/dte')) {
+        clean = clean.slice(0, -8);
+    }
+    if (clean.endsWith('/api')) {
+        clean = clean.slice(0, -4);
+    }
+    if (clean.endsWith('/')) {
+        clean = clean.slice(0, -1);
+    }
+    return clean;
 }
 
 async function saveDatabase(db) {
@@ -4058,7 +4085,7 @@ function renderInvoicingWorkspace(container, presId) {
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
-        const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
+        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
         const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
         if (!baseUrl && !isSimulated) {
@@ -4267,7 +4294,7 @@ function queryDteStatusMH(dteId) {
     `;
     document.body.appendChild(modal);
     
-    const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
+    const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
     const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
     function renderQueryResult(data) {
@@ -4428,7 +4455,7 @@ function openInvalidateDteModal(dteId, presId) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Anulando...';
         
-        const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
+        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
         const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
         function processLocalInvalidation() {
