@@ -4085,19 +4085,8 @@ function renderInvoicingWorkspace(container, presId) {
 
         const dtePayload = {
             id: generateUUID(),
-            economicActivity: getValidEconomicActivityCode(ws.actividad_economica),
             recipient: recipientPayload,
-            items: formattedItems,
-            apendice: [
-                {
-                    campo: "Orden-Compra",
-                    etiqueta: "OC",
-                    valor: "n/a"
-                }
-            ],
-            retentionRenta: 0.00,
-            retentionIva: 0.00,
-            comments: `Presupuesto: ${presId} | Vehiculo: ${vehicleInfo.trim()}`
+            items: formattedItems
         };
 
         if (payCond === 'CREDITO') {
