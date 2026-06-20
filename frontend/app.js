@@ -394,6 +394,30 @@ function getGirosOptionsHtml(selectedValue = '') {
     }).join('');
 }
 
+function getValidEconomicActivityCode(val) {
+    if (!val) return '45201'; // Default: Mantenimiento y reparación mecánica de vehículos
+    const clean = String(val).trim();
+    if (/^\d{5}$/.test(clean)) {
+        return clean;
+    }
+    const list = [
+        { code: "45201", desc: "Mantenimiento y reparación mecánica de vehículos" },
+        { code: "45202", desc: "Mantenimiento y reparación eléctrica de vehículos" },
+        { code: "45203", desc: "Mantenimiento y reparación de motocicletas" },
+        { code: "45204", desc: "Lavado y pulido de vehículos (carwash)" },
+        { code: "45205", desc: "Alineación y balanceo de vehículos automotores" },
+        { code: "45206", desc: "Reparación de carrocería y pintura (enderezado)" },
+        { code: "45300", desc: "Comercio de repuestos y accesorios de vehículos" },
+        { code: "45101", desc: "Comercio de vehículos automotores nuevos y usados" },
+        { code: "62020", desc: "Consultoría y gestión de servicios informáticos" }
+    ];
+    const matched = list.find(item => item.desc.toLowerCase() === clean.toLowerCase() || clean.toLowerCase().includes(item.desc.toLowerCase()));
+    if (matched) {
+        return matched.code;
+    }
+    return '45201';
+}
+
 async function emitSubscriptionDTE(payment, workshop) {
     if (!workshop) return;
     
@@ -432,7 +456,7 @@ async function emitSubscriptionDTE(payment, workshop) {
     
     if (isCCF) {
         recipientPayload.contributorType = workshop.tipo_persona === 'Jurídica' ? 'JURIDICA' : 'NATURAL';
-        recipientPayload.economicActivity = workshop.actividad_economica || '45201';
+        recipientPayload.economicActivity = getValidEconomicActivityCode(workshop.actividad_economica);
         recipientPayload.nrc = workshop.nrc.replace(/\D/g, '').slice(0, 8);
         recipientPayload.identificationDocument = {
             type: workshop.tipo_documento === 'DUI' ? 'DUI' : 'NIT',
@@ -4061,7 +4085,7 @@ function renderInvoicingWorkspace(container, presId) {
 
         const dtePayload = {
             id: generateUUID(),
-            economicActivity: ws.actividad_economica || '45301',
+            economicActivity: getValidEconomicActivityCode(ws.actividad_economica),
             recipient: recipientPayload,
             items: formattedItems,
             apendice: [
