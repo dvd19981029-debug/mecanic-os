@@ -654,7 +654,11 @@ const server = http.createServer((req, res) => {
                 }
                 
                 // Set up request to FacturaLlama API
-                const targetUrl = `https://api.facturallama.com/dte/${docType || 'fc'}`;
+                let llamaDocType = (docType || 'fc').toLowerCase();
+                if (llamaDocType === 'fe') {
+                    llamaDocType = 'fc';
+                }
+                const targetUrl = `https://api.facturallama.com/dte/${llamaDocType}`;
                 console.log(`FacturaLlama: Forwarding request to ${targetUrl}`);
                 
                 const payloadString = JSON.stringify(payload);

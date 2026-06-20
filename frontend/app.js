@@ -4246,7 +4246,7 @@ function renderInvoicingWorkspace(container, presId) {
             },
             body: JSON.stringify({
                 apiKey: dteCfg.apiKey,
-                docType: type.toLowerCase(),
+                docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                 payload: dtePayload
             })
         })
