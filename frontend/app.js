@@ -1129,6 +1129,16 @@ function handleRouting() {
             queryParams[pair[0]] = decodeURIComponent(pair[1]);
         });
     }
+
+    // Guard: Prevent re-rendering the budget editor if it's already active and editing the same budget
+    if (routeName === 'presupuestos' && document.getElementById('budget-editor-layout')) {
+        const targetId = queryParams.id || (queryParams.action === 'new' ? 'new' : '');
+        const currentId = window.currentEditingBudgetId;
+        if ((queryParams.action === 'new' && currentId) || (targetId && targetId === currentId)) {
+            console.log("handleRouting: Bypassing re-render for active budget editor to prevent input loss.");
+            return;
+        }
+    }
     
     // 3. Reactive Status Listener for Super Admin Requests list
     if (routeName === 'admin-solicitudes' && sessionStorage.getItem('mecanic_os_saas_admin_auth') === 'true') {
@@ -2508,6 +2518,8 @@ function renderBudgetEditor(container, budget) {
             "Pagado?": "NO"
         };
     }
+
+    window.currentEditingBudgetId = budget['ID Presupuesto'];
     
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
