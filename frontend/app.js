@@ -49,6 +49,15 @@ function getDatabase() {
     return dataService.cache;
 }
 
+function getBackendUrl(db) {
+    const config = db || getDatabase();
+    let url = (config && config.saas_config && config.saas_config.backendUrl) || '';
+    if (!url && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:3000';
+    }
+    return url;
+}
+
 async function saveDatabase(db) {
     await dataService.save(db);
 }
@@ -3432,7 +3441,7 @@ function renderFacturador(container, queryParams) {
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
-        const baseUrl = dteCfg.backendUrl || (db.saas_config && db.saas_config.backendUrl) || '';
+        const baseUrl = dteCfg.backendUrl || getBackendUrl(db);
         const endpoint = baseUrl ? `${baseUrl}/api/dte` : '/api/dte';
 
         fetch(endpoint, {
@@ -9655,7 +9664,7 @@ function renderPagoSuscripcionSaaS(container, queryParams) {
                     wompiConfig: saasConfig.wompi
                 };
 
-                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                const backendUrl = getBackendUrl(currentDb);
                 fetch(`${backendUrl}/api/wompi/create-link`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -9785,7 +9794,7 @@ function renderPagoSuscripcionWompiCallback(container, queryParams) {
 
         if (actionContainer) actionContainer.style.display = 'none';
 
-        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+        const backendUrl = getBackendUrl(db);
         fetch(`${backendUrl}/api/wompi/check-subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -10697,7 +10706,7 @@ async function renderAdminSolicitudes(container) {
                         const origText = testDteBtn.innerHTML;
                         testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
 
-                        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                        const backendUrl = getBackendUrl(db);
                         fetch(`${backendUrl}/api/dte/test-connection`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -10732,7 +10741,7 @@ async function renderAdminSolicitudes(container) {
                             const origText = wompiCheckBtn.innerHTML;
                             wompiCheckBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
 
-                            const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                            const backendUrl = getBackendUrl(db);
                             fetch(`${backendUrl}/api/wompi/check-subscription`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -10780,7 +10789,7 @@ async function renderAdminSolicitudes(container) {
                                 const origText = wompiCancelBtn.innerHTML;
                                 wompiCancelBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
 
-                                const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                                const backendUrl = getBackendUrl(db);
                                 fetch(`${backendUrl}/api/wompi/deactivate-link`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -11472,7 +11481,7 @@ if (window.saasViewReceiptPaymentId) {
                     const origText = btn.innerHTML;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
                     
-                    const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                    const backendUrl = getBackendUrl(db);
                     fetch(`${backendUrl}/api/wompi/check-subscription`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -11521,7 +11530,7 @@ if (window.saasViewReceiptPaymentId) {
                         const origText = btn.innerHTML;
                         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Desactivando...';
                         
-                        const backendUrl = (db.saas_config && db.saas_config.backendUrl) || '';
+                        const backendUrl = getBackendUrl(db);
                         fetch(`${backendUrl}/api/wompi/deactivate-link`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -11613,7 +11622,7 @@ if (window.saasViewReceiptPaymentId) {
                 testWompiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
                 
                 const currentDb = getDatabase();
-                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                const backendUrl = getBackendUrl(currentDb);
                 
                 fetch(`${backendUrl}/api/wompi/test-connection`, {
                     method: 'POST',
@@ -11662,7 +11671,7 @@ if (window.saasViewReceiptPaymentId) {
                 testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
                 
                 const currentDb = getDatabase();
-                const backendUrl = (currentDb.saas_config && currentDb.saas_config.backendUrl) || '';
+                const backendUrl = getBackendUrl(currentDb);
                 
                 fetch(`${backendUrl}/api/dte/test-connection`, {
                     method: 'POST',
