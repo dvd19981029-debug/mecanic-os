@@ -496,6 +496,15 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #e11d48;
 }
 
+.btn-warning {
+    background-color: #d97706;
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #b45309;
+}
+
 .icon-btn {
     width: 38px;
     height: 38px;

@@ -2717,7 +2717,7 @@ function renderPresupuestos(container, queryParams) {
 
         rowsContainer.innerHTML = '';
         const filtered = db.presupuestos.filter(p => 
-            p.Estado != 2 && p.Estado != 3 &&
+            p.Estado != 2 && p.Estado != 3 && p.Estado != 4 &&
             ((p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
             (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
             (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
@@ -3012,6 +3012,7 @@ function renderBudgetEditor(container, budget) {
                     ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
                     <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
+                    ${(!isNew && budget.Estado == 4) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
                     <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
@@ -3445,6 +3446,25 @@ function renderBudgetEditor(container, budget) {
         });
     }
 
+    if (document.getElementById('recover-budget-btn')) {
+        document.getElementById('recover-budget-btn').addEventListener('click', () => {
+            if (confirm("¿Estás seguro de que deseas recuperar este presupuesto anulado? Se borrarán sus datos de emisión anteriores y volverá a estado 'Aprobado' para poder facturarse de nuevo.")) {
+                budget.Estado = 2; // Revert to Aprobado
+                delete budget.Anulado;
+                delete budget.Fecha_Anulacion;
+                delete budget.controlNumber;
+                delete budget.mhControlNumber;
+                delete budget.receptionSeal;
+                delete budget.Doc_a_Emitir;
+                delete budget.Fecha_Facturacion;
+                delete budget.Condicion;
+                saveDatabase(db);
+                showToast("Presupuesto recuperado y listo para facturar.", "success");
+                window.location.hash = '#facturador';
+            }
+        });
+    }
+
     if (document.getElementById('print-budget-btn')) {
         document.getElementById('print-budget-btn').addEventListener('click', () => {
             exportBudgetPDF(budget['ID Presupuesto']);
@@ -3549,13 +3569,16 @@ function renderFacturador(container, queryParams) {
 
 function renderTabbedListWorkspace(container) {
     container.innerHTML = `
-        <div class="tabs-container" style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-            <button class="tab-btn" id="tab-btn-pending" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
-                <i class="fa-solid fa-clock-rotate-left"></i> Pendientes de Facturar
-            </button>
-            <button class="tab-btn" id="tab-btn-issued" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
-                <i class="fa-solid fa-file-invoice-dollar"></i> Historial DTEs Emitidos
-            </button>
+        <div class="tabs-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; gap: 1rem;">
+                <button class="tab-btn" id="tab-btn-pending" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Pendientes de Facturar
+                </button>
+                <button class="tab-btn" id="tab-btn-issued" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Historial DTEs Emitidos
+                </button>
+            </div>
+            <button class="btn btn-warning" id="view-invalidated-budgets-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-ban"></i> Presupuestos Anulados</button>
         </div>
         
         <div id="tab-content-area">
@@ -3566,6 +3589,7 @@ function renderTabbedListWorkspace(container) {
     const tabBtnPending = document.getElementById('tab-btn-pending');
     const tabBtnIssued = document.getElementById('tab-btn-issued');
     const tabContentArea = document.getElementById('tab-content-area');
+    const viewInvalidatedBtn = document.getElementById('view-invalidated-budgets-btn');
     
     let currentTab = localStorage.getItem('mecanic_os_facturador_active_tab') || 'pending';
     
@@ -3597,9 +3621,168 @@ function renderTabbedListWorkspace(container) {
     
     tabBtnPending.addEventListener('click', () => switchTab('pending'));
     tabBtnIssued.addEventListener('click', () => switchTab('issued'));
+    if (viewInvalidatedBtn) {
+        viewInvalidatedBtn.addEventListener('click', () => {
+            openInvalidatedBudgetsModal();
+        });
+    }
     
     // Initial load
     switchTab(currentTab);
+}
+
+function getBudgetGrandTotal(p, db) {
+    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+    const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+    const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+    const subtotal = sumProd + sumLab;
+    const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+    const iva = subtotal * taxRate;
+    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+    let retVal = 0;
+    let percVal = 0;
+    if (client.AplicaRetencion > 0) {
+        retVal = subtotal * parseFloat(client.AplicaRetencion);
+    }
+    if (client.AplicaPercepcion > 0) {
+        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+    }
+    return subtotal + iva + percVal - retVal;
+}
+
+function openInvalidatedBudgetsModal() {
+    const db = getDatabase();
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    function renderModalContent() {
+        const dbCurrent = getDatabase();
+        const anulados = dbCurrent.presupuestos.filter(p => p.Estado == 4);
+        
+        let rowsHtml = '';
+        if (anulados.length === 0) {
+            rowsHtml = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay presupuestos anulados registrados</td></tr>`;
+        } else {
+            anulados.forEach(p => {
+                const grandTotal = getBudgetGrandTotal(p, dbCurrent);
+                const formattedDate = p.Fecha_Anulacion ? new Date(p.Fecha_Anulacion).toLocaleString() : 'N/A';
+                rowsHtml += `
+                    <tr>
+                        <td><a href="#presupuestos?id=${p['ID Presupuesto']}" style="color: var(--primary); font-weight: bold; text-decoration: underline;" id="link-rec-${p['ID Presupuesto']}">${p['ID Presupuesto']}</a></td>
+                        <td>${formattedDate}</td>
+                        <td>${p.Nombre || 'N/A'}</td>
+                        <td><span class="badge-tag badge-secondary">${p.Placas || 'N/A'}</span></td>
+                        <td>$${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.35rem;">
+                                <button class="btn btn-warning btn-recover-direct" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Recuperar Presupuesto"><i class="fa-solid fa-rotate-left"></i> Recuperar</button>
+                                <button class="btn btn-danger btn-delete-direct" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--danger); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Eliminar definitivamente"><i class="fa-solid fa-trash"></i> Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        modal.innerHTML = `
+            <div class="modal-content glass-card" style="max-width: 850px; width: 90%; padding: 1.5rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2><i class="fa-solid fa-ban" style="color: var(--warning);"></i> Presupuestos Anulados / Invalidados</h2>
+                    <button class="close-modal-btn" id="close-anulados-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                
+                <div class="table-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 1.5rem;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Fecha Anulación</th>
+                                <th>Cliente</th>
+                                <th>Placas</th>
+                                <th>Total (Con IVA)</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="anulados-table-rows">
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="display:flex; justify-content:flex-end;">
+                    <button type="button" class="btn btn-secondary" id="close-anulados-btn">Cerrar</button>
+                </div>
+            </div>
+        `;
+        
+        // Re-bind click listeners for links
+        modal.querySelectorAll('a[id^="link-rec-"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                modal.remove();
+            });
+        });
+        
+        // Re-bind action buttons
+        modal.querySelectorAll('.btn-recover-direct').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const p = dbCurrent.presupuestos.find(x => x['ID Presupuesto'] === id);
+                if (p) {
+                    if (confirm(`¿Estás seguro de que deseas recuperar el presupuesto ${id}? Se borrarán sus datos de emisión anteriores y volverá a estado 'Aprobado'.`)) {
+                        p.Estado = 2; // Aprobado
+                        delete p.Anulado;
+                        delete p.Fecha_Anulacion;
+                        delete p.controlNumber;
+                        delete p.mhControlNumber;
+                        delete p.receptionSeal;
+                        delete p.Doc_a_Emitir;
+                        delete p.Fecha_Facturacion;
+                        delete p.Condicion;
+                        saveDatabase(dbCurrent);
+                        showToast(`Presupuesto ${id} recuperado correctamente.`, "success");
+                        modal.remove();
+                        handleRouting();
+                    }
+                }
+            });
+        });
+        
+        modal.querySelectorAll('.btn-delete-direct').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el presupuesto ${id}? Esta acción no se puede deshacer y borrará también sus detalles.`)) {
+                    const dbNew = getDatabase();
+                    dbNew.presupuestos = dbNew.presupuestos.filter(x => x['ID Presupuesto'] !== id);
+                    if (dbNew.detalle_productos) {
+                        dbNew.detalle_productos = dbNew.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== id);
+                    }
+                    if (dbNew['21 Detalle Presupuesto Producto']) {
+                        dbNew['21 Detalle Presupuesto Producto'] = dbNew['21 Detalle Presupuesto Producto'].filter(dp => dp['ID_Presupuesto DPP'] !== id);
+                    }
+                    if (dbNew.detalle_mano_obra) {
+                        dbNew.detalle_mano_obra = dbNew.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== id);
+                    }
+                    if (dbNew['11 Detalle Mano de Obra']) {
+                        dbNew['11 Detalle Mano de Obra'] = dbNew['11 Detalle Mano de Obra'].filter(dm => dm['ID_Presupuesto MO'] !== id);
+                    }
+                    saveDatabase(dbNew);
+                    showToast(`Presupuesto ${id} eliminado permanentemente.`, "success");
+                    renderModalContent();
+                }
+            });
+        });
+        
+        const closeModal = () => { modal.remove(); };
+        document.getElementById('close-anulados-modal').addEventListener('click', closeModal);
+        document.getElementById('close-anulados-btn').addEventListener('click', closeModal);
+    }
+    
+    renderModalContent();
+    document.body.appendChild(modal);
 }
 
 function renderPendingTab(container) {
@@ -5088,15 +5271,9 @@ function openInvalidateDteModal(dteId, presId) {
         function processLocalInvalidation() {
             const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
             if (p) {
-                p.Estado = 2; // Revert to Aprobado
-                delete p.controlNumber;
-                delete p.mhControlNumber;
-                delete p.receptionSeal;
-                delete p.Doc_a_Emitir;
-                delete p.Fecha_Facturacion;
-                delete p.Condicion;
-                p.Pagado = 'NO';
-                p['Pagado?'] = 'NO';
+                p.Estado = 4; // Anulado
+                p.Anulado = true;
+                p.Fecha_Anulacion = Date.now();
                 
                 if (db.pagos) {
                     db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
@@ -5104,7 +5281,7 @@ function openInvalidateDteModal(dteId, presId) {
                 saveDatabase(db);
             }
             closeModal();
-            showToast("DTE Anulado con éxito. El presupuesto ha vuelto al estado Aprobado y está listo para facturarse nuevamente.", "success");
+            showToast("DTE Anulado con éxito. El presupuesto ahora se encuentra en estado ANULADO.", "success");
             handleRouting();
         }
 
