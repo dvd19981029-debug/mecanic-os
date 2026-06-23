@@ -3743,7 +3743,7 @@ function renderIssuedTab(container) {
                 <table>
                     <thead>
                         <tr>
-                            <th>Código Generación / DTE</th>
+                            <th>Número de Control / DTE</th>
                             <th>Fecha Emisión</th>
                             <th>Cliente</th>
                             <th>Placas Auto</th>
@@ -3827,7 +3827,10 @@ function renderIssuedTab(container) {
                 : `<span class="badge-tag badge-secondary">${dteLabel}</span>`;
                 
             const genCode = p.controlNumber || 'MOCK-DTE-123456';
-            const displayCode = genCode.length > 20 ? genCode.substring(0, 15) + '...' : genCode;
+            const ctrlNum = p.mhControlNumber || p.controlNumber || 'N/A';
+            const displayCtrl = ctrlNum;
+            const uuidText = p.controlNumber && p.controlNumber !== p.mhControlNumber ? p.controlNumber : '';
+            const uuidSub = uuidText ? `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; font-family: monospace;" title="Código de Generación (UUID): ${uuidText}">Gen: ${uuidText.substring(0, 8)}...</div>` : '';
             
             const actionsHtml = isAnulado
                 ? `
@@ -3849,7 +3852,10 @@ function renderIssuedTab(container) {
                 tr.style.background = 'rgba(231, 76, 60, 0.03)';
             }
             tr.innerHTML = `
-                <td><strong title="${genCode}">${displayCode}</strong></td>
+                <td>
+                    <strong style="font-family: monospace; font-size: 0.85rem;" title="Número de Control: ${ctrlNum}">${displayCtrl}</strong>
+                    ${uuidSub}
+                </td>
                 <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${p.Nombre}</td>
                 <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
@@ -3938,7 +3944,8 @@ function renderInvoicingWorkspace(container, presId) {
                 </p>
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; max-width: 450px; margin: 1.5rem auto; text-align: left; font-size: 0.85rem;">
                     <p style="margin-bottom: 0.4rem;"><strong>Documento Emitido:</strong> ${p.Doc_a_Emitir || 'N/A'}</p>
-                    <p style="margin-bottom: 0.4rem;"><strong>Código de Generación:</strong> <code style="color: var(--cyan); word-break: break-all;">${p.controlNumber || 'N/A'}</code></p>
+                    <p style="margin-bottom: 0.4rem;"><strong>Código de Generación (UUID):</strong> <code style="color: var(--cyan); word-break: break-all;">${p.controlNumber || 'N/A'}</code></p>
+                    <p style="margin-bottom: 0.4rem;"><strong>Número de Control:</strong> <strong style="color: var(--success); font-family: monospace;">${p.mhControlNumber || 'N/A'}</strong></p>
                     <p style="margin-bottom: 0;"><strong>Fecha de Facturación:</strong> ${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString() : 'N/A'}</p>
                 </div>
                 <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
@@ -5081,9 +5088,15 @@ function openInvalidateDteModal(dteId, presId) {
         function processLocalInvalidation() {
             const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
             if (p) {
-                p.Estado = 4; // 4 = Anulado/Invalidado
-                p.Anulado = true;
-                p.Fecha_Anulacion = Date.now();
+                p.Estado = 2; // Revert to Aprobado
+                delete p.controlNumber;
+                delete p.mhControlNumber;
+                delete p.receptionSeal;
+                delete p.Doc_a_Emitir;
+                delete p.Fecha_Facturacion;
+                delete p.Condicion;
+                p.Pagado = 'NO';
+                p['Pagado?'] = 'NO';
                 
                 if (db.pagos) {
                     db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
@@ -5091,7 +5104,7 @@ function openInvalidateDteModal(dteId, presId) {
                 saveDatabase(db);
             }
             closeModal();
-            showToast("DTE Invalidado con éxito en Ministerio de Hacienda. Quedará registrado en el historial como ANULADO.", "success");
+            showToast("DTE Anulado con éxito. El presupuesto ha vuelto al estado Aprobado y está listo para facturarse nuevamente.", "success");
             handleRouting();
         }
 
