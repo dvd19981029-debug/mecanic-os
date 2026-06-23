@@ -587,7 +587,111 @@ function updateCloudStatusUI(active, state = "") {
     }
 }
 
+function performUnifiedLogin(email, pass, btn, onComplete) {
+    if (typeof firebase === 'undefined') {
+        if (typeof onComplete === 'function') onComplete(false);
+        return;
+    }
 
+    const proceedAsAdmin = () => {
+        firebase.auth().signInWithEmailAndPassword(email, pass)
+            .then((userCredential) => {
+                const ownerUid = userCredential.user.uid;
+                localStorage.setItem('mecanic_os_workshop_uid', ownerUid);
+                
+                dataService.startSync(ownerUid, false); // false = admin mode
+                
+                const db = getDatabase();
+                db.saas_state = db.saas_state || {};
+                db.saas_state.status = 'active';
+                db.saas_state.workshopData = db.saas_state.workshopData || {};
+                db.saas_state.workshopData.uid = ownerUid;
+                db.saas_state.workshopData.correo = email;
+                db.saas_state.termsSigned = true;
+                saveDatabase(db);
+                
+                let adminUser = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase());
+                if (!adminUser) {
+                    adminUser = {
+                        Tecnico_ID: 'TECH-ADMIN',
+                        Nombre_Completo: db.config_taller ? db.config_taller.nombre : 'Administrador',
+                        Email: email,
+                        Nivel_Acceso: 'Administrador'
+                    };
+                }
+                setActiveUser(adminUser);
+                
+                showToast("Sesión de administrador iniciada correctamente", "success");
+                if (typeof onComplete === 'function') onComplete(true);
+            })
+            .catch((error) => {
+                console.error("Error al iniciar sesión como admin:", error);
+                showToast("Usuario o contraseña incorrectos", "error");
+                if (typeof onComplete === 'function') onComplete(false);
+            });
+    };
+
+    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+        dbFirestore.collectionGroup("tecnicos")
+            .where("Email", "==", email)
+            .get()
+            .then((snapshot) => {
+                let matchedTech = null;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.Contraseña === pass) {
+                        matchedTech = { data, ref: doc.ref };
+                    }
+                });
+                
+                if (matchedTech) {
+                    const pathSegments = matchedTech.ref.path.split('/');
+                    const workshopUid = pathSegments[1];
+                    
+                    localStorage.setItem('mecanic_os_workshop_uid', workshopUid);
+                    
+                    firebase.auth().signInAnonymously()
+                        .then(() => {
+                            const db = getDatabase();
+                            db.saas_state = db.saas_state || {};
+                            db.saas_state.status = 'active';
+                            db.saas_state.workshopData = db.saas_state.workshopData || {};
+                            db.saas_state.workshopData.uid = workshopUid;
+                            db.saas_state.termsSigned = true;
+                            saveDatabase(db);
+                            
+                            dataService.startSync(workshopUid, true); // true = employeeMode
+                            setActiveUser(matchedTech.data);
+                            
+                            showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
+                            if (typeof onComplete === 'function') onComplete(true);
+                        })
+                        .catch(err => {
+                            console.error("Error de login anónimo para empleado:", err);
+                            showToast("Error de conexión al servidor del taller", "error");
+                            if (typeof onComplete === 'function') onComplete(false);
+                        });
+                } else {
+                    proceedAsAdmin();
+                }
+            })
+            .catch((err) => {
+                console.error("Error de consulta en colección de técnicos:", err);
+                proceedAsAdmin();
+            });
+    } else {
+        const db = getDatabase();
+        const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === pass);
+        if (localTech) {
+            setActiveUser(localTech);
+            showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
+            if (typeof onComplete === 'function') onComplete(true);
+        } else {
+            showToast("Usuario o contraseña incorrectos (Modo Offline)", "error");
+            if (typeof onComplete === 'function') onComplete(false);
+        }
+    }
+}
 
 function bindFirebaseEvents() {
     const cloudIndicator = document.getElementById('cloud-sync-indicator');
@@ -605,22 +709,20 @@ function bindFirebaseEvents() {
     if (!authModal) return;
 
     // Tabs logic
-    const tabConnect = document.getElementById('fb-tab-connect');
     const tabLogin = document.getElementById('fb-tab-login');
     const tabRegister = document.getElementById('fb-tab-register');
 
-    const connectSection = document.getElementById('fb-connect-section');
     const loginSection = document.getElementById('fb-login-section');
     const registerSection = document.getElementById('fb-register-section');
 
     function switchTab(activeTab, activeSection) {
-        [tabConnect, tabLogin, tabRegister].forEach(tab => {
+        [tabLogin, tabRegister].forEach(tab => {
             if (tab) {
                 tab.style.background = 'transparent';
                 tab.style.color = 'var(--text-secondary)';
             }
         });
-        [connectSection, loginSection, registerSection].forEach(sec => {
+        [loginSection, registerSection].forEach(sec => {
             if (sec) sec.style.display = 'none';
         });
 
@@ -633,7 +735,6 @@ function bindFirebaseEvents() {
         }
     }
 
-    if (tabConnect) tabConnect.addEventListener('click', () => switchTab(tabConnect, connectSection));
     if (tabLogin) tabLogin.addEventListener('click', () => switchTab(tabLogin, loginSection));
     if (tabRegister) tabRegister.addEventListener('click', () => switchTab(tabRegister, registerSection));
 
@@ -663,103 +764,25 @@ function bindFirebaseEvents() {
         });
     }
 
-    // Connect via Code Form
-    const connectForm = document.getElementById('fb-connect-form');
-    if (connectForm) {
-        connectForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const code = document.getElementById('fb-connect-code').value.trim();
-            if (!code) {
-                showToast("Por favor ingresa un código de conexión válido", "warning");
-                return;
-            }
-
-            const btn = document.getElementById('fb-btn-connect-code');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vinculando...';
-
-            localStorage.setItem('mecanic_os_workshop_uid', code);
-
-            if (typeof firebase !== 'undefined') {
-                firebase.auth().signInAnonymously()
-                    .then(() => {
-                        showToast("PC vinculada exitosamente al taller", "success");
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
-                        authModal.classList.remove('active');
-                        window.location.hash = 'lock-screen';
-                        handleRouting();
-                    })
-                    .catch((error) => {
-                        console.error("Error al conectar con código:", error);
-                        showToast(`Error: ${error.message}`, "error");
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
-                    });
-            } else {
-                showToast("Firebase no está disponible offline", "error");
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-link"></i> Vincular esta PC al Taller';
-            }
-        });
-    }
-
-    // Copy to Clipboard logic for Workshop Code
-    const copyCodeBtn = document.getElementById('fb-btn-copy-code');
-    if (copyCodeBtn) {
-        copyCodeBtn.addEventListener('click', () => {
-            const codeEl = document.getElementById('fb-workshop-code');
-            if (codeEl && codeEl.textContent && codeEl.textContent !== "No disponible") {
-                navigator.clipboard.writeText(codeEl.textContent)
-                    .then(() => {
-                        showToast("Código de conexión copiado al portapapeles", "success");
-                    })
-                    .catch(err => {
-                        console.error("Failed to copy text: ", err);
-                        showToast("No se pudo copiar el código", "error");
-                    });
-            }
-        });
-    }
-
     if (loginForm) {
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const email = document.getElementById('fb-login-email').value;
+            const email = document.getElementById('fb-login-email').value.trim();
             const pass = document.getElementById('fb-login-password').value;
-            
-            if (typeof firebase === 'undefined') return;
-            
             const btn = document.getElementById('fb-btn-login');
+            
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
             
-            firebase.auth().signInWithEmailAndPassword(email, pass)
-                .then((userCredential) => {
-                    showToast("Sesión iniciada correctamente en la nube", "success");
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+            performUnifiedLogin(email, pass, btn, (success) => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                if (success) {
                     authModal.classList.remove('active');
-                    
-                    // Force SaaS state to active in local database and route to dashboard
-                    const db = getDatabase();
-                    db.saas_state = db.saas_state || {};
-                    db.saas_state.status = 'active';
-                    db.saas_state.workshopData = db.saas_state.workshopData || {};
-                    db.saas_state.workshopData.uid = userCredential.user.uid;
-                    db.saas_state.workshopData.correo = userCredential.user.email;
-                    db.saas_state.termsSigned = true;
-                    saveDatabase(db);
-                    
                     window.location.hash = 'taller-dashboard';
                     handleRouting();
-                })
-                .catch((error) => {
-                    console.error("Error al iniciar sesión:", error);
-                    showToast(`Error: ${error.message}`, "error");
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
-                });
+                }
+            });
         });
     }
 
@@ -10997,142 +11020,89 @@ function renderLockScreen(container) {
     // Clear any previous active user just in case
     sessionStorage.removeItem('mecanic_os_active_user');
 
-    function showProfiles() {
-        container.innerHTML = `
-            <div style="max-width: 800px; margin: 4rem auto; padding: 2.5rem; text-align: center;">
-                <div style="margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
-                    <div style="font-size: 3rem; color: var(--primary);"><i class="fa-solid fa-gears"></i></div>
-                    <h1 style="font-family:'Outfit', sans-serif; font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">${workshop.nombre}</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">${workshop.logoTagline || 'Control de Acceso de Empleados'}</p>
-                </div>
-                
-                <h2 style="font-family:'Outfit', sans-serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 2rem; color: var(--text-primary);">Selecciona tu Perfil de Empleado</h2>
-                
-                <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; justify-content: center; max-width: 650px; margin: 0 auto;">
-                    ${db.tecnicos.map(t => {
-                        const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
-                        return `
-                            <div class="user-card lock-profile-card" data-id="${t.Codigo_Cliente || t.Nombre_Completo}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
-                                <img src="${avatar}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
-                                <div style="text-align: center;">
-                                    <strong style="font-size: 0.95rem; display: block; color: var(--text-primary);">${t.Nombre_Completo}</strong>
-                                    <small style="color: var(--text-secondary); font-size: 0.75rem;">${t.Nivel_Acceso}</small>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <div style="margin-top: 3.5rem; display: flex; justify-content: center;">
-                    <button id="btn-lock-disconnect" class="btn btn-secondary" style="font-size: 0.85rem; border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);"><i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar Taller de esta PC</button>
-                </div>
+    container.innerHTML = `
+        <div style="max-width: 450px; margin: 5rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="text-align: center; margin-bottom: 2.5rem;">
+                <div style="font-size: 3rem; color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-gears"></i></div>
+                <h1 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin: 0;">${workshop.nombre}</h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">${workshop.logoTagline || 'Control de Acceso'}</p>
             </div>
-        `;
-
-        const disconnectBtn = container.querySelector('#btn-lock-disconnect');
-        if (disconnectBtn) {
-            disconnectBtn.addEventListener('click', () => {
-                if (confirm("¿Seguro que deseas desconectar este taller de este equipo? Se borrará el almacenamiento local y volverás al estado de Invitado.")) {
-                    db.saas_state = {
-                        status: 'guest',
-                        workshopData: null,
-                        termsSigned: false,
-                        signatureName: '',
-                        signedAt: null
-                    };
-                    db.config_taller = null;
-                    db.solicitudes_registro = [];
-                    db.saas_payments = [];
-                    saveDatabase(db);
-                    sessionStorage.removeItem('mecanic_os_active_user');
-                    localStorage.removeItem('mecanic_os_workshop_uid'); // Limpiar UID del taller
-                    dataService.disconnect(); // Desconectar Firestore completamente
-                    if (typeof firebase !== 'undefined') {
-                        firebase.auth().signOut().catch(() => {}); // Cerrar sesión anónima
-                    }
-                    showToast("Taller desconectado con éxito", "info");
-                    window.location.hash = 'landing';
-                    handleRouting();
-                }
-            });
-        }
-
-        const cards = container.querySelectorAll('.lock-profile-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                card.style.borderColor = 'var(--primary)';
-                card.style.background = 'var(--bg-card-hover)';
-                card.style.transform = 'translateY(-3px)';
-                card.style.boxShadow = '0 8px 16px rgba(0,0,0,0.2)';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.borderColor = 'var(--border-color)';
-                card.style.background = 'var(--bg-card)';
-                card.style.transform = '';
-                card.style.boxShadow = '';
-            });
-            card.addEventListener('click', () => {
-                const techId = card.getAttribute('data-id');
-                const selectedTech = db.tecnicos.find(t => (t.Codigo_Cliente || t.Nombre_Completo) === techId);
-                if (selectedTech) {
-                    showPasscodeForm(selectedTech);
-                }
-            });
-        });
-    }
-
-    function showPasscodeForm(tech) {
-        const avatar = tech.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
-        container.innerHTML = `
-            <div style="max-width: 450px; margin: 6rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
-                <div style="text-align: center; margin-bottom: 2rem;">
-                    <img src="${avatar}" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); margin-bottom: 1rem; box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);">
-                    <h2 style="margin: 0; font-family:'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${tech.Nombre_Completo}</h2>
-                    <span style="color: var(--text-secondary); font-size: 0.85rem;">${tech.Nivel_Acceso}</span>
-                </div>
-                
-                <form id="lock-passcode-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
-                    <div class="form-group">
-                        <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Contraseña de Acceso</label>
-                        <input type="password" id="lock-user-password" required placeholder="Ingresa tu contraseña" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
-                    </div>
-                    <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
-                        <button type="button" class="btn btn-secondary" id="btn-lock-back" style="flex: 1; padding: 0.75rem;"><i class="fa-solid fa-arrow-left"></i> Cambiar Perfil</button>
-                        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 0.75rem;"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        setTimeout(() => {
-            const input = document.getElementById('lock-user-password');
-            if (input) input.focus();
-        }, 100);
-
-        document.getElementById('btn-lock-back').addEventListener('click', showProfiles);
-
-        document.getElementById('lock-passcode-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const enteredPass = document.getElementById('lock-user-password').value;
-            const realPass = tech.Contraseña || '';
             
-            if (enteredPass === realPass) {
-                setActiveUser(tech);
-                showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
-                window.location.hash = 'taller-dashboard';
-                handleRouting();
-            } else {
-                showToast("Contraseña de empleado incorrecta", "error");
-                const pwdInput = document.getElementById('lock-user-password');
-                if (pwdInput) {
-                    pwdInput.value = '';
-                    pwdInput.focus();
+            <form id="lock-login-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group">
+                    <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Correo Electrónico</label>
+                    <input type="email" id="lock-email" required placeholder="correo@ejemplo.com" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Contraseña</label>
+                    <input type="password" id="lock-password" required placeholder="••••••••" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
+                </div>
+                
+                <button type="submit" id="btn-lock-login" class="btn btn-primary" style="padding: 0.85rem; justify-content: center; font-size: 1rem; font-weight: 600; margin-top: 0.5rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                </button>
+            </form>
+            
+            <div style="margin-top: 2.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                <button id="btn-lock-disconnect" class="btn btn-secondary" style="font-size: 0.8rem; border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.01); padding: 0.5rem 1rem;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar Taller de esta PC</button>
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        const input = document.getElementById('lock-email');
+        if (input) input.focus();
+    }, 100);
+
+    const disconnectBtn = container.querySelector('#btn-lock-disconnect');
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', () => {
+            if (confirm("¿Seguro que deseas desconectar este taller de este equipo? Se borrará el almacenamiento local y volverás al estado de Invitado.")) {
+                db.saas_state = {
+                    status: 'guest',
+                    workshopData: null,
+                    termsSigned: false,
+                    signatureName: '',
+                    signedAt: null
+                };
+                db.config_taller = null;
+                db.solicitudes_registro = [];
+                db.saas_payments = [];
+                saveDatabase(db);
+                sessionStorage.removeItem('mecanic_os_active_user');
+                localStorage.removeItem('mecanic_os_workshop_uid');
+                dataService.disconnect();
+                if (typeof firebase !== 'undefined') {
+                    firebase.auth().signOut().catch(() => {});
                 }
+                showToast("Taller desconectado con éxito", "info");
+                window.location.hash = 'landing';
+                handleRouting();
             }
         });
     }
 
-    showProfiles();
+    const lockLoginForm = container.querySelector('#lock-login-form');
+    if (lockLoginForm) {
+        lockLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('lock-email').value.trim();
+            const pass = document.getElementById('lock-password').value;
+            const btn = document.getElementById('btn-lock-login');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+            
+            performUnifiedLogin(email, pass, btn, (success) => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                if (success) {
+                    window.location.hash = 'taller-dashboard';
+                    handleRouting();
+                }
+            });
+        });
+    }
 }
 
 async function renderRegistroSaaS(container) {
