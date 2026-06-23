@@ -10571,6 +10571,8 @@ function renderLanding(container) {
     if (topLoginBtn) {
         topLoginBtn.addEventListener('click', () => {
             document.getElementById('firebase-auth-modal').classList.add('active');
+            const loginTab = document.getElementById('fb-tab-login');
+            if (loginTab) loginTab.click();
         });
     }
 
@@ -10578,6 +10580,8 @@ function renderLanding(container) {
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
             document.getElementById('firebase-auth-modal').classList.add('active');
+            const loginTab = document.getElementById('fb-tab-login');
+            if (loginTab) loginTab.click();
         });
     }
 
