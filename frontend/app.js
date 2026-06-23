@@ -740,6 +740,19 @@ function bindFirebaseEvents() {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
                     authModal.classList.remove('active');
+                    
+                    // Force SaaS state to active in local database and route to dashboard
+                    const db = getDatabase();
+                    db.saas_state = db.saas_state || {};
+                    db.saas_state.status = 'active';
+                    db.saas_state.workshopData = db.saas_state.workshopData || {};
+                    db.saas_state.workshopData.uid = userCredential.user.uid;
+                    db.saas_state.workshopData.correo = userCredential.user.email;
+                    db.saas_state.termsSigned = true;
+                    saveDatabase(db);
+                    
+                    window.location.hash = 'taller-dashboard';
+                    handleRouting();
                 })
                 .catch((error) => {
                     console.error("Error al iniciar sesión:", error);
@@ -1125,6 +1138,21 @@ const routes = {
 
 function handleRouting() {
     const db = getDatabase();
+    
+    // Auto-activate SaaS status if firebase user is authenticated as owner
+    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
+        const fUser = firebase.auth().currentUser;
+        if (!db.saas_state || db.saas_state.status !== 'active') {
+            db.saas_state = db.saas_state || {};
+            db.saas_state.status = 'active';
+            db.saas_state.workshopData = db.saas_state.workshopData || {};
+            db.saas_state.workshopData.uid = fUser.uid;
+            db.saas_state.workshopData.correo = fUser.email;
+            db.saas_state.termsSigned = true;
+            saveDatabase(db);
+        }
+    }
+    
     const saas = db.saas_state || { status: 'guest' };
     
     // 1. Reactive Status Listener for Pending Guest Solicitud
@@ -10573,18 +10601,28 @@ function renderLanding(container) {
     const topLoginBtn = document.getElementById('btn-landing-top-login');
     if (topLoginBtn) {
         topLoginBtn.addEventListener('click', () => {
-            document.getElementById('firebase-auth-modal').classList.add('active');
-            const loginTab = document.getElementById('fb-tab-login');
-            if (loginTab) loginTab.click();
+            if (typeof firebase !== 'undefined' && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
+                window.location.hash = 'taller-dashboard';
+                handleRouting();
+            } else {
+                document.getElementById('firebase-auth-modal').classList.add('active');
+                const loginTab = document.getElementById('fb-tab-login');
+                if (loginTab) loginTab.click();
+            }
         });
     }
 
     const loginBtn = document.getElementById('btn-landing-login');
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
-            document.getElementById('firebase-auth-modal').classList.add('active');
-            const loginTab = document.getElementById('fb-tab-login');
-            if (loginTab) loginTab.click();
+            if (typeof firebase !== 'undefined' && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
+                window.location.hash = 'taller-dashboard';
+                handleRouting();
+            } else {
+                document.getElementById('firebase-auth-modal').classList.add('active');
+                const loginTab = document.getElementById('fb-tab-login');
+                if (loginTab) loginTab.click();
+            }
         });
     }
 
