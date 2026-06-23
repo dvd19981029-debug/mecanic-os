@@ -19,7 +19,8 @@ const collectionConfigs = [
     { name: 'venta_rapida', path: 'venta_rapida', key: 'ID_Venta_Rapida' },
     { name: 'gastos', path: 'gastos', key: 'ID Gasto' },
     { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' },
-    { name: 'pagos', path: 'pagos', key: 'ID Pago' }
+    { name: 'pagos', path: 'pagos', key: 'ID Pago' },
+    { name: 'promociones', path: 'promociones', key: 'ID_Promocion' }
 ];
 
 const dataService = {
@@ -70,6 +71,7 @@ const dataService = {
                 presupuestos: [],
                 revisiones: [],
                 tecnicos: [],
+                promociones: [],
                 role_permissions: defaultRolePermissions,
                 saas_state: {
                     status: 'guest',
@@ -101,6 +103,7 @@ const dataService = {
             if (!this.cache.revisiones) { this.cache.revisiones = []; changed = true; }
             if (!this.cache.tecnicos) { this.cache.tecnicos = []; changed = true; }
             if (!this.cache.pagos) { this.cache.pagos = []; changed = true; }
+            if (!this.cache.promociones) { this.cache.promociones = []; changed = true; }
             if (!this.cache.role_permissions) { this.cache.role_permissions = defaultRolePermissions; changed = true; }
             if (!this.cache.saas_state) {
                 this.cache.saas_state = {

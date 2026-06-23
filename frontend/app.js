@@ -2952,6 +2952,12 @@ function renderBudgetEditor(container, budget) {
         `;
     }
 
+    const promoOptions = (db.promociones || []).filter(p => p.Estado === 'Activo' || (budget.ID_Promocion && p.ID_Promocion === budget.ID_Promocion)).map(p => {
+        const isSelected = budget.ID_Promocion === p.ID_Promocion ? 'selected' : '';
+        const desc = p.Tipo === 'monto_fijo' ? `$${parseFloat(p.Valor).toFixed(2)}` : `${parseFloat(p.Valor)}%`;
+        return `<option value="${p.ID_Promocion}" ${isSelected}>${p.Nombre} (${desc})</option>`;
+    }).join('');
+
     container.innerHTML = `
         <div class="budget-editor" id="budget-editor-layout">
             <div class="items-section">
@@ -3015,11 +3021,24 @@ function renderBudgetEditor(container, budget) {
                         <option value="4" ${budget.Estado == 4 ? 'selected' : ''} disabled>4 - Anulado</option>
                     </select>
                 </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Aplicar Promoción</label>
+                    <select id="editor-promocion-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                        <option value="">Sin promoción / descuento</option>
+                        ${promoOptions}
+                    </select>
+                </div>
                 
                 <div style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
                     <div class="summary-row"><span>Suma Repuestos:</span><span id="sum-products">$0.00</span></div>
                     <div class="summary-row"><span>Suma Mano Obra:</span><span id="sum-labor">$0.00</span></div>
                     <div class="summary-row"><span>Subtotal Neto:</span><span id="subtotal-neto" style="font-weight: 600;">$0.00</span></div>
+                    
+                    <div id="discount-section">
+                        <!-- Shows discount if applicable -->
+                    </div>
+                    
                     <div class="summary-row"><span>IVA (13%):</span><span id="tax-iva">$0.00</span></div>
                     
                     <div id="ret-per-section">
@@ -3301,10 +3320,37 @@ function renderBudgetEditor(container, budget) {
         tempLabor.forEach(l => sumLab += parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1));
         
         const subtotal = sumProd + sumLab;
-        const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-        const iva = subtotal * taxRate;
         
-        let grandTotal = subtotal + iva;
+        // Find promotion
+        const promoSelect = document.getElementById('editor-promocion-select');
+        const selectedPromoId = promoSelect ? promoSelect.value : (budget.ID_Promocion || '');
+        const promo = (db.promociones || []).find(p => p.ID_Promocion === selectedPromoId);
+        
+        let discount = 0;
+        let promoRowHtml = '';
+        if (promo) {
+            if (promo.Tipo === 'desc_mano_obra') {
+                discount = sumLab * (parseFloat(promo.Valor || 0) / 100);
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. MO (${promo.Valor}%):</span><span>- $ ${discount.toFixed(2)}</span></div>`;
+            } else if (promo.Tipo === 'desc_productos') {
+                discount = sumProd * (parseFloat(promo.Valor || 0) / 100);
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. Prod (${promo.Valor}%):</span><span>- $ ${discount.toFixed(2)}</span></div>`;
+            } else if (promo.Tipo === 'monto_fijo') {
+                discount = parseFloat(promo.Valor || 0);
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Descuento Fijo:</span><span>- $ ${discount.toFixed(2)}</span></div>`;
+            }
+        }
+        discount = Math.min(discount, subtotal);
+        budget.Descuento = discount;
+        if (promoSelect) {
+            budget.ID_Promocion = selectedPromoId;
+        }
+        
+        const subtotalConDescuento = subtotal - discount;
+        const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
+        const iva = subtotalConDescuento * taxRate;
+        
+        let grandTotal = subtotalConDescuento + iva;
         
         const selectedClientCode = isNew ? document.getElementById('editor-client-select').value : budget.Codigo_Cliente;
         const selectedClient = db.clientes.find(c => c.Codigo_Cliente === selectedClientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
@@ -3312,6 +3358,12 @@ function renderBudgetEditor(container, budget) {
         document.getElementById('sum-products').textContent = '$' + sumProd.toFixed(2);
         document.getElementById('sum-labor').textContent = '$' + sumLab.toFixed(2);
         document.getElementById('subtotal-neto').textContent = '$' + subtotal.toFixed(2);
+        
+        const discountSection = document.getElementById('discount-section');
+        if (discountSection) {
+            discountSection.innerHTML = promoRowHtml;
+        }
+        
         document.getElementById('tax-iva').textContent = '$' + iva.toFixed(2);
 
         // Retention and Perception rules for El Salvador
@@ -3319,12 +3371,12 @@ function renderBudgetEditor(container, budget) {
         retPerEl.innerHTML = '';
         
         if (selectedClient.AplicaPercepcion > 0) {
-            const perc = subtotal * parseFloat(selectedClient.AplicaPercepcion);
+            const perc = subtotalConDescuento * parseFloat(selectedClient.AplicaPercepcion);
             grandTotal += perc;
             retPerEl.innerHTML += `<div class="summary-row"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perc.toFixed(2)}</span></div>`;
         }
         if (selectedClient.AplicaRetencion > 0) {
-            const ret = subtotal * parseFloat(selectedClient.AplicaRetencion);
+            const ret = subtotalConDescuento * parseFloat(selectedClient.AplicaRetencion);
             grandTotal -= ret;
             retPerEl.innerHTML += `<div class="summary-row"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${ret.toFixed(2)}</span></div>`;
         }
@@ -3501,9 +3553,7 @@ function renderBudgetEditor(container, budget) {
 
     // Run loaders
     renderTempRows();
-    if (!isNew) {
-        calculateTotals();
-    }
+    calculateTotals();
 
     // Wire up header listeners to auto-save on change/input
     const odoEl = document.getElementById('editor-odo');
@@ -3520,6 +3570,14 @@ function renderBudgetEditor(container, budget) {
     
     const stateEl = document.getElementById('editor-state');
     if (stateEl) stateEl.addEventListener('change', autoSaveBudget);
+
+    const promoEl = document.getElementById('editor-promocion-select');
+    if (promoEl) {
+        promoEl.addEventListener('change', () => {
+            calculateTotals();
+            autoSaveBudget();
+        });
+    }
 }
 
 // 5. KANBAN BOARD VIEW
@@ -6985,6 +7043,41 @@ function renderConfiguracion(container, queryParams) {
         `;
     }
 
+    function getPromocionesHtml() {
+        return `
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <h3>Catálogo de Promociones y Descuentos</h3>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Configura descuentos fijos o porcentuales para aplicar en presupuestos.</p>
+                    </div>
+                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="search-promociones-input" placeholder="Buscar promoción por nombre..." style="padding:0.6rem 1rem; width:280px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        <button class="btn btn-primary" id="btn-add-promocion"><i class="fa-solid fa-plus"></i> Nueva Promoción</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th style="text-align:right;">Valor</th>
+                                <th style="text-align:center;">Vigencia</th>
+                                <th style="text-align:center;">Estado</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="promociones-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
     // Render outer structure
     container.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
@@ -6993,6 +7086,7 @@ function renderConfiguracion(container, queryParams) {
                 <button class="saas-tab-btn ${activeConfigTab === 'empleados' ? 'active' : ''}" data-tab="empleados"><i class="fa-solid fa-users-gear"></i> Empleados</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'productos' ? 'active' : ''}" data-tab="productos"><i class="fa-solid fa-boxes-stacked"></i> Repuestos / Productos</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'servicios' ? 'active' : ''}" data-tab="servicios"><i class="fa-solid fa-screwdriver-wrench"></i> Servicios / Mano de Obra</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'promociones' ? 'active' : ''}" data-tab="promociones"><i class="fa-solid fa-tags"></i> Promociones</button>
             </div>
             
             <div id="config-tab-content-area">
@@ -7200,6 +7294,58 @@ function renderConfiguracion(container, queryParams) {
                 </form>
             </div>
         </div>
+
+        <!-- Promocion Modal -->
+        <div id="promocion-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 id="promocion-modal-title">Registrar Promoción</h2>
+                    <button class="close-modal-btn" id="close-promocion-modal">&times;</button>
+                </div>
+                <form id="promocion-form" novalidate style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                    <input type="hidden" id="promocion-id">
+                    <div class="form-group">
+                        <label>Nombre de la Promoción</label>
+                        <input type="text" id="promocion-nombre" required placeholder="Ej. 10% Descuento Mano de Obra">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo de Promoción</label>
+                            <select id="promocion-tipo" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                                <option value="desc_mano_obra">% de descuento en Mano de Obra</option>
+                                <option value="desc_productos">% de descuento en productos</option>
+                                <option value="monto_fijo">Monto Fijo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor</label>
+                            <input type="number" id="promocion-valor" required min="0.01" step="0.01" value="0.00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha de Inicio</label>
+                            <input type="date" id="promocion-fecha-inicio" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de Fin</label>
+                            <input type="date" id="promocion-fecha-fin" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="promocion-estado" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-promocion">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
 
     // Modal Close Triggers
@@ -7208,6 +7354,12 @@ function renderConfiguracion(container, queryParams) {
     });
     document.getElementById('close-expediente-modal').addEventListener('click', () => {
         document.getElementById('expediente-modal').classList.remove('active');
+    });
+    document.getElementById('close-promocion-modal').addEventListener('click', () => {
+        document.getElementById('promocion-modal').classList.remove('active');
+    });
+    document.getElementById('btn-cancel-promocion').addEventListener('click', () => {
+        document.getElementById('promocion-modal').classList.remove('active');
     });
 
     // Setup active tab listeners
@@ -7968,6 +8120,163 @@ function renderConfiguracion(container, queryParams) {
         };
         document.getElementById('close-servicio-modal').addEventListener('click', closeServModal);
         document.getElementById('btn-cancel-servicio').addEventListener('click', closeServModal);
+    } else if (activeConfigTab === 'promociones') {
+        tabContentArea.innerHTML = getPromocionesHtml();
+        const tableBody = document.getElementById('promociones-table-body');
+        const searchInput = document.getElementById('search-promociones-input');
+
+        function populatePromociones(filterText = '') {
+            tableBody.innerHTML = '';
+            const filtered = (db.promociones || []).filter(p => 
+                (p.Nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p.ID_Promocion || '').toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron promociones</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                let tipoLabel = '';
+                if (p.Tipo === 'desc_mano_obra') tipoLabel = '% en Mano de Obra';
+                else if (p.Tipo === 'desc_productos') tipoLabel = '% en Productos';
+                else if (p.Tipo === 'monto_fijo') tipoLabel = 'Monto Fijo';
+                
+                const valorFormat = p.Tipo === 'monto_fijo' ? `$ ${parseFloat(p.Valor || 0).toFixed(2)}` : `${parseFloat(p.Valor || 0)} %`;
+                const vigencia = (p.Fecha_Inicio || p.Fecha_Fin) ? `${p.Fecha_Inicio || 'Inmediato'} al ${p.Fecha_Fin || 'Indefinido'}` : 'Indefinido';
+
+                tr.innerHTML = `
+                    <td><small style="color:var(--text-muted); font-family:monospace;">${p.ID_Promocion}</small></td>
+                    <td><strong>${p.Nombre}</strong></td>
+                    <td>${tipoLabel}</td>
+                    <td style="text-align:right;">${valorFormat}</td>
+                    <td style="text-align:center;">${vigencia}</td>
+                    <td style="text-align:center;"><span class="badge ${p.Estado === 'Inactivo' ? 'badge-danger' : 'badge-success'}">${p.Estado || 'Activo'}</span></td>
+                    <td style="text-align:center;">
+                        <div style="display:flex; gap:0.35rem; justify-content:center;">
+                            <button class="btn btn-secondary btn-edit-promocion" data-id="${p.ID_Promocion}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn btn-secondary btn-delete-promocion" data-id="${p.ID_Promocion}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Bind edits
+            tableBody.querySelectorAll('.btn-edit-promocion').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const p = db.promociones.find(x => x.ID_Promocion.toString() === id.toString());
+                    if (p) {
+                        document.getElementById('promocion-modal-title').textContent = 'Editar Promoción';
+                        document.getElementById('promocion-id').value = p.ID_Promocion;
+                        document.getElementById('promocion-nombre').value = p.Nombre || '';
+                        document.getElementById('promocion-tipo').value = p.Tipo || 'desc_mano_obra';
+                        document.getElementById('promocion-valor').value = p.Valor || 0;
+                        document.getElementById('promocion-fecha-inicio').value = p.Fecha_Inicio || '';
+                        document.getElementById('promocion-fecha-fin').value = p.Fecha_Fin || '';
+                        document.getElementById('promocion-estado').value = p.Estado || 'Activo';
+                        
+                        document.getElementById('promocion-modal').classList.add('active');
+                    }
+                });
+            });
+
+            // Bind deletes
+            tableBody.querySelectorAll('.btn-delete-promocion').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    if (confirm(`¿Está seguro de que desea eliminar la promoción "${id}"?`)) {
+                        const currentDb = getDatabase();
+                        currentDb.promociones = currentDb.promociones.filter(x => x.ID_Promocion.toString() !== id.toString());
+                        saveDatabase(currentDb);
+                        showToast("Promoción eliminada con éxito", "success");
+                        renderConfiguracion(container);
+                    }
+                });
+            });
+        }
+
+        // Init table
+        populatePromociones();
+
+        // Search listener
+        searchInput.addEventListener('input', (e) => {
+            populatePromociones(e.target.value);
+        });
+
+        // Add Promocion Trigger
+        document.getElementById('btn-add-promocion').addEventListener('click', () => {
+            document.getElementById('promocion-modal-title').textContent = 'Registrar Promoción';
+            document.getElementById('promocion-id').value = '';
+            document.getElementById('promocion-nombre').value = '';
+            document.getElementById('promocion-tipo').value = 'desc_mano_obra';
+            document.getElementById('promocion-valor').value = '0.00';
+            document.getElementById('promocion-fecha-inicio').value = '';
+            document.getElementById('promocion-fecha-fin').value = '';
+            document.getElementById('promocion-estado').value = 'Activo';
+            document.getElementById('promocion-modal').classList.add('active');
+        });
+
+        // Bind Submit
+        const promoForm = document.getElementById('promocion-form');
+        promoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('promocion-id').value;
+            const nombre = document.getElementById('promocion-nombre').value.trim();
+            const tipo = document.getElementById('promocion-tipo').value;
+            const valorInput = document.getElementById('promocion-valor');
+            const fechaInicio = document.getElementById('promocion-fecha-inicio').value;
+            const fechaFin = document.getElementById('promocion-fecha-fin').value;
+            const estado = document.getElementById('promocion-estado').value;
+
+            if (!nombre) {
+                showToast("Por favor, ingrese el nombre de la promoción", "danger");
+                document.getElementById('promocion-nombre').focus();
+                return;
+            }
+            if (valorInput.value === "" || parseFloat(valorInput.value) <= 0) {
+                showToast("Por favor, ingrese un valor válido para la promoción (mayor a 0)", "danger");
+                valorInput.focus();
+                return;
+            }
+
+            const valor = parseFloat(valorInput.value || 0);
+            const currentDb = getDatabase();
+
+            if (id) {
+                // Edit
+                const p = currentDb.promociones.find(x => x.ID_Promocion.toString() === id.toString());
+                if (p) {
+                    p.Nombre = nombre;
+                    p.Tipo = tipo;
+                    p.Valor = valor;
+                    p.Fecha_Inicio = fechaInicio;
+                    p.Fecha_Fin = fechaFin;
+                    p.Estado = estado;
+                }
+                showToast("Promoción actualizada", "success");
+            } else {
+                // Add
+                const nextId = 'PROMO-' + Math.floor(Date.now() / 1000).toString().substring(4) + '-' + Math.floor(Math.random() * 90 + 10);
+                currentDb.promociones.push({
+                    "ID_Promocion": nextId,
+                    "Nombre": nombre,
+                    "Tipo": tipo,
+                    "Valor": valor,
+                    "Fecha_Inicio": fechaInicio,
+                    "Fecha_Fin": fechaFin,
+                    "Estado": estado,
+                    "FechaCreacion": Date.now()
+                });
+                showToast("Nueva promoción registrada con éxito", "success");
+            }
+            saveDatabase(currentDb);
+            document.getElementById('promocion-modal').classList.remove('active');
+            renderConfiguracion(container);
+        });
     }
 
     // Expediente (Vacaciones, Incapacidades, Bonos) modal logic
@@ -8962,7 +9271,7 @@ function numeroALetras(num) {
 }
 
 // Format 1: Clásico Mecanic OS
-function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 12px;">No se cotizan repuestos y lubricantes</td></tr>'
         : products.map(p => `
@@ -9438,6 +9747,12 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                     <td class="totals-label">Sumas</td>
                     <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
+                ${discount > 0 ? `
+                <tr>
+                    <td class="totals-label">(-) Descuento</td>
+                    <td class="totals-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ` : ''}
                 <tr>
                     <td class="totals-label">IVA</td>
                     <td class="totals-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -9461,7 +9776,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 }
 
 // Format 2: Moderno FacturaLlama DTE
-function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     let items = [];
     products.forEach(p => {
         items.push({
@@ -9952,11 +10267,11 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                     </tr>
                     <tr>
                         <td class="totals-label">Monto Global de Descuento</td>
-                        <td class="totals-val">$ 0.00</td>
+                        <td class="totals-val">$ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td class="totals-label">Sub Total</td>
-                        <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="totals-val">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td class="totals-label">(+) IVA (13%)</td>
@@ -9982,7 +10297,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
 }
 
 // Format 3: Elegante / Ejecutivo
-function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin repuestos ni lubricantes cotizados</td></tr>'
         : products.map(p => `
@@ -10385,6 +10700,12 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                     <td class="total-label">Sumatoria Repuestos y Servicios</td>
                     <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
+                ${discount > 0 ? `
+                <tr>
+                    <td class="total-label">(-) Descuento</td>
+                    <td class="total-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ` : ''}
                 <tr>
                     <td class="total-label">IVA (13%)</td>
                     <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -10443,19 +10764,35 @@ function exportBudgetPDF(budgetId) {
     const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
     const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
     const subtotal = sumProd + sumLab;
+
+    // Calculate promotion discount
+    const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
+    let discount = 0;
+    if (promo) {
+        if (promo.Tipo === 'desc_mano_obra') {
+            discount = sumLab * (parseFloat(promo.Valor || 0) / 100);
+        } else if (promo.Tipo === 'desc_productos') {
+            discount = sumProd * (parseFloat(promo.Valor || 0) / 100);
+        } else if (promo.Tipo === 'monto_fijo') {
+            discount = parseFloat(promo.Valor || 0);
+        }
+    }
+    discount = Math.min(discount, subtotal);
+
+    const subtotalConDescuento = subtotal - discount;
     const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotal * taxRate;
+    const iva = subtotalConDescuento * taxRate;
 
     let retVal = 0;
     let percVal = 0;
     if (client.AplicaRetencion > 0) {
-        retVal = subtotal * parseFloat(client.AplicaRetencion);
+        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
     }
 
-    const grandTotal = subtotal + iva + percVal - retVal;
+    const grandTotal = subtotalConDescuento + iva + percVal - retVal;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -10467,11 +10804,11 @@ function exportBudgetPDF(budgetId) {
     let pdfHTML = '';
 
     if (format === 'clasico_mecanicos') {
-        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else if (format === 'elegante_ejecutivo') {
-        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else {
-        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     }
 
     printWindow.document.write(pdfHTML);
