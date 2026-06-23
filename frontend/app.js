@@ -6625,8 +6625,11 @@ function renderDashboardBI(container) {
 }
 
 // 12. CONFIGURACION Y AJUSTES
-function renderConfiguracion(container) {
+function renderConfiguracion(container, queryParams) {
     const db = getDatabase();
+    if (queryParams && queryParams.tab) {
+        activeConfigTab = queryParams.tab;
+    }
     
     // Load DTE configuration
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
