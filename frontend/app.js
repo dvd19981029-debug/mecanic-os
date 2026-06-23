@@ -3615,7 +3615,7 @@ function renderPendingTab(container) {
                 <h3 style="margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Presupuestos Aprobados por Facturar</h3>
                 <div class="search-bar-container" style="max-width: 350px; flex-grow: 1; margin: 0;">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="pending-dte-search" placeholder="Buscar por número, cliente o placa...">
+                    <input type="text" id="pending-dte-search" placeholder="Buscar por número, cliente, placa o monto...">
                 </div>
             </div>
             
@@ -3646,11 +3646,32 @@ function renderPendingTab(container) {
     function populate(filter = '') {
         rowsContainer.innerHTML = '';
         
-        const filtered = pending.filter(p => 
-            (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Placas || '').toLowerCase().includes(filter.toLowerCase())
-        );
+        const filtered = pending.filter(p => {
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            if (client.AplicaRetencion > 0) retVal = subtotal * parseFloat(client.AplicaRetencion);
+            if (client.AplicaPercepcion > 0) percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            const grandTotal = subtotal + iva + percVal - retVal;
+            const grandTotalString = grandTotal.toFixed(2);
+            const grandTotalFormatted = grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            const term = filter.toLowerCase().trim();
+            const termWithDot = term.replace(',', '.');
+            return (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
+                (p.Nombre || '').toLowerCase().includes(term) ||
+                (p.Placas || '').toLowerCase().includes(term) ||
+                grandTotalString.includes(term) ||
+                grandTotalString.includes(termWithDot) ||
+                grandTotalFormatted.toLowerCase().includes(term);
+        });
         
         if (filtered.length === 0) {
             rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay presupuestos pendientes de facturación</td></tr>';
@@ -3714,7 +3735,7 @@ function renderIssuedTab(container) {
                 <h3 style="margin: 0;"><i class="fa-solid fa-file-invoice-dollar"></i> Historial de DTEs Emitidos a Hacienda</h3>
                 <div class="search-bar-container" style="max-width: 350px; flex-grow: 1; margin: 0;">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="issued-dte-search" placeholder="Buscar por DTE, cliente o placa...">
+                    <input type="text" id="issued-dte-search" placeholder="Buscar por DTE, cliente, placa o monto...">
                 </div>
             </div>
             
@@ -3745,12 +3766,33 @@ function renderIssuedTab(container) {
     function populate(filter = '') {
         rowsContainer.innerHTML = '';
         
-        const filtered = issued.filter(p => 
-            (p.controlNumber || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Placas || '').toLowerCase().includes(filter.toLowerCase())
-        );
+        const filtered = issued.filter(p => {
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            if (client.AplicaRetencion > 0) retVal = subtotal * parseFloat(client.AplicaRetencion);
+            if (client.AplicaPercepcion > 0) percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            const grandTotal = subtotal + iva + percVal - retVal;
+            const grandTotalString = grandTotal.toFixed(2);
+            const grandTotalFormatted = grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            const term = filter.toLowerCase().trim();
+            const termWithDot = term.replace(',', '.');
+            return (p.controlNumber || '').toLowerCase().includes(term) ||
+                (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
+                (p.Nombre || '').toLowerCase().includes(term) ||
+                (p.Placas || '').toLowerCase().includes(term) ||
+                grandTotalString.includes(term) ||
+                grandTotalString.includes(termWithDot) ||
+                grandTotalFormatted.toLowerCase().includes(term);
+        });
         
         if (filtered.length === 0) {
             rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay DTEs emitidos registrados</td></tr>';
