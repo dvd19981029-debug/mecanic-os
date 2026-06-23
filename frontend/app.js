@@ -4129,7 +4129,7 @@ function renderInvoicingWorkspace(container, presId) {
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'BIENES',
-                    internalCode: item['ID_Producto DPP'] || '',
+                    internalCode: String(item['ID_Producto DPP'] || '').trim(),
                     description: item.Descripcion || 'Producto',
                     quantity: parseInt(item.Cantidad || 1),
                     unitPrice: unitPrice,
@@ -4141,7 +4141,7 @@ function renderInvoicingWorkspace(container, presId) {
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'SERVICIOS',
-                    internalCode: item['ID_ManoObra'] || '',
+                    internalCode: String(item['ID_ManoObra'] || '').trim(),
                     description: item.Descripcion || 'Mano de Obra',
                     quantity: parseInt(item.Cantidad || 1),
                     unitPrice: unitPrice,
