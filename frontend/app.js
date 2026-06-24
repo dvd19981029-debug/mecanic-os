@@ -10945,7 +10945,7 @@ function renderLanding(container) {
                 <div style="font-size: 4rem; color: var(--warning); margin-bottom: 1.5rem;"><i class="fa-solid fa-clock-rotate-left"></i></div>
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 700; margin-bottom: 1rem;">Solicitud Pendiente de Revisión</h2>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; font-size: 1.05rem;">
-                    Tu solicitud para registrar el taller <strong>${saas.workshopData ? saas.workshopData.nombre : 'nuevo'}</strong> está siendo evaluada por nuestro equipo de administración de Mecanic OS.<br>
+                    Tu solicitud para registrar el taller <strong>${(saas.workshopData && saas.workshopData.nombre) || 'nuevo'}</strong> está siendo evaluada por nuestro equipo de administración de Mecanic OS.<br>
                     Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada.
                 </p>
                 <div style="display:flex; flex-direction:column; gap:1rem; align-items:center;">
@@ -10970,7 +10970,7 @@ function renderLanding(container) {
     let topButtonsHTML = '';
     
     if (saas.status === 'active') {
-        const workshopName = saas.workshopData ? saas.workshopData.nombre : 'Mi Taller';
+        const workshopName = (saas.workshopData && saas.workshopData.nombre) || 'Mecanic OS';
         topButtonsHTML = `
             <div style="display:flex; gap:0.75rem; align-items:center;">
                 <a href="#taller-dashboard" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); padding:0.5rem 1.2rem; border-radius:50px;"><i class="fa-solid fa-right-to-bracket"></i> Acceder</a>
@@ -11109,7 +11109,9 @@ function renderLanding(container) {
 function renderLockScreen(container) {
     const db = getDatabase();
     const saas = db.saas_state || {};
-    const workshop = saas.workshopData || { nombre: 'Mecanic OS', logoText: 'MecanicOS', logoTagline: 'Gestión de Taller' };
+    const workshop = saas.workshopData || {};
+    const workshopName = workshop.nombre || 'Mecanic OS';
+    const logoTagline = workshop.logoTagline || 'Control de Acceso';
     
     // Clear any previous active user just in case
     setActiveUser(null);
@@ -11118,8 +11120,8 @@ function renderLockScreen(container) {
         <div style="max-width: 450px; margin: 5rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
             <div style="text-align: center; margin-bottom: 2.5rem;">
                 <div style="font-size: 3rem; color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-gears"></i></div>
-                <h1 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin: 0;">${workshop.nombre}</h1>
-                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">${workshop.logoTagline || 'Control de Acceso'}</p>
+                <h1 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-primary); margin: 0;">${workshopName}</h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">${logoTagline}</p>
             </div>
             
             <form id="lock-login-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
@@ -11561,7 +11563,8 @@ async function renderRegistroSaaS(container) {
 function renderSuspendedSaaS(container) {
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
-    const workshop = saas.workshopData || { nombre: 'tu taller', precio_mensual: 75.00 };
+    const workshop = saas.workshopData || {};
+    const workshopName = workshop.nombre || 'tu taller';
     
     container.innerHTML = `
         <div style="max-width: 650px; margin: 6rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--danger); border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.15);">
@@ -11572,7 +11575,7 @@ function renderSuspendedSaaS(container) {
                 Acceso Suspendido
             </h2>
             <p style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; margin-bottom: 2rem;">
-                La suscripción para el taller <strong>${workshop.nombre}</strong> se encuentra temporalmente inhabilitada.<br>
+                La suscripción para el taller <strong>${workshopName}</strong> se encuentra temporalmente inhabilitada.<br>
                 Esto puede deberse a un saldo pendiente de pago o a la finalización del período de prueba.
             </p>
             
