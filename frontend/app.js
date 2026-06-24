@@ -681,6 +681,9 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
         return;
     }
 
+    const db = getDatabase();
+    const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === pass);
+
     const proceedAsAdmin = () => {
         firebase.auth().signInWithEmailAndPassword(email, pass)
             .then((userCredential) => {
@@ -719,65 +722,140 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
             });
     };
 
+    // 1. Check local database first (extremely robust, supports offline, case-insensitive and bypasses index issues)
+    if (localTech) {
+        const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
+        if (workshopUid) {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        const db = getDatabase();
+                        db.saas_state = db.saas_state || {};
+                        db.saas_state.status = 'active';
+                        db.saas_state.workshopData = db.saas_state.workshopData || {};
+                        db.saas_state.workshopData.uid = workshopUid;
+                        db.saas_state.termsSigned = true;
+                        saveDatabase(db);
+                        
+                        dataService.startSync(workshopUid, true); // true = employeeMode
+                        setActiveUser(localTech);
+                        
+                        showToast(`Sesión iniciada correctamente como ${localTech.Nombre_Completo}`, "success");
+                        if (typeof onComplete === 'function') onComplete(true);
+                    })
+                    .catch(err => {
+                        console.error("Error de login anónimo para empleado local:", err);
+                        // Fallback to local offline login
+                        setActiveUser(localTech);
+                        showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
+                        if (typeof onComplete === 'function') onComplete(true);
+                    });
+            } else {
+                setActiveUser(localTech);
+                showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
+                if (typeof onComplete === 'function') onComplete(true);
+            }
+            return;
+        }
+    }
+
+    // 2. Query Firestore if not found in local db
     if (typeof dbFirestore !== 'undefined' && dbFirestore) {
-        dbFirestore.collectionGroup("tecnicos")
-            .where("Email", "==", email)
-            .get()
-            .then((snapshot) => {
-                let matchedTech = null;
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if (data.Contraseña === pass) {
-                        matchedTech = { data, ref: doc.ref };
+        const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
+        
+        const queryFirestoreCollection = (colRef) => {
+            return colRef.where("Email", "==", email).get()
+                .then((snapshot) => {
+                    let matchedTech = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.Contraseña === pass) {
+                            matchedTech = { data, ref: doc.ref };
+                        }
+                    });
+                    return matchedTech;
+                });
+        };
+
+        const handleMatchedTech = (matchedTech) => {
+            const pathSegments = matchedTech.ref.path.split('/');
+            const targetWorkshopUid = pathSegments[1];
+            
+            localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
+            
+            return firebase.auth().signInAnonymously()
+                .then(() => {
+                    const db = getDatabase();
+                    db.saas_state = db.saas_state || {};
+                    db.saas_state.status = 'active';
+                    db.saas_state.workshopData = db.saas_state.workshopData || {};
+                    db.saas_state.workshopData.uid = targetWorkshopUid;
+                    db.saas_state.termsSigned = true;
+                    saveDatabase(db);
+                    
+                    dataService.startSync(targetWorkshopUid, true); // true = employeeMode
+                    setActiveUser(matchedTech.data);
+                    
+                    showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
+                    if (typeof onComplete === 'function') onComplete(true);
+                });
+        };
+
+        let promise;
+        if (workshopUid) {
+            // First try querying the specific workshop's technicians collection (no custom indexes required)
+            promise = queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
+                .then(matchedTech => {
+                    if (matchedTech) {
+                        return handleMatchedTech(matchedTech);
+                    } else {
+                        // Fallback to collectionGroup in case they belong to another workshop
+                        return dbFirestore.collectionGroup("tecnicos")
+                            .where("Email", "==", email)
+                            .get()
+                            .then(snapshot => {
+                                let collectionGroupTech = null;
+                                snapshot.forEach(doc => {
+                                    const data = doc.data();
+                                    if (data.Contraseña === pass) {
+                                        collectionGroupTech = { data, ref: doc.ref };
+                                    }
+                                });
+                                if (collectionGroupTech) {
+                                    return handleMatchedTech(collectionGroupTech);
+                                } else {
+                                    proceedAsAdmin();
+                                }
+                            });
                     }
                 });
-                
-                if (matchedTech) {
-                    const pathSegments = matchedTech.ref.path.split('/');
-                    const workshopUid = pathSegments[1];
-                    
-                    localStorage.setItem('mecanic_os_workshop_uid', workshopUid);
-                    
-                    firebase.auth().signInAnonymously()
-                        .then(() => {
-                            const db = getDatabase();
-                            db.saas_state = db.saas_state || {};
-                            db.saas_state.status = 'active';
-                            db.saas_state.workshopData = db.saas_state.workshopData || {};
-                            db.saas_state.workshopData.uid = workshopUid;
-                            db.saas_state.termsSigned = true;
-                            saveDatabase(db);
-                            
-                            dataService.startSync(workshopUid, true); // true = employeeMode
-                            setActiveUser(matchedTech.data);
-                            
-                            showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
-                            if (typeof onComplete === 'function') onComplete(true);
-                        })
-                        .catch(err => {
-                            console.error("Error de login anónimo para empleado:", err);
-                            showToast("Error de conexión al servidor del taller", "error");
-                            if (typeof onComplete === 'function') onComplete(false);
-                        });
-                } else {
-                    proceedAsAdmin();
-                }
-            })
-            .catch((err) => {
-                console.error("Error de consulta en colección de técnicos:", err);
-                proceedAsAdmin();
-            });
-    } else {
-        const db = getDatabase();
-        const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === pass);
-        if (localTech) {
-            setActiveUser(localTech);
-            showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
-            if (typeof onComplete === 'function') onComplete(true);
         } else {
-            showToast("Usuario o contraseña incorrectos (Modo Offline)", "error");
-            if (typeof onComplete === 'function') onComplete(false);
+            promise = dbFirestore.collectionGroup("tecnicos")
+                .where("Email", "==", email)
+                .get()
+                .then(snapshot => {
+                    let matchedTech = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.Contraseña === pass) {
+                            matchedTech = { data, ref: doc.ref };
+                        }
+                    });
+                    if (matchedTech) {
+                        return handleMatchedTech(matchedTech);
+                    } else {
+                        proceedAsAdmin();
+                    }
+                });
         }
+
+        promise.catch((err) => {
+            console.error("Error de consulta en Firestore para login:", err);
+            proceedAsAdmin();
+        });
+    } else {
+        showToast("Usuario o contraseña incorrectos", "error");
+        if (typeof onComplete === 'function') onComplete(false);
     }
 }
 
