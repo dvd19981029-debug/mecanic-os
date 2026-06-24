@@ -294,6 +294,56 @@ function getWorkshopOwnerUid() {
     return null;
 }
 
+// Helper function to check if the user is in the middle of editing, typing, or has active unsaved form sessions
+function isUserEditing() {
+    // 1. Check if user is actively focused on any input/select/textarea
+    if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        return true;
+    }
+    
+    // 2. Check if there are active search queries in search inputs (to prevent clearing search results)
+    const searchInputs = document.querySelectorAll('input');
+    for (const input of searchInputs) {
+        const id = (input.id || '').toLowerCase();
+        const className = (input.className || '').toLowerCase();
+        if ((id.includes('search') || className.includes('search') || input.type === 'search') && input.value.trim() !== '') {
+            return true;
+        }
+    }
+    
+    const hash = window.location.hash;
+    
+    // 3. Check if user is in budget editor
+    if (hash.includes('presupuestos?id=') || hash.includes('presupuestos?action=new')) {
+        return true;
+    }
+    
+    // 4. Check if user is in DTE invoice workspace
+    if (hash.includes('facturador?presId=')) {
+        return true;
+    }
+    
+    // 5. Check if user is in active inspection sheet
+    if (hash.includes('revision-21') && window.saasActiveInspeccionTab === 'registrar') {
+        return true;
+    }
+    
+    // 6. Check if user is in quick sale POS
+    if (hash.includes('venta-rapida')) {
+        return true;
+    }
+    
+    // 7. Check if any modal is currently open
+    const activeModals = document.querySelectorAll('.modal');
+    for (const modal of activeModals) {
+        if (modal.classList.contains('active') || modal.classList.contains('show') || (modal.style.display && modal.style.display !== 'none')) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 // Refresh inteligente: cuando Firestore detecta cambios de otro dispositivo,
 // refresca la vista actual sin interrumpir al usuario si está en un formulario activo.
 let _smartRefreshDebounce = null;
@@ -325,13 +375,19 @@ function smartRefreshView(changedCollection) {
         const viewNeedsRefresh = affectedViews.includes(currentHash);
         
         if (viewNeedsRefresh) {
-            // Mostrar toast discreto informando del cambio
-            if (typeof showToast === 'function') {
-                showToast('🔄 Datos actualizados desde otro dispositivo', 'info');
-            }
-            // Re-renderizar la vista actual
-            if (typeof handleRouting === 'function') {
-                handleRouting();
+            // Si el usuario está editando activamente o tiene un formulario/búsqueda abierta,
+            // no refrescamos la vista actual para evitar interrumpirle y que pierda datos.
+            if (isUserEditing()) {
+                console.log("smartRefreshView: Se omitió el refresco de pantalla para proteger la sesión de edición activa del usuario.");
+            } else {
+                // Mostrar toast discreto informando del cambio
+                if (typeof showToast === 'function') {
+                    showToast('🔄 Datos actualizados desde otro dispositivo', 'info');
+                }
+                // Re-renderizar la vista actual
+                if (typeof handleRouting === 'function') {
+                    handleRouting();
+                }
             }
         }
         
