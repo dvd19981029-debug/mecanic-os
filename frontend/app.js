@@ -1211,24 +1211,36 @@ function updateUserUI() {
         // --- FILTER SIDEBAR MENU BASED ON ROLE PERMISSIONS ---
         const db = getDatabase();
         let allowedRoutes = [];
-        if (db && db.role_permissions && db.role_permissions[roleName]) {
-            allowedRoutes = db.role_permissions[roleName];
-        } else {
+        let normalizedRole = roleName ? roleName.trim() : '';
+        let foundPermissions = false;
+        
+        if (db && db.role_permissions) {
+            const keys = Object.keys(db.role_permissions);
+            const matchKey = keys.find(k => k.toLowerCase() === normalizedRole.toLowerCase() || 
+                k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            if (matchKey) {
+                allowedRoutes = db.role_permissions[matchKey];
+                foundPermissions = true;
+            }
+        }
+        
+        if (!foundPermissions) {
             // Sensible fallbacks
-            if (roleName === "Administrador") {
+            const searchRole = normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (searchRole === "administrador") {
                 allowedRoutes = [
                     "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
                     "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
                     "dashboard-bi", "configuracion"
                 ];
-            } else if (roleName === "Recepcionista") {
+            } else if (searchRole === "recepcionista") {
                 allowedRoutes = [
                     "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
                     "venta-rapida", "cuentas-cobrar"
                 ];
             } else {
-                // Default to Técnico permissions
-                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                // Default to Técnico permissions (now including presupuestos)
+                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban"];
             }
         }
 
@@ -1579,18 +1591,30 @@ function handleRouting() {
         if (activeUser) {
             const roleName = activeUser.Nivel_Acceso || "Mecánico";
             let allowedRoutes = [];
-            if (db && db.role_permissions && db.role_permissions[roleName]) {
-                allowedRoutes = db.role_permissions[roleName];
-            } else {
-                if (roleName === "Administrador") {
+            let normalizedRole = roleName ? roleName.trim() : '';
+            let foundPermissions = false;
+
+            if (db && db.role_permissions) {
+                const keys = Object.keys(db.role_permissions);
+                const matchKey = keys.find(k => k.toLowerCase() === normalizedRole.toLowerCase() || 
+                    k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+                if (matchKey) {
+                    allowedRoutes = db.role_permissions[matchKey];
+                    foundPermissions = true;
+                }
+            }
+
+            if (!foundPermissions) {
+                const searchRole = normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (searchRole === "administrador") {
                     allowedRoutes = appViews;
-                } else if (roleName === "Recepcionista") {
+                } else if (searchRole === "recepcionista") {
                     allowedRoutes = [
                         "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
                         "venta-rapida", "cuentas-cobrar"
                     ];
                 } else {
-                    allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                    allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban"];
                 }
             }
 
