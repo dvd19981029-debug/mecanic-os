@@ -805,30 +805,31 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
 
     // 2. Query Firestore if not found in local db
     if (typeof dbFirestore !== 'undefined' && dbFirestore) {
-        const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
-        
-        const queryFirestoreCollection = (colRef) => {
-            return colRef.where("Email", "==", email).get()
-                .then((snapshot) => {
-                    let matchedTech = null;
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.Contraseña === pass) {
-                            matchedTech = { data, ref: doc.ref };
-                        }
-                    });
-                    return matchedTech;
-                });
-        };
+        // Sign in anonymously first so that we are authenticated and bypass request.auth != null security rules
+        firebase.auth().signInAnonymously()
+            .then(() => {
+                const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
+                
+                const queryFirestoreCollection = (colRef) => {
+                    return colRef.where("Email", "==", email).get()
+                        .then((snapshot) => {
+                            let matchedTech = null;
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                if (data.Contraseña === pass) {
+                                    matchedTech = { data, ref: doc.ref };
+                                }
+                            });
+                            return matchedTech;
+                        });
+                };
 
-        const handleMatchedTech = (matchedTech) => {
-            const pathSegments = matchedTech.ref.path.split('/');
-            const targetWorkshopUid = pathSegments[1];
-            
-            localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
-            
-            return firebase.auth().signInAnonymously()
-                .then(() => {
+                const handleMatchedTech = (matchedTech) => {
+                    const pathSegments = matchedTech.ref.path.split('/');
+                    const targetWorkshopUid = pathSegments[1];
+                    
+                    localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
+                    
                     const db = getDatabase();
                     db.saas_state = db.saas_state || {};
                     db.saas_state.status = 'active';
@@ -842,61 +843,63 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
                     
                     showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
                     if (typeof onComplete === 'function') onComplete(true);
-                });
-        };
+                };
 
-        let promise;
-        if (workshopUid) {
-            // First try querying the specific workshop's technicians collection (no custom indexes required)
-            promise = queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
-                .then(matchedTech => {
-                    if (matchedTech) {
-                        return handleMatchedTech(matchedTech);
-                    } else {
-                        // Fallback to collectionGroup in case they belong to another workshop
-                        return dbFirestore.collectionGroup("tecnicos")
-                            .where("Email", "==", email)
-                            .get()
-                            .then(snapshot => {
-                                let collectionGroupTech = null;
-                                snapshot.forEach(doc => {
-                                    const data = doc.data();
-                                    if (data.Contraseña === pass) {
-                                        collectionGroupTech = { data, ref: doc.ref };
-                                    }
-                                });
-                                if (collectionGroupTech) {
-                                    return handleMatchedTech(collectionGroupTech);
-                                } else {
-                                    proceedAsAdmin();
+                const handleCollectionGroupFallback = () => {
+                    return dbFirestore.collectionGroup("tecnicos")
+                        .where("Email", "==", email)
+                        .get()
+                        .then(snapshot => {
+                            let collectionGroupTech = null;
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                if (data.Contraseña === pass) {
+                                    collectionGroupTech = { data, ref: doc.ref };
                                 }
                             });
-                    }
-                });
-        } else {
-            promise = dbFirestore.collectionGroup("tecnicos")
-                .where("Email", "==", email)
-                .get()
-                .then(snapshot => {
-                    let matchedTech = null;
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.Contraseña === pass) {
-                            matchedTech = { data, ref: doc.ref };
-                        }
-                    });
-                    if (matchedTech) {
-                        return handleMatchedTech(matchedTech);
-                    } else {
-                        proceedAsAdmin();
-                    }
-                });
-        }
+                            if (collectionGroupTech) {
+                                handleMatchedTech(collectionGroupTech);
+                            } else {
+                                // No technician found. Sign out anonymous login and try admin
+                                firebase.auth().signOut().then(() => {
+                                    proceedAsAdmin();
+                                }).catch(() => {
+                                    proceedAsAdmin();
+                                });
+                            }
+                        })
+                        .catch((err) => {
+                            console.error("Error en collectionGroup para login de técnico:", err);
+                            // If index or permission fails, sign out anonymous login and try admin
+                            firebase.auth().signOut().then(() => {
+                                proceedAsAdmin();
+                            }).catch(() => {
+                                proceedAsAdmin();
+                            });
+                        });
+                };
 
-        promise.catch((err) => {
-            console.error("Error de consulta en Firestore para login:", err);
-            proceedAsAdmin();
-        });
+                if (workshopUid) {
+                    queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
+                        .then(matchedTech => {
+                            if (matchedTech) {
+                                handleMatchedTech(matchedTech);
+                            } else {
+                                handleCollectionGroupFallback();
+                            }
+                        })
+                        .catch((err) => {
+                            console.error("Error buscando en colección de técnicos local del taller:", err);
+                            handleCollectionGroupFallback();
+                        });
+                } else {
+                    handleCollectionGroupFallback();
+                }
+            })
+            .catch(err => {
+                console.error("Error de autenticación anónima para consulta de técnico:", err);
+                proceedAsAdmin();
+            });
     } else {
         showToast("Usuario o contraseña incorrectos", "error");
         if (typeof onComplete === 'function') onComplete(false);
