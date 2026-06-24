@@ -1050,22 +1050,35 @@ function bindFirebaseEvents() {
         logoutBtn.addEventListener('click', () => {
             if (typeof firebase === 'undefined') return;
             
-            const isOwner = currentFirebaseUser && !currentFirebaseUser.isAnonymous;
-            const msg = isOwner
-                ? "¿Seguro que deseas cerrar tu sesión de propietario? Los empleados seguirán trabajando con sincronización automática."
-                : "¿Cerrar sesión de sincronización de este dispositivo?";
+            const msg = "¿Seguro que deseas cerrar la sesión en este dispositivo? Se desconectará por completo del taller.";
             
             if (confirm(msg)) {
+                // Clear workshop session state to prevent auto-login loops
+                localStorage.removeItem('mecanic_os_workshop_uid');
+                
+                const db = getDatabase();
+                if (db) {
+                    db.saas_state = {
+                        status: 'guest',
+                        workshopData: null,
+                        termsSigned: false,
+                        signatureName: '',
+                        signedAt: null
+                    };
+                    db.config_taller = null;
+                    db.solicitudes_registro = [];
+                    db.saas_payments = [];
+                    saveDatabase(db);
+                }
+                
+                setActiveUser(null);
+
                 firebase.auth().signOut()
                     .then(() => {
-                        if (isOwner) {
-                            // El dueño cierra sesión → el workshop UID permanece para empleados
-                            // NO borramos mecanic_os_workshop_uid para que los empleados sigan sincronizando
-                            showToast("Sesión de propietario cerrada. Empleados siguen conectados.", "success");
-                        } else {
-                            showToast("Sesión cerrada correctamente", "success");
-                        }
+                        showToast("Sesión cerrada correctamente", "success");
                         authModal.classList.remove('active');
+                        window.location.hash = 'landing';
+                        handleRouting();
                     })
                     .catch(err => {
                         console.error("Error al cerrar sesión:", err);
@@ -11302,6 +11315,13 @@ function renderLanding(container) {
                 db.saas_payments = [];
                 saveDatabase(db);
                 setActiveUser(null);
+                
+                // Clear workshop session state to prevent auto-login loops
+                localStorage.removeItem('mecanic_os_workshop_uid');
+                if (typeof firebase !== 'undefined') {
+                    firebase.auth().signOut().catch(() => {});
+                }
+                
                 showToast("Taller desconectado con éxito", "info");
                 window.location.hash = 'landing';
                 handleRouting();
