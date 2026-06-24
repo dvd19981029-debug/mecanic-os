@@ -3732,7 +3732,10 @@ function renderBudgetEditor(container, budget) {
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
         
         if (isNew) {
-            db.presupuestos.unshift(budget);
+            const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
+            if (!exists) {
+                db.presupuestos.unshift(budget);
+            }
         }
 
         // Save to LocalStorage
