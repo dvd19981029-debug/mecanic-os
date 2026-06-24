@@ -1277,24 +1277,20 @@ tr:hover td {
    ==================================================== */
 @media screen and (max-width: 900px) {
     body {
-        overflow-y: auto;
-        overflow-x: hidden;
-        height: auto;
-        min-height: 100vh;
+        overflow: hidden;
+        height: 100dvh;
     }
 
     .app-container {
         grid-template-columns: 1fr;
-        height: auto;
-        min-height: 100vh;
+        height: 100dvh;
         position: relative;
-        overflow-x: hidden;
+        overflow: hidden;
     }
 
     .main-content {
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
+        height: 100dvh;
+        overflow: hidden;
     }
 
     /* Sidebar Drawer */
@@ -1337,22 +1333,41 @@ tr:hover td {
     }
 
     .top-header {
-        padding: 0.75rem 1rem;
-        height: auto;
-        min-height: 70px;
-        flex-wrap: wrap;
+        padding: 0.5rem 1rem;
+        height: 60px;
+        min-height: 60px;
+        flex-wrap: nowrap;
         gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .header-left {
-        width: 100%;
+        width: auto;
+        display: flex;
+        align-items: center;
+    }
+    
+    .top-header .subtitle,
+    .top-header .date-time {
+        display: none !important;
+    }
+    
+    #view-title {
+        font-size: 1.1rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
     }
 
     .header-right {
-        width: 100%;
-        justify-content: space-between;
-        margin-top: 0.25rem;
+        width: auto;
+        margin-top: 0;
+        display: flex;
+        align-items: center;
         gap: 0.5rem;
+        justify-content: flex-end;
     }
 
     .status-indicator span.label {
@@ -1361,14 +1376,28 @@ tr:hover td {
 
     .view-container {
         padding: 1rem;
-        height: auto;
-        overflow-y: visible;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-height: 0;
     }
 
     /* Grids & Splits */
     .view-split {
         grid-template-columns: 1fr !important;
         gap: 1.25rem;
+    }
+
+    .master-detail-container {
+        grid-template-columns: 1fr !important;
+        height: auto !important;
+        overflow: visible !important;
+        gap: 1.5rem !important;
+    }
+
+    .list-panel, .detail-panel {
+        height: auto !important;
+        overflow: visible !important;
     }
 
     .form-row, .inspection-header-fields {

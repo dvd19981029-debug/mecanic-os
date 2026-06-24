@@ -2370,6 +2370,10 @@ function renderClientesVehiculos(container, queryParams) {
                 document.querySelectorAll('.list-item').forEach(el => el.classList.remove('selected'));
                 item.classList.add('selected');
                 showClientDetail(client);
+                // On mobile, scroll to details panel smoothly
+                if (window.innerWidth <= 900) {
+                    clientDetailContainer.scrollIntoView({ behavior: 'smooth' });
+                }
             });
             clientsListContainer.appendChild(item);
         });
@@ -2381,6 +2385,7 @@ function renderClientesVehiculos(container, queryParams) {
         const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === client.Codigo_Cliente);
         
         clientDetailContainer.innerHTML = `
+            <button class="btn btn-secondary mobile-only-btn" id="client-detail-back-btn" style="margin-bottom: 1.25rem; display: none; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver a la Lista</button>
             <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
                 <div>
                     <h2>${client.Nombre}</h2>
@@ -2544,6 +2549,14 @@ function renderClientesVehiculos(container, queryParams) {
         document.getElementById('start-ins-trigger-btn').addEventListener('click', () => {
             window.location.hash = `#revision-21?client=${client.Codigo_Cliente}`;
         });
+
+        // Mobile back button event listener
+        const backBtn = document.getElementById('client-detail-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                clientsListContainer.scrollIntoView({ behavior: 'smooth' });
+            });
+        }
     }
     
     // Search filter listener
@@ -5765,6 +5778,9 @@ function renderVentaRapida(container) {
                 </div>
             </div>
         </div>
+        <button class="pos-mobile-toggle-btn mobile-only-btn" id="pos-mobile-toggle">
+            <i class="fa-solid fa-cart-shopping"></i> Ver Carrito (<span id="pos-mobile-cart-count">0</span>)
+        </button>
     `;
 
     const gridContainer = document.getElementById('pos-grid-container');
@@ -5772,6 +5788,32 @@ function renderVentaRapida(container) {
     const catFilter = document.getElementById('pos-cat-filter');
     const cartContainer = document.getElementById('pos-cart-items-container');
     const clientSelect = document.getElementById('pos-client-select');
+    const mobileToggle = document.getElementById('pos-mobile-toggle');
+    const posContainer = container.querySelector('.pos-container');
+
+    function updateMobileToggleUI() {
+        const countSpan = document.getElementById('pos-mobile-cart-count');
+        if (countSpan) {
+            const totalItems = cart.reduce((sum, item) => sum + parseInt(item.qty || 1), 0);
+            countSpan.textContent = totalItems;
+        }
+    }
+
+    if (mobileToggle && posContainer) {
+        mobileToggle.addEventListener('click', () => {
+            const isCartVisible = posContainer.classList.contains('show-cart');
+            if (isCartVisible) {
+                posContainer.classList.remove('show-cart');
+                mobileToggle.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> Ver Carrito (<span id="pos-mobile-cart-count">0</span>)`;
+                mobileToggle.style.backgroundColor = 'var(--primary)';
+            } else {
+                posContainer.classList.add('show-cart');
+                mobileToggle.innerHTML = `<i class="fa-solid fa-arrow-left"></i> Ver Catálogo`;
+                mobileToggle.style.backgroundColor = 'var(--bg-card)';
+            }
+            updateMobileToggleUI();
+        });
+    }
 
     function populatePOSProducts(filter = '', category = '') {
         gridContainer.innerHTML = '';
@@ -5801,6 +5843,7 @@ function renderVentaRapida(container) {
 
     function renderCart() {
         cartContainer.innerHTML = '';
+        updateMobileToggleUI();
         if (cart.length === 0) {
             cartContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:3rem;">Carrito Vacío</div>';
             document.getElementById('pos-subtotal').textContent = '$0.00';
