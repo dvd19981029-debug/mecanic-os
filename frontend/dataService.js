@@ -127,6 +127,23 @@ const dataService = {
                 changed = true;
             }
             
+            // Self-healing: Deduplicate collections based on primary keys to resolve local storage inconsistencies
+            collectionConfigs.forEach(config => {
+                if (this.cache[config.name] && Array.isArray(this.cache[config.name])) {
+                    const seen = new Set();
+                    this.cache[config.name] = this.cache[config.name].filter(item => {
+                        const val = item[config.key];
+                        if (!val) return true;
+                        if (seen.has(val)) {
+                            changed = true;
+                            return false;
+                        }
+                        seen.add(val);
+                        return true;
+                    });
+                }
+            });
+            
             if (changed) {
                 localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
             }
