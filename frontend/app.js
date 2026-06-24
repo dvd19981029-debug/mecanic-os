@@ -14,6 +14,94 @@ const DEFAULT_DATABASE = {
   "tecnicos": []
 };
 
+// Encryption and decryption helper utilities for localStorage security
+function getSessionKey() {
+    return sessionStorage.getItem('mecanic_os_session_key') || '';
+}
+
+function encryptString(str, key) {
+    if (!key) return str;
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+        const charCode = str.charCodeAt(i);
+        const keyChar = key.charCodeAt(i % key.length);
+        result += String.fromCharCode(charCode ^ keyChar);
+    }
+    return btoa(unescape(encodeURIComponent(result)));
+}
+
+function decryptString(str, key) {
+    if (!key) return str;
+    try {
+        const decoded = decodeURIComponent(escape(atob(str)));
+        let result = '';
+        for (let i = 0; i < decoded.length; i++) {
+            const charCode = decoded.charCodeAt(i);
+            const keyChar = key.charCodeAt(i % key.length);
+            result += String.fromCharCode(charCode ^ keyChar);
+        }
+        return result;
+    } catch(e) {
+        return str;
+    }
+}
+
+function getSecureDteConfig() {
+    const key = getSessionKey();
+    const raw = localStorage.getItem('mecanic_os_dte_config');
+    if (!raw) return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+    
+    if (raw.trim().startsWith('{')) {
+        if (key) {
+            try {
+                setSecureDteConfig(JSON.parse(raw));
+            } catch (e) {}
+        }
+        try {
+            return JSON.parse(raw);
+        } catch(e) {
+            return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+        }
+    }
+    
+    const decrypted = decryptString(raw, key);
+    try {
+        return JSON.parse(decrypted);
+    } catch (e) {
+        return {
+            apiKey: '',
+            ambiente: '00',
+            mhCode: '0001',
+            posNumber: '1',
+            backendUrl: ''
+        };
+    }
+}
+
+function setSecureDteConfig(config) {
+    const key = getSessionKey();
+    const jsonStr = JSON.stringify(config);
+    if (key) {
+        const encrypted = encryptString(jsonStr, key);
+        localStorage.setItem('mecanic_os_dte_config', encrypted);
+    } else {
+        localStorage.setItem('mecanic_os_dte_config', jsonStr);
+    }
+}
+
+function generateUserSignature(user) {
+    if (!user) return '';
+    const secret = localStorage.getItem('mecanic_os_workshop_uid') || 'mecanic_os_secret_salt';
+    const payload = `${user.Nombre_Completo || ''}|${user.Nivel_Acceso || ''}|${user.Tecnico_ID || user.Codigo_Cliente || ''}|${secret}`;
+    let hash = 0;
+    for (let i = 0; i < payload.length; i++) {
+        const char = payload.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return hash.toString(36);
+}
+
 // Database Initialization in LocalStorage
 function initDatabase() {
     // Migration: Clear any old mock databases on first load
@@ -22,7 +110,7 @@ function initDatabase() {
         localStorage.removeItem('mecanic_os_pos_cart');
         localStorage.removeItem('mecanic_os_dte_config');
         localStorage.removeItem('mecanic_os_firebase_config');
-        sessionStorage.removeItem('mecanic_os_active_user');
+        setActiveUser(null);
         localStorage.setItem('mecanic_os_db_cleared_v3', 'true');
         window.location.hash = 'landing';
         window.location.reload();
@@ -35,13 +123,13 @@ function initDatabase() {
     }
 
     if (!localStorage.getItem('mecanic_os_dte_config')) {
-        localStorage.setItem('mecanic_os_dte_config', JSON.stringify({
+        setSecureDteConfig({
             apiKey: '',
             ambiente: '00',
             mhCode: '0001',
             posNumber: '1',
             backendUrl: ''
-        }));
+        });
     }
 }
 
@@ -997,14 +1085,30 @@ function generateUUID() {
 }
 
 function getActiveUser() {
-    return JSON.parse(sessionStorage.getItem('mecanic_os_active_user'));
+    try {
+        const userStr = sessionStorage.getItem('mecanic_os_active_user');
+        const signature = sessionStorage.getItem('mecanic_os_active_sig');
+        if (!userStr) return null;
+        const user = JSON.parse(userStr);
+        if (!signature || generateUserSignature(user) !== signature) {
+            console.error("Session security check failed: Signature mismatch or missing.");
+            setActiveUser(null);
+            return null;
+        }
+        return user;
+    } catch (e) {
+        return null;
+    }
 }
 
 function setActiveUser(user) {
     if (user) {
         sessionStorage.setItem('mecanic_os_active_user', JSON.stringify(user));
+        sessionStorage.setItem('mecanic_os_active_sig', generateUserSignature(user));
     } else {
         sessionStorage.removeItem('mecanic_os_active_user');
+        sessionStorage.removeItem('mecanic_os_active_sig');
+        sessionStorage.removeItem('mecanic_os_session_key');
     }
     updateUserUI();
 }
@@ -1230,7 +1334,7 @@ function handleRouting() {
                     if (JSON.stringify(localDte) !== JSON.stringify(remoteDte)) {
                         db.saas_state.workshopData.dte_config = remoteDte;
                         if (remoteDte.apiKey) {
-                            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(remoteDte));
+                            setSecureDteConfig(remoteDte);
                         }
                         changed = true;
                     }
@@ -1272,7 +1376,7 @@ function handleRouting() {
                     if (JSON.stringify(localDte) !== JSON.stringify(remoteDte)) {
                         db.saas_state.workshopData.dte_config = remoteDte;
                         if (remoteDte.apiKey) {
-                            localStorage.setItem('mecanic_os_dte_config', JSON.stringify(remoteDte));
+                            setSecureDteConfig(remoteDte);
                         }
                         changed = true;
                     }
@@ -4403,12 +4507,7 @@ function renderInvoicingWorkspace(container, presId) {
         
         // Fetch FacturaLlama config
         const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                       JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
-            apiKey: '',
-            ambiente: '00',
-            mhCode: '0001',
-            posNumber: '1'
-        };
+                       getSecureDteConfig();
 
         const isCCF = type === 'CCF';
         const deptName = client.Depto || 'San Salvador';
@@ -4725,7 +4824,7 @@ async function viewDtePdf(dteId) {
     try {
         const db = getDatabase();
         const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                       JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {};
+                       getSecureDteConfig();
         
         const apiKey = dteCfg.apiKey || '';
         const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
@@ -5192,7 +5291,7 @@ function reemitBudget(presId) {
 function queryDteStatusMH(dteId) {
     const db = getDatabase();
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || { apiKey: '' };
+                   getSecureDteConfig();
                    
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -5321,7 +5420,7 @@ function queryDteStatusMH(dteId) {
 function openInvalidateDteModal(dteId, presId) {
     const db = getDatabase();
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || { apiKey: '' };
+                   getSecureDteConfig();
                    
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -6742,12 +6841,7 @@ function renderConfiguracion(container, queryParams) {
     
     // Load DTE configuration
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                   JSON.parse(localStorage.getItem('mecanic_os_dte_config')) || {
-        apiKey: '',
-        ambiente: '00',
-        mhCode: '0001',
-        posNumber: '1'
-    };
+                   getSecureDteConfig();
 
     // Load Firebase configuration
     const fbCfg = JSON.parse(localStorage.getItem('mecanic_os_firebase_config')) || {};
@@ -11003,7 +11097,7 @@ function renderLanding(container) {
                 db.solicitudes_registro = [];
                 db.saas_payments = [];
                 saveDatabase(db);
-                sessionStorage.removeItem('mecanic_os_active_user');
+                setActiveUser(null);
                 showToast("Taller desconectado con éxito", "info");
                 window.location.hash = 'landing';
                 handleRouting();
@@ -11018,7 +11112,7 @@ function renderLockScreen(container) {
     const workshop = saas.workshopData || { nombre: 'Mecanic OS', logoText: 'MecanicOS', logoTagline: 'Gestión de Taller' };
     
     // Clear any previous active user just in case
-    sessionStorage.removeItem('mecanic_os_active_user');
+    setActiveUser(null);
 
     container.innerHTML = `
         <div style="max-width: 450px; margin: 5rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
@@ -11069,7 +11163,7 @@ function renderLockScreen(container) {
                 db.solicitudes_registro = [];
                 db.saas_payments = [];
                 saveDatabase(db);
-                sessionStorage.removeItem('mecanic_os_active_user');
+                setActiveUser(null);
                 localStorage.removeItem('mecanic_os_workshop_uid');
                 dataService.disconnect();
                 if (typeof firebase !== 'undefined') {
@@ -15135,7 +15229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (userLogoutBtn) {
         userLogoutBtn.addEventListener('click', () => {
             if (confirm("¿Seguro que deseas cerrar la sesión actual y bloquear la pantalla?")) {
-                sessionStorage.removeItem('mecanic_os_active_user');
+                setActiveUser(null);
                 window.location.hash = 'lock-screen';
                 handleRouting();
             }
