@@ -686,33 +686,24 @@ function updateCloudStatusUI(active, state = "") {
     
     if (!dot || !label) return;
     
+    const loggedOutView = document.getElementById('fb-logged-out-view');
+    const loggedInView = document.getElementById('fb-logged-in-view');
+    const userEmailSpan = document.getElementById('fb-user-email');
+    
     if (active && state === "active") {
-        dot.style.backgroundColor = "#2ecc71"; // Green
-        
-        const loggedOutView = document.getElementById('fb-logged-out-view');
-        const loggedInView = document.getElementById('fb-logged-in-view');
-        const userEmailSpan = document.getElementById('fb-user-email');
-        const lastSyncSpan = document.getElementById('fb-last-sync');
-        const codeSpan = document.getElementById('fb-workshop-code');
-        
-        if (codeSpan) {
-            codeSpan.textContent = getWorkshopOwnerUid() || "No disponible";
-        }
-        
         if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
             // Dueño autenticado
+            dot.style.backgroundColor = "#2ecc71"; // Green
             label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Conectado`;
             if (loggedOutView) loggedOutView.style.display = "none";
             if (loggedInView) loggedInView.style.display = "block";
-            if (userEmailSpan && currentFirebaseUser) userEmailSpan.textContent = currentFirebaseUser.email;
-            if (lastSyncSpan) lastSyncSpan.textContent = lastSyncTime ? lastSyncTime.toLocaleTimeString() : "Nunca";
+            if (userEmailSpan) userEmailSpan.textContent = currentFirebaseUser.email;
         } else {
-            // Empleado anónimo — sincronizando con el taller
-            label.innerHTML = `<i class="fa-solid fa-wifi"></i> Tiempo Real`;
-            if (loggedOutView) loggedOutView.style.display = "none";
-            if (loggedInView) loggedInView.style.display = "block";
-            if (userEmailSpan) userEmailSpan.textContent = "Empleado (Sincronizado)";
-            if (lastSyncSpan) lastSyncSpan.textContent = "Automático";
+            // Empleado anónimo (sync en background) pero tratamos la UI como desconectada para login
+            dot.style.backgroundColor = "#7f8c8d"; // Grey
+            label.innerHTML = `<i class="fa-solid fa-cloud"></i> Sin cuenta en nube`;
+            if (loggedOutView) loggedOutView.style.display = "block";
+            if (loggedInView) loggedInView.style.display = "none";
         }
     } else if (state === "syncing") {
         dot.style.backgroundColor = "#f1c40f"; // Yellow
@@ -720,9 +711,6 @@ function updateCloudStatusUI(active, state = "") {
     } else if (state === "offline" || state === "logged-out") {
         dot.style.backgroundColor = "#7f8c8d"; // Grey
         label.innerHTML = `<i class="fa-solid fa-cloud"></i> Sin cuenta en nube`;
-        
-        const loggedOutView = document.getElementById('fb-logged-out-view');
-        const loggedInView = document.getElementById('fb-logged-in-view');
         if (loggedOutView) loggedOutView.style.display = "block";
         if (loggedInView) loggedInView.style.display = "none";
     } else {
@@ -924,9 +912,6 @@ function bindFirebaseEvents() {
     const loginForm = document.getElementById('fb-login-form');
     const registerForm = document.getElementById('fb-register-form');
     const logoutBtn = document.getElementById('fb-btn-logout');
-    const forceSyncBtn = document.getElementById('fb-btn-force-sync');
-    const uploadLocalBtn = document.getElementById('fb-btn-upload-local');
-    const downloadCloudBtn = document.getElementById('fb-btn-download-cloud');
 
     if (!authModal) return;
 
@@ -1083,42 +1068,6 @@ function bindFirebaseEvents() {
                     .catch(err => {
                         console.error("Error al cerrar sesión:", err);
                     });
-            }
-        });
-    }
-
-    if (forceSyncBtn) {
-        forceSyncBtn.addEventListener('click', () => {
-            const workshopUid = getWorkshopOwnerUid();
-            if (workshopUid) {
-                const isEmployee = !currentFirebaseUser || currentFirebaseUser.isAnonymous;
-                dataService.startSync(workshopUid, isEmployee);
-                showToast("Sincronización en tiempo real reiniciada", "success");
-            } else {
-                showToast("No hay taller configurado en este dispositivo", "warning");
-            }
-        });
-    }
-
-    if (uploadLocalBtn) {
-        uploadLocalBtn.addEventListener('click', async () => {
-            if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
-                if (confirm("⚠️ ¡Atención! Esto subirá tu base de datos local actual a la nube en colecciones independientes. ¿Deseas proceder?")) {
-                    await dataService.migrateLocalDataToCloud(currentFirebaseUser.uid);
-                }
-            } else {
-                showToast("Solo el propietario del taller puede subir datos a la nube.", "warning");
-            }
-        });
-    }
-
-    if (downloadCloudBtn) {
-        downloadCloudBtn.addEventListener('click', () => {
-            const workshopUid = getWorkshopOwnerUid();
-            if (workshopUid) {
-                const isEmployee = !currentFirebaseUser || currentFirebaseUser.isAnonymous;
-                dataService.startSync(workshopUid, isEmployee);
-                showToast("Datos descargados y sincronizados desde la nube", "success");
             }
         });
     }
