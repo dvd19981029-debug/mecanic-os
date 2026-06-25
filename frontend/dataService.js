@@ -310,6 +310,25 @@ const dataService = {
     // employeeMode: true cuando es un empleado sin Firebase Auth propio
     startSync(uid, employeeMode = false) {
         if (!uid || typeof dbFirestore === 'undefined' || !dbFirestore) return;
+        
+        const isSwitchingWorkshop = this.workshopOwnerUid && this.workshopOwnerUid !== uid;
+        if (isSwitchingWorkshop) {
+            // Limpiar caché local de colecciones para evitar cruces de datos (multi-taller)
+            if (this.cache) {
+                collectionConfigs.forEach(config => {
+                    this.cache[config.name] = [];
+                });
+                this.cache['21 Detalle Presupuesto Producto'] = [];
+                this.cache['11 Detalle Mano de Obra'] = [];
+                this.cache['30 Abonos Creditos'] = [];
+                this.cache['29 Movs de Inventario'] = [];
+                this.cache['43 Venta Rapida'] = [];
+                this.cache['46 Gastos'] = [];
+                this.cache['45 Pagos VR'] = [];
+            }
+            this.lastSyncedState = null;
+        }
+
         this.workshopOwnerUid = uid;
         this.readOnlyMode = employeeMode;
         this.stopSync(); // Cancelar listeners anteriores (NO limpia activeUserUid)
@@ -460,6 +479,34 @@ const dataService = {
         this.activeUserUid = null;
         this.workshopOwnerUid = null;
         this.readOnlyMode = false;
+        
+        // Limpieza profunda de memoria para evitar fugas o cruces de datos entre talleres
+        if (this.cache) {
+            collectionConfigs.forEach(config => {
+                this.cache[config.name] = [];
+            });
+            this.cache['21 Detalle Presupuesto Producto'] = [];
+            this.cache['11 Detalle Mano de Obra'] = [];
+            this.cache['30 Abonos Creditos'] = [];
+            this.cache['29 Movs de Inventario'] = [];
+            this.cache['43 Venta Rapida'] = [];
+            this.cache['46 Gastos'] = [];
+            this.cache['45 Pagos VR'] = [];
+            this.cache.config_taller = null;
+            this.cache.saas_state = {
+                status: 'guest',
+                workshopData: null,
+                termsSigned: false,
+                signatureName: '',
+                signedAt: null
+            };
+            this.cache.solicitudes_registro = [];
+            this.cache.saas_payments = [];
+        }
+        localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+        localStorage.removeItem('mecanic_os_workshop_uid');
+        localStorage.removeItem('mecanic_os_dte_config');
+        localStorage.removeItem('mecanic_os_firebase_config');
     },
 
     // Check if Firestore collections are empty and perform auto-migration of local data (Phase 3)
