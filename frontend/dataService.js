@@ -20,7 +20,8 @@ const collectionConfigs = [
     { name: 'gastos', path: 'gastos', key: 'ID Gasto' },
     { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' },
     { name: 'pagos', path: 'pagos', key: 'ID Pago' },
-    { name: 'promociones', path: 'promociones', key: 'ID_Promocion' }
+    { name: 'promociones', path: 'promociones', key: 'ID_Promocion' },
+    { name: 'pagos_comisiones', path: 'pagos_comisiones', key: 'ID_Pago_Comision' }
 ];
 
 const dataService = {
@@ -38,14 +39,14 @@ const dataService = {
             "Administrador": [
                 "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
                 "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
-                "dashboard-bi", "configuracion"
+                "dashboard-bi", "configuracion", "comisiones"
             ],
             "Técnico": [
-                "taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"
+                "taller-dashboard", "clientes-vehiculos", "revision-21", "kanban", "comisiones"
             ],
             "Recepcionista": [
                 "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                "venta-rapida", "cuentas-cobrar"
+                "facturador", "venta-rapida", "cuentas-cobrar", "comisiones"
             ]
         };
 
@@ -71,6 +72,7 @@ const dataService = {
                 presupuestos: [],
                 revisiones: [],
                 tecnicos: [],
+                pagos_comisiones: [],
                 promociones: [],
                 role_permissions: defaultRolePermissions,
                 saas_state: {
@@ -102,6 +104,7 @@ const dataService = {
             if (!this.cache.presupuestos) { this.cache.presupuestos = []; changed = true; }
             if (!this.cache.revisiones) { this.cache.revisiones = []; changed = true; }
             if (!this.cache.tecnicos) { this.cache.tecnicos = []; changed = true; }
+            if (!this.cache.pagos_comisiones) { this.cache.pagos_comisiones = []; changed = true; }
             if (!this.cache.pagos) { this.cache.pagos = []; changed = true; }
             if (!this.cache.promociones) { this.cache.promociones = []; changed = true; }
             if (!this.cache.role_permissions) { this.cache.role_permissions = defaultRolePermissions; changed = true; }

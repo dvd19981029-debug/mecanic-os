@@ -1244,16 +1244,16 @@ function updateUserUI() {
                 allowedRoutes = [
                     "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
                     "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
-                    "dashboard-bi", "configuracion"
+                    "comisiones", "dashboard-bi", "configuracion"
                 ];
             } else if (searchRole === "recepcionista") {
                 allowedRoutes = [
                     "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                    "venta-rapida", "cuentas-cobrar"
+                    "facturador", "venta-rapida", "cuentas-cobrar", "comisiones"
                 ];
             } else {
                 // Default to Técnico permissions (now including presupuestos)
-                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban"];
+                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "comisiones"];
             }
         }
 
@@ -1355,6 +1355,7 @@ const routes = {
     'dashboard-bi': renderDashboardBI,
     'configuracion': renderConfiguracion,
     'planilla': renderPlanilla,
+    'comisiones': renderComisiones,
     'landing': renderLanding,
     'registro': renderRegistroSaaS,
     
@@ -1597,7 +1598,7 @@ function handleRouting() {
     const appViews = [
         'taller-dashboard', 'clientes-vehiculos', 'revision-21', 'presupuestos', 'kanban',
         'facturador', 'venta-rapida', 'cuentas-cobrar', 'inventario', 'gastos', 'planilla',
-        'dashboard-bi', 'configuracion'
+        'comisiones', 'dashboard-bi', 'configuracion'
     ];
     if (appViews.includes(routeName)) {
         const activeUser = getActiveUser();
@@ -1624,10 +1625,10 @@ function handleRouting() {
                 } else if (searchRole === "recepcionista") {
                     allowedRoutes = [
                         "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                        "venta-rapida", "cuentas-cobrar"
+                        "facturador", "venta-rapida", "cuentas-cobrar", "comisiones"
                     ];
                 } else {
-                    allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban"];
+                    allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "comisiones"];
                 }
             }
 
@@ -1682,7 +1683,8 @@ function handleRouting() {
             'gastos': { title: 'Compras y Gastos Operativos', subtitle: 'Registro de egresos y facturas de proveedores' },
             'dashboard-bi': { title: 'Módulo de Inteligencia de Negocios (BI)', subtitle: 'KPIs financieros y de productividad' },
             'configuracion': { title: 'Configuración y Ajustes Maestros', subtitle: 'Administración de catálogos e integración DTE' },
-            'planilla': { title: 'Gestión de Planillas y Salarios', subtitle: 'Control de nómina, boletas de pago y deducciones de ley (El Salvador)' }
+            'planilla': { title: 'Gestión de Planillas y Salarios', subtitle: 'Control de nómina, boletas de pago y deducciones de ley (El Salvador)' },
+            'comisiones': { title: 'Comisiones de Técnicos', subtitle: 'Seguimiento de mano de obra y comisiones por reparación' }
         };
         
         const info = titles[routeName] || { title: 'Mecanic OS', subtitle: 'Gestión Inteligente' };
@@ -7233,6 +7235,7 @@ function renderConfiguracion(container, queryParams) {
                                 <th>Nombre</th>
                                 <th>Especialidad</th>
                                 <th>Salario Base</th>
+                                <th>Comisiones (% Serv / % Rep)</th>
                                 <th>Acción</th>
                             </tr>
                         </thead>
@@ -7242,6 +7245,7 @@ function renderConfiguracion(container, queryParams) {
                                     <td><strong>${t.Nombre_Completo}</strong></td>
                                     <td>${t.Especialidad || 'Mecánico General'}</td>
                                     <td>$ ${parseFloat(t.Salario_Base).toFixed(2)}</td>
+                                    <td>${t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10}% / ${t.Comision_Productos !== undefined ? t.Comision_Productos : 0}%</td>
                                     <td>
                                         <div style="display:flex; gap:0.35rem;">
                                             <button class="btn btn-secondary btn-payroll" data-id="${t.Tecnico_ID}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-calculator"></i> Planilla</button>
@@ -7455,6 +7459,16 @@ function renderConfiguracion(container, queryParams) {
                         <div class="form-group">
                             <label>Contraseña Acceso</label>
                             <input type="password" id="tecnico-pass" required value="1234">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>% Comisión Servicios (Mano de Obra)</label>
+                            <input type="number" id="tecnico-comision-servicios" required min="0" max="100" step="0.1" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label>% Comisión Repuestos (Productos)</label>
+                            <input type="number" id="tecnico-comision-productos" required min="0" max="100" step="0.1" value="0">
                         </div>
                     </div>
                     <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:0.5rem;">
@@ -7777,7 +7791,7 @@ function renderConfiguracion(container, queryParams) {
                     if (role === "Administrador") {
                         allowed = appViewsConfig.map(v => v.route);
                     } else if (role === "Recepcionista") {
-                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "venta-rapida", "cuentas-cobrar"];
+                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "facturador", "venta-rapida", "cuentas-cobrar", "comisiones"];
                     } else {
                         allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
                     }
@@ -7879,6 +7893,8 @@ function renderConfiguracion(container, queryParams) {
                     document.getElementById('tecnico-acceso').value = t.Nivel_Acceso || 'Técnico';
                     document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
                     document.getElementById('tecnico-pass').value = t.Contraseña || '1234';
+                    document.getElementById('tecnico-comision-servicios').value = t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10;
+                    document.getElementById('tecnico-comision-productos').value = t.Comision_Productos !== undefined ? t.Comision_Productos : 0;
                     document.getElementById('tecnico-modal').classList.add('active');
                 }
             });
@@ -7914,6 +7930,8 @@ function renderConfiguracion(container, queryParams) {
             document.getElementById('tecnico-acceso').value = 'Técnico';
             document.getElementById('tecnico-salario').value = '365';
             document.getElementById('tecnico-pass').value = '1234';
+            document.getElementById('tecnico-comision-servicios').value = '10';
+            document.getElementById('tecnico-comision-productos').value = '0';
             document.getElementById('tecnico-modal').classList.add('active');
         });
 
@@ -7929,6 +7947,8 @@ function renderConfiguracion(container, queryParams) {
             const acceso = document.getElementById('tecnico-acceso').value;
             const salarioInput = document.getElementById('tecnico-salario');
             const pass = document.getElementById('tecnico-pass').value;
+            const comisionServicios = parseFloat(document.getElementById('tecnico-comision-servicios').value) || 0;
+            const comisionProductos = parseFloat(document.getElementById('tecnico-comision-productos').value) || 0;
 
             if (!nombre) {
                 showToast("Por favor, ingrese el nombre completo del empleado", "danger");
@@ -7969,6 +7989,8 @@ function renderConfiguracion(container, queryParams) {
                     t.Nivel_Acceso = acceso;
                     t.Salario_Base = salario;
                     t.Contraseña = pass;
+                    t.Comision_Servicios = comisionServicios;
+                    t.Comision_Productos = comisionProductos;
                 }
                 showToast("Datos de empleado actualizados", "success");
             } else {
@@ -7982,6 +8004,8 @@ function renderConfiguracion(container, queryParams) {
                     Nivel_Acceso: acceso,
                     Salario_Base: salario,
                     Contraseña: pass,
+                    Comision_Servicios: comisionServicios,
+                    Comision_Productos: comisionProductos,
                     Incapacidades: [],
                     Vacaciones: [],
                     Bonos: []
@@ -16535,6 +16559,659 @@ function renderConfigurarTab(db, checkpoints) {
             </div>
         </div>
     `;
+}
+
+function getBudgetCommissions(p, t, db) {
+    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+    
+    // Only calculate if the budget is assigned to this technician and status is 3 (Facturado)
+    if (p.Tecnico_Asignado !== t.Tecnico_ID || p.Estado != 3) {
+        return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
+    }
+    
+    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+    
+    const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+    const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+    
+    const comServRate = parseFloat(t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10) / 100;
+    const comProdRate = parseFloat(t.Comision_Productos !== undefined ? t.Comision_Productos : 0) / 100;
+    
+    const laborCommission = sumLab * comServRate;
+    const productCommission = sumProd * comProdRate;
+    const totalCommission = laborCommission + productCommission;
+    
+    return {
+        laborCommission,
+        productCommission,
+        totalCommission,
+        sumLab,
+        sumProd
+    };
+}
+
+function renderComisiones(container, queryParams) {
+    const db = getDatabase();
+    const currentUser = getActiveUser();
+    const role = currentUser ? currentUser.Nivel_Acceso : 'Técnico';
+    
+    // Auto-create payments array if it doesn't exist
+    if (!db.pagos_comisiones) db.pagos_comisiones = [];
+
+    // Check if user is Admin
+    const isAdmin = role === 'Administrador';
+    
+    // Active technician ID for detail view
+    let activeTechId = null;
+    
+    if (isAdmin) {
+        // Default to first technician in list if any
+        if (db.tecnicos && db.tecnicos.length > 0) {
+            activeTechId = db.tecnicos[0].Tecnico_ID;
+        }
+    } else {
+        // If not admin, lock to current user's technician ID
+        const matchedTech = db.tecnicos.find(t => t.Tecnico_ID === currentUser.Tecnico_ID || (t.Email && t.Email.toLowerCase() === (currentUser.Email || '').toLowerCase()));
+        if (matchedTech) {
+            activeTechId = matchedTech.Tecnico_ID;
+        } else if (db.tecnicos && db.tecnicos.length > 0) {
+            // Fallback if not mapped
+            activeTechId = db.tecnicos[0].Tecnico_ID;
+        }
+    }
+    
+    let adminListPanelHtml = '';
+    if (isAdmin) {
+        adminListPanelHtml = `
+            <!-- Admin List Panel -->
+            <div class="glass-card list-panel" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary);"><i class="fa-solid fa-users-gear"></i> Lista de Técnicos</h3>
+                </div>
+                <div class="search-bar-container" style="max-width: 100%; margin: 0;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="tech-search" placeholder="Buscar técnico por nombre...">
+                </div>
+                <div class="scrollable-list" id="tech-list-container" style="max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.25rem;">
+                    <!-- Dynamically filled -->
+                </div>
+            </div>
+        `;
+    }
+
+    // Main HTML Layout
+    container.innerHTML = `
+        <div id="comisiones-workspace" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Metrics Cards -->
+            <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; display: grid; width: 100%;">
+                <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
+                    <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Generadas</span>
+                        <span class="stat-value" id="metric-generated" style="color: var(--cyan); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
+                    </div>
+                    <div class="stat-icon" style="color: var(--cyan); background: rgba(0, 242, 254, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-calculator"></i></div>
+                </div>
+                <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
+                    <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Pagadas / Cobradas</span>
+                        <span class="stat-value" id="metric-paid" style="color: var(--success); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
+                    </div>
+                    <div class="stat-icon" style="color: var(--success); background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                </div>
+                <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)); border: 1px solid rgba(245, 158, 11, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
+                    <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Saldo Pendiente de Pago</span>
+                        <span class="stat-value" id="metric-pending" style="color: var(--warning); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
+                    </div>
+                    <div class="stat-icon" style="color: var(--warning); background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-sack-dollar"></i></div>
+                </div>
+            </div>
+
+            <!-- Main Panels -->
+            <div class="master-detail-container" style="display: grid; grid-template-columns: ${isAdmin ? '1.2fr 1.8fr' : '1fr'}; gap: 1.5rem;">
+                ${adminListPanelHtml}
+
+                <!-- Detail Panel -->
+                <div class="glass-card detail-panel" id="tech-detail-panel" style="padding: 1.5rem; min-height: 450px; display: flex; flex-direction: column; gap: 1.5rem;">
+                    <!-- Dynamically filled -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    // References
+    const metricGenerated = document.getElementById('metric-generated');
+    const metricPaid = document.getElementById('metric-paid');
+    const metricPending = document.getElementById('metric-pending');
+    const techListContainer = document.getElementById('tech-list-container');
+    const techDetailPanel = document.getElementById('tech-detail-panel');
+    const techSearch = document.getElementById('tech-search');
+
+    // Helper: calculate stats for a technician
+    function calculateTechStats(tId) {
+        const t = db.tecnicos.find(x => x.Tecnico_ID === tId);
+        if (!t) return { generated: 0, paid: 0, pending: 0, jobs: [] };
+
+        let generated = 0;
+        const jobs = [];
+
+        // Loop through all budgets in state 3 (Facturado)
+        const facturados = db.presupuestos.filter(p => p.Estado == 3 && p.Tecnico_Asignado === tId);
+        
+        facturados.forEach(p => {
+            const commInfo = getBudgetCommissions(p, t, db);
+            if (commInfo.totalCommission > 0) {
+                generated += commInfo.totalCommission;
+                jobs.push({
+                    budget: p,
+                    laborSub: commInfo.sumLab,
+                    prodSub: commInfo.sumProd,
+                    laborComm: commInfo.laborCommission,
+                    prodComm: commInfo.productCommission,
+                    totalComm: commInfo.totalCommission
+                });
+            }
+        });
+
+        // Sum payments from pagos_comisiones
+        const payments = (db.pagos_comisiones || []).filter(p => p.Tecnico_ID === tId);
+        const paid = payments.reduce((sum, pay) => sum + parseFloat(pay.Monto || 0), 0);
+        const pending = Math.max(0, generated - paid);
+
+        return {
+            generated,
+            paid,
+            pending,
+            jobs,
+            payments
+        };
+    }
+
+    // Refresh overall metric cards
+    function refreshOverallMetrics() {
+        let totalGenerated = 0;
+        let totalPaid = 0;
+
+        if (isAdmin) {
+            // Sum stats for all technicians
+            db.tecnicos.forEach(t => {
+                const stats = calculateTechStats(t.Tecnico_ID);
+                totalGenerated += stats.generated;
+                totalPaid += stats.paid;
+            });
+        } else if (activeTechId) {
+            // Sum stats for active technician only
+            const stats = calculateTechStats(activeTechId);
+            totalGenerated = stats.generated;
+            totalPaid = stats.paid;
+        }
+
+        const totalPending = Math.max(0, totalGenerated - totalPaid);
+
+        metricGenerated.textContent = `$ ${totalGenerated.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        metricPaid.textContent = `$ ${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        metricPending.textContent = `$ ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // Populate Technicians List (Admin view only)
+    function populateTechList(filter = '') {
+        if (!techListContainer) return;
+        techListContainer.innerHTML = '';
+
+        const filtered = db.tecnicos.filter(t => 
+            t.Nombre_Completo.toLowerCase().includes(filter.toLowerCase())
+        );
+
+        if (filtered.length === 0) {
+            techListContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron técnicos.</div>`;
+            return;
+        }
+
+        filtered.forEach(t => {
+            const stats = calculateTechStats(t.Tecnico_ID);
+            const isSelected = t.Tecnico_ID === activeTechId;
+
+            const card = document.createElement('div');
+            card.className = `tech-item-card ${isSelected ? 'active' : ''}`;
+            card.style.cssText = `
+                padding: 1rem;
+                background: ${isSelected ? 'var(--primary-glow)' : 'rgba(255,255,255,0.01)'};
+                border: 1px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'};
+                border-radius: var(--radius-md);
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                transition: all 0.2s;
+            `;
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color: ${isSelected ? 'var(--primary)' : 'var(--text-primary)'};">${t.Nombre_Completo}</strong>
+                    <span style="font-size:0.75rem; color:var(--text-secondary); background:rgba(255,255,255,0.05); padding:0.15rem 0.4rem; border-radius:10px;">${t.Especialidad || 'Mecánico'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-secondary);">
+                    <span>Comisión MO/Rep: <strong>${t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10}% / ${t.Comision_Productos !== undefined ? t.Comision_Productos : 0}%</strong></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:0.25rem;">
+                    <span>Saldo Pendiente:</span>
+                    <strong style="color: ${stats.pending > 0 ? 'var(--warning)' : 'var(--success)'};">$ ${stats.pending.toFixed(2)}</strong>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                activeTechId = t.Tecnico_ID;
+                populateTechList(filter);
+                renderDetailPanel();
+                refreshOverallMetrics();
+            });
+
+            techListContainer.appendChild(card);
+        });
+    }
+
+    // Render Detail Panel for Active Technician
+    function renderDetailPanel() {
+        const t = db.tecnicos.find(x => x.Tecnico_ID === activeTechId);
+        if (!t) {
+            techDetailPanel.innerHTML = `
+                <div style="text-align: center; padding: 6rem 1rem; color: var(--text-secondary);">
+                    <i class="fa-solid fa-user-slash" style="font-size: 4rem; color: var(--border-color); margin-bottom: 1.5rem;"></i>
+                    <h3>Selecciona un técnico de la lista</h3>
+                    <p>Para ver su expediente detallado de comisiones y pagos.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const stats = calculateTechStats(t.Tecnico_ID);
+        
+        let adminButtonHtml = '';
+        if (isAdmin) {
+            adminButtonHtml = `
+                <button class="btn btn-success" id="btn-register-payment" style="display:inline-flex; align-items:center; gap:0.35rem;">
+                    <i class="fa-solid fa-money-bill-wave"></i> Registrar Pago de Comisión
+                </button>
+            `;
+        }
+
+        techDetailPanel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; flex-wrap:wrap; gap:1rem;">
+                <div>
+                    <h2 style="margin:0; font-size:1.4rem; color:var(--primary);">${t.Nombre_Completo}</h2>
+                    <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:var(--text-secondary);">${t.Especialidad || 'Mecánico General'} • Salario Base: $ ${parseFloat(t.Salario_Base).toFixed(2)}</p>
+                </div>
+                ${adminButtonHtml}
+            </div>
+
+            <!-- Detail Tabs -->
+            <div class="detail-tabs-container" style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:1rem;">
+                <button class="detail-tab-btn active" id="detail-tab-jobs" style="background:none; border:none; padding:0.5rem 1rem; color:var(--text-primary); border-bottom:2px solid var(--primary); font-weight:600; cursor:pointer;">
+                    <i class="fa-solid fa-list-check"></i> Trabajos Realizados (${stats.jobs.length})
+                </button>
+                <button class="detail-tab-btn" id="detail-tab-history" style="background:none; border:none; padding:0.5rem 1rem; color:var(--text-secondary); font-weight:600; cursor:pointer;">
+                    <i class="fa-solid fa-receipt"></i> Historial de Pagos (${stats.payments.length})
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="detail-tab-content">
+                <!-- Loaded dynamically -->
+            </div>
+        `;
+
+        const tabJobs = document.getElementById('detail-tab-jobs');
+        const tabHistory = document.getElementById('detail-tab-history');
+        const tabContent = document.getElementById('detail-tab-content');
+        const btnPayment = document.getElementById('btn-register-payment');
+
+        if (btnPayment) {
+            btnPayment.addEventListener('click', () => {
+                openRegisterPaymentModal(t, stats.pending);
+            });
+        }
+
+        function switchDetailTab(activeTab) {
+            tabJobs.classList.remove('active');
+            tabJobs.style.color = 'var(--text-secondary)';
+            tabJobs.style.borderBottom = 'none';
+
+            tabHistory.classList.remove('active');
+            tabHistory.style.color = 'var(--text-secondary)';
+            tabHistory.style.borderBottom = 'none';
+
+            if (activeTab === 'jobs') {
+                tabJobs.classList.add('active');
+                tabJobs.style.color = 'var(--text-primary)';
+                tabJobs.style.borderBottom = '2px solid var(--primary)';
+                renderJobsTabContent(tabContent, stats.jobs, t);
+            } else {
+                tabHistory.classList.add('active');
+                tabHistory.style.color = 'var(--text-primary)';
+                tabHistory.style.borderBottom = '2px solid var(--primary)';
+                renderPaymentsTabContent(tabContent, stats.payments, t);
+            }
+        }
+
+        tabJobs.addEventListener('click', () => switchDetailTab('jobs'));
+        tabHistory.addEventListener('click', () => switchDetailTab('history'));
+
+        // Initial tab load
+        switchDetailTab('jobs');
+    }
+
+    // Render Jobs Tab Content
+    function renderJobsTabContent(container, jobs, tech) {
+        if (jobs.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border-color);"></i>
+                    No hay trabajos facturados registrados para este técnico.
+                </div>
+            `;
+            return;
+        }
+
+        let rowsHtml = '';
+        jobs.forEach(job => {
+            const p = job.budget;
+            const dateStr = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : new Date().toLocaleDateString('es-SV');
+            rowsHtml += `
+                <tr>
+                    <td><a href="#presupuestos?id=${p['ID Presupuesto']}" style="color:var(--primary); font-weight:600; text-decoration:underline;">${p['ID Presupuesto']}</a></td>
+                    <td>${dateStr}</td>
+                    <td>${p.Nombre}</td>
+                    <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
+                    <td>$ ${job.laborSub.toFixed(2)}</td>
+                    <td>$ ${job.prodSub.toFixed(2)}</td>
+                    <td>$ ${job.laborComm.toFixed(2)} <span style="font-size:0.75rem; color:var(--text-secondary);">(${tech.Comision_Servicios !== undefined ? tech.Comision_Servicios : 10}%)</span></td>
+                    <td>$ ${job.prodComm.toFixed(2)} <span style="font-size:0.75rem; color:var(--text-secondary);">(${tech.Comision_Productos !== undefined ? tech.Comision_Productos : 0}%)</span></td>
+                    <td style="color:var(--cyan); font-weight:700;">$ ${job.totalComm.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código Presupuesto</th>
+                            <th>Fecha Facturación</th>
+                            <th>Cliente</th>
+                            <th>Placas</th>
+                            <th>Mano de Obra ($)</th>
+                            <th>Repuestos ($)</th>
+                            <th>Comisión MO ($)</th>
+                            <th>Comisión Rep ($)</th>
+                            <th>Total Comisión ($)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Render Payments Tab Content
+    function renderPaymentsTabContent(container, payments, tech) {
+        if (payments.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <i class="fa-solid fa-receipt" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border-color);"></i>
+                    No se han registrado pagos para este técnico aún.
+                </div>
+            `;
+            return;
+        }
+
+        let rowsHtml = '';
+        payments.forEach(pay => {
+            const dateStr = pay.Fecha ? new Date(pay.Fecha).toLocaleString('es-SV') : 'N/A';
+            rowsHtml += `
+                <tr>
+                    <td><strong>${pay.ID_Pago_Comision}</strong></td>
+                    <td>${dateStr}</td>
+                    <td style="color:var(--success); font-weight:700;">$ ${parseFloat(pay.Monto).toFixed(2)}</td>
+                    <td>${pay.Observaciones || 'Sin observaciones'}</td>
+                    <td>${pay.RegistradoPor || 'Admin'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm btn-print-recibo" data-id="${pay.ID_Pago_Comision}" style="padding:0.25rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-print"></i> Recibo</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Recibo</th>
+                            <th>Fecha/Hora</th>
+                            <th>Monto Pagado ($)</th>
+                            <th>Observaciones</th>
+                            <th>Registrado Por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        // Bind print receipt buttons
+        container.querySelectorAll('.btn-print-recibo').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const payId = btn.getAttribute('data-id');
+                const payment = payments.find(x => x.ID_Pago_Comision === payId);
+                if (payment) {
+                    printCommissionReceipt(payment, tech);
+                }
+            });
+        });
+    }
+
+    // Open Modal to Register Commission Payment
+    function openRegisterPaymentModal(tech, pendingBalance) {
+        if (pendingBalance <= 0) {
+            showToast("El técnico no tiene saldo pendiente por pagar.", "warning");
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <h2>Registrar Pago de Comisión</h2>
+                    <button class="close-modal-btn" id="close-pay-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+                <form id="pay-commission-form" style="display:flex; flex-direction:column; gap:1rem;">
+                    <div class="form-group">
+                        <label>Técnico</label>
+                        <input type="text" value="${tech.Nombre_Completo}" readonly style="background-color: var(--border-color); color: var(--text-primary); cursor: not-allowed; width: 100%; padding: 0.6rem;">
+                    </div>
+                    
+                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Saldo Pendiente ($)</label>
+                            <input type="text" value="$ ${pendingBalance.toFixed(2)}" readonly style="background-color: var(--border-color); color: var(--warning); font-weight:700; width: 100%; padding: 0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Monto a Pagar ($)</label>
+                            <input type="number" id="pay-amount" required step="0.01" min="0.01" max="${pendingBalance.toFixed(2)}" value="${pendingBalance.toFixed(2)}" style="width: 100%; padding: 0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color);">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Comentarios / Observaciones</label>
+                        <input type="text" id="pay-obs" placeholder="Ej. Pago correspondiente a la primera quincena de junio" required style="width: 100%; padding: 0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color);">
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+                        <button type="button" class="btn btn-secondary" id="close-pay-btn">Cancelar</button>
+                        <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> Guardar Pago</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const closeModal = () => modal.remove();
+        document.getElementById('close-pay-modal').addEventListener('click', closeModal);
+        document.getElementById('close-pay-btn').addEventListener('click', closeModal);
+
+        document.getElementById('pay-commission-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('pay-amount').value);
+            const obs = document.getElementById('pay-obs').value;
+
+            if (isNaN(amount) || amount <= 0 || amount > pendingBalance) {
+                showToast("Por favor, ingrese un monto de pago válido.", "danger");
+                return;
+            }
+
+            // Create payment object
+            const payId = "PAG-COM-" + Math.floor(Date.now() / 1000).toString().substring(3);
+            const newPayment = {
+                ID_Pago_Comision: payId,
+                Tecnico_ID: tech.Tecnico_ID,
+                Fecha: Date.now(),
+                Monto: amount,
+                Observaciones: obs,
+                RegistradoPor: getActiveUser().Email || "Administrador"
+            };
+
+            db.pagos_comisiones.push(newPayment);
+            saveDatabase(db);
+
+            showToast("Pago de comisión registrado con éxito.", "success");
+            closeModal();
+
+            // Refresh UI
+            refreshOverallMetrics();
+            if (isAdmin) {
+                populateTechList(techSearch ? techSearch.value : '');
+            }
+            renderDetailPanel();
+        });
+    }
+
+    // Print Commission Receipt Window
+    function printCommissionReceipt(payment, tech) {
+        const wsConfig = getWorkshopConfig(db);
+        const printWindow = window.open('', '_blank', 'width=450,height=600');
+        if (!printWindow) {
+            showToast("El navegador bloqueó la ventana emergente de impresión.", "danger");
+            return;
+        }
+
+        const dateStr = payment.Fecha ? new Date(payment.Fecha).toLocaleString('es-SV') : new Date().toLocaleString('es-SV');
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Recibo Comisión - ${payment.ID_Pago_Comision}</title>
+                <style>
+                    body {
+                        font-family: monospace;
+                        font-size: 13px;
+                        color: #111;
+                        padding: 30px;
+                        background: #fff;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .bold { font-weight: bold; }
+                    .divider {
+                        border-top: 1px dashed #444;
+                        margin: 15px 0;
+                    }
+                    .receipt-header { margin-bottom: 20px; }
+                    .info-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 5px 0;
+                    }
+                    .btn-print {
+                        padding: 8px 16px;
+                        background: #27ae60;
+                        color: white;
+                        border: none;
+                        cursor: pointer;
+                        font-weight: bold;
+                        border-radius: 4px;
+                    }
+                    @media print {
+                        .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+                    <button class="btn-print" onclick="window.print()">Imprimir Recibo</button>
+                    <button onclick="window.close()" style="padding:8px 16px; border:1px solid #ccc; background:#eee; cursor:pointer; font-weight:bold; border-radius: 4px;">Cerrar</button>
+                </div>
+                <div class="receipt-header text-center">
+                    <h3 style="margin: 0; font-size:16px;">${wsConfig.nombre || 'TALLER MECÁNICO'}</h3>
+                    <p style="margin: 4px 0;">Recibo Oficial de Pago de Comisión</p>
+                    <p style="margin: 2px 0; font-size:11px;">NIT: ${wsConfig.nit || ''} • TEL: ${wsConfig.telefono || ''}</p>
+                </div>
+                <div class="divider"></div>
+                <div class="info-row"><span><strong>Recibo No:</strong></span><span>${payment.ID_Pago_Comision}</span></div>
+                <div class="info-row"><span><strong>Fecha/Hora:</strong></span><span>${dateStr}</span></div>
+                <div class="info-row"><span><strong>Empleado:</strong></span><span>${tech.Nombre_Completo}</span></div>
+                <div class="info-row"><span><strong>Especialidad:</strong></span><span>${tech.Especialidad || 'Taller'}</span></div>
+                <div class="divider"></div>
+                <div class="info-row" style="font-size: 15px;">
+                    <span><strong>MONTO PAGADO:</strong></span>
+                    <span><strong style="color: #27ae60;">$ ${parseFloat(payment.Monto).toFixed(2)}</strong></span>
+                </div>
+                <div class="divider"></div>
+                <p><strong>Por concepto de:</strong></p>
+                <p style="font-style: italic; background:#f9f9f9; padding:8px; border:1px solid #eee;">${payment.Observaciones || 'Abono de comisión por trabajos finalizados'}</p>
+                <div class="divider" style="margin-top: 40px;"></div>
+                <div style="display: flex; justify-content: space-around; margin-top: 50px; text-align: center;">
+                    <div style="width: 40%;">
+                        <p>_______________________</p>
+                        <p style="font-size: 11px;">Firma de Recibido<br>${tech.Nombre_Completo}</p>
+                    </div>
+                    <div style="width: 40%;">
+                        <p>_______________________</p>
+                        <p style="font-size: 11px;">Entregado Por (Admin)<br>${payment.RegistradoPor || 'Admin'}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.opener = null;
+    }
+
+    // Event listeners
+    if (techSearch) {
+        techSearch.addEventListener('input', (e) => {
+            populateTechList(e.target.value);
+        });
+    }
+
+    // Initial population
+    refreshOverallMetrics();
+    if (isAdmin) {
+        populateTechList();
+    }
+    renderDetailPanel();
 }
 
 
