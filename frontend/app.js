@@ -2284,6 +2284,15 @@ function renderClientesVehiculos(container, queryParams) {
                             <input type="text" id="new-veh-vin" placeholder="17 dígitos">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nº de Equipo</label>
+                            <input type="text" id="new-veh-equipo" placeholder="Ej. E-114">
+                        </div>
+                        <div class="form-group">
+                            <!-- Placeholder to keep grid layout -->
+                        </div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
                         <button type="button" class="btn btn-secondary" id="cancel-add-vehicle">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Registrar Vehículo</button>
@@ -2404,6 +2413,7 @@ function renderClientesVehiculos(container, queryParams) {
                             <div class="vehicle-placa">${v.Placas}</div>
                             <div class="vehicle-detail-row"><span>Marca/Modelo:</span><span><strong>${v.Marca} ${v.Modelo}</strong></span></div>
                             <div class="vehicle-detail-row"><span>Año/Color:</span><span>${v.Año || 'N/A'} • ${v.Color || 'N/A'}</span></div>
+                            <div class="vehicle-detail-row"><span>Nº Equipo:</span><span><strong>${v.N_Equipo || 'N/A'}</strong></span></div>
                             <div class="vehicle-detail-row"><span>Odómetro:</span><span>${v.Odometro || '0'}</span></div>
                             <div class="vehicle-detail-row"><span>VIN/Nº Motor:</span><span>${v.Nª_VIN || 'N/A'}</span></div>
                         </div>
@@ -2671,6 +2681,7 @@ function renderClientesVehiculos(container, queryParams) {
         const odo = document.getElementById('new-veh-odo').value;
         const motor = document.getElementById('new-veh-motor').value.toUpperCase();
         const vin = document.getElementById('new-veh-vin').value.toUpperCase();
+        const equipo = document.getElementById('new-veh-equipo') ? document.getElementById('new-veh-equipo').value.trim().toUpperCase() : '';
         
         const newVehicle = {
             ID_Vehiculo: newVehId,
@@ -2683,7 +2694,8 @@ function renderClientesVehiculos(container, queryParams) {
             Color: color,
             Odometro: odo,
             Nª_Motor: motor,
-            Nª_VIN: vin
+            Nª_VIN: vin,
+            N_Equipo: equipo
         };
         
         db.vehiculos.unshift(newVehicle);
@@ -3189,7 +3201,7 @@ function renderBudgetEditor(container, budget) {
                     <div>
                         <span class="badge-tag badge-primary" style="font-family: var(--font-heading); font-size: 1rem;">${budget['ID Presupuesto']}</span>
                         <h2 style="margin-top: 0.5rem;">${client.Nombre}</h2>
-                        <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${vehicle.Placas} (${vehicle.Marca} ${vehicle.Modelo})</strong> • Odómetro: ${budget.Kilometraje || '0'}</p>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${vehicle.Placas} (${vehicle.Marca} ${vehicle.Modelo})</strong> • Nº Equipo: <strong>${vehicle.N_Equipo || 'N/A'}</strong> • Odómetro: ${budget.Kilometraje || '0'}</p>
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
@@ -9966,6 +9978,12 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 <td class="meta-label">Año</td>
                 <td class="meta-val">${vehicle.Año || 'N/A'}</td>
             </tr>
+            <tr>
+                <td class="meta-label">Nº Equipo</td>
+                <td class="meta-val">${vehicle.N_Equipo || 'N/A'}</td>
+                <td class="meta-label"></td>
+                <td class="meta-val"></td>
+            </tr>
         </table>
 
         <!-- Fallas Detectadas Box -->
@@ -10485,6 +10503,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
                 <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
                 <div><strong>VIN / Motor:</strong> ${vehicle.Nª_VIN || 'N/A'} / ${vehicle.Nª_Motor || 'N/A'}</div>
+                <div><strong>Nº Equipo:</strong> ${vehicle.N_Equipo || 'N/A'}</div>
                 <div><strong>Odómetro / Recorrido:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
                 <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
             </div>
@@ -10934,6 +10953,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                     <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
                     <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
                     <div><strong>VIN / Motor:</strong> ${vehicle.Nª_VIN || 'N/A'} / ${vehicle.Nª_Motor || 'N/A'}</div>
+                    <div><strong>Nº Equipo:</strong> ${vehicle.N_Equipo || 'N/A'}</div>
                     <div><strong>Kilometraje / Odómetro:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
                     <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
                 </div>
