@@ -1130,8 +1130,13 @@ function getBudgetGrandTotal(budget, db) {
 
 // Helper: Calculate client unpaid credit balance
 function getClientPendingBalance(clientCode, db) {
-    // 1. Get all budgets for client that are CREDIT and NOT marked as paid (Pagado? !== 'SI')
-    const unpaidBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientCode && p.Condicion === 'CREDITO' && p['Pagado?'] !== 'SI');
+    // 1. Get all budgets for client that are CREDIT, status is FACTURADO (Estado === 3) and NOT marked as paid (Pagado? !== 'SI')
+    const unpaidBudgets = db.presupuestos.filter(p => 
+        p.Codigo_Cliente === clientCode && 
+        (p.Estado === 3 || p.Estado === '3') && 
+        p.Condicion === 'CREDITO' && 
+        p['Pagado?'] !== 'SI'
+    );
     
     // All abonos for this client
     const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
@@ -1744,7 +1749,7 @@ function renderTallerDashboard(container) {
     }
 
     // 1. Calculate Autos en Taller (unique plates of active budgets/diagnostics)
-    const activeBudgets = db.presupuestos.filter(p => p.Estado !== 3 && p.Estado !== '3');
+    const activeBudgets = db.presupuestos.filter(p => p.Estado !== 3 && p.Estado !== '3' && p.Estado !== 4 && p.Estado !== '4');
     const activePlates = new Set(activeBudgets.map(p => p.Placas).filter(Boolean));
     const activeVehiclesCount = activePlates.size;
 
@@ -1864,7 +1869,7 @@ function renderTallerDashboard(container) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${db.presupuestos.slice(0, 5).map(p => {
+                            ${db.presupuestos.filter(p => p.Estado != 3 && p.Estado != '3' && p.Estado != 4 && p.Estado != '4').slice(0, 5).map(p => {
                                 const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || { Placas: p.Placas || 'N/A' };
                                 const tech = db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
                                 let statusBadge = '';
@@ -1897,7 +1902,7 @@ function renderTallerDashboard(container) {
                     
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                         ${db.tecnicos.map(t => {
-                            const count = db.presupuestos.filter(p => p.Tecnico_Asignado === t.Tecnico_ID && p.Estado !== 3).length;
+                            const count = db.presupuestos.filter(p => p.Tecnico_Asignado === t.Tecnico_ID && p.Estado !== 3 && p.Estado !== '3' && p.Estado !== 4 && p.Estado !== '4').length;
                             const percentage = Math.min((count / 5) * 100, 100);
                             return `
                                 <div>
@@ -3328,7 +3333,7 @@ function renderBudgetEditor(container, budget) {
                     ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
                     <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
-                    ${(!isNew && budget.Estado == 4) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : ''}
+                    ${(!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : ''}
                     ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
                     <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
@@ -3800,8 +3805,8 @@ function renderBudgetEditor(container, budget) {
 
     if (document.getElementById('recover-budget-btn')) {
         document.getElementById('recover-budget-btn').addEventListener('click', () => {
-            if (confirm("¿Estás seguro de que deseas recuperar este presupuesto anulado? Se borrarán sus datos de emisión anteriores y volverá a estado 'Aprobado' para poder facturarse de nuevo.")) {
-                budget.Estado = 2; // Revert to Aprobado
+            if (confirm("¿Estás seguro de que deseas recuperar este presupuesto anulado? Se borrarán sus datos de emisión anteriores y volverá al estado inicial (Borrador) para que pueda editarlo o aprobarlo nuevamente.")) {
+                budget.Estado = 1; // Revert to Borrador
                 delete budget.Anulado;
                 delete budget.Fecha_Anulacion;
                 delete budget.controlNumber;
@@ -3811,8 +3816,8 @@ function renderBudgetEditor(container, budget) {
                 delete budget.Fecha_Facturacion;
                 delete budget.Condicion;
                 saveDatabase(db);
-                showToast("Presupuesto recuperado y listo para facturar.", "success");
-                window.location.hash = '#facturador';
+                showToast("Presupuesto recuperado al estado inicial (Borrador) y listo para editar o aprobar.", "success");
+                window.location.hash = '#presupuestos';
             }
         });
     }
@@ -3926,6 +3931,9 @@ function renderFacturador(container, queryParams) {
 }
 
 function renderTabbedListWorkspace(container) {
+    const activeUser = getActiveUser();
+    const isAdmin = activeUser && (activeUser.Nivel_Acceso === 'Administrador');
+    
     container.innerHTML = `
         <div class="tabs-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 1rem;">
             <div style="display: flex; gap: 1rem;">
@@ -3936,7 +3944,7 @@ function renderTabbedListWorkspace(container) {
                     <i class="fa-solid fa-file-invoice-dollar"></i> Historial DTEs Emitidos
                 </button>
             </div>
-            <button class="btn btn-warning" id="view-invalidated-budgets-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-ban"></i> Presupuestos Anulados</button>
+            ${isAdmin ? `<button class="btn btn-warning" id="view-invalidated-budgets-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-ban"></i> Presupuestos Anulados</button>` : ''}
         </div>
         
         <div id="tab-content-area">
@@ -4012,6 +4020,13 @@ function getBudgetGrandTotal(p, db) {
 }
 
 function openInvalidatedBudgetsModal() {
+    const activeUser = getActiveUser();
+    const isAdmin = activeUser && (activeUser.Nivel_Acceso === 'Administrador');
+    if (!isAdmin) {
+        showToast("Acceso denegado: Solo administradores pueden gestionar presupuestos anulados.", "danger");
+        return;
+    }
+
     const db = getDatabase();
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -4090,8 +4105,8 @@ function openInvalidatedBudgetsModal() {
                 const id = btn.getAttribute('data-id');
                 const p = dbCurrent.presupuestos.find(x => x['ID Presupuesto'] === id);
                 if (p) {
-                    if (confirm(`¿Estás seguro de que deseas recuperar el presupuesto ${id}? Se borrarán sus datos de emisión anteriores y volverá a estado 'Aprobado'.`)) {
-                        p.Estado = 2; // Aprobado
+                    if (confirm(`¿Estás seguro de que deseas recuperar el presupuesto ${id}? Se borrarán sus datos de emisión anteriores y volverá al estado inicial (Borrador) para que pueda editarlo.`)) {
+                        p.Estado = 1; // Revert to Borrador
                         delete p.Anulado;
                         delete p.Fecha_Anulacion;
                         delete p.controlNumber;
@@ -4101,7 +4116,7 @@ function openInvalidatedBudgetsModal() {
                         delete p.Fecha_Facturacion;
                         delete p.Condicion;
                         saveDatabase(dbCurrent);
-                        showToast(`Presupuesto ${id} recuperado correctamente.`, "success");
+                        showToast(`Presupuesto ${id} recuperado correctamente al estado inicial (Borrador).`, "success");
                         modal.remove();
                         handleRouting();
                     }
@@ -4592,10 +4607,20 @@ function renderInvoicingWorkspace(container, presId) {
         dteType.value = 'FE';
     }
     
-    // Auto select payment condition if budget has it set
-    if (p.Condicion === 'CREDITO') {
+    // Auto select payment condition if budget has it set or if client has credit enabled
+    const hasCreditEnabled = client['Credito?'] === 'SI';
+    if (p.Condicion === 'CREDITO' || (p.Condicion !== 'CONTADO' && hasCreditEnabled)) {
         dtePayCond.value = 'CREDITO';
         creditDaysGroup.style.display = 'block';
+        if (client['Plazo Credito Días']) {
+            const creditDaysInput = document.getElementById('dte-credit-days');
+            if (creditDaysInput) {
+                creditDaysInput.value = parseInt(client['Plazo Credito Días']);
+            }
+        }
+    } else {
+        dtePayCond.value = 'CONTADO';
+        creditDaysGroup.style.display = 'none';
     }
     
     detailsBox.innerHTML = `
