@@ -11337,7 +11337,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         items.push({
             cant: parseFloat(p.Cantidad || 1).toFixed(2),
             unidad: 'Pieza',
-            desc: `[Repuesto] ${p.Descripcion}`,
+            desc: `${p.Descripcion}`,
             precio: parseFloat(p.PrecioUnitario || 0),
             descItem: 0.00,
             total: parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)
@@ -11347,7 +11347,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         items.push({
             cant: parseFloat(l.Cantidad || 1).toFixed(2),
             unidad: 'Servicio',
-            desc: `[Mano de Obra] ${l.Descripcion}`,
+            desc: `${l.Descripcion}`,
             precio: parseFloat(l.PrecioUnitario || 0),
             descItem: 0.00,
             total: parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)
