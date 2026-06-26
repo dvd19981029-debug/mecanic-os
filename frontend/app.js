@@ -3921,8 +3921,8 @@ function renderKanban(container) {
     const columns = [
         { state: 1, title: 'Creado / Diagnóstico', class: 'border-left: 4px solid var(--warning);' },
         { state: 2, title: 'Aprobado / Reparación', class: 'border-left: 4px solid var(--primary);' },
-        { state: 3, title: 'Facturado / Entregado', class: 'border-left: 4px solid var(--success);' },
-        { state: 4, title: 'Anulado', class: 'border-left: 4px solid var(--danger);' }
+        { state: 3, title: 'Facturado / Entregado (30d)', class: 'border-left: 4px solid var(--success);' },
+        { state: 4, title: 'Anulado (30d)', class: 'border-left: 4px solid var(--danger);' }
     ];
 
     container.innerHTML = `
@@ -3930,7 +3930,12 @@ function renderKanban(container) {
             ${columns.map(col => {
                 const budgetsInCol = db.presupuestos.filter(p => {
                     const st = parseInt(p.Estado || 1);
-                    return st === col.state;
+                    if (st !== col.state) return false;
+                    // For active items, show all. For completed/cancelled, show last 30 days
+                    if (st === 1 || st === 2) return true;
+                    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                    const budgetDate = new Date(p.Fecha).getTime();
+                    return budgetDate >= thirtyDaysAgo;
                 });
 
                 return `
