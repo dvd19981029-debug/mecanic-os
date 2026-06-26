@@ -2,6 +2,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const xlsx = require('xlsx');
 
 const PORT = process.env.PORT || 3005;
 const PUBLIC_DIR = path.join(__dirname, '..', 'frontend');
@@ -943,6 +944,39 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // 1.10 EXPORT TO EXCEL
+    if (req.method === 'POST' && req.url === '/api/export/excel') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                const { filename, data } = JSON.parse(body);
+                if (!Array.isArray(data)) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ success: false, message: "Debe proveer una lista de datos en formato JSON para exportar." }));
+                    return;
+                }
+
+                const worksheet = xlsx.utils.json_to_sheet(data);
+                const workbook = xlsx.utils.book_new();
+                xlsx.utils.book_append_sheet(workbook, worksheet, "Reporte");
+                
+                const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+                
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', `attachment; filename="${filename || 'reporte.xlsx'}"`);
+                res.end(buffer);
+            } catch (err) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: false, message: "Error interno del servidor", details: err.message }));
+            }
+        });
+        return;
+    }
+
     // 2. STATIC FILE SERVING
     let safeUrl = req.url.split('?')[0];
     if (safeUrl === '/') {
