@@ -6086,7 +6086,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
         }
         .logo-container {
             width: 220px;
-            text-align: right;
+            text-align: center;
         }
 
         .document-title {
@@ -6281,7 +6281,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                     Giro: ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}
                 </div>
             </div>
-            <div class="logo-container" style="display: flex; justify-content: flex-end; align-items: center; min-height: 90px;">
+            <div class="logo-container" style="display: flex; justify-content: center; align-items: center; min-height: 90px;">
                 ${ws.logo ? `
                     <img src="${ws.logo}" style="max-width: 220px; max-height: 90px; object-fit: contain; border-radius: 4px;" />
                 ` : `
@@ -6642,9 +6642,9 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             color: var(--primary-color);
         }
         .logo-container {
-            text-align: right;
+            text-align: center;
             display: flex;
-            justify-content: flex-end;
+            justify-content: center;
             align-items: center;
         }
 
