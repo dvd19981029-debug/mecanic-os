@@ -7063,7 +7063,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             margin: 0;
             padding: 0;
             color: var(--text-color);
-            background-color: #ffffff;
+            background-color: #f8fafc;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             font-size: 0.8rem;
@@ -7113,10 +7113,12 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
 
         .page-container {
             width: 820px;
-            margin: 0 auto;
+            margin: 30px auto;
             background-color: #fff;
             padding: 40px;
             box-sizing: border-box;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 8px;
         }
 
         .centered-header {
