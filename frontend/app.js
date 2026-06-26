@@ -17881,6 +17881,23 @@ function renderComisiones(container, queryParams) {
         }
     }
     
+    // Helper to format local date YYYY-MM-DD
+    const formatLocalYYYYMMDD = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const todayObj = new Date();
+    const firstDayOfMonth = new Date(todayObj.getFullYear(), todayObj.getMonth(), 1);
+    
+    const defaultStart = formatLocalYYYYMMDD(firstDayOfMonth);
+    const defaultEnd = formatLocalYYYYMMDD(todayObj);
+
+    let startTime = new Date(defaultStart + 'T00:00:00').getTime();
+    let endTime = new Date(defaultEnd + 'T23:59:59').getTime();
+
     let adminListPanelHtml = '';
     if (isAdmin) {
         adminListPanelHtml = `
@@ -17903,25 +17920,43 @@ function renderComisiones(container, queryParams) {
     // Main HTML Layout
     container.innerHTML = `
         <div id="comisiones-workspace" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Date Filter -->
+            <div class="glass-card" style="display: flex; gap: 1rem; align-items: center; padding: 0.75rem 1.25rem; border-radius: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="comm-date-start" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Desde:</label>
+                    <input type="date" id="comm-date-start" value="${defaultStart}" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.85rem; outline: none; font-family: inherit;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="comm-date-end" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Hasta:</label>
+                    <input type="date" id="comm-date-end" value="${defaultEnd}" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.85rem; outline: none; font-family: inherit;">
+                </div>
+                <button class="btn btn-primary" id="btn-filter-comm-dates" style="padding: 0.35rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-filter"></i> Filtrar
+                </button>
+                <button class="btn btn-secondary" id="btn-clear-comm-dates" style="padding: 0.35rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-rotate-left"></i> Todo
+                </button>
+            </div>
+
             <!-- Metrics Cards -->
             <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; display: grid; width: 100%;">
                 <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
                     <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Generadas</span>
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Generadas (Filtrado)</span>
                         <span class="stat-value" id="metric-generated" style="color: var(--cyan); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
                     </div>
                     <div class="stat-icon" style="color: var(--cyan); background: rgba(0, 242, 254, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-calculator"></i></div>
                 </div>
                 <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
                     <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Pagadas / Cobradas</span>
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Comisiones Pagadas (Filtrado)</span>
                         <span class="stat-value" id="metric-paid" style="color: var(--success); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
                     </div>
                     <div class="stat-icon" style="color: var(--success); background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-hand-holding-dollar"></i></div>
                 </div>
                 <div class="glass-card stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)); border: 1px solid rgba(245, 158, 11, 0.2); display: flex; justify-content: space-between; padding: 1.25rem; border-radius: var(--radius-md);">
                     <div class="stat-info" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Saldo Pendiente de Pago</span>
+                        <span class="stat-label" style="font-size: 0.85rem; color: var(--text-secondary);">Saldo Pendiente (Acumulado)</span>
                         <span class="stat-value" id="metric-pending" style="color: var(--warning); font-weight: 700; font-size: 1.8rem;">$ 0.00</span>
                     </div>
                     <div class="stat-icon" style="color: var(--warning); background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-sm); font-size: 1.25rem;"><i class="fa-solid fa-sack-dollar"></i></div>
@@ -17947,13 +17982,18 @@ function renderComisiones(container, queryParams) {
     const techListContainer = document.getElementById('tech-list-container');
     const techDetailPanel = document.getElementById('tech-detail-panel');
     const techSearch = document.getElementById('tech-search');
+    const dateStartInput = document.getElementById('comm-date-start');
+    const dateEndInput = document.getElementById('comm-date-end');
+    const btnFilterDates = document.getElementById('btn-filter-comm-dates');
+    const btnClearDates = document.getElementById('btn-clear-comm-dates');
 
     // Helper: calculate stats for a technician
     function calculateTechStats(tId) {
         const t = db.tecnicos.find(x => x.Tecnico_ID === tId);
         if (!t) return { generated: 0, paid: 0, pending: 0, jobs: [] };
 
-        let generated = 0;
+        let generatedAllTime = 0;
+        let generatedFiltered = 0;
         const jobs = [];
 
         // Loop through all budgets in state 3 (Facturado)
@@ -17962,29 +18002,45 @@ function renderComisiones(container, queryParams) {
         facturados.forEach(p => {
             const commInfo = getBudgetCommissions(p, t, db);
             if (commInfo.totalCommission > 0) {
-                generated += commInfo.totalCommission;
-                jobs.push({
-                    budget: p,
-                    laborSub: commInfo.sumLab,
-                    prodSub: commInfo.sumProd,
-                    laborComm: commInfo.laborCommission,
-                    prodComm: commInfo.productCommission,
-                    totalComm: commInfo.totalCommission
-                });
+                generatedAllTime += commInfo.totalCommission;
+                
+                const budgetTime = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).getTime() : new Date(p.Fecha).getTime();
+                if (budgetTime >= startTime && budgetTime <= endTime) {
+                    generatedFiltered += commInfo.totalCommission;
+                    jobs.push({
+                        budget: p,
+                        laborSub: commInfo.sumLab,
+                        prodSub: commInfo.sumProd,
+                        laborComm: commInfo.laborCommission,
+                        prodComm: commInfo.productCommission,
+                        totalComm: commInfo.totalCommission
+                    });
+                }
             }
         });
 
         // Sum payments from pagos_comisiones
-        const payments = (db.pagos_comisiones || []).filter(p => p.Tecnico_ID === tId);
-        const paid = payments.reduce((sum, pay) => sum + parseFloat(pay.Monto || 0), 0);
-        const pending = Math.max(0, generated - paid);
+        const paymentsAll = (db.pagos_comisiones || []).filter(p => p.Tecnico_ID === tId);
+        const paidAllTime = paymentsAll.reduce((sum, pay) => sum + parseFloat(pay.Monto || 0), 0);
+        const paidFiltered = paymentsAll
+            .filter(pay => {
+                const payTime = pay.Fecha;
+                return payTime >= startTime && payTime <= endTime;
+            })
+            .reduce((sum, pay) => sum + parseFloat(pay.Monto || 0), 0);
+            
+        // Pending balance is ALWAYS historical (all-time) so we don't ignore prior debts
+        const pending = Math.max(0, generatedAllTime - paidAllTime);
 
         return {
-            generated,
-            paid,
-            pending,
+            generated: generatedFiltered,
+            paid: paidFiltered,
+            pending: pending,
             jobs,
-            payments
+            payments: paymentsAll.filter(pay => {
+                const payTime = pay.Fecha;
+                return payTime >= startTime && payTime <= endTime;
+            })
         };
     }
 
@@ -18459,6 +18515,32 @@ function renderComisiones(container, queryParams) {
     }
 
     // Event listeners
+    btnFilterDates.addEventListener('click', () => {
+        const startVal = dateStartInput.value;
+        const endVal = dateEndInput.value;
+        startTime = startVal ? new Date(startVal + 'T00:00:00').getTime() : 0;
+        endTime = endVal ? new Date(endVal + 'T23:59:59').getTime() : Infinity;
+        
+        refreshOverallMetrics();
+        if (isAdmin) {
+            populateTechList(techSearch ? techSearch.value : '');
+        }
+        renderDetailPanel();
+    });
+
+    btnClearDates.addEventListener('click', () => {
+        dateStartInput.value = '';
+        dateEndInput.value = '';
+        startTime = 0;
+        endTime = Infinity;
+        
+        refreshOverallMetrics();
+        if (isAdmin) {
+            populateTechList(techSearch ? techSearch.value : '');
+        }
+        renderDetailPanel();
+    });
+
     if (techSearch) {
         techSearch.addEventListener('input', (e) => {
             populateTechList(e.target.value);
