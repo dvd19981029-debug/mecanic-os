@@ -4637,9 +4637,35 @@ function renderInvoicingWorkspace(container, presId) {
     const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
     const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
 
+    const promo = (db.promociones || []).find(pr => pr.ID_Promocion === p.ID_Promocion);
+    
+    const totalNetBeforeDiscount = 
+        prodItems.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0) +
+        laborItems.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
+        
+    const flatDiscountFactor = (promo && promo.Tipo === 'monto_fijo' && totalNetBeforeDiscount > 0) 
+        ? Math.max(0, 1 - parseFloat(promo.Valor || 0) / totalNetBeforeDiscount)
+        : 1;
+
+    function getItemDiscountedPrice(item, isLabor) {
+        const rawPrice = parseFloat(item.PrecioUnitario || 0);
+        if (!promo) return rawPrice;
+        
+        if (promo.Tipo === 'monto_fijo') {
+            return parseFloat((rawPrice * flatDiscountFactor).toFixed(4));
+        }
+        if (isLabor && promo.Tipo === 'desc_mano_obra') {
+            return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
+        }
+        if (!isLabor && promo.Tipo === 'desc_productos') {
+            return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
+        }
+        return rawPrice;
+    }
+
     let subtotal = 0;
-    prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
-    laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1));
+    prodItems.forEach(item => subtotal += getItemDiscountedPrice(item, false) * parseInt(item.Cantidad || 1));
+    laborItems.forEach(item => subtotal += getItemDiscountedPrice(item, true) * parseInt(item.Cantidad || 1));
     
     const iva = subtotal * 0.13;
     let grandTotal = subtotal + iva;
@@ -4689,8 +4715,8 @@ function renderInvoicingWorkspace(container, presId) {
         <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
             <h5 style="margin-bottom:0.75rem;">Ítems a Emitir</h5>
             <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                ${prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
-                ${laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
+                ${prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, false)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
+                ${laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, true)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
             </div>
         </div>
 
@@ -4790,7 +4816,7 @@ function renderInvoicingWorkspace(container, presId) {
 
         const formattedItems = [
             ...prodItems.map(item => {
-                const rawPrice = parseFloat(item.PrecioUnitario || 0);
+                const rawPrice = getItemDiscountedPrice(item, false);
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'BIENES',
@@ -4802,7 +4828,7 @@ function renderInvoicingWorkspace(container, presId) {
                 };
             }),
             ...laborItems.map(item => {
-                const rawPrice = parseFloat(item.PrecioUnitario || 0);
+                const rawPrice = getItemDiscountedPrice(item, true);
                 const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'SERVICIOS',
@@ -4962,22 +4988,28 @@ function renderInvoicingWorkspace(container, presId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${prodItems.map(item => `
-                                <tr>
-                                    <td>${item.Descripcion.substring(0,25)}</td>
-                                    <td>${item.Cantidad}</td>
-                                    <td>$${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
-                                    <td style="text-align:right;">$${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</td>
-                                </tr>
-                            `).join('')}
-                            ${laborItems.map(item => `
-                                <tr>
-                                    <td>${item.Descripcion.substring(0,25)}</td>
-                                    <td>${item.Cantidad}</td>
-                                    <td>$${parseFloat(item.PrecioUnitario).toFixed(2)}</td>
-                                    <td style="text-align:right;">$${(parseFloat(item.PrecioUnitario)*parseInt(item.Cantidad)).toFixed(2)}</td>
-                                </tr>
-                            `).join('')}
+                            ${prodItems.map(item => {
+                                const discPrice = getItemDiscountedPrice(item, false);
+                                return `
+                                    <tr>
+                                        <td>${item.Descripcion.substring(0,25)}</td>
+                                        <td>${item.Cantidad}</td>
+                                        <td>$${discPrice.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                            ${laborItems.map(item => {
+                                const discPrice = getItemDiscountedPrice(item, true);
+                                return `
+                                    <tr>
+                                        <td>${item.Descripcion.substring(0,25)}</td>
+                                        <td>${item.Cantidad}</td>
+                                        <td>$${discPrice.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                     <p>--------------------------------------------------</p>
