@@ -1750,6 +1750,16 @@ function handleRouting() {
         const info = titles[routeName] || { title: 'Mecanic OS', subtitle: 'Gestión Inteligente' };
         document.getElementById('view-title').textContent = info.title;
         document.getElementById('view-subtitle').textContent = info.subtitle;
+
+        // Hide status indicators in the header only when in the facturador route to prevent clutter
+        const headerRight = document.querySelector('.header-right');
+        if (headerRight) {
+            if (routeName === 'facturador') {
+                headerRight.style.display = 'none';
+            } else {
+                headerRight.style.display = 'flex';
+            }
+        }
         
         const container = document.getElementById('view-container');
         container.innerHTML = '<div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando vista...</div>';
