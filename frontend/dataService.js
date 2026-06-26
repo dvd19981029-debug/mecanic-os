@@ -21,7 +21,10 @@ const collectionConfigs = [
     { name: 'pagos_vr', path: 'pagos_vr', key: 'ID_Pago' },
     { name: 'pagos', path: 'pagos', key: 'ID Pago' },
     { name: 'promociones', path: 'promociones', key: 'ID_Promocion' },
-    { name: 'pagos_comisiones', path: 'pagos_comisiones', key: 'ID_Pago_Comision' }
+    { name: 'pagos_comisiones', path: 'pagos_comisiones', key: 'ID_Pago_Comision' },
+    { name: 'proveedores', path: 'proveedores', key: 'ID_Proveedor' },
+    { name: 'compras', path: 'compras', key: 'ID_Compra' },
+    { name: 'abonos_proveedores', path: 'abonos_proveedores', key: 'ID_Abono_Prov' }
 ];
 
 const dataService = {
@@ -89,7 +92,10 @@ const dataService = {
                 saas_config: {
                     wompi: { clientId: '', clientSecret: '', appId: '' },
                     dte: { apiKey: 'test_sk_mecanicos_default_sandbox_key_998877' }
-                }
+                },
+                proveedores: [],
+                compras: [],
+                abonos_proveedores: []
             };
             localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
         } else {
@@ -120,6 +126,9 @@ const dataService = {
             }
             if (!this.cache.solicitudes_registro) { this.cache.solicitudes_registro = []; changed = true; }
             if (!this.cache.saas_payments) { this.cache.saas_payments = []; changed = true; }
+            if (!this.cache.proveedores) { this.cache.proveedores = []; changed = true; }
+            if (!this.cache.compras) { this.cache.compras = []; changed = true; }
+            if (!this.cache.abonos_proveedores) { this.cache.abonos_proveedores = []; changed = true; }
             if (!this.cache.saas_plans) { this.cache.saas_plans = defaultPlans; changed = true; }
             if (!this.cache.saas_coupons) { this.cache.saas_coupons = defaultCoupons; changed = true; }
             if (!this.cache.saas_config) {
