@@ -28,6 +28,17 @@ async function hashPassword(password) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function encryptString(str, key) {
     if (!key) return str;
     let result = '';
@@ -754,6 +765,7 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             .then((userCredential) => {
                 const ownerUid = userCredential.user.uid;
                 localStorage.setItem('mecanic_os_workshop_uid', ownerUid);
+                sessionStorage.setItem('mecanic_os_session_key', hashedPass);
                 
                 dataService.startSync(ownerUid, false); // false = admin mode
                 
@@ -792,6 +804,7 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             db.saas_state.termsSigned = true;
             saveDatabase(db);
             
+            sessionStorage.setItem('mecanic_os_session_key', hashedPass);
             dataService.startSync(workshopUid, true); // true = employeeMode
             setActiveUser(localTech);
             
@@ -824,6 +837,7 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             const targetWorkshopUid = pathSegments[1];
             
             localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
+            sessionStorage.setItem('mecanic_os_session_key', hashedPass);
             
             const db = getDatabase();
             db.saas_state = db.saas_state || {};
@@ -2321,8 +2335,8 @@ function renderClientesVehiculos(container, queryParams) {
             item.setAttribute('data-id', client.Codigo_Cliente);
             item.innerHTML = `
                 <div class="list-item-main">
-                    <span class="list-item-title">${client.Nombre}</span>
-                    <span class="list-item-subtitle">${client.Codigo_Cliente} • Tel: ${client['Telefono 1 '] || client.Telefono || 'N/A'}</span>
+                    <span class="list-item-title">${escapeHtml(client.Nombre)}</span>
+                    <span class="list-item-subtitle">${escapeHtml(client.Codigo_Cliente)} • Tel: ${escapeHtml(client['Telefono 1 '] || client.Telefono || 'N/A')}</span>
                 </div>
                 <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
             `;
@@ -2349,8 +2363,8 @@ function renderClientesVehiculos(container, queryParams) {
             <button class="btn btn-secondary mobile-only-btn" id="client-detail-back-btn" style="margin-bottom: 1.25rem; display: none; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver a la Lista</button>
             <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
                 <div>
-                    <h2>${client.Nombre}</h2>
-                    <span class="badge-tag badge-primary" style="margin-top: 0.5rem;">${client['Tipo Cliente'] || 'Persona Natural'}</span>
+                    <h2>${escapeHtml(client.Nombre)}</h2>
+                    <span class="badge-tag badge-primary" style="margin-top: 0.5rem;">${escapeHtml(client['Tipo Cliente'] || 'Persona Natural')}</span>
                     ${client['Contribuyente?'] === 'SI' ? '<span class="badge-tag badge-success">Contribuyente IVA</span>' : '<span class="badge-tag badge-warning">Consumidor Final</span>'}
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -2365,26 +2379,26 @@ function renderClientesVehiculos(container, queryParams) {
                 <div>
                     <h4 style="margin-bottom: 0.75rem; color: var(--text-secondary);">Datos Fiscales y Contacto</h4>
                     <table style="width: 100%; font-size: 0.85rem;">
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Código:</td><td><strong>${client.Codigo_Cliente}</strong></td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Doc ID (${client['Tipo Doc'] || 'DUI'}):</td><td>${client['Num Doc'] || 'N/A'}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">NIT/NRC:</td><td>${client.NIT || 'N/A'} / ${client.NRC || 'N/A'}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Giro:</td><td>${client.Giro || 'N/A'}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Correo:</td><td>${client.Correo || 'N/A'}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Código:</td><td><strong>${escapeHtml(client.Codigo_Cliente)}</strong></td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Doc ID (${escapeHtml(client['Tipo Doc'] || 'DUI')}):</td><td>${escapeHtml(client['Num Doc'] || 'N/A')}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">NIT/NRC:</td><td>${escapeHtml(client.NIT || 'N/A')} / ${escapeHtml(client.NRC || 'N/A')}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Giro:</td><td>${escapeHtml(client.Giro || 'N/A')}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Correo:</td><td>${escapeHtml(client.Correo || 'N/A')}</td></tr>
                         <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Departamento:</td><td>${(() => {
                             if (client.Departamento && typeof DEPARTAMENTOS_CATALOG !== 'undefined') {
                                 const d = DEPARTAMENTOS_CATALOG.find(x => x.id === client.Departamento);
-                                return d ? d.nombre.toUpperCase() : client.Departamento;
+                                return d ? d.nombre.toUpperCase() : escapeHtml(client.Departamento);
                             }
                             return 'N/A';
                         })()}</td></tr>
                         <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Municipio:</td><td>${(() => {
                             if (client.Municipio && typeof MUNICIPIOS_CATALOG !== 'undefined') {
                                 const m = MUNICIPIOS_CATALOG.find(x => x.id === client.Municipio && x.departamentoId === client.Departamento);
-                                return m ? m.nombre.toUpperCase() : client.Municipio;
+                                return m ? m.nombre.toUpperCase() : escapeHtml(client.Municipio);
                             }
                             return 'N/A';
                         })()}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Dirección Detalle:</td><td>${client.Direccion || 'N/A'}</td></tr>
+                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Dirección Detalle:</td><td>${escapeHtml(client.Direccion || 'N/A')}</td></tr>
                     </table>
                 </div>
                 
@@ -2405,12 +2419,12 @@ function renderClientesVehiculos(container, queryParams) {
                     : clientVehicles.map(v => `
                         <div class="vehicle-card">
                             <i class="fa-solid fa-car-side vehicle-card-bg-icon"></i>
-                            <div class="vehicle-placa">${v.Placas}</div>
-                            <div class="vehicle-detail-row"><span>Marca/Modelo:</span><span><strong>${v.Marca} ${v.Modelo}</strong></span></div>
-                            <div class="vehicle-detail-row"><span>Año/Color:</span><span>${v.Año || 'N/A'} • ${v.Color || 'N/A'}</span></div>
-                            <div class="vehicle-detail-row"><span>Nº Equipo:</span><span><strong>${v.N_Equipo || 'N/A'}</strong></span></div>
-                            <div class="vehicle-detail-row"><span>Odómetro:</span><span>${v.Odometro || '0'}</span></div>
-                            <div class="vehicle-detail-row"><span>VIN/Nº Motor:</span><span>${v.Nª_VIN || 'N/A'}</span></div>
+                            <div class="vehicle-placa">${escapeHtml(v.Placas)}</div>
+                            <div class="vehicle-detail-row"><span>Marca/Modelo:</span><span><strong>${escapeHtml(v.Marca)} ${escapeHtml(v.Modelo)}</strong></span></div>
+                            <div class="vehicle-detail-row"><span>Año/Color:</span><span>${escapeHtml(v.Año || 'N/A')} • ${escapeHtml(v.Color || 'N/A')}</span></div>
+                            <div class="vehicle-detail-row"><span>Nº Equipo:</span><span><strong>${escapeHtml(v.N_Equipo || 'N/A')}</strong></span></div>
+                            <div class="vehicle-detail-row"><span>Odómetro:</span><span>${escapeHtml(v.Odometro || '0')}</span></div>
+                            <div class="vehicle-detail-row"><span>VIN/Nº Motor:</span><span>${escapeHtml(v.Nª_VIN || 'N/A')}</span></div>
                         </div>
                     `).join('')}
             </div>
@@ -3058,16 +3072,16 @@ function renderPresupuestos(container, queryParams) {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${p['ID Presupuesto']}</strong></td>
+                <td><strong>${escapeHtml(p['ID Presupuesto'])}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
-                <td>${p.Nombre}</td>
-                <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
+                <td>${escapeHtml(p.Nombre)}</td>
+                <td><span class="badge-tag badge-primary">${escapeHtml(p.Placas || 'N/A')}</span></td>
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>${statusBadge}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
-                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
+                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         ${deleteBtnHtml}
                     </div>
                 </td>
@@ -3159,7 +3173,7 @@ function renderBudgetEditor(container, budget) {
                         <label>1. Seleccionar Cliente</label>
                         <select id="editor-client-select" required style="padding: 0.65rem;">
                             <option value="">-- Busque y seleccione Cliente --</option>
-                            ${db.clientes.map(c => `<option value="${c.Codigo_Cliente}">${c.Nombre} (${c.Codigo_Cliente})</option>`).join('')}
+                            ${db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
@@ -3194,9 +3208,9 @@ function renderBudgetEditor(container, budget) {
             <div class="glass-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
                     <div>
-                        <span class="badge-tag badge-primary" style="font-family: var(--font-heading); font-size: 1rem;">${budget['ID Presupuesto']}</span>
-                        <h2 style="margin-top: 0.5rem;">${client.Nombre}</h2>
-                        <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${vehicle.Placas} (${vehicle.Marca} ${vehicle.Modelo})</strong> • Nº Equipo: <strong>${vehicle.N_Equipo || 'N/A'}</strong> • Odómetro: ${budget.Kilometraje || '0'}</p>
+                        <span class="badge-tag badge-primary" style="font-family: var(--font-heading); font-size: 1rem;">${escapeHtml(budget['ID Presupuesto'])}</span>
+                        <h2 style="margin-top: 0.5rem;">${escapeHtml(client.Nombre)}</h2>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${escapeHtml(vehicle.Placas)} (${escapeHtml(vehicle.Marca)} ${escapeHtml(vehicle.Modelo)})</strong> • Nº Equipo: <strong>${escapeHtml(vehicle.N_Equipo || 'N/A')}</strong> • Odómetro: ${escapeHtml(budget.Kilometraje || '0')}</p>
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
@@ -3208,7 +3222,7 @@ function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
-                    <input type="text" id="editor-fallas" value="${budget.Fallas_Detectadas || 'Diagnóstico general'}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <input type="text" id="editor-fallas" value="${escapeHtml(budget.Fallas_Detectadas || 'Diagnóstico general')}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -3217,7 +3231,7 @@ function renderBudgetEditor(container, budget) {
     const promoOptions = (db.promociones || []).filter(p => p.Estado === 'Activo' || (budget.ID_Promocion && p.ID_Promocion === budget.ID_Promocion)).map(p => {
         const isSelected = budget.ID_Promocion === p.ID_Promocion ? 'selected' : '';
         const desc = p.Tipo === 'monto_fijo' ? `$${parseFloat(p.Valor).toFixed(2)}` : `${parseFloat(p.Valor)}%`;
-        return `<option value="${p.ID_Promocion}" ${isSelected}>${p.Nombre} (${desc})</option>`;
+        return `<option value="${escapeHtml(p.ID_Promocion)}" ${isSelected}>${escapeHtml(p.Nombre)} (${desc})</option>`;
     }).join('');
 
     container.innerHTML = `
@@ -3506,8 +3520,8 @@ function renderBudgetEditor(container, budget) {
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
-                <div><small class="text-muted">${item['ID_Producto DPP'] || 'PROD'}</small></div>
-                <div><strong>${item.Descripcion}</strong></div>
+                <div><small class="text-muted">${escapeHtml(item['ID_Producto DPP'] || 'PROD')}</small></div>
+                <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
                 <div><input type="number" class="row-qty" data-type="product" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
                 <div><input type="number" class="row-price" data-type="product" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;" disabled title="Los precios de repuestos se definen en el catálogo"></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
@@ -3525,8 +3539,8 @@ function renderBudgetEditor(container, budget) {
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
-                <div><small class="text-muted">${item.ID_ManoObra || 'MO'}</small></div>
-                <div><strong>${item.Descripcion}</strong></div>
+                <div><small class="text-muted">${escapeHtml(item.ID_ManoObra || 'MO')}</small></div>
+                <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
                 <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
                 <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; ${!isPriceEditable ? 'background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;' : ''}" ${priceDisabled ? 'disabled title="Este precio es fijo (no editable)"' : ''}></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
@@ -3879,17 +3893,17 @@ function renderKanban(container) {
                         </div>
                         <div class="kanban-cards-container" id="kanban-container-col-${col.id}">
                             ${budgetsInCol.map(p => `
-                                <div class="kanban-card" onclick="window.location.hash='#presupuestos?id=${p['ID Presupuesto']}'">
+                                <div class="kanban-card" onclick="window.location.hash='#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}'">
                                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                                        <span class="badge-tag badge-primary" style="font-size: 0.7rem;">${p.Placas || 'P-0000'}</span>
+                                        <span class="badge-tag badge-primary" style="font-size: 0.7rem;">${escapeHtml(p.Placas || 'P-0000')}</span>
                                         <small style="color: var(--text-muted); font-size: 0.7rem;">${new Date(p.Fecha).toLocaleDateString('es-SV', {day:'2-digit', month:'short'})}</small>
                                     </div>
-                                    <h4 class="kanban-card-title">${p.Nombre}</h4>
+                                    <h4 class="kanban-card-title">${escapeHtml(p.Nombre)}</h4>
                                     <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; height: 2.6em; overflow: hidden; text-overflow: ellipsis;">
-                                        ${p.Fallas_Detectadas || 'Sin detalles registrados'}
+                                        ${escapeHtml(p.Fallas_Detectadas || 'Sin detalles registrados')}
                                     </p>
                                     <div class="kanban-card-footer">
-                                        <span><i class="fa-solid fa-wrench"></i> ${db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado)?.Nombre_Completo.split(' ')[0] || 'Asignar'}</span>
+                                        <span><i class="fa-solid fa-wrench"></i> ${escapeHtml(db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado)?.Nombre_Completo.split(' ')[0] || 'Asignar')}</span>
                                         <strong>${p.Estado == 3 ? '<span style="color:var(--success)">Facturado</span>' : '<span style="color:var(--warning)">Pendiente</span>'}</strong>
                                     </div>
                                 </div>
@@ -5473,11 +5487,11 @@ function queryDteStatusMH(dteId) {
                     <button class="close-modal-btn" id="close-query-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
                 </div>
                 <div style="font-size:0.9rem; display:flex; flex-direction:column; gap:0.75rem;">
-                    <p>DTE ID: <strong style="word-break:break-all;">${data.id || dteId}</strong></p>
-                    <p>Estado en MH: <span class="badge-tag badge-success" style="font-size:0.85rem; font-weight:700;">${data.status || 'APPROVED'}</span></p>
+                    <p>DTE ID: <strong style="word-break:break-all;">${escapeHtml(data.id || dteId)}</strong></p>
+                    <p>Estado en MH: <span class="badge-tag badge-success" style="font-size:0.85rem; font-weight:700;">${escapeHtml(data.status || 'APPROVED')}</span></p>
                     <p>Ambiente: <strong>${data.environment === '00' ? 'PRODUCCIÓN' : 'PRUEBAS'}</strong></p>
-                    <p>Código Control: <strong>${data.controlNumber || 'N/A'}</strong></p>
-                    <p>Mensaje API: <span style="color:var(--success); font-weight:600;">${data.message || 'Consulta exitosa'}</span></p>
+                    <p>Código Control: <strong>${escapeHtml(data.controlNumber || 'N/A')}</strong></p>
+                    <p>Mensaje API: <span style="color:var(--success); font-weight:600;">${escapeHtml(data.message || 'Consulta exitosa')}</span></p>
                 </div>
                 <div style="margin-top: 1.5rem; text-align: right;">
                     <button class="btn btn-secondary" id="close-query-modal-btn">Cerrar</button>
@@ -6515,7 +6529,7 @@ function renderInventario(container) {
                     <div class="form-group">
                         <label>Seleccionar Repuesto</label>
                         <select id="stock-prod-select" required style="padding: 0.65rem;">
-                            ${db.productos.slice(0, 30).map(p => `<option value="${p['ID_ Producto']}">${p.Descripcion} (${p['ID_ Producto']})</option>`).join('')}
+                            ${db.productos.slice(0, 30).map(p => `<option value="${escapeHtml(p['ID_ Producto'])}">${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-row">
@@ -6564,9 +6578,9 @@ function renderInventario(container) {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${p['ID_ Producto']}</strong></td>
-                <td>${p.Descripcion}</td>
-                <td>${p['Unidad de Medida'] || 'Pza'}</td>
+                <td><strong>${escapeHtml(p['ID_ Producto'])}</strong></td>
+                <td>${escapeHtml(p.Descripcion)}</td>
+                <td>${escapeHtml(p['Unidad de Medida'] || 'Pza')}</td>
                 <td>$ ${parseFloat(p['Precio Unit'] || 10).toFixed(2)}</td>
                 <td>$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || 13).toFixed(2)}</td>
                 <td><strong>${qty}</strong></td>
@@ -6646,10 +6660,10 @@ function renderGastos(container) {
                                 : db.gastos.map(g => `
                                     <tr>
                                         <td>${new Date(g['Fecha Gasto']).toLocaleDateString('es-SV')}</td>
-                                        <td>${g.Concepto}</td>
+                                        <td>${escapeHtml(g.Concepto)}</td>
                                         <td style="font-weight:700;">$ ${parseFloat(g['Monto Total']).toFixed(2)}</td>
                                         <td>Proveedor S.A.</td>
-                                        <td><span class="badge-tag badge-success">${g['Estado Pago'] || 'Pagado'}</span></td>
+                                        <td><span class="badge-tag badge-success">${escapeHtml(g['Estado Pago'] || 'Pagado')}</span></td>
                                     </tr>
                                 `).join('')}
                         </tbody>
@@ -11466,6 +11480,7 @@ function renderLockScreen(container) {
             const hashedEntered = await hashPassword(enteredPass);
             
             if (hashedEntered === realPass) {
+                sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
                 setActiveUser(tech);
                 showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
                 window.location.hash = 'taller-dashboard';
@@ -14163,11 +14178,11 @@ if (window.saasViewReceiptPaymentId) {
                     backendUrl: document.getElementById('global-backend-url').value.trim(),
                     wompi: {
                         clientId: document.getElementById('global-wompi-client-id').value.trim(),
-                        clientSecret: document.getElementById('global-wompi-client-secret').value.trim(),
+                        clientSecret: '', // Centralized in server environment variables
                         appId: document.getElementById('global-wompi-app-id').value.trim()
                     },
                     dte: {
-                        apiKey: document.getElementById('global-dte-api-key').value.trim()
+                        apiKey: '' // Centralized in server environment variables
                     }
                 };
                 saveDatabase(currentDb).then(() => {
@@ -14185,11 +14200,6 @@ if (window.saasViewReceiptPaymentId) {
             testWompiBtn.addEventListener('click', () => {
                 const clientId = document.getElementById('global-wompi-client-id').value.trim();
                 const clientSecret = document.getElementById('global-wompi-client-secret').value.trim();
-                
-                if (!clientId || !clientSecret) {
-                    showToast("Por favor, ingresa el Client ID y el Client Secret para probar la conexión.", "error");
-                    return;
-                }
                 
                 testWompiBtn.disabled = true;
                 const originalText = testWompiBtn.innerHTML;
@@ -14234,11 +14244,6 @@ if (window.saasViewReceiptPaymentId) {
         if (testDteBtn) {
             testDteBtn.addEventListener('click', () => {
                 const apiKey = document.getElementById('global-dte-api-key').value.trim();
-                
-                if (!apiKey) {
-                    showToast("Por favor, ingresa la API Key de FacturaLlama para probar la conexión.", "error");
-                    return;
-                }
                 
                 testDteBtn.disabled = true;
                 const originalText = testDteBtn.innerHTML;
@@ -15003,7 +15008,7 @@ if (window.saasViewReceiptPaymentId) {
                             </div>
                             <div class="form-group">
                                 <label>Client Secret</label>
-                                <input type="text" id="global-wompi-client-secret" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientSecret) || ''}" placeholder="Ej: bd534de2..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                <input type="text" id="global-wompi-client-secret" value="" disabled placeholder="Configurado en servidor (WOMPI_CLIENT_SECRET)" style="padding:0.6rem; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-muted); border-radius:4px; cursor:not-allowed;">
                             </div>
                             <div class="form-group">
                                 <label>ID Aplicativo (Opcional - Auto-recuperar si vacío)</label>
@@ -15016,7 +15021,7 @@ if (window.saasViewReceiptPaymentId) {
                             <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; border-left:3px solid var(--success); padding-left:0.5rem; color:var(--text-primary); margin:0;">Facturación Electrónica (DTE) de la Plataforma</h4>
                             <div class="form-group">
                                 <label>API Key de FacturaLlama</label>
-                                <input type="text" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="sk_test_..." style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                <input type="text" id="global-dte-api-key" value="" disabled placeholder="Configurada en servidor (FACTURALLAMA_API_KEY)" style="padding:0.6rem; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-muted); border-radius:4px; cursor:not-allowed;">
                             </div>
                             <div class="form-group">
                                 <label>URL de Producción del Servidor Backend (Render/Railway)</label>
@@ -15418,6 +15423,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                 .then(async (userCredential) => {
                     const user = userCredential.user;
                     try {
+                        const hashedEntered = await hashPassword(enteredPass);
+                        sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
                         await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
                             termsSigned: true,
                             signatureName: sigName,
@@ -15593,6 +15600,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const hashedEntered = await hashPassword(enteredPass);
                     
                     if (hashedEntered === realPass) {
+                        sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
                         setActiveUser(t);
                         passForm.remove();
                         userModal.classList.remove('active');

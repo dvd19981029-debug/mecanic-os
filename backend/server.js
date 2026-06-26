@@ -448,15 +448,15 @@ const server = http.createServer((req, res) => {
         req.on('data', chunk => { body += chunk; });
         req.on('end', async () => {
             try {
-                const { wompiConfig } = JSON.parse(body);
+                                const { wompiConfig } = JSON.parse(body);
                 const config = wompiConfig || {};
-                const clientId = config.clientId;
-                const clientSecret = config.clientSecret;
+                const clientId = (config.clientId && config.clientId.trim() !== '') ? config.clientId : process.env.WOMPI_CLIENT_ID;
+                const clientSecret = (config.clientSecret && config.clientSecret.trim() !== '') ? config.clientSecret : process.env.WOMPI_CLIENT_SECRET;
                 
                 if (!clientId || !clientSecret || clientId.trim() === '' || clientSecret.trim() === '') {
                     res.statusCode = 400;
                     res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ success: false, message: "Debe ingresar Client ID y Client Secret para realizar la prueba." }));
+                    res.end(JSON.stringify({ success: false, message: "Debe ingresar Client ID y Client Secret para realizar la prueba o configurarlos en el servidor." }));
                     return;
                 }
                 
@@ -533,14 +533,18 @@ const server = http.createServer((req, res) => {
             try {
                 const { apiKey } = JSON.parse(body);
                 
-                if (!apiKey || apiKey.trim() === '') {
+                const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                        ? apiKey 
+                                        : process.env.FACTURALLAMA_API_KEY;
+                                        
+                if (!resolvedApiKey || resolvedApiKey.trim() === '') {
                     res.statusCode = 400;
                     res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ success: false, message: "Debe ingresar una API Key para realizar la prueba." }));
+                    res.end(JSON.stringify({ success: false, message: "Debe ingresar una API Key para realizar la prueba o configurar FACTURALLAMA_API_KEY en el servidor." }));
                     return;
                 }
                 
-                if (apiKey.startsWith('simulado_')) {
+                if (resolvedApiKey.startsWith('simulado_')) {
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify({
@@ -551,13 +555,13 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                console.log(`FacturaLlama Test: Verifying API Key ${apiKey.substring(0,8)}...`);
+                console.log(`FacturaLlama Test: Verifying API Key ${resolvedApiKey.substring(0,8)}...`);
                 
                 const targetUrl = 'https://api.facturallama.com/dte/12345678-1234-1234-1234-1234567890ab';
                 const options = {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
+                        'X-API-Key': resolvedApiKey,
                         'X-API-Version': '1',
                         'Content-Type': 'application/json'
                     }
@@ -630,9 +634,13 @@ const server = http.createServer((req, res) => {
                 const requestData = JSON.parse(body);
                 const { apiKey, docType, payload } = requestData;
                 
-                // If no API Key is provided, fallback to simulated success for testing
-                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
-                    console.log("FacturaLlama: No API Key provided. Returning mock DTE.");
+                const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                        ? apiKey 
+                                        : process.env.FACTURALLAMA_API_KEY;
+                                        
+                // If no API Key is provided or resolved, fallback to simulated success for testing
+                if (!resolvedApiKey || resolvedApiKey.trim() === '') {
+                    console.log("FacturaLlama: No API Key provided or resolved. Returning mock DTE.");
                     
                     const genCode = "MOCK-DTE-" + Math.floor(Date.now() / 1000).toString() + "-" + Math.floor(Math.random()*10000);
                     const ctrlNum = "DTE-" + (docType === 'ccf' ? '03' : '01') + "-M001P001-" + Math.floor(Math.random()*90000 + 10000);
@@ -666,7 +674,7 @@ const server = http.createServer((req, res) => {
                 const options = {
                     method: 'POST',
                     headers: {
-                        'X-API-Key': apiKey,
+                        'X-API-Key': resolvedApiKey,
                         'X-API-Version': '1',
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(payloadString)
@@ -721,7 +729,11 @@ const server = http.createServer((req, res) => {
             try {
                 const { apiKey, payload } = JSON.parse(body);
                 
-                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                        ? apiKey 
+                                        : process.env.FACTURALLAMA_API_KEY;
+                                        
+                if (!resolvedApiKey || resolvedApiKey.trim() === '') {
                     console.log("FacturaLlama Invalidate: Simulated invalidation.");
                     const crypto = require('crypto');
                     res.statusCode = 200;
@@ -742,7 +754,7 @@ const server = http.createServer((req, res) => {
                 const options = {
                     method: 'POST',
                     headers: {
-                        'X-API-Key': apiKey,
+                        'X-API-Key': resolvedApiKey,
                         'X-API-Version': '1',
                         'Content-Type': 'application/json',
                         'Content-Length': Buffer.byteLength(payloadString)
@@ -792,7 +804,11 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                        ? apiKey 
+                                        : process.env.FACTURALLAMA_API_KEY;
+                                        
+                if (!resolvedApiKey || resolvedApiKey.trim() === '') {
                     console.log("FacturaLlama Retrieve: Returning simulated DTE details.");
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'application/json');
@@ -814,7 +830,7 @@ const server = http.createServer((req, res) => {
                 const options = {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
+                        'X-API-Key': resolvedApiKey,
                         'X-API-Version': '1',
                         'Content-Type': 'application/json'
                     }
@@ -862,7 +878,11 @@ const server = http.createServer((req, res) => {
                     return;
                 }
                 
-                if (!apiKey || apiKey.trim() === '' || apiKey.startsWith('simulado_')) {
+                const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                        ? apiKey 
+                                        : process.env.FACTURALLAMA_API_KEY;
+                                        
+                if (!resolvedApiKey || resolvedApiKey.trim() === '') {
                     console.log("FacturaLlama PDF: Returning simulated PDF stream.");
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'application/pdf');
@@ -882,7 +902,7 @@ const server = http.createServer((req, res) => {
                 const options = {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
+                        'X-API-Key': resolvedApiKey,
                         'X-API-Version': '1'
                     }
                 };
