@@ -7209,13 +7209,22 @@ function renderConfiguracion(container, queryParams) {
                                     <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Formato de Impresión (Presupuestos)</label>
-                                <select id="cfg-taller-formato-presupuesto" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                    <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' ? 'selected' : ''}>Moderno (Formato FacturaLlama DTE)</option>
-                                    <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
-                                    <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
-                                </select>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+                                <div class="form-group">
+                                    <label>Formato de Impresión (Presupuestos)</label>
+                                    <select id="cfg-taller-formato-presupuesto" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' ? 'selected' : ''}>Moderno (Formato FacturaLlama DTE)</option>
+                                        <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
+                                        <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Color de Encabezados (PDFs)</label>
+                                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                                        <input type="color" id="cfg-taller-color-presupuesto" value="${ws.color_presupuesto || '#1e293b'}" style="width:45px; height:38px; padding:0; border:1px solid var(--border-color); border-radius:4px; background:none; cursor:pointer;">
+                                        <input type="text" id="cfg-taller-color-presupuesto-text" value="${ws.color_presupuesto || '#1e293b'}" style="padding:0.6rem; flex:1; text-transform:uppercase;" placeholder="#1E293B" required>
+                                    </div>
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end; padding:0.65rem 1.25rem;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
                         </form>
@@ -7715,6 +7724,21 @@ function renderConfiguracion(container, queryParams) {
         const logoInput = document.getElementById('cfg-taller-logo');
         window.saasSelectedLogoBase64 = ws.logo || '';
         
+        // Bind color picker sync
+        const colorPicker = document.getElementById('cfg-taller-color-presupuesto');
+        const colorText = document.getElementById('cfg-taller-color-presupuesto-text');
+        if (colorPicker && colorText) {
+            colorPicker.addEventListener('input', (e) => {
+                colorText.value = e.target.value.toUpperCase();
+            });
+            colorText.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    colorPicker.value = val;
+                }
+            });
+        }
+
         if (logoInput) {
             logoInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
@@ -7760,7 +7784,8 @@ function renderConfiguracion(container, queryParams) {
                     departamento: document.getElementById('cfg-taller-departamento').value,
                     municipio: document.getElementById('cfg-taller-municipio').value,
                     logo: window.saasSelectedLogoBase64 || '',
-                    formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value
+                    formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value,
+                    color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value
                 };
 
                 // Sync with saas_state if matching active session
@@ -9668,7 +9693,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #1e293b;
+            --primary-color: ${ws.color_presupuesto || '#1e293b'};
             --secondary-color: #475569;
             --bg-label: #dce2e6;
             --border-color: #b0b8c0;
@@ -9841,8 +9866,8 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
         }
 
         .data-table th {
-            background-color: var(--bg-label);
-            color: #0f172a;
+            background-color: var(--primary-color);
+            color: #ffffff;
             font-weight: 700;
             text-align: center;
             padding: 8px;
@@ -10211,7 +10236,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #5a626a;
+            --primary-color: ${ws.color_presupuesto || '#5a626a'};
             --border-color: #cbd5e1;
             --text-color: #0f172a;
             --bg-label: #f1f5f9;
@@ -10363,7 +10388,8 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             border: 1px solid var(--border-color);
         }
         th {
-            background-color: var(--bg-label);
+            background-color: var(--primary-color);
+            color: #ffffff;
             font-weight: 700;
             text-align: center;
             padding: 5px;
@@ -10708,8 +10734,8 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #0f172a;
-            --accent-color: #b45309;
+            --primary-color: ${ws.color_presupuesto || '#0f172a'};
+            --accent-color: ${ws.color_presupuesto || '#b45309'};
             --border-color: #e2e8f0;
             --text-color: #334155;
             --bg-light: #f8fafc;
