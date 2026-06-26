@@ -4512,18 +4512,56 @@ function renderIssuedTab(container) {
             const uuidText = p.controlNumber && p.controlNumber !== p.mhControlNumber ? p.controlNumber : '';
             const uuidSub = uuidText ? `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; font-family: monospace;" title="Código de Generación (UUID): ${uuidText}">Gen: ${uuidText.substring(0, 8)}...</div>` : '';
             
+            // Dropdown definition
+            if (!window.toggleDteDropdown) {
+                window.toggleDteDropdown = function(event, budgetId) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    document.querySelectorAll('.dte-actions-dropdown').forEach(dropdown => {
+                        if (dropdown.id !== `dropdown-${budgetId}`) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+                    const dropdown = document.getElementById(`dropdown-${budgetId}`);
+                    if (dropdown) {
+                        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+                    }
+                };
+
+                document.addEventListener('click', () => {
+                    document.querySelectorAll('.dte-actions-dropdown').forEach(dropdown => {
+                        dropdown.style.display = 'none';
+                    });
+                });
+            }
+
             const actionsHtml = isAnulado
                 ? `
-                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
-                        <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
-                        <button class="btn btn-success btn-reemit-dte" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--success); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
+                    <div style="position: relative; display: inline-block;">
+                        <button class="btn btn-secondary" onclick="toggleDteDropdown(event, '${p['ID Presupuesto']}')" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
+                            <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
+                        </button>
+                        <div id="dropdown-${p['ID Presupuesto']}" class="dte-actions-dropdown">
+                            <a href="#presupuestos?id=${p['ID Presupuesto']}" class="dte-dropdown-item" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
+                            <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                            <button class="dte-dropdown-item btn-reemit-dte" data-id="${p['ID Presupuesto']}" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
+                        </div>
+                    </div>
                   `
                 : `
-                        <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
-                        <button class="btn btn-secondary btn-view-dte-pdf" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button class="btn btn-secondary btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #2c3e50; border: none; color: white; display: inline-flex; align-items: center; gap: 0.25rem;" title="Imprimir Ticket Térmico (80mm)"><i class="fa-solid fa-receipt"></i> Ticket</button>
-                        <button class="btn btn-primary btn-query-dte" data-id="${genCode}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: var(--primary); border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
-                        <button class="btn btn-danger btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; background: #e74c3c; border: none; display: inline-flex; align-items: center; gap: 0.25rem;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                    <div style="position: relative; display: inline-block;">
+                        <button class="btn btn-secondary" onclick="toggleDteDropdown(event, '${p['ID Presupuesto']}')" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
+                            <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
+                        </button>
+                        <div id="dropdown-${p['ID Presupuesto']}" class="dte-actions-dropdown">
+                            <a href="#presupuestos?id=${p['ID Presupuesto']}" class="dte-dropdown-item" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
+                            <button class="dte-dropdown-item btn-view-dte-pdf" data-id="${genCode}" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                            <button class="dte-dropdown-item btn-query-dte" data-id="${genCode}" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+                            <div style="border-top: 1px solid var(--border-color); margin: 0.25rem 0;"></div>
+                            <button class="dte-dropdown-item btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="color: #ef4444;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                        </div>
+                    </div>
                   `;
             
             const tr = document.createElement('tr');
@@ -4542,7 +4580,7 @@ function renderIssuedTab(container) {
                 <td>${typeBadge}</td>
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>
-                    <div style="display: flex; gap: 0.35rem;">
+                    <div>
                         ${actionsHtml}
                     </div>
                 </td>

@@ -1696,4 +1696,46 @@ tr:hover td {
     color: var(--text-muted);
 }
 
+/* DTE Actions Dropdown */
+.dte-actions-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 100;
+    min-width: 150px;
+    display: none;
+    flex-direction: column;
+    padding: 0.25rem 0;
+}
+
+.dte-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-primary, #f8fafc);
+    background: none;
+    border: none;
+    text-decoration: none;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-family: inherit;
+}
+
+.dte-dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.dte-dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
 
