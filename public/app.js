@@ -901,7 +901,7 @@ function handleRouting() {
             'revision-21': { title: 'Hoja de Inspección de 21 Puntos', subtitle: 'Recepción digital y diagnóstico semáforo' },
             'presupuestos': { title: 'Presupuestos y Cotizaciones', subtitle: 'Cálculo de costos y emisión de cotizaciones' },
             'kanban': { title: 'Tablero de Control del Taller', subtitle: 'Monitoreo de flujo y estado de reparaciones' },
-            'facturador': { title: 'Facturador DTE (Ministerio de Hacienda)', subtitle: 'Validación fiscal y emisión de facturas electrónicas' },
+            'facturador': { title: 'Facturador DTE', subtitle: 'Validación fiscal y emisión de facturas electrónicas' },
             'venta-rapida': { title: 'Punto de Venta Rápida (POS)', subtitle: 'Despacho en mostrador de repuestos y servicios' },
             'cuentas-cobrar': { title: 'Créditos y Cuentas por Cobrar', subtitle: 'Abonos, estados de cuenta y saldos' },
             'inventario': { title: 'Control de Inventario y Kárdex', subtitle: 'Saldos de repuestos, mínimos y movimientos' },
