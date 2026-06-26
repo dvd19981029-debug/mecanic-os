@@ -7440,14 +7440,28 @@ function renderGastos(container) {
             const iva = sumNet * 0.13;
             const total = sumNet + iva;
 
-            const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor S.A.' };
+            const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor S.A.', Dias_Credito: 0 };
             const purchaseId = "COMPRA-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
+
+            // Calculate due date for credit
+            const creditDays = parseInt(prov.Dias_Credito || 0);
+            let dueDate = date;
+            if (condicion === 'CREDITO' && creditDays > 0) {
+                const compDateObj = new Date(date + 'T00:00:00');
+                compDateObj.setDate(compDateObj.getDate() + creditDays);
+                const year = compDateObj.getFullYear();
+                const month = String(compDateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(compDateObj.getDate()).padStart(2, '0');
+                dueDate = `${year}-${month}-${day}`;
+            }
 
             // 1. Create Purchase record
             const newPurchase = {
                 ID_Compra: purchaseId,
                 ID_Proveedor: provId,
                 Fecha_Compra: date,
+                Fecha_Vencimiento: dueDate,
+                Dias_Credito: creditDays,
                 Num_Factura: numDoc,
                 Monto_Neto: sumNet,
                 Monto_IVA: iva,
@@ -7544,7 +7558,7 @@ function renderGastos(container) {
                     <table>
                         <thead>
                             <tr>
-                                <th>Fecha Compra</th>
+                                <th>Fecha Compra / Vence</th>
                                 <th>Proveedor</th>
                                 <th>N° Factura</th>
                                 <th>Monto Total</th>
@@ -7559,12 +7573,33 @@ function renderGastos(container) {
                                 : pendingPurchases.map(c => {
                                     const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
                                     let dateStr = 'N/A';
+                                    let venceStr = '';
                                     try {
                                         dateStr = new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV');
+                                        if (c.Fecha_Vencimiento) {
+                                            const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
+                                            const todayObj = new Date();
+                                            const todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
+                                            const formattedVence = new Date(c.Fecha_Vencimiento + 'T00:00:00').toLocaleDateString('es-SV');
+                                            
+                                            if (dueTime < todayTime) {
+                                                const diffDays = Math.ceil((todayTime - dueTime) / (1000 * 60 * 60 * 24));
+                                                venceStr = `<span style="font-size:0.75rem; color:#ef4444; font-weight:600;"><br>Vence: ${formattedVence} (Vencido hace ${diffDays}d)</span>`;
+                                            } else {
+                                                const diffDays = Math.ceil((dueTime - todayTime) / (1000 * 60 * 60 * 24));
+                                                if (diffDays === 0) {
+                                                    venceStr = `<span style="font-size:0.75rem; color:#f59e0b; font-weight:600;"><br>Vence: ${formattedVence} (Vence hoy)</span>`;
+                                                } else {
+                                                    venceStr = `<span style="font-size:0.75rem; color:#10b981; font-weight:600;"><br>Vence: ${formattedVence} (Quedan ${diffDays}d)</span>`;
+                                                }
+                                            }
+                                        } else {
+                                            venceStr = `<span style="font-size:0.75rem; color:var(--text-secondary);"><br>Vence: N/A</span>`;
+                                        }
                                     } catch(e) {}
                                     return `
                                         <tr>
-                                            <td>${dateStr}</td>
+                                            <td>${dateStr}${venceStr}</td>
                                             <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
                                             <td>${escapeHtml(c.Num_Factura)}</td>
                                             <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total).toFixed(2)}</td>
@@ -7723,18 +7758,20 @@ function renderGastos(container) {
                                     <th>Nombre / Razón Social</th>
                                     <th>Teléfono</th>
                                     <th>Contacto</th>
+                                    <th>Plazo Crédito</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${db.proveedores.length === 0
-                                    ? '<tr><td colspan="5" style="text-align:center; color:var(--text-muted)">Sin proveedores registrados</td></tr>'
+                                    ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted)">Sin proveedores registrados</td></tr>'
                                     : db.proveedores.map(p => `
                                         <tr>
                                             <td><code>${p.ID_Proveedor}</code></td>
                                             <td><strong>${escapeHtml(p.Nombre)}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(p.NIT_DUI || 'Sin NIT')}</span></td>
                                             <td>${escapeHtml(p.Telefono || 'N/A')}</td>
                                             <td>${escapeHtml(p.Contacto || 'N/A')}</td>
+                                            <td><span class="badge-tag badge-primary" style="background:rgba(99, 102, 241, 0.15); color:#818cf8; font-weight:bold;">${p.Dias_Credito || 0} días</span></td>
                                             <td>
                                                 <div style="display:flex; gap:0.4rem;">
                                                     <button class="btn btn-secondary btn-edit-prov" data-id="${p.ID_Proveedor}" style="padding:0.35rem 0.6rem; font-size:0.75rem;"><i class="fa-solid fa-edit"></i></button>
@@ -7775,9 +7812,15 @@ function renderGastos(container) {
                                 <input type="email" id="prov-correo" placeholder="ventas@proveedor.com" style="padding:0.55rem;">
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Dirección</label>
-                            <input type="text" id="prov-direccion" placeholder="Calle Poniente #20, San Salvador" style="padding:0.55rem;">
+                        <div class="form-row" style="display:grid; grid-template-columns: 2fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="prov-direccion" placeholder="Calle Poniente #20, San Salvador" style="padding:0.55rem;">
+                            </div>
+                            <div class="form-group">
+                                <label>Días de Crédito (Plazo)</label>
+                                <input type="number" id="prov-dias-credito" min="0" value="0" placeholder="Ej: 30" style="padding:0.55rem;">
+                            </div>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
                             <button type="button" class="btn btn-secondary" id="btn-clear-prov" style="display:none; flex:1; justify-content:center;">Cancelar Edición</button>
@@ -7805,6 +7848,7 @@ function renderGastos(container) {
                     document.getElementById('prov-telefono').value = prov.Telefono || '';
                     document.getElementById('prov-correo').value = prov.Correo || '';
                     document.getElementById('prov-direccion').value = prov.Direccion || '';
+                    document.getElementById('prov-dias-credito').value = prov.Dias_Credito || 0;
                     clearBtn.style.display = 'inline-flex';
                 }
             });
@@ -7838,6 +7882,7 @@ function renderGastos(container) {
             const phone = document.getElementById('prov-telefono').value;
             const email = document.getElementById('prov-correo').value;
             const address = document.getElementById('prov-direccion').value;
+            const creditDays = parseInt(document.getElementById('prov-dias-credito').value) || 0;
 
             if (editingProveedorId) {
                 const prov = db.proveedores.find(p => p.ID_Proveedor === editingProveedorId);
@@ -7848,6 +7893,7 @@ function renderGastos(container) {
                     prov.Telefono = phone;
                     prov.Correo = email;
                     prov.Direccion = address;
+                    prov.Dias_Credito = creditDays;
                     showToast("Proveedor actualizado con éxito", "success");
                 }
             } else {
@@ -7858,7 +7904,8 @@ function renderGastos(container) {
                     Contacto: contact,
                     Telefono: phone,
                     Correo: email,
-                    Direccion: address
+                    Direccion: address,
+                    Dias_Credito: creditDays
                 };
                 db.proveedores.unshift(newProv);
                 showToast("Proveedor registrado con éxito", "success");
