@@ -19,6 +19,15 @@ function getSessionKey() {
     return sessionStorage.getItem('mecanic_os_session_key') || '';
 }
 
+async function hashPassword(password) {
+    if (!password) return '';
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function encryptString(str, key) {
     if (!key) return str;
     let result = '';
@@ -103,7 +112,7 @@ function generateUserSignature(user) {
 }
 
 // Database Initialization in LocalStorage
-function initDatabase() {
+async function initDatabase() {
     // Migration: Clear any old mock databases on first load
     if (!localStorage.getItem('mecanic_os_db_cleared_v3')) {
         localStorage.removeItem('mecanic_os_db');
@@ -130,6 +139,23 @@ function initDatabase() {
             posNumber: '1',
             backendUrl: ''
         });
+    }
+
+    // Auto-migration: hash existing plain-text technician passwords/PINs
+    const db = getDatabase();
+    if (db && db.tecnicos && Array.isArray(db.tecnicos)) {
+        let migrated = false;
+        for (let i = 0; i < db.tecnicos.length; i++) {
+            const t = db.tecnicos[i];
+            if (t.Contraseña && t.Contraseña.length < 64) {
+                t.Contraseña = await hashPassword(t.Contraseña);
+                migrated = true;
+            }
+        }
+        if (migrated) {
+            console.log("Database Migration: Plain-text passwords successfully hashed to SHA-256.");
+            await saveDatabase(db);
+        }
     }
 }
 
@@ -713,14 +739,15 @@ function updateCloudStatusUI(active, state = "") {
     }
 }
 
-function performUnifiedLogin(email, pass, btn, onComplete) {
+async function performUnifiedLogin(email, pass, btn, onComplete) {
     if (typeof firebase === 'undefined') {
         if (typeof onComplete === 'function') onComplete(false);
         return;
     }
 
     const db = getDatabase();
-    const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === pass);
+    const hashedPass = await hashPassword(pass);
+    const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === hashedPass);
 
     const proceedAsAdmin = () => {
         firebase.auth().signInWithEmailAndPassword(email, pass)
@@ -784,7 +811,7 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
                     let matchedTech = null;
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        if (data.Contraseña === pass) {
+                        if (data.Contraseña === hashedPass) {
                             matchedTech = { data, ref: doc.ref };
                         }
                     });
@@ -821,7 +848,7 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
                     let collectionGroupTech = null;
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        if (data.Contraseña === pass) {
+                        if (data.Contraseña === hashedPass) {
                             collectionGroupTech = { data, ref: doc.ref };
                         }
                     });
@@ -7878,7 +7905,7 @@ function renderConfiguracion(container, queryParams) {
                     document.getElementById('tecnico-especialidad').value = t.Especialidad || 'Mecánico General';
                     document.getElementById('tecnico-acceso').value = t.Nivel_Acceso || 'Técnico';
                     document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
-                    document.getElementById('tecnico-pass').value = t.Contraseña || '1234';
+                    document.getElementById('tecnico-pass').value = '********'; // Mask password to hide hash
                     document.getElementById('tecnico-comision-servicios').value = t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10;
                     document.getElementById('tecnico-comision-productos').value = t.Comision_Productos !== undefined ? t.Comision_Productos : 0;
                     document.getElementById('tecnico-modal').classList.add('active');
@@ -7923,7 +7950,7 @@ function renderConfiguracion(container, queryParams) {
 
         // Bind Employee Form Submit
         const tecnicoForm = document.getElementById('tecnico-form');
-        tecnicoForm.addEventListener('submit', (e) => {
+        tecnicoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('tecnico-id').value;
             const nombre = document.getElementById('tecnico-nombre').value.trim();
@@ -7974,13 +8001,16 @@ function renderConfiguracion(container, queryParams) {
                     t.Especialidad = especialidad;
                     t.Nivel_Acceso = acceso;
                     t.Salario_Base = salario;
-                    t.Contraseña = pass;
+                    if (pass !== '********') {
+                        t.Contraseña = await hashPassword(pass);
+                    }
                     t.Comision_Servicios = comisionServicios;
                     t.Comision_Productos = comisionProductos;
                 }
                 showToast("Datos de empleado actualizados", "success");
             } else {
                 const newId = `TEC-CS-${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Math.floor(100000 + Math.random() * 900000)}`;
+                const hashedPass = await hashPassword(pass);
                 currentDb.tecnicos.push({
                     Tecnico_ID: newId,
                     Nombre_Completo: nombre,
@@ -7989,7 +8019,7 @@ function renderConfiguracion(container, queryParams) {
                     Especialidad: especialidad,
                     Nivel_Acceso: acceso,
                     Salario_Base: salario,
-                    Contraseña: pass,
+                    Contraseña: hashedPass,
                     Comision_Servicios: comisionServicios,
                     Comision_Productos: comisionProductos,
                     Incapacidades: [],
@@ -11429,12 +11459,13 @@ function renderLockScreen(container) {
 
         document.getElementById('btn-lock-back').addEventListener('click', showProfiles);
 
-        document.getElementById('lock-passcode-form').addEventListener('submit', (e) => {
+        document.getElementById('lock-passcode-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const enteredPass = document.getElementById('lock-user-password').value;
             const realPass = tech.Contraseña || '';
+            const hashedEntered = await hashPassword(enteredPass);
             
-            if (enteredPass === realPass) {
+            if (hashedEntered === realPass) {
                 setActiveUser(tech);
                 showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
                 window.location.hash = 'taller-dashboard';
@@ -11830,7 +11861,8 @@ async function renderRegistroSaaS(container) {
         e.preventDefault();
         
         const currentDb = getDatabase();
-        const requestId = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        const email = document.getElementById('reg-taller-correo').value;
+        const pass = document.getElementById('reg-prop-pass').value;
         
         // Calculate dynamic pricing
         const planName = planSelect.value;
@@ -11848,50 +11880,60 @@ async function renderRegistroSaaS(container) {
             }
         }
         
-        const requestData = {
-            id: requestId,
-            nombre: document.getElementById('reg-taller-nombre').value,
-            alias: document.getElementById('reg-taller-alias').value,
-            nombre_comercial: document.getElementById('reg-taller-nombre-comercial').value,
-            giro: (() => { const el = document.getElementById('reg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
-            direccion: document.getElementById('reg-taller-direccion').value,
-            telefono: document.getElementById('reg-taller-telefono').value,
-            correo: document.getElementById('reg-taller-correo').value,
-            nit: document.getElementById('reg-taller-tipo-doc').value === 'NIT' ? document.getElementById('reg-taller-num-doc').value : '',
-            nrc: document.getElementById('reg-taller-nrc').value,
-            logoText: document.getElementById('reg-taller-alias').value.substring(0, 15).toUpperCase(),
-            logoTagline: 'Servicio Automotriz Especializado',
-            tipo_persona: document.getElementById('reg-taller-tipo-persona').value,
-            clasificacion_tributaria: document.getElementById('reg-taller-clasificacion').value,
-            sujeto_excluido: document.getElementById('reg-taller-sujeto-excluido').value,
-            tipo_documento: document.getElementById('reg-taller-tipo-doc').value,
-            num_documento: document.getElementById('reg-taller-num-doc').value,
-            actividad_economica: document.getElementById('reg-taller-giro').value,
-            pais: document.getElementById('reg-taller-pais').value,
-            departamento: document.getElementById('reg-taller-departamento').value,
-            municipio: document.getElementById('reg-taller-municipio').value,
-            logo: window.saasSelectedLogoBase64 || '',
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const origHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando taller...';
+
+        const registerRequest = async (uid) => {
+            const requestData = {
+                id: uid,
+                nombre: document.getElementById('reg-taller-nombre').value,
+                alias: document.getElementById('reg-taller-alias').value,
+                nombre_comercial: document.getElementById('reg-taller-nombre-comercial').value,
+                giro: (() => { const el = document.getElementById('reg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
+                direccion: document.getElementById('reg-taller-direccion').value,
+                telefono: document.getElementById('reg-taller-telefono').value,
+                correo: email,
+                nit: document.getElementById('reg-taller-tipo-doc').value === 'NIT' ? document.getElementById('reg-taller-num-doc').value : '',
+                nrc: document.getElementById('reg-taller-nrc').value,
+                logoText: document.getElementById('reg-taller-alias').value.substring(0, 15).toUpperCase(),
+                logoTagline: 'Servicio Automotriz Especializado',
+                tipo_persona: document.getElementById('reg-taller-tipo-persona').value,
+                clasificacion_tributaria: document.getElementById('reg-taller-clasificacion').value,
+                sujeto_excluido: document.getElementById('reg-taller-sujeto-excluido').value,
+                tipo_documento: document.getElementById('reg-taller-tipo-doc').value,
+                num_documento: document.getElementById('reg-taller-num-doc').value,
+                actividad_economica: document.getElementById('reg-taller-giro').value,
+                pais: document.getElementById('reg-taller-pais').value,
+                departamento: document.getElementById('reg-taller-departamento').value,
+                municipio: document.getElementById('reg-taller-municipio').value,
+                logo: window.saasSelectedLogoBase64 || '',
+                
+                propietario: document.getElementById('reg-prop-nombre').value,
+                status: 'pendiente',
+                createdAt: Date.now(),
+                plan: planName,
+                precio_mensual: finalPrice,
+                cupon_usado: couponApplied,
+                suscripcion_status: 'demo',
+                proximo_pago: Date.now() + 7 * 24 * 60 * 60 * 1000,
+                dte_config: {
+                    apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
+                    ambiente: '00',
+                    mhCode: '0001',
+                    posNumber: '1',
+                    backendUrl: ''
+                }
+            };
             
-            propietario: document.getElementById('reg-prop-nombre').value,
-            pass: document.getElementById('reg-prop-pass').value,
-            status: 'pendiente',
-            createdAt: Date.now(),
-            plan: planName,
-            precio_mensual: finalPrice,
-            cupon_usado: couponApplied,
-            suscripcion_status: 'demo',
-            proximo_pago: Date.now() + 7 * 24 * 60 * 60 * 1000,
-            dte_config: {
-                apiKey: 'test_sk_mecanicos_default_sandbox_key_998877',
-                ambiente: '00',
-                mhCode: '0001',
-                posNumber: '1',
-                backendUrl: ''
-            }
-        };
-        
-        dataService.saas.createRequest(requestData)
-            .then(() => {
+            try {
+                await dataService.saas.createRequest(requestData);
+                // Cerrar sesión inmediatamente para que no queden autenticados
+                if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+                    await firebase.auth().signOut();
+                }
+                
                 currentDb.saas_state = {
                     status: 'pending',
                     workshopData: requestData,
@@ -11903,11 +11945,29 @@ async function renderRegistroSaaS(container) {
                 showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
                 window.location.hash = 'landing';
                 handleRouting();
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Error al registrar el taller:", err);
                 showToast("Error al guardar la solicitud: " + err.message, "error");
-            });
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origHtml;
+            }
+        };
+
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            firebase.auth().createUserWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    registerRequest(userCredential.user.uid);
+                })
+                .catch((error) => {
+                    console.error("Error al crear usuario en Firebase Auth:", error);
+                    showToast(`Error al crear la cuenta: ${error.message}`, "error");
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origHtml;
+                });
+        } else {
+            const mockUid = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            registerRequest(mockUid);
+        }
     });
 }
 function renderSuspendedSaaS(container) {
@@ -15244,6 +15304,11 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                 </div>
                 
                 <div class="form-group">
+                    <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
+                    <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
+                </div>
+                
+                <div class="form-group">
                     <label>Firma Digital (Escribe tu Nombre Completo como Representante Legal)</label>
                     <input type="text" id="terms-signature-name" required placeholder="Ej: ${saas.workshopData.propietario}" style="padding:0.6rem; font-family:'Courier New', monospace; font-size:1.1rem; font-weight:bold; letter-spacing:0.05em; text-align:center;">
                 </div>
@@ -15259,6 +15324,7 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
         
         const sigName = document.getElementById('terms-signature-name').value;
         const accepted = document.getElementById('terms-accept').checked;
+        const enteredPass = document.getElementById('terms-access-password').value;
         
         if (!accepted) {
             alert("Debe aceptar los términos y condiciones marcando la casilla correspondiente.");
@@ -15268,10 +15334,9 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
         const submitBtn = form.querySelector('button[type="submit"]');
         const origHtml = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creando cuenta y activando...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando sesión y activando...';
 
         const email = saas.workshopData.correo;
-        const pass = saas.workshopData.pass;
 
         const proceedWithLocalActivation = async (uid) => {
             db.saas_state = {
@@ -15316,7 +15381,7 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     Especialidad: 'Gerente General',
                     Nivel_Acceso: 'Administrador',
                     Salario_Base: 1500,
-                    Contraseña: saas.workshopData.pass,
+                    Contraseña: await hashPassword("1234"), // default PIN is "1234" hashed
                     Incapacidades: [],
                     Vacaciones: [],
                     Bonos: []
@@ -15343,13 +15408,13 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
             updateSidebarBrand();
             updateUserUI();
             
-            showToast("¡Plataforma Activada! Bienvenido a Mecanic OS.", "success");
+            showToast("¡Plataforma Activada! Tu PIN de acceso es '1234'. Cámbialo en Ajustes.", "success");
             window.location.hash = 'taller-dashboard';
             handleRouting();
         };
 
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            firebase.auth().createUserWithEmailAndPassword(email, pass)
+            firebase.auth().signInWithEmailAndPassword(email, enteredPass)
                 .then(async (userCredential) => {
                     const user = userCredential.user;
                     try {
@@ -15367,35 +15432,10 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     }
                 })
                 .catch((error) => {
-                    console.error("Firebase auth creation error:", error);
-                    if (error.code === 'auth/email-already-in-use') {
-                        firebase.auth().signInWithEmailAndPassword(email, pass)
-                            .then(async (userCredential) => {
-                                const user = userCredential.user;
-                                try {
-                                    await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
-                                        termsSigned: true,
-                                        signatureName: sigName,
-                                        signedAt: Date.now(),
-                                        uid: user.uid,
-                                        status: 'active'
-                                    });
-                                    await proceedWithLocalActivation(user.uid);
-                                } catch (err) {
-                                    console.error("Error updating status on sign in:", err);
-                                    await proceedWithLocalActivation(user.uid);
-                                }
-                            })
-                            .catch((loginErr) => {
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = origHtml;
-                                showToast("Error al crear cuenta: El correo ya está en uso por otro taller.", "error");
-                            });
-                    } else {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = origHtml;
-                        showToast(`Error al crear la cuenta: ${error.message}`, "error");
-                    }
+                    console.error("Firebase auth login error:", error);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origHtml;
+                    showToast(`Error al iniciar sesión: ${error.message}`, "error");
                 });
         } else {
             const mockUid = 'local_' + Date.now();
@@ -15411,7 +15451,7 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
 document.addEventListener('DOMContentLoaded', async () => {
     initFirebase();
     await dataService.init();
-    initDatabase();
+    await initDatabase();
     initFirebaseAuthListener();
     bindFirebaseEvents();
     updateUserUI();
@@ -15546,12 +15586,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 
                 // Form submit listener
-                passForm.addEventListener('submit', (e) => {
+                passForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const enteredPass = document.getElementById('switcher-user-password').value;
                     const realPass = t.Contraseña || '';
+                    const hashedEntered = await hashPassword(enteredPass);
                     
-                    if (enteredPass === realPass) {
+                    if (hashedEntered === realPass) {
                         setActiveUser(t);
                         passForm.remove();
                         userModal.classList.remove('active');
