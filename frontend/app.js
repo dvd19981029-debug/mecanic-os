@@ -11760,8 +11760,8 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             <div>
                 <h3 style="margin: 0 0 5px 0; font-size:0.75rem; color:var(--primary-color);">Datos del Cliente</h3>
                 <div><strong>Nombre o Razón Social:</strong> ${client.Nombre}</div>
-                <div><strong>Tipo de Documento:</strong> ${client.Tipo_Documento || 'DUI'}</div>
-                <div><strong>N° Documento:</strong> ${client.Num_Documento || client.DUI || 'N/A'}</div>
+                <div><strong>Tipo de Documento:</strong> ${client['Tipo Doc'] || client.Tipo_Documento || 'DUI'}</div>
+                <div><strong>N° Documento:</strong> ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
                 <div><strong>Dirección:</strong> ${client.Direccion || 'Dirección de cliente registrada'}</div>
                 <div><strong>Correo Electrónico:</strong> ${client.Correo || 'N/A'}</div>
                 <div><strong>Teléfono:</strong> ${budget['Telefono 1 '] || client['Telefono 1 '] || 'N/A'}</div>
@@ -12206,7 +12206,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                 <div class="card-title">Cliente / Receptor</div>
                 <div class="card-body">
                     <div><strong>Nombre:</strong> ${client.Nombre}</div>
-                    <div><strong>Documento:</strong> ${client.Tipo_Documento || 'DUI'}: ${client.Num_Documento || 'N/A'}</div>
+                    <div><strong>Documento:</strong> ${client['Tipo Doc'] || client.Tipo_Documento || 'DUI'}: ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
                     <div><strong>Dirección:</strong> ${client.Direccion || 'Dirección de cliente registrada'}</div>
                     <div><strong>Teléfono:</strong> ${budget['Telefono 1 '] || client['Telefono 1 '] || 'N/A'}</div>
                     <div><strong>Email:</strong> ${client.Correo || 'N/A'}</div>
