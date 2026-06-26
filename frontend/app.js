@@ -11332,13 +11332,35 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 
 // Format 2: Moderno FacturaLlama DTE
 function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
-    const discountPercent = subtotal > 0 ? (discount / subtotal) : 0;
+    const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
+    const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
+
+    let prodDiscountPercent = 0;
+    let laborDiscountPercent = 0;
+    let isProportional = true;
+
+    if (promo) {
+        if (promo.Tipo === 'desc_mano_obra') {
+            laborDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        } else if (promo.Tipo === 'desc_productos') {
+            prodDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        }
+    }
+
+    if (isProportional) {
+        const discountPercent = subtotal > 0 ? (discount / subtotal) : 0;
+        prodDiscountPercent = discountPercent;
+        laborDiscountPercent = discountPercent;
+    }
+
     let items = [];
     products.forEach(p => {
         const itemPrice = parseFloat(p.PrecioUnitario || 0);
         const itemQty = parseInt(p.Cantidad || 1);
         const itemSubtotal = itemPrice * itemQty;
-        const itemDiscount = itemSubtotal * discountPercent;
+        const itemDiscount = itemSubtotal * prodDiscountPercent;
         const itemTotal = itemSubtotal - itemDiscount;
         items.push({
             cant: parseFloat(p.Cantidad || 1).toFixed(2),
@@ -11353,7 +11375,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         const itemPrice = parseFloat(l.PrecioUnitario || 0);
         const itemQty = parseInt(l.Cantidad || 1);
         const itemSubtotal = itemPrice * itemQty;
-        const itemDiscount = itemSubtotal * discountPercent;
+        const itemDiscount = itemSubtotal * laborDiscountPercent;
         const itemTotal = itemSubtotal - itemDiscount;
         items.push({
             cant: parseFloat(l.Cantidad || 1).toFixed(2),
