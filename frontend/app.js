@@ -4346,7 +4346,20 @@ function renderIssuedTab(container) {
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
-    const issued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4);
+    // Helper to format local date YYYY-MM-DD
+    const formatLocalYYYYMMDD = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    
+    const defaultStart = formatLocalYYYYMMDD(sevenDaysAgo);
+    const defaultEnd = formatLocalYYYYMMDD(today);
     
     container.innerHTML = `
         <div class="glass-card">
@@ -4356,6 +4369,23 @@ function renderIssuedTab(container) {
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="issued-dte-search" placeholder="Buscar por DTE, cliente, placa o monto...">
                 </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); padding: 0.75rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="dte-date-start" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Desde:</label>
+                    <input type="date" id="dte-date-start" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.85rem; outline: none; font-family: inherit;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="dte-date-end" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Hasta:</label>
+                    <input type="date" id="dte-date-end" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.85rem; outline: none; font-family: inherit;">
+                </div>
+                <button class="btn btn-primary" id="btn-filter-dte-dates" style="padding: 0.35rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-filter"></i> Filtrar Fechas
+                </button>
+                <button class="btn btn-secondary" id="btn-clear-dte-dates" style="padding: 0.35rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-rotate-left"></i> Todo
+                </button>
             </div>
             
             <div class="table-container">
@@ -4381,11 +4411,32 @@ function renderIssuedTab(container) {
     
     const rowsContainer = document.getElementById('issued-dte-rows');
     const searchInput = document.getElementById('issued-dte-search');
+    const dateStartInput = document.getElementById('dte-date-start');
+    const dateEndInput = document.getElementById('dte-date-end');
+    const btnFilterDates = document.getElementById('btn-filter-dte-dates');
+    const btnClearDates = document.getElementById('btn-clear-dte-dates');
+    
+    // Initialize default range (last 7 days)
+    dateStartInput.value = defaultStart;
+    dateEndInput.value = defaultEnd;
     
     function populate(filter = '') {
         rowsContainer.innerHTML = '';
         
-        const filtered = issued.filter(p => {
+        const startVal = dateStartInput.value;
+        const endVal = dateEndInput.value;
+        
+        const startTime = startVal ? new Date(startVal + 'T00:00:00').getTime() : 0;
+        const endTime = endVal ? new Date(endVal + 'T23:59:59').getTime() : Infinity;
+        
+        const allIssued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4);
+        
+        const dateFiltered = allIssued.filter(p => {
+            const itemTime = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).getTime() : new Date(p.Fecha).getTime();
+            return itemTime >= startTime && itemTime <= endTime;
+        });
+        
+        const filtered = dateFiltered.filter(p => {
             const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
             const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
             const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
@@ -4414,7 +4465,7 @@ function renderIssuedTab(container) {
         });
         
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay DTEs emitidos registrados</td></tr>';
+            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay DTEs emitidos registrados en este rango de fechas</td></tr>';
             return;
         }
         
@@ -4530,6 +4581,16 @@ function renderIssuedTab(container) {
         });
     }
     
+    btnFilterDates.addEventListener('click', () => {
+        populate(searchInput.value);
+    });
+    
+    btnClearDates.addEventListener('click', () => {
+        dateStartInput.value = '';
+        dateEndInput.value = '';
+        populate(searchInput.value);
+    });
+
     searchInput.addEventListener('input', (e) => populate(e.target.value));
     populate();
 }
