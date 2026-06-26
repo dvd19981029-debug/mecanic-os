@@ -11061,12 +11061,12 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
             color: #1e293b;
         }
         .table-footer-row {
-            background-color: var(--bg-label);
+            background-color: var(--primary-color);
             font-weight: bold;
             font-size: 0.8rem;
-            color: #0f172a;
         }
         .table-footer-row td {
+            color: #ffffff !important;
             padding: 8px 10px;
         }
 
