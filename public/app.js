@@ -6425,42 +6425,50 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 }
 
 // Format 2: Moderno FacturaLlama DTE
-function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab) {
+function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+    const discountPercent = subtotal > 0 ? (discount / subtotal) : 0;
     let items = [];
     products.forEach(p => {
+        const itemPrice = parseFloat(p.PrecioUnitario || 0);
+        const itemQty = parseInt(p.Cantidad || 1);
+        const itemSubtotal = itemPrice * itemQty;
+        const itemDiscount = itemSubtotal * discountPercent;
+        const itemTotal = itemSubtotal - itemDiscount;
         items.push({
             cant: parseFloat(p.Cantidad || 1).toFixed(2),
             unidad: 'Pieza',
             desc: `${p.Descripcion}`,
-            precio: parseFloat(p.PrecioUnitario || 0),
-            descItem: 0.00,
-            total: parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)
+            precio: itemPrice,
+            descItem: itemDiscount,
+            total: itemTotal
         });
     });
     labor.forEach(l => {
+        const itemPrice = parseFloat(l.PrecioUnitario || 0);
+        const itemQty = parseInt(l.Cantidad || 1);
+        const itemSubtotal = itemPrice * itemQty;
+        const itemDiscount = itemSubtotal * discountPercent;
+        const itemTotal = itemSubtotal - itemDiscount;
         items.push({
             cant: parseFloat(l.Cantidad || 1).toFixed(2),
             unidad: 'Servicio',
             desc: `${l.Descripcion}`,
-            precio: parseFloat(l.PrecioUnitario || 0),
-            descItem: 0.00,
-            total: parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)
+            precio: itemPrice,
+            descItem: itemDiscount,
+            total: itemTotal
         });
     });
 
     const itemsHTML = items.length === 0
-        ? '<tr><td colspan="10" style="text-align: center; color: #64748b; padding: 12px;">No se registran items cotizados</td></tr>'
+        ? '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 12px;">No se registran items cotizados</td></tr>'
         : items.map((item, idx) => `
             <tr>
                 <td style="text-align: center; width: 4%;">${idx + 1}</td>
                 <td style="text-align: center; width: 6%;">${item.cant}</td>
                 <td style="text-align: center; width: 8%;">${item.unidad}</td>
-                <td style="width: 42%;">${item.desc}</td>
+                <td style="width: 52%;">${item.desc}</td>
                 <td style="text-align: right; width: 10%;">$ ${item.precio.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; width: 8%;">$ ${item.descItem.toFixed(2)}</td>
-                <td style="text-align: right; width: 7%;">$ 0.00</td>
-                <td style="text-align: right; width: 5%;">$ 0.00</td>
-                <td style="text-align: right; width: 5%;">$ 0.00</td>
+                <td style="text-align: right; width: 10%;">$ ${item.descItem.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="text-align: right; width: 10%;">$ ${item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
         `).join('');
@@ -6872,9 +6880,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                     <th>Descripción</th>
                     <th>Precio Unitario</th>
                     <th>Descuento</th>
-                    <th>Monto No Afecto</th>
-                    <th>No Sujeta</th>
-                    <th>Exenta</th>
                     <th>Ventas Gravadas</th>
                 </tr>
             </thead>
@@ -7423,19 +7428,21 @@ function exportBudgetPDF(budgetId) {
     const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
     const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
     const subtotal = sumProd + sumLab;
+    const discount = parseFloat(budget.Descuento || 0);
+    const subtotalConDescuento = subtotal - discount;
     const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotal * taxRate;
+    const iva = subtotalConDescuento * taxRate;
 
     let retVal = 0;
     let percVal = 0;
     if (client.AplicaRetencion > 0) {
-        retVal = subtotal * parseFloat(client.AplicaRetencion);
+        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
     }
 
-    const grandTotal = subtotal + iva + percVal - retVal;
+    const grandTotal = subtotalConDescuento + iva + percVal - retVal;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -7447,11 +7454,11 @@ function exportBudgetPDF(budgetId) {
     let pdfHTML = '';
 
     if (format === 'clasico_mecanicos') {
-        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else if (format === 'elegante_ejecutivo') {
-        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else {
-        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab);
+        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     }
 
     printWindow.document.write(pdfHTML);
