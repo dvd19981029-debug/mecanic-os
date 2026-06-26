@@ -259,15 +259,9 @@ function initFirebaseAuthListener() {
                 currentFirebaseUser = null;
                 const workshopUid = getWorkshopOwnerUid();
                 if (workshopUid) {
-                    // Hay un taller activo en este dispositivo → hacer login anónimo
-                    // para que los empleados puedan leer/escribir en Firestore
-                    firebase.auth().signInAnonymously().catch(err => {
-                        console.warn('Mecanic OS: Login anónimo falló, intentando sync sin auth:', err);
-                        // Intentar sync de todas formas (puede fallar si las reglas requieren auth)
-                        dataService.startSync(workshopUid, true);
-                        updateCloudStatusUI(true, "active");
-                    });
-                    // El callback de onAuthStateChanged se volverá a llamar con el user anónimo
+                    // Si no hay sesión Firebase, se mantiene en modo lectura/local con cache
+                    dataService.startSync(workshopUid, true); // true = employeeMode (lectura)
+                    updateCloudStatusUI(true, "offline");
                 } else {
                     updateCloudStatusUI(false, "logged-out");
                     dataService.disconnect(); // Logout completo, sin taller
@@ -762,139 +756,106 @@ function performUnifiedLogin(email, pass, btn, onComplete) {
     if (localTech) {
         const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
         if (workshopUid) {
-            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
-                firebase.auth().signInAnonymously()
-                    .then(() => {
-                        const db = getDatabase();
-                        db.saas_state = db.saas_state || {};
-                        db.saas_state.status = 'active';
-                        db.saas_state.workshopData = db.saas_state.workshopData || {};
-                        db.saas_state.workshopData.uid = workshopUid;
-                        db.saas_state.termsSigned = true;
-                        saveDatabase(db);
-                        
-                        dataService.startSync(workshopUid, true); // true = employeeMode
-                        setActiveUser(localTech);
-                        
-                        showToast(`Sesión iniciada correctamente como ${localTech.Nombre_Completo}`, "success");
-                        if (typeof onComplete === 'function') onComplete(true);
-                    })
-                    .catch(err => {
-                        console.error("Error de login anónimo para empleado local:", err);
-                        // Fallback to local offline login
-                        setActiveUser(localTech);
-                        showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
-                        if (typeof onComplete === 'function') onComplete(true);
-                    });
-            } else {
-                setActiveUser(localTech);
-                showToast(`Sesión iniciada localmente como ${localTech.Nombre_Completo}`, "success");
-                if (typeof onComplete === 'function') onComplete(true);
-            }
+            // Ya no hacemos login anónimo. Usamos la sesión activa del dueño (si existe).
+            const db = getDatabase();
+            db.saas_state = db.saas_state || {};
+            db.saas_state.status = 'active';
+            db.saas_state.workshopData = db.saas_state.workshopData || {};
+            db.saas_state.workshopData.uid = workshopUid;
+            db.saas_state.termsSigned = true;
+            saveDatabase(db);
+            
+            dataService.startSync(workshopUid, true); // true = employeeMode
+            setActiveUser(localTech);
+            
+            showToast(`Sesión iniciada correctamente como ${localTech.Nombre_Completo}`, "success");
+            if (typeof onComplete === 'function') onComplete(true);
             return;
         }
     }
 
     // 2. Query Firestore if not found in local db
-    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
-        // Sign in anonymously first so that we are authenticated and bypass request.auth != null security rules
-        firebase.auth().signInAnonymously()
-            .then(() => {
-                const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
-                
-                const queryFirestoreCollection = (colRef) => {
-                    return colRef.where("Email", "==", email).get()
-                        .then((snapshot) => {
-                            let matchedTech = null;
-                            snapshot.forEach(doc => {
-                                const data = doc.data();
-                                if (data.Contraseña === pass) {
-                                    matchedTech = { data, ref: doc.ref };
-                                }
-                            });
-                            return matchedTech;
-                        });
-                };
+    if (typeof dbFirestore !== 'undefined' && dbFirestore && firebase.auth().currentUser) {
+        const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
+        
+        const queryFirestoreCollection = (colRef) => {
+            return colRef.where("Email", "==", email).get()
+                .then((snapshot) => {
+                    let matchedTech = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.Contraseña === pass) {
+                            matchedTech = { data, ref: doc.ref };
+                        }
+                    });
+                    return matchedTech;
+                });
+        };
 
-                const handleMatchedTech = (matchedTech) => {
-                    const pathSegments = matchedTech.ref.path.split('/');
-                    const targetWorkshopUid = pathSegments[1];
-                    
-                    localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
-                    
-                    const db = getDatabase();
-                    db.saas_state = db.saas_state || {};
-                    db.saas_state.status = 'active';
-                    db.saas_state.workshopData = db.saas_state.workshopData || {};
-                    db.saas_state.workshopData.uid = targetWorkshopUid;
-                    db.saas_state.termsSigned = true;
-                    saveDatabase(db);
-                    
-                    dataService.startSync(targetWorkshopUid, true); // true = employeeMode
-                    setActiveUser(matchedTech.data);
-                    
-                    showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
-                    if (typeof onComplete === 'function') onComplete(true);
-                };
+        const handleMatchedTech = (matchedTech) => {
+            const pathSegments = matchedTech.ref.path.split('/');
+            const targetWorkshopUid = pathSegments[1];
+            
+            localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
+            
+            const db = getDatabase();
+            db.saas_state = db.saas_state || {};
+            db.saas_state.status = 'active';
+            db.saas_state.workshopData = db.saas_state.workshopData || {};
+            db.saas_state.workshopData.uid = targetWorkshopUid;
+            db.saas_state.termsSigned = true;
+            saveDatabase(db);
+            
+            dataService.startSync(targetWorkshopUid, true); // true = employeeMode
+            setActiveUser(matchedTech.data);
+            
+            showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
+            if (typeof onComplete === 'function') onComplete(true);
+        };
 
-                const handleCollectionGroupFallback = () => {
-                    return dbFirestore.collectionGroup("tecnicos")
-                        .where("Email", "==", email)
-                        .get()
-                        .then(snapshot => {
-                            let collectionGroupTech = null;
-                            snapshot.forEach(doc => {
-                                const data = doc.data();
-                                if (data.Contraseña === pass) {
-                                    collectionGroupTech = { data, ref: doc.ref };
-                                }
-                            });
-                            if (collectionGroupTech) {
-                                handleMatchedTech(collectionGroupTech);
-                            } else {
-                                // No technician found. Sign out anonymous login and try admin
-                                firebase.auth().signOut().then(() => {
-                                    proceedAsAdmin();
-                                }).catch(() => {
-                                    proceedAsAdmin();
-                                });
-                            }
-                        })
-                        .catch((err) => {
-                            console.error("Error en collectionGroup para login de técnico:", err);
-                            // If index or permission fails, sign out anonymous login and try admin
-                            firebase.auth().signOut().then(() => {
-                                proceedAsAdmin();
-                            }).catch(() => {
-                                proceedAsAdmin();
-                            });
-                        });
-                };
+        const handleCollectionGroupFallback = () => {
+            return dbFirestore.collectionGroup("tecnicos")
+                .where("Email", "==", email)
+                .get()
+                .then(snapshot => {
+                    let collectionGroupTech = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.Contraseña === pass) {
+                            collectionGroupTech = { data, ref: doc.ref };
+                        }
+                    });
+                    if (collectionGroupTech) {
+                        handleMatchedTech(collectionGroupTech);
+                    } else {
+                        proceedAsAdmin();
+                    }
+                })
+                .catch((err) => {
+                    console.error("Error en collectionGroup para login de técnico:", err);
+                    proceedAsAdmin();
+                });
+        };
 
-                if (workshopUid) {
-                    queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
-                        .then(matchedTech => {
-                            if (matchedTech) {
-                                handleMatchedTech(matchedTech);
-                            } else {
-                                handleCollectionGroupFallback();
-                            }
-                        })
-                        .catch((err) => {
-                            console.error("Error buscando en colección de técnicos local del taller:", err);
-                            handleCollectionGroupFallback();
-                        });
-                } else {
+        if (workshopUid) {
+            queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
+                .then(matchedTech => {
+                    if (matchedTech) {
+                        handleMatchedTech(matchedTech);
+                    } else {
+                        handleCollectionGroupFallback();
+                    }
+                })
+                .catch((err) => {
+                    console.error("Error buscando en colección de técnicos local del taller:", err);
                     handleCollectionGroupFallback();
-                }
-            })
-            .catch(err => {
-                console.error("Error de autenticación anónima para consulta de técnico:", err);
-                proceedAsAdmin();
-            });
+                });
+        } else {
+            handleCollectionGroupFallback();
+        }
     } else {
-        showToast("Usuario o contraseña incorrectos", "error");
-        if (typeof onComplete === 'function') onComplete(false);
+        // Fallback: Si no hay conexión o no hay sesión de Firebase activa, intentamos directamente proceedAsAdmin
+        proceedAsAdmin();
     }
 }
 
@@ -15783,18 +15744,28 @@ function renderSaaSAdminLogin(container) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             const pass = document.getElementById('saas-admin-pass').value;
-            if (pass === 'SuperAdminOS') {
-                sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
-                showToast("Acceso concedido como Super Administrador", "success");
-                handleRouting();
-            } else {
-                showToast("Contraseña incorrecta", "error");
-                const passInput = document.getElementById('saas-admin-pass');
-                if (passInput) {
-                    passInput.value = '';
-                    passInput.focus();
-                }
+            
+            if (typeof firebase === 'undefined') {
+                showToast("Firebase no inicializado", "error");
+                return;
             }
+            
+            // Iniciar sesión con la cuenta de administrador oficial en Firebase Auth
+            firebase.auth().signInWithEmailAndPassword('dvd19981029@gmail.com', pass)
+                .then(() => {
+                    sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
+                    showToast("Acceso concedido como Super Administrador", "success");
+                    handleRouting();
+                })
+                .catch((error) => {
+                    console.error("Error de login de SuperAdmin:", error);
+                    showToast("Contraseña de administrador incorrecta", "error");
+                    const passInput = document.getElementById('saas-admin-pass');
+                    if (passInput) {
+                        passInput.value = '';
+                        passInput.focus();
+                    }
+                });
         });
     }
 }

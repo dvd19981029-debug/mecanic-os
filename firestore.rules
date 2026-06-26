@@ -5,48 +5,45 @@ service cloud.firestore {
     // ============================================================
     // TALLERES (Datos operativos del taller)
     // ============================================================
-    // Todos los empleados de un taller comparten el mismo workshopId.
     // El dueño se autentica con email/password (user.uid == workshopId).
-    // Los empleados se autentican de forma anónima y usan el workshopId del dueño.
+    // Los empleados en el taller comparten el login de Firebase del dueño.
     match /workshops/{workshopId} {
-      // Cualquier usuario autenticado (incluido anónimo) puede leer el taller
-      // El taller ID es un UUID privado, así que es seguro para este modelo SaaS
-      allow read: if request.auth != null;
-      
-      // Solo el dueño (cuyo uid == workshopId) puede escribir en el root del documento
-      // Los empleados con auth anónima también pueden escribir (necesario para tiempo real)
-      allow write: if request.auth != null;
+      // Solo permitimos leer/escribir si el usuario autenticado en Firebase
+      // coincide exactamente con el ID del taller (el UID de la cuenta del dueño).
+      allow read, write: if request.auth != null && request.auth.uid == workshopId;
     }
     
-    // Subcollecciones del taller (clientes, vehículos, presupuestos, etc.)
+    // Subcolecciones del taller (clientes, vehículos, presupuestos, etc.)
     match /workshops/{workshopId}/{collection}/{docId} {
-      // Cualquier usuario autenticado puede leer y escribir en las subcollecciones
-      // Esto permite que todos los empleados del taller trabajen en tiempo real
-      allow read, write: if request.auth != null;
+      // Bloquea a cualquier usuario que no pertenezca a este taller específico
+      allow read, write: if request.auth != null && request.auth.uid == workshopId;
     }
     
-    // Subcollecciones anidadas
+    // Subcolecciones anidadas
     match /workshops/{workshopId}/{collection}/{docId}/{subcollection=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == workshopId;
     }
     
     // ============================================================
     // SOLICITUDES SAAS (Registro de nuevos talleres)
     // ============================================================
     match /saas_requests/{requestId} {
-      // Cualquier usuario autenticado puede leer (para seguimiento del estado)
-      allow read: if request.auth != null;
-      // Cualquier usuario autenticado puede crear/actualizar solicitudes
-      allow write: if request.auth != null;
+      // Permitir la creación (escritura inicial) a cualquiera (para que los nuevos talleres puedan registrarse)
+      allow create: if true;
+      
+      // Permitir leer y actualizar si conocen el requestId (los solicitantes leen su propio estado)
+      allow get, update: if true;
+      
+      // Solo el correo del administrador de la plataforma puede listar o borrar solicitudes
+      allow list, delete: if request.auth != null && request.auth.token.email == "dvd19981029@gmail.com";
     }
     
     // ============================================================
     // MÉTRICAS SAAS (Para el super admin)
     // ============================================================
     match /saas_metrics/{document=**} {
-      // Solo usuarios autenticados con email (no anónimos) pueden leer métricas
-      allow read: if request.auth != null && request.auth.token.email != null;
-      allow write: if request.auth != null;
+      // Solo el correo del administrador de la plataforma puede ver o modificar métricas globales
+      allow read, write: if request.auth != null && request.auth.token.email == "dvd19981029@gmail.com";
     }
     
   }

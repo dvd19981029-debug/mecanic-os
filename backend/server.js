@@ -929,16 +929,17 @@ const server = http.createServer((req, res) => {
         safeUrl = '/index.html';
     }
     
-    const filePath = path.join(PUBLIC_DIR, safeUrl);
+    const resolvedPath = path.resolve(path.join(PUBLIC_DIR, safeUrl));
+    const safePublicDir = path.resolve(PUBLIC_DIR);
     
-    // Check if file exists and is within the public directory
-    if (!filePath.startsWith(PUBLIC_DIR)) {
+    // Check if file exists and is strictly within the public directory
+    if (!resolvedPath.startsWith(safePublicDir + path.sep) && resolvedPath !== safePublicDir) {
         res.statusCode = 403;
         res.end('Access Denied');
         return;
     }
     
-    fs.stat(filePath, (err, stats) => {
+    fs.stat(resolvedPath, (err, stats) => {
         if (err || !stats.isFile()) {
             res.statusCode = 404;
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -946,13 +947,13 @@ const server = http.createServer((req, res) => {
             return;
         }
         
-        const ext = path.extname(filePath).toLowerCase();
+        const ext = path.extname(resolvedPath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
         
         res.statusCode = 200;
         res.setHeader('Content-Type', contentType);
         
-        const stream = fs.createReadStream(filePath);
+        const stream = fs.createReadStream(resolvedPath);
         stream.pipe(res);
     });
 });
