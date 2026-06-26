@@ -4860,6 +4860,31 @@ function renderInvoicingWorkspace(container, presId) {
             p.Condicion = payCond;
             p.Pagado = payCond === 'CONTADO' ? 'SI' : 'NO';
             p['Pagado?'] = payCond === 'CONTADO' ? 'SI' : 'NO';
+
+            // Deduct inventory stock and record Kardex movements for invoiced products
+            const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+            prodItems.forEach(item => {
+                const prodId = item['ID_Producto DPP'];
+                const qty = parseInt(item.Cantidad || 1);
+                
+                const dbProd = db.productos.find(prod => prod['ID_ Producto'] === prodId);
+                if (dbProd) {
+                    dbProd.Minimos = Math.max(0, (dbProd.Minimos || 0) - qty);
+                    
+                    // Register Kardex movement
+                    db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                    db['29 Movs de Inventario'].unshift({
+                        id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                        id_producto: prodId,
+                        descripcion: dbProd.Descripcion,
+                        Cant_Mov: qty,
+                        "Fecha Mov": Date.now(),
+                        Tipo: "SALIDA",
+                        "Valor ($)": parseFloat(item.PrecioUnitario || dbProd['Precio Unit'] || 10),
+                        Observacion: `Facturación Presupuesto ${presId} - DTE ${ctrlNum}`
+                    });
+                }
+            });
             
             if (payCond === 'CONTADO') {
                 const payId = "PAGO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
