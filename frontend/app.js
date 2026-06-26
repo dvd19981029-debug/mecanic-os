@@ -799,7 +799,11 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
 
     const db = getDatabase();
     const hashedPass = await hashPassword(pass);
-    const localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && t.Contraseña === hashedPass);
+    let localTech = (db.tecnicos || []).find(t => (t.Email || '').toLowerCase() === email.toLowerCase() && (t.Contraseña === hashedPass || t.Contraseña === pass));
+    if (localTech && localTech.Contraseña === pass) {
+        localTech.Contraseña = hashedPass;
+        saveDatabase(db);
+    }
 
     const proceedAsAdmin = () => {
         firebase.auth().signInWithEmailAndPassword(email, pass)
@@ -865,8 +869,11 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                     let matchedTech = null;
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        if (data.Contraseña === hashedPass) {
+                        if (data.Contraseña === hashedPass || data.Contraseña === pass) {
                             matchedTech = { data, ref: doc.ref };
+                            if (data.Contraseña === pass) {
+                                doc.ref.update({ Contraseña: hashedPass }).catch(e => console.error("Error migrating Firestore password:", e));
+                            }
                         }
                     });
                     return matchedTech;
@@ -903,8 +910,11 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                     let collectionGroupTech = null;
                     snapshot.forEach(doc => {
                         const data = doc.data();
-                        if (data.Contraseña === hashedPass) {
+                        if (data.Contraseña === hashedPass || data.Contraseña === pass) {
                             collectionGroupTech = { data, ref: doc.ref };
+                            if (data.Contraseña === pass) {
+                                doc.ref.update({ Contraseña: hashedPass }).catch(e => console.error("Error migrating collectionGroup password:", e));
+                            }
                         }
                     });
                     if (collectionGroupTech) {
@@ -12408,7 +12418,11 @@ function renderLockScreen(container) {
             const realPass = tech.Contraseña || '';
             const hashedEntered = await hashPassword(enteredPass);
             
-            if (hashedEntered === realPass) {
+            if (hashedEntered === realPass || enteredPass === realPass) {
+                if (enteredPass === realPass) {
+                    tech.Contraseña = hashedEntered;
+                    saveDatabase(db);
+                }
                 sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
                 setActiveUser(tech);
                 showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
@@ -16528,7 +16542,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const realPass = t.Contraseña || '';
                     const hashedEntered = await hashPassword(enteredPass);
                     
-                    if (hashedEntered === realPass) {
+                    if (hashedEntered === realPass || enteredPass === realPass) {
+                        if (enteredPass === realPass) {
+                            t.Contraseña = hashedEntered;
+                            saveDatabase(db);
+                        }
                         sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
                         setActiveUser(t);
                         passForm.remove();
