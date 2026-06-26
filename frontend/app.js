@@ -6579,9 +6579,10 @@ function renderCuentasCobrar(container) {
             document.getElementById('abono-client-id').value = clientId;
             document.getElementById('abono-pres-id').value = '';
             document.getElementById('abono-client-name').value = client.Nombre;
-            document.getElementById('abono-current-balance').value = '$' + balance.toFixed(2);
+            const roundedBalance = parseFloat(balance.toFixed(2));
+            document.getElementById('abono-current-balance').value = '$' + roundedBalance.toFixed(2);
             document.getElementById('abono-amount').value = '';
-            document.getElementById('abono-amount').max = balance;
+            document.getElementById('abono-amount').max = roundedBalance;
             
             abonoModal.classList.add('active');
         });
@@ -6594,9 +6595,10 @@ function renderCuentasCobrar(container) {
                 document.getElementById('abono-client-id').value = clientId;
                 document.getElementById('abono-pres-id').value = presId;
                 document.getElementById('abono-client-name').value = client.Nombre;
-                document.getElementById('abono-current-balance').value = '$' + total.toFixed(2);
-                document.getElementById('abono-amount').value = total.toFixed(2);
-                document.getElementById('abono-amount').max = total;
+                const roundedTotal = parseFloat(total.toFixed(2));
+                document.getElementById('abono-current-balance').value = '$' + roundedTotal.toFixed(2);
+                document.getElementById('abono-amount').value = roundedTotal.toFixed(2);
+                document.getElementById('abono-amount').max = roundedTotal;
                 
                 abonoModal.classList.add('active');
             });
@@ -7720,8 +7722,9 @@ function renderGastos(container) {
                     document.getElementById('abono-modal-deuda').textContent = `$ ${parseFloat(comp.Saldo_Pendiente).toFixed(2)}`;
                     
                     const amountInput = document.getElementById('abono-amount');
-                    amountInput.max = comp.Saldo_Pendiente;
-                    amountInput.value = parseFloat(comp.Saldo_Pendiente).toFixed(2);
+                    const roundedDeuda = parseFloat(parseFloat(comp.Saldo_Pendiente).toFixed(2));
+                    amountInput.max = roundedDeuda;
+                    amountInput.value = roundedDeuda.toFixed(2);
                     
                     const modal = document.getElementById('cxp-abono-modal');
                     modal.style.display = 'flex';
