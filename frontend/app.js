@@ -4907,7 +4907,8 @@ function renderInvoicingWorkspace(container, presId) {
                         "Fecha Mov": Date.now(),
                         Tipo: "SALIDA",
                         "Valor ($)": parseFloat(item.PrecioUnitario || dbProd['Precio Unit'] || 10),
-                        Observacion: `Facturación Presupuesto ${presId} - DTE ${ctrlNum}`
+                        Observacion: `Facturación Presupuesto ${presId}`,
+                        DTE: ctrlNum
                     });
                 }
             });
@@ -6048,6 +6049,7 @@ function renderVentaRapida(container) {
         // Register Quick Sale
         db['43 Venta Rapida'] = db['43 Venta Rapida'] || [];
         const genCode = "VR-" + Math.floor(Date.now() / 1000).toString().substring(3);
+        const dteNum = "DTE-03-M001P001-" + Math.floor(Math.random()*90000000 + 10000000);
         
         db['43 Venta Rapida'].unshift({
             ID_Venta_Rapida: vrId,
@@ -6058,7 +6060,7 @@ function renderVentaRapida(container) {
             "% Impuesto": 0.13,
             Estado: "FACTURADO",
             "Tipo Doc": client['Contribuyente?'] === 'SI' ? 'CREDITO FISCAL' : 'FACTURA',
-            controlNumber: "DTE-03-M001P001-" + Math.floor(Math.random()*90000000 + 10000000)
+            controlNumber: dteNum
         });
 
         // Register stock movements
@@ -6072,7 +6074,8 @@ function renderVentaRapida(container) {
                 "Fecha Mov": Date.now(),
                 Tipo: "SALIDA",
                 "Valor ($)": item.price,
-                Observacion: "Venta POS " + vrId
+                Observacion: "Venta POS " + vrId,
+                DTE: dteNum
             });
 
             // Decrement catalog stock if possible
@@ -6822,7 +6825,8 @@ function renderInventario(container) {
                                 <th>Cantidad</th>
                                 <th>Costo Unitario ($)</th>
                                 <th>Monto Total ($)</th>
-                                <th>Observación / Detalle</th>
+                                <th>Observación</th>
+                                <th>Número DTE</th>
                             </tr>
                         </thead>
                         <tbody id="kardex-rows-container">
@@ -6841,11 +6845,33 @@ function renderInventario(container) {
             rowsEl.innerHTML = '';
             const list = db['29 Movs de Inventario'] || [];
             
-            const filtered = list.filter(mov => 
-                (mov.id_producto || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (mov.descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (mov.Observacion || '').toLowerCase().includes(filter.toLowerCase())
-            );
+            const filtered = list.filter(mov => {
+                let obsVal = mov.Observacion || mov.observacion || '';
+                let dteVal = mov.DTE || mov.dte || 'N/A';
+                if (dteVal === 'N/A') {
+                    if (obsVal.includes(' - DTE ')) {
+                        const parts = obsVal.split(' - DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    } else if (obsVal.includes(' DTE ')) {
+                        const parts = obsVal.split(' DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    }
+                }
+                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
+                    const vrId = obsVal.replace('Venta POS ', '').trim();
+                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
+                    if (vr && vr.controlNumber) {
+                        dteVal = vr.controlNumber;
+                    }
+                }
+                const filterLower = filter.toLowerCase();
+                return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
+                       (mov.descripcion || '').toLowerCase().includes(filterLower) ||
+                       obsVal.toLowerCase().includes(filterLower) ||
+                       dteVal.toLowerCase().includes(filterLower);
+            });
 
             filtered.forEach(mov => {
                 const tr = document.createElement('tr');
@@ -6862,6 +6888,27 @@ function renderInventario(container) {
                     dateStr = new Date(mov['Fecha Mov']).toLocaleString('es-SV');
                 } catch(e) {}
 
+                let obsVal = mov.Observacion || mov.observacion || '';
+                let dteVal = mov.DTE || mov.dte || 'N/A';
+                if (dteVal === 'N/A') {
+                    if (obsVal.includes(' - DTE ')) {
+                        const parts = obsVal.split(' - DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    } else if (obsVal.includes(' DTE ')) {
+                        const parts = obsVal.split(' DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    }
+                }
+                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
+                    const vrId = obsVal.replace('Venta POS ', '').trim();
+                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
+                    if (vr && vr.controlNumber) {
+                        dteVal = vr.controlNumber;
+                    }
+                }
+
                 tr.innerHTML = `
                     <td>${dateStr}</td>
                     <td><code>${escapeHtml(mov.id_producto)}</code></td>
@@ -6870,13 +6917,14 @@ function renderInventario(container) {
                     <td style="text-align:center; font-weight:700;">${mov.Cant_Mov}</td>
                     <td style="text-align:right;">$ ${val.toFixed(2)}</td>
                     <td style="text-align:right; font-weight:600;">$ ${sub.toFixed(2)}</td>
-                    <td><span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(mov.Observacion || '')}</span></td>
+                    <td><span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(obsVal)}</span></td>
+                    <td><span style="font-size:0.8rem; font-family:monospace; color:var(--cyan); font-weight:600;">${escapeHtml(dteVal)}</span></td>
                 `;
                 rowsEl.appendChild(tr);
             });
 
             if (filtered.length === 0) {
-                rowsEl.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-muted)">No se encontraron movimientos registrados en el Kárdex</td></tr>';
+                rowsEl.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--text-muted)">No se encontraron movimientos registrados en el Kárdex</td></tr>';
             }
         }
 
@@ -6885,27 +6933,73 @@ function renderInventario(container) {
         exportBtn.addEventListener('click', () => {
             const filter = searchInput.value;
             const list = db['29 Movs de Inventario'] || [];
-            const filtered = list.filter(mov => 
-                (mov.id_producto || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (mov.descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (mov.Observacion || '').toLowerCase().includes(filter.toLowerCase())
-            );
+            
+            const filtered = list.filter(mov => {
+                let obsVal = mov.Observacion || mov.observacion || '';
+                let dteVal = mov.DTE || mov.dte || 'N/A';
+                if (dteVal === 'N/A') {
+                    if (obsVal.includes(' - DTE ')) {
+                        const parts = obsVal.split(' - DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    } else if (obsVal.includes(' DTE ')) {
+                        const parts = obsVal.split(' DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    }
+                }
+                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
+                    const vrId = obsVal.replace('Venta POS ', '').trim();
+                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
+                    if (vr && vr.controlNumber) {
+                        dteVal = vr.controlNumber;
+                    }
+                }
+                const filterLower = filter.toLowerCase();
+                return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
+                       (mov.descripcion || '').toLowerCase().includes(filterLower) ||
+                       obsVal.toLowerCase().includes(filterLower) ||
+                       dteVal.toLowerCase().includes(filterLower);
+            });
 
             if (filtered.length === 0) {
                 showToast("No hay datos de movimientos para exportar", "warning");
                 return;
             }
 
-            const excelData = filtered.map(mov => ({
-                "Fecha": new Date(mov['Fecha Mov']).toLocaleString('es-SV'),
-                "Código Producto": mov.id_producto || '',
-                "Descripción": mov.descripcion || '',
-                "Tipo de Movimiento": mov.Tipo || '',
-                "Cantidad": mov.Cant_Mov || 0,
-                "Valor ($)": parseFloat(mov['Valor ($)'] || 0),
-                "Subtotal ($)": (mov.Cant_Mov || 0) * parseFloat(mov['Valor ($)'] || 0),
-                "Observaciones": mov.Observacion || ''
-            }));
+            const excelData = filtered.map(mov => {
+                let obsVal = mov.Observacion || mov.observacion || '';
+                let dteVal = mov.DTE || mov.dte || 'N/A';
+                if (dteVal === 'N/A') {
+                    if (obsVal.includes(' - DTE ')) {
+                        const parts = obsVal.split(' - DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    } else if (obsVal.includes(' DTE ')) {
+                        const parts = obsVal.split(' DTE ');
+                        obsVal = parts[0];
+                        dteVal = parts[1];
+                    }
+                }
+                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
+                    const vrId = obsVal.replace('Venta POS ', '').trim();
+                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
+                    if (vr && vr.controlNumber) {
+                        dteVal = vr.controlNumber;
+                    }
+                }
+                return {
+                    "Fecha": new Date(mov['Fecha Mov']).toLocaleString('es-SV'),
+                    "Código Producto": mov.id_producto || '',
+                    "Descripción": mov.descripcion || '',
+                    "Tipo de Movimiento": mov.Tipo || '',
+                    "Cantidad": mov.Cant_Mov || 0,
+                    "Valor ($)": parseFloat(mov['Valor ($)'] || 0),
+                    "Subtotal ($)": (mov.Cant_Mov || 0) * parseFloat(mov['Valor ($)'] || 0),
+                    "Observación": obsVal,
+                    "Número DTE": dteVal
+                };
+            });
 
             const timestamp = new Date().toISOString().slice(0, 10);
             downloadExcelReport(`Kardex_Movimientos_Inventario_${timestamp}.xlsx`, excelData);
