@@ -1898,7 +1898,7 @@ function renderTallerDashboard(container) {
             </div>
             <div class="action-card" onclick="window.location.hash='#kanban'">
                 <i class="fa-solid fa-network-wired"></i>
-                <h3>Tablero Kanban</h3>
+                <h3>Control Taller</h3>
                 <p>Ver flujo del taller y técnicos asignados</p>
             </div>
             <div class="action-card" onclick="window.location.hash='#venta-rapida'">
@@ -3916,51 +3916,54 @@ function renderBudgetEditor(container, budget) {
 function renderKanban(container) {
     const db = getDatabase();
     
-    // Columns definition
+    // Columns definition corresponding exactly to budget states:
+    // 1: Creado/Borrador, 2: Aprobado/Reparación, 3: Facturado/Entregado, 4: Anulado
     const columns = [
-        { id: 1, title: 'Diagnóstico / Ingreso', class: 'border-left: 4px solid var(--warning);' },
-        { id: 2, title: 'Espera de Repuestos', class: 'border-left: 4px solid var(--danger);' },
-        { id: 3, title: 'En Proceso / Mecánica', class: 'border-left: 4px solid var(--primary);' },
-        { id: 4, title: 'Control y Entrega', class: 'border-left: 4px solid var(--success);' }
+        { state: 1, title: 'Creado / Diagnóstico', class: 'border-left: 4px solid var(--warning);' },
+        { state: 2, title: 'Aprobado / Reparación', class: 'border-left: 4px solid var(--primary);' },
+        { state: 3, title: 'Facturado / Entregado', class: 'border-left: 4px solid var(--success);' },
+        { state: 4, title: 'Anulado', class: 'border-left: 4px solid var(--danger);' }
     ];
 
     container.innerHTML = `
         <div class="kanban-board">
             ${columns.map(col => {
                 const budgetsInCol = db.presupuestos.filter(p => {
-                    // map budget states to columns
-                    // if p.Estado == 1 (Diagnostic)
-                    // if approved (2) it goes to column 3 (in process) unless parts are missing
-                    if (col.id === 1) return p.Estado == 1;
-                    if (col.id === 2) return p.Estado == 2 && (p.Fallas_Detectadas || '').toLowerCase().includes('repuestos');
-                    if (col.id === 3) return p.Estado == 2 && !(p.Fallas_Detectadas || '').toLowerCase().includes('repuestos');
-                    if (col.id === 4) return p.Estado == 2 && (p.Fallas_Detectadas || '').toLowerCase().includes('listo') || p.Estado == 3;
-                    return false;
+                    const st = parseInt(p.Estado || 1);
+                    return st === col.state;
                 });
 
                 return `
-                    <div class="kanban-column" data-column-id="&quot;" data-id="${col.id}">
+                    <div class="kanban-column" data-id="${col.state}">
                         <div class="kanban-column-header" style="${col.class}">
                             <h3>${col.title}</h3>
                             <span class="kanban-count">${budgetsInCol.length}</span>
                         </div>
-                        <div class="kanban-cards-container" id="kanban-container-col-${col.id}">
-                            ${budgetsInCol.map(p => `
-                                <div class="kanban-card" onclick="window.location.hash='#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}'">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                                        <span class="badge-tag badge-primary" style="font-size: 0.7rem;">${escapeHtml(p.Placas || 'P-0000')}</span>
-                                        <small style="color: var(--text-muted); font-size: 0.7rem;">${new Date(p.Fecha).toLocaleDateString('es-SV', {day:'2-digit', month:'short'})}</small>
+                        <div class="kanban-cards-container" id="kanban-container-col-${col.state}">
+                            ${budgetsInCol.map(p => {
+                                const stateNum = parseInt(p.Estado || 1);
+                                let stateBadge = '<span style="color:var(--warning)">Creado</span>';
+                                if (stateNum === 2) stateBadge = '<span style="color:var(--primary)">Aprobado</span>';
+                                else if (stateNum === 3) stateBadge = '<span style="color:var(--success)">Facturado</span>';
+                                else if (stateNum === 4) stateBadge = '<span style="color:var(--danger)">Anulado</span>';
+
+                                return `
+                                    <div class="kanban-card" onclick="window.location.hash='#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}'">
+                                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                            <span class="badge-tag badge-primary" style="font-size: 0.7rem;">${escapeHtml(p.Placas || 'P-0000')}</span>
+                                            <small style="color: var(--text-muted); font-size: 0.7rem;">${new Date(p.Fecha).toLocaleDateString('es-SV', {day:'2-digit', month:'short'})}</small>
+                                        </div>
+                                        <h4 class="kanban-card-title">${escapeHtml(p.Nombre)}</h4>
+                                        <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; height: 2.6em; overflow: hidden; text-overflow: ellipsis;">
+                                            ${escapeHtml(p.Fallas_Detectadas || 'Sin detalles registrados')}
+                                        </p>
+                                        <div class="kanban-card-footer">
+                                            <span><i class="fa-solid fa-wrench"></i> ${escapeHtml(db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado)?.Nombre_Completo.split(' ')[0] || 'Asignar')}</span>
+                                            <strong>${stateBadge}</strong>
+                                        </div>
                                     </div>
-                                    <h4 class="kanban-card-title">${escapeHtml(p.Nombre)}</h4>
-                                    <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; height: 2.6em; overflow: hidden; text-overflow: ellipsis;">
-                                        ${escapeHtml(p.Fallas_Detectadas || 'Sin detalles registrados')}
-                                    </p>
-                                    <div class="kanban-card-footer">
-                                        <span><i class="fa-solid fa-wrench"></i> ${escapeHtml(db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado)?.Nombre_Completo.split(' ')[0] || 'Asignar')}</span>
-                                        <strong>${p.Estado == 3 ? '<span style="color:var(--success)">Facturado</span>' : '<span style="color:var(--warning)">Pendiente</span>'}</strong>
-                                    </div>
-                                </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
@@ -8878,7 +8881,7 @@ function renderConfiguracion(container, queryParams) {
             { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
             { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
             { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
-            { route: 'kanban', label: 'Control Taller (Kanban)', icon: 'fa-solid fa-cubes-stacked' },
+            { route: 'kanban', label: 'Control Taller', icon: 'fa-solid fa-cubes-stacked' },
             { route: 'facturador', label: 'Facturar DTE', icon: 'fa-solid fa-wallet' },
             { route: 'venta-rapida', label: 'Venta Rápida (POS)', icon: 'fa-solid fa-cart-shopping' },
             { route: 'cuentas-cobrar', label: 'Cuentas por Cobrar', icon: 'fa-solid fa-hand-holding-dollar' },
@@ -12359,8 +12362,8 @@ function renderLanding(container) {
                 </div>
                 <div class="glass-card" style="padding:2rem; border-radius:12px;">
                     <div style="font-size:2rem; color:var(--warning); margin-bottom:1rem;"><i class="fa-solid fa-cubes-stacked"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Control Visual de Taller (Kanban)</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Monitorea la carga laboral de tus técnicos. Arrastra y sigue el progreso de las reparaciones de los vehículos en tiempo real.</p>
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Control Visual del Taller</h3>
+                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Monitorea la carga laboral de tus técnicos. Sigue el progreso de las reparaciones de los vehículos en tiempo real de acuerdo al estado del presupuesto.</p>
                 </div>
                 <div class="glass-card" style="padding:2rem; border-radius:12px;">
                     <div style="font-size:2rem; color:var(--primary); margin-bottom:1rem;"><i class="fa-solid fa-chart-pie"></i></div>
