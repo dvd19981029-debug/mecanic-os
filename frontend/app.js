@@ -8346,8 +8346,13 @@ function renderCuentasCobrar(container) {
             const availableCredit = Math.max(0, limit - balance);
             const isExceeded = balance > limit;
 
-            // Fetch pending budgets (Condition = CREDIT and Pagado? !== SI)
-            const pendingBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientId && p.Condicion === 'CREDITO' && p['Pagado?'] !== 'SI');
+            // Fetch pending budgets (Condition = CREDIT, status is FACTURADO, and Pagado? !== SI)
+            const pendingBudgets = db.presupuestos.filter(p => 
+                p.Codigo_Cliente === clientId && 
+                p.Condicion === 'CREDITO' && 
+                p['Pagado?'] !== 'SI' && 
+                (p.Estado === 3 || p.Estado === '3')
+            );
             
             // Fetch client abonos
             const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
