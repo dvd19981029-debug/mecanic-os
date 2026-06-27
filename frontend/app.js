@@ -1167,10 +1167,29 @@ function getBudgetGrandTotal(budget, db) {
     const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
     const subtotal = sumProd + sumLab;
     
-    const discount = parseFloat(budget.Descuento || 0);
+    // Manual discount
+    let discount = parseFloat(budget.Descuento || 0);
+    
+    // Dynamic Promotion discount
+    if (budget.ID_Promocion) {
+        const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
+        if (promo) {
+            let promoDiscount = 0;
+            if (promo.Tipo === 'desc_mano_obra') {
+                promoDiscount = sumLab * (parseFloat(promo.Valor || 0) / 100);
+            } else if (promo.Tipo === 'desc_productos') {
+                promoDiscount = sumProd * (parseFloat(promo.Valor || 0) / 100);
+            } else if (promo.Tipo === 'monto_fijo') {
+                promoDiscount = parseFloat(promo.Valor || 0);
+            }
+            discount = Math.max(discount, promoDiscount);
+        }
+    }
+    
+    discount = Math.min(discount, subtotal);
     const subtotalConDescuento = Math.max(0, subtotal - discount);
     
-    const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
+    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
     const iva = subtotalConDescuento * taxRate;
 
     let retVal = 0;
@@ -1183,7 +1202,8 @@ function getBudgetGrandTotal(budget, db) {
         percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
     }
 
-    return subtotalConDescuento + iva + percVal - retVal;
+    const rawTotal = subtotalConDescuento + iva + percVal - retVal;
+    return Math.round(rawTotal * 100) / 100;
 }
 
 // Helper: Calculate client unpaid credit balance
@@ -4087,7 +4107,26 @@ function getBudgetGrandTotal(p, db) {
     const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
     const subtotal = sumProd + sumLab;
     
-    const discount = parseFloat(p.Descuento || 0);
+    // Manual discount
+    let discount = parseFloat(p.Descuento || 0);
+    
+    // Dynamic Promotion discount
+    if (p.ID_Promocion) {
+        const promo = (db.promociones || []).find(promoItem => promoItem.ID_Promocion === p.ID_Promocion);
+        if (promo) {
+            let promoDiscount = 0;
+            if (promo.Tipo === 'desc_mano_obra') {
+                promoDiscount = sumLab * (parseFloat(promo.Valor || 0) / 100);
+            } else if (promo.Tipo === 'desc_productos') {
+                promoDiscount = sumProd * (parseFloat(promo.Valor || 0) / 100);
+            } else if (promo.Tipo === 'monto_fijo') {
+                promoDiscount = parseFloat(promo.Valor || 0);
+            }
+            discount = Math.max(discount, promoDiscount);
+        }
+    }
+    
+    discount = Math.min(discount, subtotal);
     const subtotalConDescuento = Math.max(0, subtotal - discount);
     
     const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
@@ -4101,7 +4140,9 @@ function getBudgetGrandTotal(p, db) {
     if (client.AplicaPercepcion > 0) {
         percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
     }
-    return subtotalConDescuento + iva + percVal - retVal;
+    
+    const rawTotal = subtotalConDescuento + iva + percVal - retVal;
+    return Math.round(rawTotal * 100) / 100;
 }
 
 function openInvalidatedBudgetsModal() {
@@ -8040,14 +8081,20 @@ function renderCuentasCobrar(container) {
                 const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
                 if (!client) return;
 
-                const creditBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientId && p.Condicion === 'CREDITO');
+                const creditBudgets = db.presupuestos.filter(p => 
+                    p.Codigo_Cliente === clientId && 
+                    p.Condicion === 'CREDITO' && 
+                    (p.Estado == 3 || p.Estado == '3' || p.Estado == 4 || p.Estado == '4' || p.Anulado === true)
+                );
                 const charges = creditBudgets.map(p => ({
                     timestamp: p.Fecha ? new Date(p.Fecha).getTime() : Date.now(),
                     fecha: p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A',
                     ref: p['ID Presupuesto'],
                     tipo: 'Facturación Crédito',
                     cargo: getBudgetGrandTotal(p, db),
-                    abono: 0
+                    abono: 0,
+                    dte: p.mhControlNumber || p.controlNumber || '',
+                    isAnulado: p.Estado == 4 || p.Anulado === true
                 }));
 
                 const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
@@ -8055,23 +8102,30 @@ function renderCuentasCobrar(container) {
                     timestamp: ab['Fecha Abono'] || Date.now(),
                     fecha: ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A',
                     ref: ab.ID_Abono,
-                    tipo: `Abono (${ab['Metodo Pago']})`,
+                    tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
                     cargo: 0,
-                    abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0)
+                    abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
+                    dte: '',
+                    isAnulado: false
                 }));
 
                 const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
 
                 let runningBalance = 0;
                 const excelData = ledger.map(t => {
-                    runningBalance += t.cargo - t.abono;
+                    const isTransAnulada = t.isAnulado;
+                    if (!isTransAnulada) {
+                        runningBalance += t.cargo - t.abono;
+                    }
                     return {
                         "Fecha": t.fecha,
                         "Referencia / N° Doc": t.ref,
                         "Tipo Transacción": t.tipo,
-                        "Cargo ($)": t.cargo || 0,
+                        "N° DTE / Control": t.dte || "-",
+                        "Cargo ($)": isTransAnulada ? 0 : (t.cargo || 0),
                         "Abono ($)": t.abono || 0,
-                        "Saldo Acumulado ($)": runningBalance
+                        "Saldo Acumulado ($)": runningBalance,
+                        "Estado": isTransAnulada ? "ANULADO" : "ACTIVO"
                     };
                 });
                 const cleanName = client.Nombre.replace(/[^a-zA-Z0-9]/g, '_');
