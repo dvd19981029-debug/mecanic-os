@@ -14752,10 +14752,10 @@ function printClientStatementPDF(db, ws, clientId) {
                 <div style="flex:1; padding-right:20px;">
                     <div style="color:${brandColor}; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Datos del Cliente</div>
                     <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(client.Nombre)}</div>
-                    <div><strong>Tipo de Documento:</strong> DUI</div>
-                    <div><strong>N° Documento:</strong> ${escapeHtml(client.NIT || client.DUI || 'N/A')}</div>
+                    <div><strong>Tipo de Documento:</strong> ${escapeHtml(client['Tipo Doc'] || client.Tipo_Documento || 'DUI')}</div>
+                    <div><strong>N° Documento:</strong> ${escapeHtml(client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A')}</div>
                     <div><strong>Dirección:</strong> ${escapeHtml(client.Direccion || 'N/A')}</div>
-                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(client.Email || 'N/A')}</div>
+                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(client.Correo || client.Email || 'N/A')}</div>
                     <div><strong>Teléfono:</strong> ${escapeHtml(client['Telefono 1 '] || 'N/A')}</div>
                 </div>
                 <div style="width:250px; border-left:1px solid #eee; padding-left:20px;">
