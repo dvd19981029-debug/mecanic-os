@@ -7276,35 +7276,50 @@ function renderCaja(container) {
         tabContent.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
                 <!-- Header Stats Cards -->
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:1rem;">
-                    <div class="stat-card" style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; background:rgba(255,255,255,0.01);">
-                        <span style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.3rem;">Fondo de Apertura</span>
-                        <strong style="font-size:1.4rem; color:var(--text-primary);">$ ${activeSession.saldo_inicial.toFixed(2)}</strong>
-                        <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-top:0.4rem; font-style:italic;">Por: ${activeSession.usuario_apertura.split('@')[0]}</span>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem;">
+                    <div class="glass-card stat-card" style="padding:1.25rem;">
+                        <div class="stat-info">
+                            <span class="stat-label">Fondo de Apertura</span>
+                            <span class="stat-value" style="color: var(--text-primary);">$ ${activeSession.saldo_inicial.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Por: ${activeSession.usuario_apertura.split('@')[0]}</span>
+                        </div>
+                        <div class="stat-icon" style="color: var(--primary); background-color: rgba(99, 102, 241, 0.15);"><i class="fa-solid fa-key"></i></div>
                     </div>
                     
-                    <div class="stat-card" style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; background:rgba(255,255,255,0.01);">
-                        <span style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.3rem;">Efectivo Recibido (Ventas)</span>
-                        <strong style="font-size:1.4rem; color:var(--success);">$ ${totalCashIn.toFixed(2)}</strong>
-                        <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-top:0.4rem;">${sessionPayments.filter(p => p["Metodo Pago"] === "EFECTIVO").length} transacciones</span>
+                    <div class="glass-card stat-card" style="padding:1.25rem;">
+                        <div class="stat-info">
+                            <span class="stat-label">Efectivo Recibido (Ventas)</span>
+                            <span class="stat-value" style="color: var(--success);">$ ${totalCashIn.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">${sessionPayments.filter(p => p["Metodo Pago"] === "EFECTIVO").length} transacciones</span>
+                        </div>
+                        <div class="stat-icon" style="color: var(--success); background-color: rgba(16, 185, 129, 0.15);"><i class="fa-solid fa-money-bill-wave"></i></div>
                     </div>
                     
-                    <div class="stat-card" style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; background:rgba(255,255,255,0.01);">
-                        <span style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.3rem;">Tarjeta / Transferencias</span>
-                        <strong style="font-size:1.4rem; color:var(--cyan);">$ ${totalOtherIn.toFixed(2)}</strong>
-                        <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-top:0.4rem;">Tarjeta: $${totalCardIn.toFixed(2)} | Transf: $${totalTransfersIn.toFixed(2)}</span>
+                    <div class="glass-card stat-card" style="padding:1.25rem;">
+                        <div class="stat-info">
+                            <span class="stat-label">Tarjeta / Transferencias</span>
+                            <span class="stat-value" style="color: var(--cyan);">$ ${totalOtherIn.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Tarj: $${totalCardIn.toFixed(2)} | Transf: $${totalTransfersIn.toFixed(2)}</span>
+                        </div>
+                        <div class="stat-icon" style="color: var(--cyan); background-color: rgba(6, 182, 212, 0.15);"><i class="fa-solid fa-credit-card"></i></div>
                     </div>
                     
-                    <div class="stat-card" style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; background:rgba(255,255,255,0.01);">
-                        <span style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.3rem;">Egresos / Salidas de Caja</span>
-                        <strong style="font-size:1.4rem; color:var(--danger);">$ ${totalManualOut.toFixed(2)}</strong>
-                        <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-top:0.4rem;">Entradas manuales: $${totalManualIn.toFixed(2)}</span>
+                    <div class="glass-card stat-card" style="padding:1.25rem;">
+                        <div class="stat-info">
+                            <span class="stat-label">Egresos / Salidas</span>
+                            <span class="stat-value" style="color: var(--danger);">$ ${totalManualOut.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Entradas manuales: $${totalManualIn.toFixed(2)}</span>
+                        </div>
+                        <div class="stat-icon" style="color: var(--danger); background-color: rgba(239, 35, 60, 0.15);"><i class="fa-solid fa-circle-minus"></i></div>
                     </div>
                     
-                    <div class="stat-card" style="border:1px solid var(--primary); border-radius:var(--radius-md); padding:1rem; background:rgba(67,97,238,0.03);">
-                        <span style="font-size:0.75rem; color:var(--primary); display:block; margin-bottom:0.3rem; font-weight:600;">Efectivo Teórico Esperado</span>
-                        <strong style="font-size:1.5rem; color:var(--primary); font-weight:700;">$ ${expectedCash.toFixed(2)}</strong>
-                        <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-top:0.4rem; font-weight:600;">Saldo en caja esperado</span>
+                    <div class="glass-card stat-card" style="padding:1.25rem; border: 1px solid var(--primary); background: rgba(67, 97, 238, 0.05);">
+                        <div class="stat-info">
+                            <span class="stat-label" style="color: var(--primary);">Efectivo Teórico Esperado</span>
+                            <span class="stat-value" style="color: var(--primary); font-weight: 800;">$ ${expectedCash.toFixed(2)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Saldo físico en caja esperado</span>
+                        </div>
+                        <div class="stat-icon" style="color: var(--primary); background-color: rgba(67, 97, 238, 0.2);"><i class="fa-solid fa-calculator"></i></div>
                     </div>
                 </div>
                 
