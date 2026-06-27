@@ -14568,6 +14568,7 @@ function printClientStatementPDF(db, ws, clientId) {
     const limit = parseFloat(client['Monto Credito'] || client.Monto_Credito || 0);
     const balance = getClientPendingBalance(clientId, db);
     const termDays = parseInt(client['Plazo Credito Días'] || 30);
+    const availableCredit = Math.max(0, limit - balance);
     const isExceeded = balance > limit;
 
     // Invoices/Charges (Condition = CREDIT)
@@ -14578,7 +14579,9 @@ function printClientStatementPDF(db, ws, clientId) {
         ref: p['ID Presupuesto'],
         tipo: 'Facturación Crédito',
         cargo: getBudgetGrandTotal(p, db),
-        abono: 0
+        abono: 0,
+        dte: p.mhControlNumber || p.controlNumber || '',
+        isAnulado: p.Estado == 4 || p.Anulado === true
     }));
 
     // Payments/Abonos
@@ -14587,9 +14590,11 @@ function printClientStatementPDF(db, ws, clientId) {
         timestamp: ab['Fecha Abono'] || Date.now(),
         fecha: ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A',
         ref: ab.ID_Abono,
-        tipo: `Abono (${ab['Metodo Pago']})`,
+        tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
         cargo: 0,
-        abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0)
+        abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
+        dte: '',
+        isAnulado: false
     }));
 
     // Combine and sort chronologically
@@ -14598,20 +14603,42 @@ function printClientStatementPDF(db, ws, clientId) {
     // Calculate running balance rows
     let runningBalance = 0;
     const rowsHTML = ledger.map(t => {
-        runningBalance += t.cargo - t.abono;
+        const isTransAnulada = t.isAnulado;
+        if (!isTransAnulada) {
+            runningBalance += t.cargo - t.abono;
+        }
+
+        let cargoText = '-';
+        let abonoText = '-';
+        if (t.cargo > 0) {
+            cargoText = `$ ${t.cargo.toFixed(2)}`;
+            if (isTransAnulada) {
+                cargoText = `<span style="text-decoration: line-through; color:#aaa;">$ ${t.cargo.toFixed(2)}</span>`;
+            }
+        }
+        if (t.abono > 0) {
+            abonoText = `$ ${t.abono.toFixed(2)}`;
+        }
+
         return `
             <tr>
-                <td style="padding:8px; border-bottom:1px solid #ddd;">${t.fecha}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(t.ref)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd;">${escapeHtml(t.tipo)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; color:${t.cargo > 0 ? '#ef233c' : '#333'};">${t.cargo > 0 ? `$ ${t.cargo.toFixed(2)}` : '-'}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; color:${t.abono > 0 ? '#2ec4b6' : '#333'};">${t.abono > 0 ? `$ ${t.abono.toFixed(2)}` : '-'}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold;">$ ${runningBalance.toFixed(2)}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; text-align:center;">${t.fecha}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; font-weight:bold;">${escapeHtml(t.ref)}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd;">${escapeHtml(t.tipo)}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; font-family:monospace; font-size:11px;">${t.dte ? escapeHtml(t.dte) : '-'}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; color:${t.cargo > 0 && !isTransAnulada ? '#ef233c' : '#aaa'};">${cargoText}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; color:${t.abono > 0 ? '#10b981' : '#333'};">${abonoText}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; font-weight:bold;">$ ${runningBalance.toFixed(2)}</td>
+                <td style="padding:10px 8px; border:1px solid #ddd; text-align:center;">
+                    ${isTransAnulada 
+                        ? '<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ANULADO</span>' 
+                        : '<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ACTIVO</span>'}
+                </td>
             </tr>
         `;
     }).join('');
     
-    const brandColor = ws.color_presupuesto || '#4361ee';
+    const brandColor = ws.color_presupuesto || '#84cc16';
     
     printWindow.document.write(`
         <html>
@@ -14621,13 +14648,8 @@ function printClientStatementPDF(db, ws, clientId) {
                 body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
-                .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor}; padding-bottom: 15px; margin-bottom: 20px; }
-                .title { font-size: 18px; font-weight: bold; color: ${brandColor}; text-transform: uppercase; margin-bottom:5px; }
-                .subtitle { font-size: 11px; color: #666; }
-                .client-card { border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-bottom: 25px; background: #fafafa; display: flex; justify-content: space-between; }
-                .client-info-group { line-height: 1.6; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                th { background: ${brandColor}; color: white; padding: 8px; text-align: left; font-weight: bold; }
+                th { background: ${brandColor}; color: white; padding: 10px 8px; text-align: left; font-weight: bold; }
                 .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                 .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                 .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -14636,45 +14658,81 @@ function printClientStatementPDF(db, ws, clientId) {
         </head>
         <body>
             <button class="btn-print" onclick="window.print()">Imprimir o Guardar PDF</button>
-            <div class="header">
-                <div>
-                    <div class="title">ESTADO DE CUENTA CORRIENTE</div>
-                    <div class="subtitle">${escapeHtml(ws.name || 'Mecanic-OS')} • ${escapeHtml(ws.address || 'El Salvador')}</div>
+            
+            <!-- Styled DTE Header -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px; font-size:11px; line-height:1.4;">
+                <div style="flex:1;">
+                    <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.name || 'Grupo Gema')}</div>
+                    <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.name || 'Grupo Gema')}</div>
+                    <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad || '45201')}</div>
+                    <div><strong>NIT:</strong> ${escapeHtml(ws.nit || '1013-291098-101-5')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '291098-5')}</div>
+                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.email || 'ventas@forbiddensoluciones.com')}</div>
+                    <div><strong>Teléfono:</strong> ${escapeHtml(ws.phone || '78150614')}</div>
                 </div>
-                <div class="text-right">
-                    <div style="font-weight:bold; font-size:14px;">CLIENTE DE CRÉDITO</div>
-                    <div class="subtitle">Fecha Consulta: ${new Date().toLocaleDateString('es-SV')}</div>
+                <div style="width:250px; padding-left:15px; margin-left:15px; border-left:1px solid #ddd;">
+                    <div><strong>Dirección:</strong> ${escapeHtml(ws.address || '39 Avenida Norte #33')}</div>
+                    <div><strong>Casa Matriz/Sucursal:</strong> ${escapeHtml(ws.sucursal || 'M001')}</div>
+                    <div><strong>Punto de Venta:</strong> ${escapeHtml(ws.pos || 'P001')}</div>
+                </div>
+                <div style="width:120px; text-align:right; font-size:28px; font-weight:900; letter-spacing:1px; color:#111; font-family:'Outfit',sans-serif; border-right:3px solid #ddd; padding-right:15px; margin-left:15px;">
+                    ${escapeHtml(ws.logo_text || 'GEMA')}
                 </div>
             </div>
-            
-            <div class="client-card">
-                <div class="client-info-group">
-                    <div>Cliente: <strong>${escapeHtml(client.Nombre)}</strong></div>
-                    <div>Código: <strong>${escapeHtml(client.Codigo_Cliente)}</strong></div>
-                    <div>Teléfono: ${escapeHtml(client['Telefono 1 '] || 'N/A')}</div>
-                    <div>Dirección: ${escapeHtml(client.Direccion || 'N/A')}</div>
-                </div>
-                <div class="client-info-group" style="text-align:right;">
-                    <div>Límite Autorizado: <strong>$ ${limit.toFixed(2)}</strong></div>
-                    <div>Plazo de Pago: <strong>${termDays} días</strong></div>
-                    <div>Saldo Pendiente Actual: <strong style="color:${balance > 0 ? '#ef233c' : '#2ec4b6'};">$ ${balance.toFixed(2)}</strong></div>
-                    <div>Estado: <strong style="color:${isExceeded ? '#ef233c' : '#2ec4b6'};">${isExceeded ? 'LÍMITE EXCEDIDO' : 'CUENTA AL DÍA'}</strong></div>
-                </div>
+
+            <!-- Title Banner -->
+            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase;">
+                DOCUMENTO TRIBUTARIO ELECTRÓNICO - ESTADO DE CUENTA DE CLIENTE
+            </div>
+
+            <!-- Client & Credit details box -->
+            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase;">
+                receptor / cliente y detalles de crédito
             </div>
             
-            <table>
+            <div style="border: 1px solid ${brandColor}; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
+                <div style="flex:1; padding-right:20px;">
+                    <div style="color:${brandColor}; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Datos del Cliente</div>
+                    <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(client.Nombre)}</div>
+                    <div><strong>Tipo de Documento:</strong> DUI</div>
+                    <div><strong>N° Documento:</strong> ${escapeHtml(client.NIT || client.DUI || 'N/A')}</div>
+                    <div><strong>Dirección:</strong> ${escapeHtml(client.Direccion || 'N/A')}</div>
+                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(client.Email || 'N/A')}</div>
+                    <div><strong>Teléfono:</strong> ${escapeHtml(client['Telefono 1 '] || 'N/A')}</div>
+                </div>
+                <div style="width:250px; border-left:1px solid #eee; padding-left:20px;">
+                    <div style="color:${brandColor}; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Detalles del Crédito</div>
+                    <div><strong>Límite Autorizado:</strong> $ ${limit.toFixed(2)}</div>
+                    <div><strong>Plazo de Pago:</strong> ${termDays} días</div>
+                    <div><strong>Saldo Pendiente Actual:</strong> <strong style="color:${balance > 0 ? '#ef233c' : '#10b981'};">$ ${balance.toFixed(2)}</strong></div>
+                    <div><strong>Crédito Disponible:</strong> <strong style="color:#10b981;">$ ${availableCredit.toFixed(2)}</strong></div>
+                    <div><strong>Estado:</strong> 
+                        ${isExceeded 
+                            ? '<span style="color:#ef233c; font-weight:bold;">LÍMITE EXCEDIDO</span>' 
+                            : '<span style="color:#10b981; font-weight:bold;">CUENTA AL DÍA</span>'}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Ledger Section -->
+            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase;">
+                cuerpo del documento / historial de transacciones
+            </div>
+            
+            <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:11px;">
                 <thead>
-                    <tr>
-                        <th style="padding:8px;">Fecha</th>
-                        <th style="padding:8px;">Referencia / N° Doc</th>
-                        <th style="padding:8px;">Tipo Transacción</th>
-                        <th style="padding:8px; text-align:right;">Cargo (+)</th>
-                        <th style="padding:8px; text-align:right;">Abono (-)</th>
-                        <th style="padding:8px; text-align:right;">Saldo Acumulado</th>
+                    <tr style="background:${brandColor}; color:white;">
+                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor};">Fecha</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">Documento / Ref</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">Tipo Transacción</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">N° DTE / Control</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Cargo (+)</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Abono (-)</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Saldo Acumulado</th>
+                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor};">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${rowsHTML || '<tr><td colspan="6" style="text-align:center; padding:15px; color:#666;">No se registran cargos ni abonos para este cliente</td></tr>'}
+                    ${rowsHTML || '<tr><td colspan="8" style="text-align:center; padding:20px; color:#666; border:1px solid #ddd;">No se registran cargos ni abonos para este cliente</td></tr>'}
                 </tbody>
             </table>
             
