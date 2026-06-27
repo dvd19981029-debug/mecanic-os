@@ -7952,15 +7952,21 @@ function renderCuentasCobrar(container) {
                     </select>
                 </div>
                 
-                <button class="btn btn-primary" id="btn-generate-report" style="width: 100%; padding: 0.75rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i class="fa-solid fa-file-pdf"></i> Generar y Guardar PDF
-                </button>
+                <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                    <button class="btn btn-primary" id="btn-generate-report" style="flex:1; padding: 0.75rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-file-pdf"></i> Generar PDF
+                    </button>
+                    <button class="btn btn-secondary" id="btn-generate-excel" style="flex:1; padding: 0.75rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-color:#2ecc71; color:#2ecc71;">
+                        <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                    </button>
+                </div>
             </div>
         `;
         
         const repTipo = document.getElementById('rep-tipo');
         const clientGroup = document.getElementById('rep-client-selector-group');
         const genBtn = document.getElementById('btn-generate-report');
+        const excelBtn = document.getElementById('btn-generate-excel');
         
         repTipo.addEventListener('change', () => {
             if (repTipo.value === 'cliente') {
@@ -7985,6 +7991,91 @@ function renderCuentasCobrar(container) {
                     return;
                 }
                 printClientStatementPDF(db, ws, clientId);
+            }
+        });
+
+        excelBtn.addEventListener('click', () => {
+            const tipo = repTipo.value;
+            
+            if (tipo === 'general') {
+                const creditClients = db.clientes.filter(c => c['Credito?'] === 'SI' || getClientPendingBalance(c.Codigo_Cliente, db) > 0);
+                const excelData = creditClients.map(c => {
+                    const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+                    const limit = parseFloat(c['Monto Credito'] || c.Monto_Credito || 0);
+                    const isExceeded = balance > limit;
+                    return {
+                        "Código Cliente": c.Codigo_Cliente,
+                        "Nombre Cliente": c.Nombre,
+                        "Límite de Crédito ($)": limit,
+                        "Saldo Pendiente ($)": balance,
+                        "Estado": isExceeded ? "EXCEDIDO" : "AL DÍA"
+                    };
+                });
+                downloadExcelReport(`Reporte_General_Cartera_${Date.now()}.xlsx`, excelData);
+            } else if (tipo === 'mora') {
+                const creditClients = db.clientes.filter(c => {
+                    const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+                    const limit = parseFloat(c['Monto Credito'] || c.Monto_Credito || 0);
+                    return balance > limit;
+                });
+                const excelData = creditClients.map(c => {
+                    const balance = getClientPendingBalance(c.Codigo_Cliente, db);
+                    const limit = parseFloat(c['Monto Credito'] || c.Monto_Credito || 0);
+                    const exceededAmount = balance - limit;
+                    return {
+                        "Código Cliente": c.Codigo_Cliente,
+                        "Nombre Cliente": c.Nombre,
+                        "Límite de Crédito ($)": limit,
+                        "Saldo Pendiente ($)": balance,
+                        "Monto Excedido ($)": exceededAmount
+                    };
+                });
+                downloadExcelReport(`Reporte_Cartera_Excedida_${Date.now()}.xlsx`, excelData);
+            } else if (tipo === 'cliente') {
+                const clientId = document.getElementById('rep-client-id').value;
+                if (!clientId) {
+                    showToast("Por favor seleccione un cliente.", "danger");
+                    return;
+                }
+                const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+                if (!client) return;
+
+                const creditBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientId && p.Condicion === 'CREDITO');
+                const charges = creditBudgets.map(p => ({
+                    timestamp: p.Fecha ? new Date(p.Fecha).getTime() : Date.now(),
+                    fecha: p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A',
+                    ref: p['ID Presupuesto'],
+                    tipo: 'Facturación Crédito',
+                    cargo: getBudgetGrandTotal(p, db),
+                    abono: 0
+                }));
+
+                const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
+                const payments = abonos.map(ab => ({
+                    timestamp: ab['Fecha Abono'] || Date.now(),
+                    fecha: ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A',
+                    ref: ab.ID_Abono,
+                    tipo: `Abono (${ab['Metodo Pago']})`,
+                    cargo: 0,
+                    abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0)
+                }));
+
+                const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
+
+                let runningBalance = 0;
+                const excelData = ledger.map(t => {
+                    runningBalance += t.cargo - t.abono;
+                    return {
+                        "Fecha": t.fecha,
+                        "Referencia / N° Doc": t.ref,
+                        "Tipo Transacción": t.tipo,
+                        "Cargo ($)": t.cargo || 0,
+                        "Abono ($)": t.abono || 0,
+                        "Saldo Acumulado ($)": runningBalance
+                    };
+                });
+                const cleanName = client.Nombre.replace(/[^a-zA-Z0-9]/g, '_');
+                downloadExcelReport(`Estado_Cuenta_${cleanName}_${Date.now()}.xlsx`, excelData);
             }
         });
     }
