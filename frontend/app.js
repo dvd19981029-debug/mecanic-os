@@ -14717,15 +14717,36 @@ function printClientStatementPDF(db, ws, clientId) {
             <title>Estado de Cuenta - ${escapeHtml(client.Nombre)}</title>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
             <style>
-                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
+                body {
+                    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    color:#333;
+                    padding:30px;
+                    font-size:12px;
+                    line-height:1.4;
+                    background-color:#fff;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                th { background: ${brandColor}; color: white; padding: 10px 8px; text-align: left; font-weight: bold; }
+                th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
                 .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                 .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                 .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
-                @media print { .btn-print { display:none; } body { padding:0; } }
+                
+                @media print {
+                    .btn-print { display:none !important; }
+                    body {
+                        padding:0;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: portrait;
+                        margin: 1.2cm;
+                    }
+                }
             </style>
         </head>
         <body>
@@ -14754,18 +14775,18 @@ function printClientStatementPDF(db, ws, clientId) {
             </div>
 
             <!-- Title Banner -->
-            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase;">
+            <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                 DOCUMENTO TRIBUTARIO ELECTRÓNICO - ESTADO DE CUENTA DE CLIENTE
             </div>
 
             <!-- Client & Credit details box -->
-            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase;">
+            <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                 receptor / cliente y detalles de crédito
             </div>
             
-            <div style="border: 1px solid ${brandColor}; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
+            <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
                 <div style="flex:1; padding-right:20px;">
-                    <div style="color:${brandColor}; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Datos del Cliente</div>
+                    <div style="color:${brandColor} !important; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Datos del Cliente</div>
                     <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(client.Nombre)}</div>
                     <div><strong>Tipo de Documento:</strong> ${escapeHtml(client['Tipo Doc'] || client.Tipo_Documento || 'DUI')}</div>
                     <div><strong>N° Documento:</strong> ${escapeHtml(client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A')}</div>
@@ -14774,7 +14795,7 @@ function printClientStatementPDF(db, ws, clientId) {
                     <div><strong>Teléfono:</strong> ${escapeHtml(client['Telefono 1 '] || 'N/A')}</div>
                 </div>
                 <div style="width:250px; border-left:1px solid #eee; padding-left:20px;">
-                    <div style="color:${brandColor}; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Detalles del Crédito</div>
+                    <div style="color:${brandColor} !important; font-weight:bold; margin-bottom:5px; font-size:12px; border-bottom:1px solid #eee; padding-bottom:3px;">Detalles del Crédito</div>
                     <div><strong>Límite Autorizado:</strong> $ ${limit.toFixed(2)}</div>
                     <div><strong>Plazo de Pago:</strong> ${termDays} días</div>
                     <div><strong>Saldo Pendiente Actual:</strong> <strong style="color:${balance > 0 ? '#ef233c' : '#10b981'};">$ ${balance.toFixed(2)}</strong></div>
@@ -14788,21 +14809,21 @@ function printClientStatementPDF(db, ws, clientId) {
             </div>
 
             <!-- Transaction Ledger Section -->
-            <div style="background:${brandColor}; color:#fff; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase;">
+            <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:11px; letter-spacing:0.5px; margin-bottom:10px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                 cuerpo del documento / historial de transacciones
             </div>
             
             <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:11px;">
                 <thead>
-                    <tr style="background:${brandColor}; color:white;">
-                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor};">Fecha</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">Documento / Ref</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">Tipo Transacción</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor};">N° DTE / Control</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Cargo (+)</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Abono (-)</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor};">Saldo Acumulado</th>
-                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor};">Estado</th>
+                    <tr style="background:${brandColor} !important; color:white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor} !important;">Fecha</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">Documento / Ref</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">Tipo Transacción</th>
+                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">N° DTE / Control</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Cargo (+)</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Abono (-)</th>
+                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Saldo Acumulado</th>
+                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor} !important;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
