@@ -483,20 +483,24 @@ function getBudgetGrandTotal(budget, db) {
     const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
     const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
     const subtotal = sumProd + sumLab;
+    
+    const discount = parseFloat(budget.Descuento || 0);
+    const subtotalConDescuento = Math.max(0, subtotal - discount);
+    
     const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotal * taxRate;
+    const iva = subtotalConDescuento * taxRate;
 
     let retVal = 0;
     let percVal = 0;
     const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
     if (client.AplicaRetencion > 0) {
-        retVal = subtotal * parseFloat(client.AplicaRetencion);
+        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotal * parseFloat(client.AplicaPercepcion);
+        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
     }
 
-    return subtotal + iva + percVal - retVal;
+    return subtotalConDescuento + iva + percVal - retVal;
 }
 
 // Helper: Calculate client unpaid credit balance
