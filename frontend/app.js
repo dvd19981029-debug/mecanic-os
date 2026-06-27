@@ -16270,6 +16270,25 @@ async function renderAdminSolicitudes(container) {
         return;
     }
     const db = getDatabase();
+    
+    // Load and sync central SaaS config from /saas_metrics/config
+    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+        try {
+            const configDoc = await dbFirestore.collection("saas_metrics").doc("config").get();
+            if (configDoc.exists) {
+                const saasConfigGlobal = configDoc.data();
+                db.saas_config = saasConfigGlobal;
+                localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+            } else if (db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientId) {
+                // Migrate local config of logged-in user to central cloud doc
+                await dbFirestore.collection("saas_metrics").doc("config").set(db.saas_config);
+                console.log("Migrated local SaaS config to central cloud config.");
+            }
+        } catch (e) {
+            console.error("Error syncing central SaaS config:", e);
+        }
+    }
+
     const plans = await dataService.saas.getPlans();
     const coupons = await dataService.saas.getCoupons();
     const solicitudes = db.solicitudes_registro || [];
@@ -18009,7 +18028,16 @@ if (window.saasViewReceiptPaymentId) {
                         apiKey: '' // Centralized in server environment variables
                     }
                 };
-                saveDatabase(currentDb).then(() => {
+                saveDatabase(currentDb).then(async () => {
+                    // Save to central cloud document /saas_metrics/config
+                    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                        try {
+                            await dbFirestore.collection("saas_metrics").doc("config").set(currentDb.saas_config);
+                            console.log("Central SaaS config successfully saved to cloud.");
+                        } catch (err) {
+                            console.error("Error saving global SaaS config to Firestore:", err);
+                        }
+                    }
                     showToast("Configuración global del SaaS guardada y sincronizada.", "success");
                     renderAdminSolicitudes(container);
                 }).catch(err => {
