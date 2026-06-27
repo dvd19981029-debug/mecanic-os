@@ -5904,19 +5904,56 @@ function openInvalidateDteModal(dteId, presId) {
         const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
         function processLocalInvalidation() {
-            const p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
+            let p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
+            let isQuickSale = false;
+            if (!p) {
+                p = (db['43 Venta Rapida'] || []).find(vr => vr.controlNumber === dteId || vr.ID_Venta_Rapida === presId);
+                isQuickSale = true;
+            }
+            
             if (p) {
-                p.Estado = 4; // Anulado
-                p.Anulado = true;
-                p.Fecha_Anulacion = Date.now();
+                if (isQuickSale) {
+                    p.Estado = "ANULADO";
+                    p.Anulado = true;
+                    p.Fecha_Anulacion = Date.now();
+                } else {
+                    p.Estado = 4; // Anulado
+                    p.Anulado = true;
+                    p.Fecha_Anulacion = Date.now();
+                }
+                
+                // Restore stock and record devolution movement in Kardex
+                const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+                prodItems.forEach(item => {
+                    const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
+                    const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1));
+                    
+                    const dbProd = db.productos.find(prod => prod['ID_ Producto'] === prodId);
+                    if (dbProd) {
+                        dbProd.Minimos = (dbProd.Minimos || 0) + qty;
+                        
+                        db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                        db['29 Movs de Inventario'].unshift({
+                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                            id_producto: prodId,
+                            descripcion: dbProd.Descripcion,
+                            Cant_Mov: qty,
+                            "Fecha Mov": Date.now(),
+                            Tipo: "ENTRADA",
+                            "Valor ($)": parseFloat(isQuickSale ? (item.price || dbProd['Precio Unit'] || 10) : (item.PrecioUnitario || dbProd['Precio Unit'] || 10)),
+                            Observacion: `Devolución por Anulación DTE ${p.ID_Venta_Rapida || p['ID Presupuesto']}`,
+                            DTE: p.mhControlNumber || p.controlNumber || ''
+                        });
+                    }
+                });
                 
                 if (db.pagos) {
-                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== p['ID Presupuesto']);
+                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== (p.ID_Venta_Rapida || p['ID Presupuesto']));
                 }
                 saveDatabase(db);
             }
             closeModal();
-            showToast("DTE Anulado con éxito. El presupuesto ahora se encuentra en estado ANULADO.", "success");
+            showToast("DTE Anulado con éxito. Los productos han sido devueltos al inventario y el pago cancelado.", "success");
             handleRouting();
         }
 
