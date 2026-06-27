@@ -14738,13 +14738,14 @@ function printClientStatementPDF(db, ws, clientId) {
                 @media print {
                     .btn-print { display:none !important; }
                     body {
-                        padding:0;
+                        padding: 1.5cm !important;
+                        margin: 0 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     @page {
                         size: portrait;
-                        margin: 1.2cm;
+                        margin: 0;
                     }
                 }
             </style>
