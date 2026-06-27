@@ -14699,12 +14699,25 @@ function printClientStatementPDF(db, ws, clientId) {
     
     const brandColor = ws.color_presupuesto || '#84cc16';
     
+    let logoHTML = '';
+    if (ws.logo) {
+        logoHTML = `<img src="${ws.logo}" style="max-height: 85px; max-width: 200px; object-fit: contain; border-radius: 4px;" />`;
+    } else {
+        logoHTML = `
+            <div style="border:1.2px solid #cbd5e1; padding: 6px; border-radius:6px; background:#f8fafc; font-family:'Outfit',sans-serif; text-align:center; font-weight:800; color:${brandColor}; width:100%;">
+                <div style="font-size:1.15rem;">${escapeHtml(ws.logoText || 'TALLER')}</div>
+                <div style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">${escapeHtml((ws.logoTagline || '').substring(0,35))}</div>
+            </div>
+        `;
+    }
+    
     printWindow.document.write(`
         <html>
         <head>
             <title>Estado de Cuenta - ${escapeHtml(client.Nombre)}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
             <style>
-                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
+                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
@@ -14720,21 +14733,23 @@ function printClientStatementPDF(db, ws, clientId) {
             
             <!-- Styled DTE Header -->
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px; font-size:11px; line-height:1.4;">
-                <div style="flex:1;">
-                    <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.name || 'Grupo Gema')}</div>
-                    <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.name || 'Grupo Gema')}</div>
-                    <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad || '45201')}</div>
-                    <div><strong>NIT:</strong> ${escapeHtml(ws.nit || '1013-291098-101-5')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '291098-5')}</div>
-                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.email || 'ventas@forbiddensoluciones.com')}</div>
-                    <div><strong>Teléfono:</strong> ${escapeHtml(ws.phone || '78150614')}</div>
+                <div style="flex:1.3;">
+                    <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.nombre_comercial || ws.nombre || 'Grupo Gema')}</div>
+                    <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.nombre || 'Grupo Gema')}</div>
+                    <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad_economica || ws.giro || 'Servicios Automotrices')}</div>
+                    <div><strong>NIT:</strong> ${escapeHtml(ws.num_documento || ws.nit || '')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '')}</div>
+                    <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.correo || 'N/A')}</div>
+                    <div><strong>Teléfono:</strong> ${escapeHtml(ws.telefono || 'N/A')}</div>
                 </div>
                 <div style="width:250px; padding-left:15px; margin-left:15px; border-left:1px solid #ddd;">
-                    <div><strong>Dirección:</strong> ${escapeHtml(ws.address || '39 Avenida Norte #33')}</div>
-                    <div><strong>Casa Matriz/Sucursal:</strong> ${escapeHtml(ws.sucursal || 'M001')}</div>
-                    <div><strong>Punto de Venta:</strong> ${escapeHtml(ws.pos || 'P001')}</div>
+                    <div><strong>Dirección:</strong> ${escapeHtml(ws.direccion || '')}</div>
+                    <div>MUNICIPIO DE ${escapeHtml((ws.municipio || '').toUpperCase())}</div>
+                    <div>DEPARTAMENTO DE ${escapeHtml((ws.departamento || '').toUpperCase())}</div>
+                    <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
+                    <div><strong>Punto de Venta:</strong> P001</div>
                 </div>
-                <div style="width:120px; text-align:right; font-size:28px; font-weight:900; letter-spacing:1px; color:#111; font-family:'Outfit',sans-serif; border-right:3px solid #ddd; padding-right:15px; margin-left:15px;">
-                    ${escapeHtml(ws.logo_text || 'GEMA')}
+                <div style="width:180px; text-align:right; margin-left:15px; border-right:3px solid #ddd; padding-right:15px;">
+                    ${logoHTML}
                 </div>
             </div>
 
