@@ -39,6 +39,16 @@ service cloud.firestore {
     }
     
     // ============================================================
+    // PLANES Y CUPONES (Catálogo comercial)
+    // ============================================================
+    match /saas_plans/{docId} {
+      allow read, write: if true;
+    }
+    match /saas_coupons/{docId} {
+      allow read, write: if true;
+    }
+    
+    // ============================================================
     // MÉTRICAS SAAS (Para el super admin)
     // ============================================================
     match /saas_metrics/{document=**} {
