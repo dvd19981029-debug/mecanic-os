@@ -233,7 +233,7 @@ function updateCloudStatusUI(active, state = "") {
         
         if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
             // Dueño autenticado
-            label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Conectado`;
+            label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> BD Online`;
             if (loggedOutView) loggedOutView.style.display = "none";
             if (loggedInView) loggedInView.style.display = "block";
             if (userEmailSpan && currentFirebaseUser) userEmailSpan.textContent = currentFirebaseUser.email;
@@ -248,10 +248,10 @@ function updateCloudStatusUI(active, state = "") {
         }
     } else if (state === "syncing") {
         dot.style.backgroundColor = "#f1c40f"; // Yellow
-        label.innerHTML = `<i class="fa-solid fa-sync fa-spin"></i> Sincronizando...`;
+        label.innerHTML = `<i class="fa-solid fa-sync fa-spin"></i> Sincronizando BD...`;
     } else if (state === "offline" || state === "logged-out") {
         dot.style.backgroundColor = "#7f8c8d"; // Grey
-        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Sin cuenta en nube`;
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> BD Local (Sin nube)`;
         
         const loggedOutView = document.getElementById('fb-logged-out-view');
         const loggedInView = document.getElementById('fb-logged-in-view');
@@ -259,7 +259,7 @@ function updateCloudStatusUI(active, state = "") {
         if (loggedInView) loggedInView.style.display = "none";
     } else {
         dot.style.backgroundColor = "#e74c3c"; // Red
-        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Error Conexión`;
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Error de BD`;
     }
 }
 
