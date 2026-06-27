@@ -293,11 +293,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .date-time {
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--text-secondary);
-    min-width: 165px;
+    min-width: 230px;
+    max-width: 230px;
     text-align: right;
+    font-family: monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .notifications-bell {
