@@ -8865,10 +8865,31 @@ function renderGastos(container) {
                                         try {
                                             dateStr = new Date(g['Fecha Gasto'] + 'T00:00:00').toLocaleDateString('es-SV');
                                         } catch(e) {}
+                                        
+                                        // Try to extract and display purchased items if this is a purchase
+                                        let purchaseItemsDetail = '';
+                                        if (g.Concepto && g.Concepto.includes('Factura ')) {
+                                            const match = g.Concepto.match(/Factura\s+([^\s\()]+)/);
+                                            if (match && match[1]) {
+                                                const invoiceNum = match[1];
+                                                const purchase = db.compras.find(c => c.Num_Factura === invoiceNum && c.ID_Proveedor === g.ID_Proveedor);
+                                                if (purchase && purchase.Items) {
+                                                    purchaseItemsDetail = purchase.Items.map(item => {
+                                                        const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+                                                        const prodDesc = prod ? prod.Descripcion : item.ID_Producto;
+                                                        return `• ${escapeHtml(prodDesc)} (${item.Cantidad})`;
+                                                    }).join('<br>');
+                                                }
+                                            }
+                                        }
+                                        
                                         return `
                                             <tr>
                                                 <td>${dateStr}</td>
-                                                <td>${escapeHtml(g.Concepto)}</td>
+                                                <td>
+                                                    <strong>${escapeHtml(g.Concepto)}</strong>
+                                                    ${purchaseItemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.3rem; border-top:1px dashed var(--border-color); padding-top:0.25rem; line-height:1.3; font-weight:normal; max-width:300px; word-break:break-word;">${purchaseItemsDetail}</div>` : ''}
+                                                </td>
                                                 <td style="font-weight:700;">$ ${parseFloat(g['Monto Total']).toFixed(2)}</td>
                                                 <td>${escapeHtml(provName)}</td>
                                                 <td><span class="badge-tag badge-success">${escapeHtml(g['Forma de Pago'] || 'EFECTIVO')}</span></td>
@@ -9313,11 +9334,19 @@ function renderGastos(container) {
                                             venceStr = `<span style="font-size:0.75rem; color:var(--text-secondary);"><br>Vence: N/A</span>`;
                                         }
                                     } catch(e) {}
+                                    const itemsDetail = (c.Items || []).map(item => {
+                                        const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+                                        const prodDesc = prod ? prod.Descripcion : item.ID_Producto;
+                                        return `• ${escapeHtml(prodDesc)} (${item.Cantidad})`;
+                                    }).join('<br>');
                                     return `
                                         <tr>
                                             <td>${dateStr}${venceStr}</td>
                                             <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
-                                            <td>${escapeHtml(c.Num_Factura)}</td>
+                                            <td>
+                                                <strong>${escapeHtml(c.Num_Factura)}</strong>
+                                                ${itemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; border-top:1px dashed var(--border-color); padding-top:0.3rem; line-height:1.4; font-weight:normal; max-width:280px; word-break:break-word;">${itemsDetail}</div>` : ''}
+                                            </td>
                                             <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total).toFixed(2)}</td>
                                             <td style="font-weight:700; color:#ef4444;">$ ${parseFloat(c.Saldo_Pendiente).toFixed(2)}</td>
                                             <td><span class="badge-tag badge-warning">CRÉDITO</span></td>
