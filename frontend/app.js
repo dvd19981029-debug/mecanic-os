@@ -14681,17 +14681,17 @@ function printClientStatementPDF(db, ws, clientId) {
 
         return `
             <tr>
-                <td style="padding:10px 8px; border:1px solid #ddd; text-align:center;">${t.fecha}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; font-weight:bold;">${escapeHtml(t.ref)}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd;">${escapeHtml(t.tipo)}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; font-family:monospace; font-size:11px;">${t.dte ? escapeHtml(t.dte) : '-'}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; color:${t.cargo > 0 && !isTransAnulada ? '#ef233c' : '#aaa'};">${cargoText}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; color:${t.abono > 0 ? '#10b981' : '#333'};">${abonoText}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; text-align:right; font-weight:bold;">$ ${runningBalance.toFixed(2)}</td>
-                <td style="padding:10px 8px; border:1px solid #ddd; text-align:center;">
+                <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; font-size:10px; white-space:nowrap;">${t.fecha}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; font-weight:bold; font-size:10px;">${escapeHtml(t.ref)}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; font-size:10px;">${escapeHtml(t.tipo)}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; font-family:monospace; font-size:9.5px; white-space:nowrap;">${t.dte ? escapeHtml(t.dte) : '-'}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; text-align:right; font-size:10px; white-space:nowrap; color:${t.cargo > 0 && !isTransAnulada ? '#ef233c' : '#aaa'};">${cargoText}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; text-align:right; font-size:10px; white-space:nowrap; color:${t.abono > 0 ? '#10b981' : '#333'};">${abonoText}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; text-align:right; font-size:10px; font-weight:bold; white-space:nowrap;">$ ${runningBalance.toFixed(2)}</td>
+                <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; font-size:10px;">
                     ${isTransAnulada 
-                        ? '<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ANULADO</span>' 
-                        : '<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ACTIVO</span>'}
+                        ? '<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold;">ANULADO</span>' 
+                        : '<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold;">ACTIVO</span>'}
                 </td>
             </tr>
         `;
@@ -14814,17 +14814,17 @@ function printClientStatementPDF(db, ws, clientId) {
                 cuerpo del documento / historial de transacciones
             </div>
             
-            <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:11px;">
+            <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:10px;">
                 <thead>
                     <tr style="background:${brandColor} !important; color:white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor} !important;">Fecha</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">Documento / Ref</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">Tipo Transacción</th>
-                        <th style="padding:10px 8px; text-align:left; border:1px solid ${brandColor} !important;">N° DTE / Control</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Cargo (+)</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Abono (-)</th>
-                        <th style="padding:10px 8px; text-align:right; border:1px solid ${brandColor} !important;">Saldo Acumulado</th>
-                        <th style="padding:10px 8px; text-align:center; border:1px solid ${brandColor} !important;">Estado</th>
+                        <th style="padding:8px 6px; text-align:center; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Fecha</th>
+                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Referencia</th>
+                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:12%; white-space:nowrap;">Tipo</th>
+                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:28%; white-space:nowrap;">DTE / Control</th>
+                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Cargo</th>
+                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Abono</th>
+                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Saldo</th>
+                        <th style="padding:8px 6px; text-align:center; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
