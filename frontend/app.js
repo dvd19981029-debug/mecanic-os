@@ -5947,13 +5947,26 @@ function openInvalidateDteModal(dteId, presId) {
                     }
                 });
                 
-                if (db.pagos) {
-                    db.pagos = db.pagos.filter(pay => pay.ID_Presupuesto !== (p.ID_Venta_Rapida || p['ID Presupuesto']));
-                }
+                // Traceability: instead of deleting payments, record negative payments for returns
+                db.pagos = db.pagos || [];
+                const activePayments = db.pagos.filter(pay => pay.ID_Presupuesto === (p.ID_Venta_Rapida || p['ID Presupuesto']) && pay['Estado Pago'] === 'COMPLETADO');
+                activePayments.forEach(pay => {
+                    const devPayId = "PAGO-DEV-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
+                    db.pagos.unshift({
+                        "ID Pago": devPayId,
+                        ID_Presupuesto: pay.ID_Presupuesto,
+                        "Fecha Pago": Date.now(),
+                        "Monto Pago": -Math.abs(parseFloat(pay['Monto Pago'] || 0)),
+                        "Metodo Pago": pay['Metodo Pago'],
+                        "Estado Pago": "DEVOLUCION",
+                        User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                        Cliente: pay.Cliente || p.Cliente || p.Nombre
+                    });
+                });
                 saveDatabase(db);
             }
             closeModal();
-            showToast("DTE Anulado con éxito. Los productos han sido devueltos al inventario y el pago cancelado.", "success");
+            showToast("DTE Anulado con éxito. Productos devueltos a inventario y contra-movimiento de caja registrado.", "success");
             handleRouting();
         }
 
