@@ -206,13 +206,26 @@ const dataService = {
         const oldCache = this.lastSyncedState || {};
         this.cache = db;
 
-        // Re-align aliased array references in memory
+        // Re-align aliased array references in memory, preferring legacy key data if modified by frontend
+        this.cache.detalle_productos = this.cache['21 Detalle Presupuesto Producto'] || this.cache.detalle_productos || [];
         this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+
+        this.cache.detalle_mano_obra = this.cache['11 Detalle Mano de Obra'] || this.cache.detalle_mano_obra || [];
         this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+
+        this.cache.abonos_credito = this.cache['30 Abonos Creditos'] || this.cache.abonos_credito || [];
         this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+
+        this.cache.movs_inventario = this.cache['29 Movs de Inventario'] || this.cache.movs_inventario || [];
         this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+
+        this.cache.venta_rapida = this.cache['43 Venta Rapida'] || this.cache.venta_rapida || [];
         this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+
+        this.cache.gastos = this.cache['46 Gastos'] || this.cache.gastos || [];
         this.cache['46 Gastos'] = this.cache.gastos;
+
+        this.cache.pagos_vr = this.cache['45 Pagos VR'] || this.cache.pagos_vr || [];
         this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
         // Perform I/O write operations asynchronously using setTimeout
@@ -327,13 +340,13 @@ const dataService = {
                 collectionConfigs.forEach(config => {
                     this.cache[config.name] = [];
                 });
-                this.cache['21 Detalle Presupuesto Producto'] = [];
-                this.cache['11 Detalle Mano de Obra'] = [];
-                this.cache['30 Abonos Creditos'] = [];
-                this.cache['29 Movs de Inventario'] = [];
-                this.cache['43 Venta Rapida'] = [];
-                this.cache['46 Gastos'] = [];
-                this.cache['45 Pagos VR'] = [];
+                this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+                this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+                this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+                this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+                this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+                this.cache['46 Gastos'] = this.cache.gastos;
+                this.cache['45 Pagos VR'] = this.cache.pagos_vr;
             }
             this.lastSyncedState = null;
         }
@@ -494,13 +507,13 @@ const dataService = {
             collectionConfigs.forEach(config => {
                 this.cache[config.name] = [];
             });
-            this.cache['21 Detalle Presupuesto Producto'] = [];
-            this.cache['11 Detalle Mano de Obra'] = [];
-            this.cache['30 Abonos Creditos'] = [];
-            this.cache['29 Movs de Inventario'] = [];
-            this.cache['43 Venta Rapida'] = [];
-            this.cache['46 Gastos'] = [];
-            this.cache['45 Pagos VR'] = [];
+            this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
+            this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
+            this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
+            this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
+            this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
+            this.cache['46 Gastos'] = this.cache.gastos;
+            this.cache['45 Pagos VR'] = this.cache.pagos_vr;
             this.cache.config_taller = null;
             this.cache.saas_state = {
                 status: 'guest',

@@ -35,7 +35,7 @@ service cloud.firestore {
       allow get, update: if true;
       
       // Solo el correo del administrador de la plataforma puede listar o borrar solicitudes
-      allow list, delete: if request.auth != null && request.auth.token.email == "dvd19981029@gmail.com";
+      allow list, delete: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     
     // ============================================================
@@ -43,7 +43,7 @@ service cloud.firestore {
     // ============================================================
     match /saas_metrics/{document=**} {
       // Solo el correo del administrador de la plataforma puede ver o modificar métricas globales
-      allow read, write: if request.auth != null && request.auth.token.email == "dvd19981029@gmail.com";
+      allow read, write: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     
   }

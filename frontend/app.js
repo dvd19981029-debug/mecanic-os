@@ -5328,7 +5328,11 @@ async function viewDtePdf(dteId) {
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         const pdfWin = window.open(blobUrl, '_blank');
-        if (pdfWin) pdfWin.opener = null;
+        if (pdfWin) {
+            pdfWin.opener = null;
+        } else {
+            showToast("Error: El navegador bloqueó la ventana emergente del PDF. Por favor permita las ventanas emergentes.", "danger");
+        }
     } catch (err) {
         console.error(err);
         showToast("Error al obtener el PDF del DTE: " + err.message, "danger");
@@ -5349,7 +5353,7 @@ function printDteTicket(presId) {
             isQuickSale = true;
         }
 
-        const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+        const client = db.clientes.find(c => c.Codigo_Cliente === (p.Codigo_Cliente || p.Cliente)) || { Nombre: p.Nombre };
         const wsConfig = getWorkshopConfig(db);
 
         const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
@@ -5626,6 +5630,20 @@ function printDteTicket(presId) {
                 <td class="label">NIT/DUI:</td>
                 <td>${client.NIT || client['Num Doc'] || 'N/A'}</td>
             </tr>
+            ${isCCF ? `
+            <tr>
+                <td class="label">NRC:</td>
+                <td>${client.NRC || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="label">Giro:</td>
+                <td>${client.Giro || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="label">Dirección:</td>
+                <td>${client.Direccion || 'N/A'}</td>
+            </tr>
+            ` : ''}
             <tr>
                 <td class="label">Placa Auto:</td>
                 <td>${p.Placas || 'N/A'}</td>
@@ -5635,10 +5653,10 @@ function printDteTicket(presId) {
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="text-align: left; width: 45%;">DESCRIPCIÓN</th>
-                    <th style="text-align: center; width: 10%;">CANT</th>
-                    <th style="text-align: right; width: 20%;">P.UNIT</th>
-                    <th style="text-align: right; width: 25%;">TOTAL</th>
+                    <th style="text-align: center; vertical-align: middle; white-space: nowrap; width: 45%;">DESCRIPCIÓN</th>
+                    <th style="text-align: center; vertical-align: middle; white-space: nowrap; width: 10%;">CANT</th>
+                    <th style="text-align: center; vertical-align: middle; white-space: nowrap; width: 20%;">P.UNIT</th>
+                    <th style="text-align: center; vertical-align: middle; white-space: nowrap; width: 25%;">TOTAL</th>
                 </tr>
             </thead>
             <tbody>
@@ -6844,13 +6862,15 @@ function renderVentaRapida(container) {
             rowsContainer.appendChild(tr);
         });
         
-        document.querySelectorAll('.btn-print-pos-ticket').forEach(btn => {
-            btn.addEventListener('click', () => {
+        rowsContainer.querySelectorAll('.btn-print-pos-ticket').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 printDteTicket(btn.getAttribute('data-id'));
             });
         });
-        document.querySelectorAll('.btn-view-pos-pdf').forEach(btn => {
-            btn.addEventListener('click', () => {
+        rowsContainer.querySelectorAll('.btn-view-pos-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 viewDtePdf(btn.getAttribute('data-id'));
             });
         });
@@ -7848,6 +7868,8 @@ function renderCaja(container) {
                         padding: 20px;
                         width: 300px;
                         margin: 0 auto;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
@@ -7860,6 +7882,19 @@ function renderCaja(container) {
                     .footer { margin-top: 30px; font-size: 10px; }
                     .sign-box { margin-top: 50px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 120px; text-align: center; padding-top: 5px; font-size: 10px; }
+                    
+                    @media print {
+                        body {
+                            padding: 10px !important;
+                            margin: 0 !important;
+                            width: 100% !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page {
+                            margin: 0;
+                        }
+                    }
                 </style>
             </head>
             <body>
@@ -12594,9 +12629,27 @@ function renderPlanilla(container, queryParams) {
                         <head>
                             <title>Boleta de Pago - ${emp.Nombre_Completo}</title>
                             <style>
-                                body { font-family: monospace; padding: 20px; background: white; color: black; }
+                                body {
+                                    font-family: monospace;
+                                    padding: 20px;
+                                    background: white;
+                                    color: black;
+                                    -webkit-print-color-adjust: exact !important;
+                                    print-color-adjust: exact !important;
+                                }
                                 table { width: 100%; border-collapse: collapse; }
                                 th, td { padding: 4px; }
+                                @media print {
+                                    body {
+                                        padding: 1cm !important;
+                                        margin: 0 !important;
+                                        -webkit-print-color-adjust: exact !important;
+                                        print-color-adjust: exact !important;
+                                    }
+                                    @page {
+                                        margin: 0;
+                                    }
+                                }
                             </style>
                         </head>
                         <body>
@@ -12653,16 +12706,44 @@ function exportPlanillaConsolidada(year, month, periodType, payrollData) {
         <head>
             <title>Planilla Consolidada - ${periodStr} ${monthStr} ${year}</title>
             <style>
-                body { font-family: 'Inter', sans-serif; font-size: 11px; color: black; background: white; padding: 25px; }
+                body {
+                    font-family: 'Inter', sans-serif;
+                    font-size: 11px;
+                    color: black;
+                    background: white;
+                    padding: 25px;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
                 .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
                 h1 { margin: 0; font-size: 18px; font-weight: bold; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-                th { background-color: #f3f4f6; font-weight: bold; }
+                th, td { border: 1px solid #ccc; padding: 6px 8px; }
+                th {
+                    background-color: #f3f4f6 !important;
+                    font-weight: bold;
+                    text-align: center;
+                    vertical-align: middle;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
                 .text-right { text-align: right; }
-                .totals-row { font-weight: bold; background-color: #e5e7eb; }
+                .totals-row { font-weight: bold; background-color: #e5e7eb !important; }
                 .footer-signatures { display: flex; justify-content: space-between; margin-top: 50px; }
                 .signature-box { width: 30%; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 10px; }
+                
+                @media print {
+                    body {
+                        padding: 1.5cm !important;
+                        margin: 0 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: landscape;
+                        margin: 0;
+                    }
+                }
             </style>
         </head>
         <body>
@@ -12675,15 +12756,15 @@ function exportPlanillaConsolidada(year, month, periodType, payrollData) {
             <table>
                 <thead>
                     <tr>
-                        <th>Empleado</th>
-                        <th>Base Período</th>
-                        <th>Ingresos Extras</th>
-                        <th class="text-right">ISSS Ret.</th>
-                        <th class="text-right">AFP Ret.</th>
-                        <th class="text-right">ISR Renta</th>
-                        <th class="text-right">Otros Descs.</th>
-                        <th class="text-right">Líquido a Pagar</th>
-                        <th class="text-right">Costo Patronal</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Empleado</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Base Período</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Ingresos Extras</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">ISSS Ret.</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">AFP Ret.</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">ISR Renta</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Otros Descs.</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Líquido a Pagar</th>
+                        <th style="text-align:center; vertical-align:middle; white-space:nowrap;">Costo Patronal</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -14414,11 +14495,11 @@ function printGeneralPortfolioPDF(db, ws) {
         
         return `
             <tr>
-                <td style="padding:8px; border-bottom:1px solid #ddd;">${escapeHtml(c.Codigo_Cliente)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${escapeHtml(c.Codigo_Cliente)}</td>
                 <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(c.Nombre)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${limit.toFixed(2)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; color:${balance > 0 ? '#ef233c' : '#333'};">$ ${balance.toFixed(2)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; white-space:nowrap;">$ ${limit.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; white-space:nowrap; color:${balance > 0 ? '#ef233c' : '#333'};">$ ${balance.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center; white-space:nowrap;">
                     <span style="padding:3px 8px; border-radius:4px; font-size:10px; font-weight:bold; background:${isExceeded ? '#ffccd5' : '#cbf3f0'}; color:${isExceeded ? '#c9184a' : '#0f9f90'};">
                         ${isExceeded ? 'EXCEDIDO' : 'AL DÍA'}
                     </span>
@@ -14434,22 +14515,44 @@ function printGeneralPortfolioPDF(db, ws) {
         <head>
             <title>Reporte General de Cartera - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
             <style>
-                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
+                body {
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    color:#333;
+                    padding:30px;
+                    font-size:12px;
+                    line-height:1.4;
+                    background-color:#fff;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
-                .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor}; padding-bottom: 15px; margin-bottom: 20px; }
-                .title { font-size: 18px; font-weight: bold; color: ${brandColor}; text-transform: uppercase; margin-bottom:5px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
+                .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
                 .subtitle { font-size: 11px; color: #666; }
                 .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
                 .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
                 .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
                 .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                th { background: ${brandColor}; color: white; padding: 8px; text-align: left; font-weight: bold; }
+                th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                 .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                 .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
-                @media print { .btn-print { display:none; } body { padding:0; } }
+                
+                @media print {
+                    .btn-print { display:none !important; }
+                    body {
+                        padding: 1.5cm !important;
+                        margin: 0 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: portrait;
+                        margin: 0;
+                    }
+                }
             </style>
         </head>
         <body>
@@ -14484,11 +14587,11 @@ function printGeneralPortfolioPDF(db, ws) {
             <table>
                 <thead>
                     <tr>
-                        <th style="padding:8px;">Código</th>
-                        <th style="padding:8px;">Nombre del Cliente</th>
-                        <th style="padding:8px; text-align:right;">Límite Crédito</th>
-                        <th style="padding:8px; text-align:right;">Saldo Pendiente</th>
-                        <th style="padding:8px; text-align:center;">Estado</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Código</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Nombre del Cliente</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Límite Crédito</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Saldo Pendiente</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -14530,11 +14633,11 @@ function printOverlimitPortfolioPDF(db, ws) {
         
         return `
             <tr>
-                <td style="padding:8px; border-bottom:1px solid #ddd;">${escapeHtml(c.Codigo_Cliente)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${escapeHtml(c.Codigo_Cliente)}</td>
                 <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(c.Nombre)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${limit.toFixed(2)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; color:#ef233c;">$ ${balance.toFixed(2)}</td>
-                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; color:#d90429;">$ ${exceededAmount.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; white-space:nowrap;">$ ${limit.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; white-space:nowrap; color:#ef233c;">$ ${balance.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; white-space:nowrap; color:#d90429;">$ ${exceededAmount.toFixed(2)}</td>
             </tr>
         `;
     }).join('');
@@ -14546,22 +14649,44 @@ function printOverlimitPortfolioPDF(db, ws) {
         <head>
             <title>Reporte de Cartera Excedida - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
             <style>
-                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color:#333; padding:30px; font-size:12px; line-height:1.4; }
+                body {
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    color:#333;
+                    padding:30px;
+                    font-size:12px;
+                    line-height:1.4;
+                    background-color:#fff;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
-                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #ef233c; padding-bottom: 15px; margin-bottom: 20px; }
-                .title { font-size: 18px; font-weight: bold; color: #ef233c; text-transform: uppercase; margin-bottom:5px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #ef233c !important; padding-bottom: 15px; margin-bottom: 20px; }
+                .title { font-size: 18px; font-weight: bold; color: #ef233c !important; text-transform: uppercase; margin-bottom:5px; }
                 .subtitle { font-size: 11px; color: #666; }
                 .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
                 .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
                 .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
                 .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                th { background: #ef233c; color: white; padding: 8px; text-align: left; font-weight: bold; }
+                th { background: #ef233c !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid #ef233c !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                 .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                 .btn-print { background: #ef233c; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
-                @media print { .btn-print { display:none; } body { padding:0; } }
+                
+                @media print {
+                    .btn-print { display:none !important; }
+                    body {
+                        padding: 1.5cm !important;
+                        margin: 0 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page {
+                        size: portrait;
+                        margin: 0;
+                    }
+                }
             </style>
         </head>
         <body>
@@ -14591,11 +14716,11 @@ function printOverlimitPortfolioPDF(db, ws) {
             <table>
                 <thead>
                     <tr>
-                        <th style="padding:8px;">Código</th>
-                        <th style="padding:8px;">Nombre del Cliente</th>
-                        <th style="padding:8px; text-align:right;">Límite Crédito</th>
-                        <th style="padding:8px; text-align:right;">Saldo Pendiente</th>
-                        <th style="padding:8px; text-align:right;">Monto Excedido</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Código</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Nombre del Cliente</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Límite Crédito</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Saldo Pendiente</th>
+                        <th style="padding:8px; text-align:center; vertical-align:middle; white-space:nowrap;">Monto Excedido</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -17564,10 +17689,29 @@ if (window.saasViewReceiptPaymentId) {
                     <head>
                         <title>Recibo Mecanic OS - ${payment.factura}</title>
                         <style>
-                            body { font-family: 'Inter', sans-serif; padding: 40px; color: #000; background: #fff; }
+                            body {
+                                font-family: 'Inter', sans-serif;
+                                padding: 40px;
+                                color: #000;
+                                background: #fff;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
                             th, td { border-bottom: 1px solid #ddd; padding: 8px 0; }
                             table { width: 100%; border-collapse: collapse; }
-                            h3 { color: #4f46e5; }
+                            h3 { color: #4f46e5 !important; }
+                            
+                            @media print {
+                                body {
+                                    padding: 1.5cm !important;
+                                    margin: 0 !important;
+                                    -webkit-print-color-adjust: exact !important;
+                                    print-color-adjust: exact !important;
+                                }
+                                @page {
+                                    margin: 0;
+                                }
+                            }
                         </style>
                     </head>
                     <body>
@@ -19463,8 +19607,17 @@ function renderSaaSAdminLogin(container) {
             
             <form id="saas-admin-login-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
                 <div class="form-group" style="text-align: left;">
+                    <label>Correo de Administrador</label>
+                    <input type="email" id="saas-admin-email" required placeholder="admin@mecanicos.com" value="amejia2998@gmail.com" style="padding: 0.75rem; font-size: 1rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                </div>
+                <div class="form-group" style="text-align: left;">
                     <label>Contraseña Maestra</label>
-                    <input type="password" id="saas-admin-pass" required placeholder="••••••••" style="padding: 0.75rem; font-size: 1rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="saas-admin-pass" required placeholder="••••••••" style="padding: 0.75rem; padding-right: 2.5rem; font-size: 1rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: #fff; border-radius: 6px;">
+                        <button type="button" id="toggle-saas-pass" style="position: absolute; right: 0.75rem; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; padding: 0;">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="padding: 0.8rem; font-size: 1rem; font-weight: 600; margin-top: 0.5rem;"><i class="fa-solid fa-right-to-bracket"></i> Ingresar a la Consola</button>
                 <a href="#landing" style="color: var(--text-secondary); font-size: 0.85rem; text-decoration: none; margin-top: 0.5rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Inicio</a>
@@ -19474,8 +19627,27 @@ function renderSaaSAdminLogin(container) {
 
     const form = document.getElementById('saas-admin-login-form');
     if (form) {
+        // Toggle password visibility
+        const togglePassBtn = document.getElementById('toggle-saas-pass');
+        if (togglePassBtn) {
+            togglePassBtn.addEventListener('click', () => {
+                const passInput = document.getElementById('saas-admin-pass');
+                const icon = togglePassBtn.querySelector('i');
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    passInput.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        }
+
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            const email = document.getElementById('saas-admin-email').value.trim();
             const pass = document.getElementById('saas-admin-pass').value;
             
             if (typeof firebase === 'undefined') {
@@ -19483,8 +19655,14 @@ function renderSaaSAdminLogin(container) {
                 return;
             }
             
+            const authorizedAdmins = ['dvd19981029@gmail.com', 'amejia2998@gmail.com'];
+            if (!authorizedAdmins.includes(email.toLowerCase())) {
+                showToast("Acceso denegado: Correo de administrador no autorizado", "danger");
+                return;
+            }
+            
             // Iniciar sesión con la cuenta de administrador oficial en Firebase Auth
-            firebase.auth().signInWithEmailAndPassword('dvd19981029@gmail.com', pass)
+            firebase.auth().signInWithEmailAndPassword(email, pass)
                 .then(() => {
                     sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
                     showToast("Acceso concedido como Super Administrador", "success");
@@ -19953,13 +20131,17 @@ window.exportInspectionPDF = function(revId) {
             margin-bottom: 25px;
         }
         th {
-            background: #0f172a;
-            color: #fff;
-            text-align: left;
+            background: #0f172a !important;
+            color: #fff !important;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap;
             padding: 10px;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
         .section-title {
             font-family: 'Outfit', sans-serif;
@@ -19994,19 +20176,21 @@ window.exportInspectionPDF = function(revId) {
         }
         @media print {
             body {
-                background-color: #fff;
-                color: #000;
-                padding: 0;
+                background-color: #fff !important;
+                color: #000 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             .no-print-toolbar {
                 display: none !important;
             }
             .page-container {
-                width: 100%;
-                margin: 0;
-                padding: 0;
-                box-shadow: none;
-                border-radius: 0;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
             }
             @page {
                 size: portrait;
@@ -20915,6 +21099,8 @@ function renderComisiones(container, queryParams) {
                         color: #111;
                         padding: 30px;
                         background: #fff;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
@@ -20940,6 +21126,15 @@ function renderComisiones(container, queryParams) {
                     }
                     @media print {
                         .no-print { display: none !important; }
+                        body {
+                            padding: 1.5cm !important;
+                            margin: 0 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page {
+                            margin: 0;
+                        }
                     }
                 </style>
             </head>
