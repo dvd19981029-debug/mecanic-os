@@ -1122,8 +1122,8 @@ function bindFirebaseEvents() {
 }
 
 function getWorkshopConfig(db) {
-    if (!db.config_taller) {
-        db.config_taller = {
+    if (!db || !db.config_taller) {
+        return {
             nombre: 'GRUPO GEMA, S.A. DE C.V.',
             alias: 'Grupo Gema',
             nombre_comercial: 'Grupo Gema Taller',
@@ -1148,10 +1148,11 @@ function getWorkshopConfig(db) {
             formato_presupuesto: 'moderno_facturallama'
         };
     }
-    if (!db.config_taller.formato_presupuesto) {
-        db.config_taller.formato_presupuesto = 'moderno_facturallama';
+    const cfg = Object.assign({}, db.config_taller);
+    if (!cfg.formato_presupuesto) {
+        cfg.formato_presupuesto = 'moderno_facturallama';
     }
-    return db.config_taller;
+    return cfg;
 }
 
 // Helper: Calculate total for any budget in db
@@ -5282,51 +5283,52 @@ async function viewDtePdf(dteId) {
 }
 
 function printDteTicket(presId) {
-    const db = getDatabase();
-    let p = db.presupuestos.find(pres => pres['ID Presupuesto'] === presId);
-    let isQuickSale = false;
-    if (!p) {
-        p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === presId);
+    try {
+        const db = getDatabase();
+        let p = db.presupuestos.find(pres => pres['ID Presupuesto'] === presId);
+        let isQuickSale = false;
         if (!p) {
-            showToast("Error: Venta o Presupuesto no encontrado.", "danger");
+            p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === presId);
+            if (!p) {
+                showToast("Error: Venta o Presupuesto no encontrado.", "danger");
+                return;
+            }
+            isQuickSale = true;
+        }
+
+        const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+        const wsConfig = getWorkshopConfig(db);
+
+        const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+        const laborItems = isQuickSale ? (p.mano_obra || []) : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
+
+        let subtotal = 0;
+        prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
+        laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
+        
+        const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
+        const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+        const iva = subtotal * taxRate;
+        
+        let retention = 0;
+        let perception = 0;
+        if (client.AplicaPercepcion > 0) {
+            perception = subtotal * parseFloat(client.AplicaPercepcion);
+        }
+        if (client.AplicaRetencion > 0) {
+            retention = subtotal * parseFloat(client.AplicaRetencion);
+        }
+        const grandTotal = subtotal + iva + perception - retention;
+
+        const genCode = p.controlNumber || 'N/A';
+        
+        const ticketWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!ticketWindow) {
+            showToast("Error: El navegador bloqueó la ventana emergente de impresión.", "danger");
             return;
         }
-        isQuickSale = true;
-    }
 
-    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
-    const wsConfig = getWorkshopConfig(db);
-
-    const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
-    const laborItems = isQuickSale ? (p.mano_obra || []) : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
-
-    let subtotal = 0;
-    prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
-    laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
-    
-    const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
-    const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-    const iva = subtotal * taxRate;
-    
-    let retention = 0;
-    let perception = 0;
-    if (client.AplicaPercepcion > 0) {
-        perception = subtotal * parseFloat(client.AplicaPercepcion);
-    }
-    if (client.AplicaRetencion > 0) {
-        retention = subtotal * parseFloat(client.AplicaRetencion);
-    }
-    const grandTotal = subtotal + iva + perception - retention;
-
-    const genCode = p.controlNumber || 'N/A';
-    
-    const ticketWindow = window.open('', '_blank', 'width=400,height=600');
-    if (!ticketWindow) {
-        showToast("Error: El navegador bloqueó la ventana emergente de impresión.", "danger");
-        return;
-    }
-
-    ticketWindow.document.write(`
+        ticketWindow.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -5652,9 +5654,13 @@ function printDteTicket(presId) {
     </script>
 </body>
 </html>
-    `);
-    ticketWindow.document.close();
-    ticketWindow.opener = null;
+        `);
+        ticketWindow.document.close();
+        ticketWindow.opener = null;
+    } catch (err) {
+        console.error("Error al imprimir ticket DTE:", err);
+        showToast("Error al generar ticket DTE: " + err.message, "danger");
+    }
 }
 
 function reemitBudget(presId) {
