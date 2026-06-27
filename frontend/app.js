@@ -14817,14 +14817,14 @@ function printClientStatementPDF(db, ws, clientId) {
             <table style="width:100%; border-collapse:collapse; margin-bottom:30px; font-size:10px;">
                 <thead>
                     <tr style="background:${brandColor} !important; color:white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                        <th style="padding:8px 6px; text-align:center; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Fecha</th>
-                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Referencia</th>
-                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:12%; white-space:nowrap;">Tipo</th>
-                        <th style="padding:8px 6px; text-align:left; border:1px solid ${brandColor} !important; font-size:10px; width:28%; white-space:nowrap;">DTE / Control</th>
-                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Cargo</th>
-                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Abono</th>
-                        <th style="padding:8px 6px; text-align:right; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Saldo</th>
-                        <th style="padding:8px 6px; text-align:center; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Estado</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Fecha</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Referencia</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:12%; white-space:nowrap;">Tipo</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:28%; white-space:nowrap;">DTE / Control</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Cargo</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:11%; white-space:nowrap;">Abono</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:14%; white-space:nowrap;">Saldo</th>
+                        <th style="padding:8px 6px; text-align:center; vertical-align:middle; border:1px solid ${brandColor} !important; font-size:10px; width:10%; white-space:nowrap;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
