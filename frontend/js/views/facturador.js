@@ -28,7 +28,8 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
+    downloadExcelReport,
+    safe
 } from '../utils.js?v=21';
 
 export function renderFacturador(container, queryParams) {
@@ -602,7 +603,7 @@ export function renderIssuedTab(container) {
             tr.innerHTML = html`
                 <td>
                     <strong style="font-family: monospace; font-size: 0.85rem;" title="Número de Control: ${ctrlNum}">${displayCtrl}</strong>
-                    ${uuidSub}
+                    ${safe(uuidSub)}
                 </td>
                 <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${p.Nombre}</td>
