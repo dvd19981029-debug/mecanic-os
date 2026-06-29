@@ -5,28 +5,33 @@
 import { renderTallerDashboard } from './views/dashboard.js';
 import { renderConfiguracion } from './views/configuracion.js';
 import { renderLanding } from './views/landing.js';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js';
+import { renderRevision21 } from './views/revision21.js';
+import { renderPresupuestos } from './views/presupuestos.js';
+import { renderKanban } from './views/kanban.js';
+import { renderFacturador } from './views/facturador.js';
+import { renderVentaRapida } from './views/venta_rapida.js';
+import { renderCaja } from './views/caja.js';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js';
+import { renderInventario } from './views/inventario.js';
+import { renderGastos } from './views/gastos.js';
+import { renderDashboardBI } from './views/dashboard_bi.js';
+import { renderPlanilla } from './views/planilla.js';
+import { renderComisiones } from './views/comisiones.js';
 import {
-    renderClientesVehiculos,
-    renderRevision21,
-    renderPresupuestos,
-    renderKanban,
-    renderFacturador,
-    renderVentaRapida,
-    renderCaja,
-    renderCuentasCobrar,
-    renderInventario,
-    renderGastos,
-    renderPlanilla,
-    renderComisiones,
-    renderDashboardBI,
     renderRegistroSaaS,
     renderTerminosSaaS,
     renderSuspendedSaaS,
-    renderLockScreen,
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
-    renderAdminSolicitudes,
-    renderSaaSAdminLogin,
+    renderAdminSolicitudes
+} from './views/saas.js';
+import {
+    renderLockScreen,
+    renderSaaSAdminLogin
+} from './views/auth.js';
+
+import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
