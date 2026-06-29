@@ -48,6 +48,7 @@ window.smartRefreshView = smartRefreshView;
 window.updateNotifications = updateNotifications;
 window.html = html;
 window.safe = safe;
+window.initSecureDteConfig = initSecureDteConfig;
 
 window.calculateElSalvadorPeriodPayroll = calculateElSalvadorPeriodPayroll;
 window.getBudgetGrandTotal = getBudgetGrandTotal;
@@ -77,43 +78,63 @@ function getSessionKey() {
     return sessionStorage.getItem('mecanic_os_session_key') || '';
 }
 
-function getSecureDteConfig() {
+let cachedDteConfig = null;
+
+async function initSecureDteConfig() {
     const key = getSessionKey();
     const raw = localStorage.getItem('mecanic_os_dte_config');
-    if (!raw) return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
-    
-    if (raw.trim().startsWith('{')) {
-        if (key) {
-            try {
-                setSecureDteConfig(JSON.parse(raw));
-            } catch (e) {}
-        }
-        try {
-            return JSON.parse(raw);
-        } catch(e) {
-            return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
-        }
+    if (!raw) {
+        cachedDteConfig = { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+        return;
     }
     
-    const decrypted = decryptString(raw, key);
-    try {
-        return JSON.parse(decrypted);
-    } catch (e) {
-        return {
-            apiKey: '',
-            ambiente: '00',
-            mhCode: '0001',
-            posNumber: '1',
-            backendUrl: ''
-        };
+    if (raw.trim().startsWith('{')) {
+        try {
+            cachedDteConfig = JSON.parse(raw);
+            if (key) {
+                // Migrate to AES-256 in background
+                await setSecureDteConfig(cachedDteConfig);
+            }
+        } catch (e) {
+            cachedDteConfig = { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+        }
+        return;
+    }
+    
+    if (key) {
+        try {
+            const decrypted = await decryptString(raw, key);
+            cachedDteConfig = JSON.parse(decrypted);
+        } catch (e) {
+            console.error("Error decrypting DTE config:", e);
+            cachedDteConfig = { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+        }
+    } else {
+        cachedDteConfig = { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
     }
 }
 
-function setSecureDteConfig(config) {
+function getSecureDteConfig() {
+    if (cachedDteConfig) {
+        return cachedDteConfig;
+    }
+    const raw = localStorage.getItem('mecanic_os_dte_config');
+    if (!raw) return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+    if (raw.trim().startsWith('{')) {
+        try {
+            cachedDteConfig = JSON.parse(raw);
+            return cachedDteConfig;
+        } catch (e) {}
+    }
+    return { apiKey: '', ambiente: '00', mhCode: '0001', posNumber: '1', backendUrl: '' };
+}
+
+async function setSecureDteConfig(config) {
+    cachedDteConfig = config;
     const key = getSessionKey();
     const jsonStr = JSON.stringify(config);
     if (key) {
-        const encrypted = encryptString(jsonStr, key);
+        const encrypted = await encryptString(jsonStr, key);
         localStorage.setItem('mecanic_os_dte_config', encrypted);
     } else {
         localStorage.setItem('mecanic_os_dte_config', jsonStr);
@@ -154,7 +175,7 @@ async function initDatabase() {
     }
 
     if (!localStorage.getItem('mecanic_os_dte_config')) {
-        setSecureDteConfig({
+        await setSecureDteConfig({
             apiKey: '',
             ambiente: '00',
             mhCode: '0001',
@@ -162,6 +183,9 @@ async function initDatabase() {
             backendUrl: ''
         });
     }
+
+    // Initialize/Decrypt DTE config from local storage in memory cache
+    await initSecureDteConfig();
 
     // Auto-migration: hash existing plain-text technician passwords/PINs
     const db = getDatabase();
@@ -1156,7 +1180,8 @@ export {
     generateUUID,
     updateNotifications,
     html,
-    safe
+    safe,
+    initSecureDteConfig
 };
 
 

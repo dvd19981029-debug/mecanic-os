@@ -45,31 +45,87 @@ export async function hashPassword(password) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Encrypt string with simple XOR (obfuscation for local storage)
-export function encryptString(str, key) {
-    if (!key) return str;
-    let result = '';
-    for (let i = 0; i < str.length; i++) {
-        const charCode = str.charCodeAt(i);
-        const keyChar = key.charCodeAt(i % key.length);
-        result += String.fromCharCode(charCode ^ keyChar);
-    }
-    return btoa(unescape(encodeURIComponent(result)));
+// Derives a cryptographic key from a password string using PBKDF2
+async function deriveKey(password, salt) {
+    const encoder = new TextEncoder();
+    const passwordKey = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(password),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+    );
+    return await crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        passwordKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
 }
 
-// Decrypt string with simple XOR
-export function decryptString(str, key) {
+// Encrypt string with AES-256-GCM (asynchronous)
+export async function encryptString(str, key) {
     if (!key) return str;
     try {
-        const decoded = decodeURIComponent(escape(atob(str)));
-        let result = '';
-        for (let i = 0; i < decoded.length; i++) {
-            const charCode = decoded.charCodeAt(i);
-            const keyChar = key.charCodeAt(i % key.length);
-            result += String.fromCharCode(charCode ^ keyChar);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        
+        const cryptoKey = await deriveKey(key, salt);
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv },
+            cryptoKey,
+            data
+        );
+        
+        const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+        combined.set(salt, 0);
+        combined.set(iv, salt.length);
+        combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+        
+        let binary = '';
+        for (let i = 0; i < combined.length; i++) {
+            binary += String.fromCharCode(combined[i]);
         }
-        return result;
-    } catch(e) {
+        return btoa(binary);
+    } catch (e) {
+        console.error("Encryption error:", e);
+        return str;
+    }
+}
+
+// Decrypt string with AES-256-GCM (asynchronous)
+export async function decryptString(str, key) {
+    if (!key) return str;
+    try {
+        const binary = atob(str);
+        const combined = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            combined[i] = binary.charCodeAt(i);
+        }
+        
+        const salt = combined.slice(0, 16);
+        const iv = combined.slice(16, 28);
+        const encrypted = combined.slice(28);
+        
+        const cryptoKey = await deriveKey(key, salt);
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv },
+            cryptoKey,
+            encrypted
+        );
+        
+        const decoder = new TextDecoder();
+        return decoder.decode(decrypted);
+    } catch (e) {
+        console.error("Decryption error:", e);
         return str;
     }
 }

@@ -3916,6 +3916,7 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     try {
                         const hashedEntered = await hashPassword(enteredPass);
                         sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
+                        await window.initSecureDteConfig();
                         await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
                             termsSigned: true,
                             signatureName: sigName,

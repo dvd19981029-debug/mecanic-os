@@ -166,6 +166,7 @@ export function renderLockScreen(container) {
                     saveDatabase(db);
                 }
                 sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
+                await window.initSecureDteConfig();
                 setActiveUser(tech);
                 showToast(`Sesión iniciada como ${tech.Nombre_Completo.split(' ')[0]}`, "success");
                 window.location.hash = 'taller-dashboard';
