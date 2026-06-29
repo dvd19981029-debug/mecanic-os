@@ -14,7 +14,7 @@ import {
 } from '../app.js?v=21';
 import { initUserSwitcher } from './views/saas.js?v=21';
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function startApp() {
     try {
         // 1. Startup Firebase and Core Operations
         initFirebase();
@@ -60,7 +60,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (routerError) {
         console.error("Mecanic OS Router Error:", routerError);
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp);
+} else {
+    startApp();
+}
 
 // Global protection against double submissions and duplicate clicks
 document.addEventListener('submit', (e) => {
