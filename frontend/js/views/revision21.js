@@ -38,7 +38,7 @@ export function renderRevision21(container, queryParams) {
     const activeTab = window.saasActiveInspeccionTab;
     const checkpoints = getInspectionCheckpoints(db);
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="inspection-container glass-card" style="max-width:1100px; margin:2rem auto; padding:2rem;">
             <h2>Hoja de Recepción Física y Diagnóstico de Vehículo</h2>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Registra el ingreso del vehículo, semáforo de revisión inicial e historial.</p>
@@ -358,7 +358,7 @@ window.viewInspectionDetails = function(revId) {
         checksHTML = `<div style="text-align:center; padding:1rem; color:var(--text-secondary);">No se registraron chequeos detallados en esta hoja.</div>`;
     }
 
-    modal.innerHTML = `
+    modal.innerHTML = html`
         <div class="modal-content glass-card" style="max-width: 800px; padding: 2rem;">
             <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                 <div>
@@ -398,7 +398,7 @@ window.viewInspectionDetails = function(revId) {
                     <div style="text-align: center;">Estado</div>
                     <div>Observaciones Técnicas</div>
                 </div>
-                ${checksHTML}
+                ${safe(checksHTML)}
             </div>
 
             <div style="display:flex; gap:1rem; justify-content:flex-end; border-top:1px solid var(--border-color); padding-top:1.25rem;">

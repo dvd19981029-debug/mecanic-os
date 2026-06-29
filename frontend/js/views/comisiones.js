@@ -96,7 +96,7 @@ export function renderComisiones(container, queryParams) {
     }
 
     // Main HTML Layout
-    container.innerHTML = `
+    container.innerHTML = html`
         <div id="comisiones-workspace" style="display: flex; flex-direction: column; gap: 1.5rem;">
             <!-- Date Filter -->
             <div class="glass-card" style="display: flex; gap: 1rem; align-items: center; padding: 0.75rem 1.25rem; border-radius: 8px; flex-wrap: wrap;">
@@ -143,7 +143,7 @@ export function renderComisiones(container, queryParams) {
 
             <!-- Main Panels -->
             <div class="master-detail-container" style="display: grid; grid-template-columns: ${isAdmin ? '1.2fr 1.8fr' : '1fr'}; gap: 1.5rem;">
-                ${adminListPanelHtml}
+                ${safe(adminListPanelHtml)}
 
                 <!-- Detail Panel -->
                 <div class="glass-card detail-panel" id="tech-detail-panel" style="padding: 1.5rem; min-height: 450px; display: flex; flex-direction: column; gap: 1.5rem;">
@@ -258,7 +258,7 @@ export function renderComisiones(container, queryParams) {
         );
 
         if (filtered.length === 0) {
-            techListContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron técnicos.</div>`;
+            techListContainer.innerHTML = html`<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No se encontraron técnicos.</div>`;
             return;
         }
 
@@ -280,7 +280,7 @@ export function renderComisiones(container, queryParams) {
                 transition: all 0.2s;
             `;
 
-            card.innerHTML = `
+            card.innerHTML = html`
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <strong style="color: ${isSelected ? 'var(--primary)' : 'var(--text-primary)'};">${t.Nombre_Completo}</strong>
                     <span style="font-size:0.75rem; color:var(--text-secondary); background:rgba(255,255,255,0.05); padding:0.15rem 0.4rem; border-radius:10px;">${t.Especialidad || 'Mecánico'}</span>
@@ -309,7 +309,7 @@ export function renderComisiones(container, queryParams) {
     function renderDetailPanel() {
         const t = db.tecnicos.find(x => x.Tecnico_ID === activeTechId);
         if (!t) {
-            techDetailPanel.innerHTML = `
+            techDetailPanel.innerHTML = html`
                 <div style="text-align: center; padding: 6rem 1rem; color: var(--text-secondary);">
                     <i class="fa-solid fa-user-slash" style="font-size: 4rem; color: var(--border-color); margin-bottom: 1.5rem;"></i>
                     <h3>Selecciona un técnico de la lista</h3>
@@ -330,13 +330,13 @@ export function renderComisiones(container, queryParams) {
             `;
         }
 
-        techDetailPanel.innerHTML = `
+        techDetailPanel.innerHTML = html`
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; flex-wrap:wrap; gap:1rem;">
                 <div>
                     <h2 style="margin:0; font-size:1.4rem; color:var(--primary);">${t.Nombre_Completo}</h2>
                     <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:var(--text-secondary);">${t.Especialidad || 'Mecánico General'} • Salario Base: $ ${parseFloat(t.Salario_Base).toFixed(2)}</p>
                 </div>
-                ${adminButtonHtml}
+                ${safe(adminButtonHtml)}
             </div>
 
             <!-- Detail Tabs -->
@@ -398,7 +398,7 @@ export function renderComisiones(container, queryParams) {
     // Render Jobs Tab Content
     function renderJobsTabContent(container, jobs, tech) {
         if (jobs.length === 0) {
-            container.innerHTML = `
+            container.innerHTML = html`
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border-color);"></i>
                     No hay trabajos facturados registrados para este técnico.
@@ -426,7 +426,7 @@ export function renderComisiones(container, queryParams) {
             `;
         });
 
-        container.innerHTML = `
+        container.innerHTML = html`
             <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                 <table>
                     <thead>
@@ -443,7 +443,7 @@ export function renderComisiones(container, queryParams) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml}
+                        ${safe(rowsHtml)}
                     </tbody>
                 </table>
             </div>
@@ -453,7 +453,7 @@ export function renderComisiones(container, queryParams) {
     // Render Payments Tab Content
     function renderPaymentsTabContent(container, payments, tech) {
         if (payments.length === 0) {
-            container.innerHTML = `
+            container.innerHTML = html`
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     <i class="fa-solid fa-receipt" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--border-color);"></i>
                     No se han registrado pagos para este técnico aún.
@@ -479,7 +479,7 @@ export function renderComisiones(container, queryParams) {
             `;
         });
 
-        container.innerHTML = `
+        container.innerHTML = html`
             <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                 <table>
                     <thead>
@@ -493,7 +493,7 @@ export function renderComisiones(container, queryParams) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml}
+                        ${safe(rowsHtml)}
                     </tbody>
                 </table>
             </div>
@@ -521,7 +521,7 @@ export function renderComisiones(container, queryParams) {
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.display = 'flex';
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                     <h2>Registrar Pago de Comisión</h2>

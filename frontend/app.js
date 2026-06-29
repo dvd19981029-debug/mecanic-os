@@ -11,7 +11,9 @@ import {
     decryptString, 
     sanitizeBackendUrl, 
     getBackendUrl, 
-    downloadExcelReport 
+    downloadExcelReport,
+    html,
+    safe
 } from './js/utils.js';
 
 import {
@@ -44,6 +46,8 @@ window.getDatabase = getDatabase;
 window.handleRouting = handleRouting;
 window.smartRefreshView = smartRefreshView;
 window.updateNotifications = updateNotifications;
+window.html = html;
+window.safe = safe;
 
 window.calculateElSalvadorPeriodPayroll = calculateElSalvadorPeriodPayroll;
 window.getBudgetGrandTotal = getBudgetGrandTotal;
@@ -1150,7 +1154,9 @@ export {
     getBudgetGrandTotal,
     getClientPendingBalance,
     generateUUID,
-    updateNotifications
+    updateNotifications,
+    html,
+    safe
 };
 
 

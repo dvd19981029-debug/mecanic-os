@@ -200,7 +200,7 @@ export function renderDashboardBI(container) {
     const suppliesPct = totalProfitability > 0 ? Math.round((suppliesSum / totalProfitability) * 100) : 12;
     const externalPct = totalProfitability > 0 ? Math.round((externalSum / totalProfitability) * 100) : 5;
 
-    container.innerHTML = `
+    container.innerHTML = html`
         ${isMockData ? `
         <div class="glass-card" style="padding:1rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.75rem; border-left:4px solid var(--primary); background:rgba(99,102,241,0.08);">
             <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1.2rem;"></i>

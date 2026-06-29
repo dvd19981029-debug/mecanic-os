@@ -41,7 +41,7 @@ export function renderLockScreen(container) {
 
     function showProfiles() {
         const tecnicos = db.tecnicos || [];
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 800px; margin: 4rem auto; padding: 2.5rem; text-align: center;">
                 <div style="margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
                     <div style="font-size: 3rem; color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-gears"></i></div>
@@ -126,7 +126,7 @@ export function renderLockScreen(container) {
 
     function showPasscodeForm(tech) {
         const avatar = tech.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 450px; margin: 6rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
                 <div style="text-align: center; margin-bottom: 2rem;">
                     <img src="${avatar}" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); margin-bottom: 1rem; box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);">
@@ -187,7 +187,7 @@ export function renderLockScreen(container) {
         showProfiles();
     } else if (isFirebaseAuthed) {
         // Authenticated to Firebase but still syncing/loading technicians
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 450px; margin: 8rem auto; padding: 3rem; text-align: center; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
                 <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0;">Sincronizando Taller</h2>
@@ -196,7 +196,7 @@ export function renderLockScreen(container) {
         `;
     } else {
         // Not authenticated at all, show login form
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 450px; margin: 5rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
                 <div style="text-align: center; margin-bottom: 2.5rem;">
                     <div style="font-size: 3rem; color: var(--primary); margin-bottom: 0.5rem;"><i class="fa-solid fa-gears"></i></div>
@@ -284,7 +284,7 @@ export function renderLockScreen(container) {
 
 
 export function renderSaaSAdminLogin(container) {
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width: 450px; margin: 8rem auto; padding: 2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center;">
             <div style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;">
                 <i class="fa-solid fa-user-shield"></i>

@@ -35,7 +35,7 @@ export async function renderRegistroSaaS(container) {
     const coupons = await dataService.saas.getCoupons();
     window.saasSelectedLogoBase64 = ''; // Reset selected logo
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width:750px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
                 <div>
@@ -269,9 +269,9 @@ export async function renderRegistroSaaS(container) {
             } else if (selectedCoupon.tipo === 'fijo') {
                 finalPrice = Math.max(0, originalPrice - selectedCoupon.valor);
             }
-            msgDiv.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Cupón "${selectedCoupon.codigo}" aplicado (${selectedCoupon.descripcion}). Cuota: <strong>$${finalPrice.toFixed(2)}/mes</strong> (Antes $${originalPrice.toFixed(2)})</span>`;
+            msgDiv.innerHTML = html`<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Cupón "${selectedCoupon.codigo}" aplicado (${selectedCoupon.descripcion}). Cuota: <strong>$${finalPrice.toFixed(2)}/mes</strong> (Antes $${originalPrice.toFixed(2)})</span>`;
         } else {
-            msgDiv.innerHTML = `<span style="color:var(--text-secondary);">Cuota estándar: $${originalPrice.toFixed(2)}/mes</span>`;
+            msgDiv.innerHTML = html`<span style="color:var(--text-secondary);">Cuota estándar: $${originalPrice.toFixed(2)}/mes</span>`;
         }
     }
     
@@ -292,7 +292,7 @@ export async function renderRegistroSaaS(container) {
             } else {
                 selectedCoupon = null;
                 showToast("Cupón inválido o expirado", "error");
-                msgDiv.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Código inválido o expirado</span>`;
+                msgDiv.innerHTML = html`<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Código inválido o expirado</span>`;
                 return;
             }
             updatePriceDisplay();
@@ -425,7 +425,7 @@ export function renderSuspendedSaaS(container) {
     const workshop = saas.workshopData || {};
     const workshopName = workshop.nombre || 'tu taller';
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width: 650px; margin: 6rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--danger); border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.15);">
             <div style="font-size: 5rem; color: var(--danger); margin-bottom: 1.5rem;">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -470,7 +470,7 @@ export function renderPagoSuscripcionSaaS(container, queryParams) {
     const ws = (db.solicitudes_registro || []).find(s => s.id === targetId);
     
     if (!ws) {
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 500px; margin: 8rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; text-align: center;">
                 <div style="font-size: 4rem; color: var(--danger); margin-bottom: 1rem;">
                     <i class="fa-solid fa-circle-exclamation"></i>
@@ -491,7 +491,7 @@ export function renderPagoSuscripcionSaaS(container, queryParams) {
         selectedCoupon = (db.saas_coupons || []).find(c => c.codigo === ws.cupon_usado);
     }
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width: 900px; margin: 4rem auto; padding: 1.5rem;" class="saas-container">
             <!-- Loading Overlay (hidden initially) -->
             <div id="payment-loading-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.95); z-index:9999; justify-content:center; align-items:center; flex-direction:column; gap:1.5rem;">
@@ -636,14 +636,14 @@ export function renderPagoSuscripcionSaaS(container, queryParams) {
                 if (discountLabel) discountLabel.textContent = `Descuento (${coupon.codigo}):`;
                 if (discountVal) discountVal.textContent = `-$${discount.toFixed(2)}`;
                 if (totalValEl) totalValEl.textContent = `$${finalPrice.toFixed(2)}`;
-                if (couponMsg) couponMsg.innerHTML = `<span style="color:var(--success);"><i class="fa-solid fa-check"></i> Cupón válido aplicado</span>`;
+                if (couponMsg) couponMsg.innerHTML = html`<span style="color:var(--success);"><i class="fa-solid fa-check"></i> Cupón válido aplicado</span>`;
                 showToast("Cupón de descuento aplicado con éxito.", "success");
             } else {
                 selectedCoupon = null;
                 if (discountRow) discountRow.style.display = 'none';
                 finalPrice = originalPlan.precio;
                 if (totalValEl) totalValEl.textContent = `$${finalPrice.toFixed(2)}`;
-                if (couponMsg) couponMsg.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Cupón inválido</span>`;
+                if (couponMsg) couponMsg.innerHTML = html`<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Cupón inválido</span>`;
                 showToast("Código de cupón inválido o vencido.", "error");
             }
         }
@@ -729,7 +729,7 @@ export function renderPagoSuscripcionSaaS(container, queryParams) {
 
 
 export function renderSuccessState(container, payment, workshop) {
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width: 600px; margin: 4rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--success); border-radius: 12px; text-align: center;" class="saas-container">
             <div style="font-size: 5rem; color: var(--success); margin-bottom: 1.5rem;">
                 <i class="fa-solid fa-circle-check"></i>
@@ -778,7 +778,7 @@ export function renderPagoSuscripcionWompiCallback(container, queryParams) {
     const status = queryParams.status;
 
     if (!id || !idEnlace || status !== 'success') {
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width: 500px; margin: 8rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--danger); border-radius: 12px; text-align: center;">
                 <div style="font-size: 4rem; color: var(--danger); margin-bottom: 1rem;">
                     <i class="fa-solid fa-circle-xmark"></i>
@@ -791,7 +791,7 @@ export function renderPagoSuscripcionWompiCallback(container, queryParams) {
         return;
     }
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width: 600px; margin: 6rem auto; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; text-align: center;" class="saas-container">
             <div class="spinner-large" style="border: 4px solid rgba(99, 102, 241, 0.1); border-left-color: var(--primary); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto 1.5rem auto;"></div>
             <h2 id="callback-title" style="font-family:'Outfit', sans-serif; font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem;">
@@ -1491,7 +1491,7 @@ export async function renderAdminSolicitudes(container) {
             `;
         }
 
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width:900px; margin:2rem auto; padding:2rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                 <!-- Header del Expediente -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
@@ -1913,7 +1913,7 @@ export async function renderAdminSolicitudes(container) {
         const plans = db.saas_plans || [];
         window.saasSelectedLogoBase64 = ''; // Reset
         
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width:700px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                     <div>
@@ -2222,7 +2222,7 @@ if (window.saasViewReceiptPaymentId) {
         
         const wsData = (db.solicitudes_registro || []).find(s => s.id === payment.workshopId) || {};
         
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="max-width:650px; margin:3rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                     <div>
@@ -2409,7 +2409,7 @@ if (window.saasViewReceiptPaymentId) {
     };
     
     // Main UI
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width:1100px; margin:3rem auto; padding:1.5rem;">
             <!-- Header -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
@@ -2953,7 +2953,7 @@ if (window.saasViewReceiptPaymentId) {
                         return '#2ecc71'; // Green
                     };
                     
-                    progressContainer.innerHTML = `
+                    progressContainer.innerHTML = html`
                         <!-- Lecturas -->
                         <div style="margin-bottom:0.75rem;">
                             <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.25rem; color:var(--text-primary);">
@@ -2991,7 +2991,7 @@ if (window.saasViewReceiptPaymentId) {
                 }, (err) => {
                     console.error("Error listening to real-time quota stats:", err);
                     if (progressContainer) {
-                        progressContainer.innerHTML = `<span style="color:var(--danger); font-size:0.8rem;"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar cuotas: ${err.message}</span>`;
+                        progressContainer.innerHTML = html`<span style="color:var(--danger); font-size:0.8rem;"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar cuotas: ${err.message}</span>`;
                     }
                 });
             } else {
@@ -3637,7 +3637,7 @@ export function renderTerminosSaaS(container) {
         return;
     }
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="max-width:750px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
             <div style="text-align:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
                 <div style="font-size: 3rem; color: var(--success); margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i></div>
@@ -3969,7 +3969,7 @@ export function initUserSwitcher() {
             card.className = 'user-card';
             const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
             
-            card.innerHTML = `
+            card.innerHTML = html`
                 <img src="${avatar}" class="avatar">
                 <div style="display:flex; flex-direction:column;">
                     <strong style="font-size:0.9rem;">${t.Nombre_Completo}</strong>
@@ -3998,7 +3998,7 @@ export function initUserSwitcher() {
                 passForm.style.borderRadius = '8px';
                 passForm.style.border = '1px solid rgba(255,255,255,0.08)';
                 
-                passForm.innerHTML = `
+                passForm.innerHTML = html`
                     <div style="text-align: center; margin-bottom: 0.5rem;">
                         <img src="${avatar}" class="avatar" style="width: 60px; height: 60px; margin-bottom: 0.5rem; border-radius: 50%;">
                         <h3 style="margin: 0; font-size: 1.1rem;">${t.Nombre_Completo}</h3>

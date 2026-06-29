@@ -34,7 +34,7 @@ export function renderInventario(container) {
     db.productos = db.productos || [];
     db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="saas-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; overflow-x:auto;">
             <button class="saas-tab-btn ${activeInventarioTab === 'catalogo' ? 'active' : ''}" data-tab="catalogo" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-boxes-stacked"></i> Catálogo de Repuestos</button>
             <button class="saas-tab-btn ${activeInventarioTab === 'movimientos' ? 'active' : ''}" data-tab="movimientos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Movimientos (Kárdex)</button>
@@ -60,7 +60,7 @@ export function renderInventario(container) {
 
     // --- TAB 1: CATALOGO ---
     function renderCatalogoTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="glass-card" style="margin-bottom: 2rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap: 1rem; flex-wrap:wrap; margin-bottom: 1rem;">
                     <div class="search-bar-container" style="max-width:320px; flex:1;">
@@ -153,14 +153,14 @@ export function renderInventario(container) {
                 else if (qty <= 3) alertTag = '<span class="badge-tag badge-warning">Mínimo</span>';
 
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
+                tr.innerHTML = html`
                     <td><strong>${escapeHtml(p['ID_ Producto'])}</strong></td>
                     <td>${escapeHtml(p.Descripcion)}</td>
                     <td>${escapeHtml(p['Unidad de Medida'] || 'Pza')}</td>
                     <td>$ ${parseFloat(p['Precio Unit'] || 10).toFixed(2)}</td>
                     <td>$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || 13).toFixed(2)}</td>
                     <td><strong>${qty}</strong></td>
-                    <td>${alertTag}</td>
+                    <td>${safe(alertTag)}</td>
                 `;
                 rowsEl.appendChild(tr);
             });
@@ -235,7 +235,7 @@ export function renderInventario(container) {
 
     // --- TAB 2: HISTORIAL DE MOVIMIENTOS (KARDEX) ---
     function renderMovimientosTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap: 1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
                     <div class="search-bar-container" style="max-width:320px; flex:1;">
@@ -340,11 +340,11 @@ export function renderInventario(container) {
                     }
                 }
 
-                tr.innerHTML = `
+                tr.innerHTML = html`
                     <td>${dateStr}</td>
                     <td><code>${escapeHtml(mov.id_producto)}</code></td>
                     <td><strong>${escapeHtml(mov.descripcion)}</strong></td>
-                    <td>${typeBadge}</td>
+                    <td>${safe(typeBadge)}</td>
                     <td style="text-align:center; font-weight:700;">${mov.Cant_Mov}</td>
                     <td style="text-align:right;">$ ${val.toFixed(2)}</td>
                     <td style="text-align:right; font-weight:600;">$ ${sub.toFixed(2)}</td>

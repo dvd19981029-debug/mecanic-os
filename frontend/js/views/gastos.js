@@ -43,7 +43,7 @@ export function renderGastos(container) {
     let purchaseItems = []; // Array of { id_producto, cant, precio_costo }
     let activeAbonoPurchaseId = null;
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="saas-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; overflow-x:auto;">
             <button class="saas-tab-btn ${activeGastosTab === 'egresos' ? 'active' : ''}" data-tab="egresos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-receipt"></i> Gastos Operativos</button>
             <button class="saas-tab-btn ${activeGastosTab === 'compras' ? 'active' : ''}" data-tab="compras" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-cart-shopping"></i> Registrar Compra</button>
@@ -75,7 +75,7 @@ export function renderGastos(container) {
 
     // --- TAB 1: OPERATIONAL EXPENSES ---
     function renderEgresosTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="view-split">
                 <div class="glass-card">
                     <h3>Historial de Egresos y Gastos</h3>
@@ -216,7 +216,7 @@ export function renderGastos(container) {
     function renderComprasTab(parent) {
         purchaseItems = purchaseItems.length === 0 ? [{ id_producto: '', cant: 1, precio_costo: 0 }] : purchaseItems;
 
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="glass-card" style="max-width:900px; margin:0 auto;">
                 <h3>Registrar Entrada de Factura de Compra</h3>
                 <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.5rem;">Carga las compras de repuestos del taller para registrar automáticamente el ingreso de stock al inventario.</p>
@@ -501,7 +501,7 @@ export function renderGastos(container) {
         const totalDebt = pendingPurchases.reduce((sum, c) => sum + parseFloat(c.Saldo_Pendiente || 0), 0);
         const countUnpaid = pendingPurchases.length;
 
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.25rem; margin-bottom:1.5rem;">
                 <div class="glass-card" style="display:flex; align-items:center; gap:1rem; padding:1.25rem;">
                     <div style="width:50px; height:50px; border-radius:50%; background:rgba(239,68,68,0.15); display:flex; justify-content:center; align-items:center; color:#ef4444; font-size:1.5rem;">
@@ -726,7 +726,7 @@ export function renderGastos(container) {
 
     // --- TAB 4: SUPPLIERS DIRECTORY ---
     function renderProveedoresTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="view-split">
                 <div class="glass-card">
                     <h3>Directorio de Proveedores</h3>

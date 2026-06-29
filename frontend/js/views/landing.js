@@ -1,12 +1,12 @@
 import { saveDatabase, setActiveUser } from '../../app.js';
-import { showToast } from '../utils.js';
+import { showToast, html, safe } from '../utils.js';
 
 export function renderLanding(container) {
     const db = window.getDatabase();
     const saas = db.saas_state || { status: 'guest' };
     
     if (saas.status === 'pending') {
-        container.innerHTML = `
+        container.innerHTML = html`
             <div class="saas-container" style="max-width: 700px; margin: 6rem auto; text-align: center; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="font-size: 4rem; color: var(--warning); margin-bottom: 1.5rem;"><i class="fa-solid fa-clock-rotate-left"></i></div>
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 700; margin-bottom: 1rem;">Solicitud Pendiente de Revisión</h2>
@@ -64,20 +64,20 @@ export function renderLanding(container) {
         `;
     }
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="landing-hero" style="position:relative; overflow:hidden; padding: 6rem 2rem; text-align:center; background: radial-gradient(circle at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%);">
             <div style="display:flex; justify-content:space-between; max-width:1100px; margin:-4rem auto 4rem auto; align-items:center;">
                 <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; color:var(--text-primary);">
                     <i class="fa-solid fa-gears logo-icon" style="color:var(--primary);"></i> Mecanic<span>OS</span>
                 </div>
-                ${topButtonsHTML}
+                ${safe(topButtonsHTML)}
             </div>
             
             <h1 style="font-family:'Outfit', sans-serif; font-size:3.5rem; font-weight:800; line-height:1.15; max-width:800px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #fff 30%, var(--primary-glow) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">El Sistema Operativo Premium para tu Taller Automotriz</h1>
             <p style="color:var(--text-secondary); font-size:1.2rem; max-width:650px; margin: 0 auto 2.5rem auto; line-height:1.6;">
                 Mecanic OS automatiza tu taller de punta a punta: desde la recepción de vehículos con inspección digital hasta la facturación electrónica DTE (Ministerio de Hacienda) y la planilla de salarios.
             </p>
-            ${actionButtonsHTML}
+            ${safe(actionButtonsHTML)}
         </div>
         
         <div style="max-width:1100px; margin:0 auto 6rem auto; padding:0 2rem;">

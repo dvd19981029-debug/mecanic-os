@@ -35,7 +35,7 @@ export function renderVentaRapida(container) {
     let tempProducts = [];
     let tempLabor = [];
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="tabs-container" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
             <button class="tab-btn active" id="pos-tab-btn-new" style="background: none; border: none; color: var(--text-primary); border-bottom: 2px solid var(--primary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.35rem;">
                 <i class="fa-solid fa-cart-plus"></i> Nueva Venta
@@ -399,7 +399,7 @@ export function renderVentaRapida(container) {
             div.addEventListener('mouseenter', () => div.style.backgroundColor = 'rgba(255,255,255,0.03)');
             div.addEventListener('mouseleave', () => div.style.backgroundColor = 'transparent');
             
-            div.innerHTML = `
+            div.innerHTML = html`
                 <div>
                     <strong>${escapeHtml(p.Descripcion)}</strong>
                     <div style="font-size:0.75rem; color:var(--text-secondary);">Código: ${escapeHtml(p['ID_ Producto'])} | Stock: ${p.Minimos || 0}</div>
@@ -434,7 +434,7 @@ export function renderVentaRapida(container) {
             div.addEventListener('mouseenter', () => div.style.backgroundColor = 'rgba(255,255,255,0.03)');
             div.addEventListener('mouseleave', () => div.style.backgroundColor = 'transparent');
             
-            div.innerHTML = `
+            div.innerHTML = html`
                 <div>
                     <strong>${escapeHtml(m.Descripcion)}</strong>
                     <div style="font-size:0.75rem; color:var(--text-secondary);">Código: ${escapeHtml(m.ID_ManoObra)}</div>
@@ -493,7 +493,7 @@ export function renderVentaRapida(container) {
                 const row = document.createElement('div');
                 row.className = 'item-row';
                 row.style = 'display: grid; grid-template-columns: 80px 2.5fr 1fr 1fr 1fr 50px; gap: 1rem; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px dashed var(--border-color);';
-                row.innerHTML = `
+                row.innerHTML = html`
                     <div style="font-family:monospace; font-size:0.8rem;">${escapeHtml(item.id)}</div>
                     <div style="font-size:0.85rem; font-weight:600;">${escapeHtml(item.desc)}</div>
                     <div><input type="number" min="1" value="${item.qty}" class="pos-qty-input-prod" data-idx="${index}" style="width:60px; padding:0.3rem; font-family:inherit;"></div>
@@ -513,7 +513,7 @@ export function renderVentaRapida(container) {
                 const row = document.createElement('div');
                 row.className = 'item-row';
                 row.style = 'display: grid; grid-template-columns: 80px 2.5fr 1fr 1fr 1fr 50px; gap: 1rem; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px dashed var(--border-color);';
-                row.innerHTML = `
+                row.innerHTML = html`
                     <div style="font-family:monospace; font-size:0.8rem;">${escapeHtml(item.id)}</div>
                     <div style="font-size:0.85rem; font-weight:600;">${escapeHtml(item.desc)}</div>
                     <div><input type="number" min="1" value="${item.qty}" class="pos-qty-input-labor" data-idx="${index}" style="width:60px; padding:0.3rem; font-family:inherit;"></div>
@@ -723,7 +723,7 @@ export function renderVentaRapida(container) {
             const dateStr = new Date(vr['Marca Temporal']).toLocaleString('es-SV');
             const docLabel = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
             
-            tr.innerHTML = `
+            tr.innerHTML = html`
                 <td><strong style="font-family:monospace;">${escapeHtml(vr.ID_Venta_Rapida)}</strong></td>
                 <td>${dateStr}</td>
                 <td>${escapeHtml(vr.Nombre)}</td>
@@ -771,7 +771,7 @@ export function renderVentaRapida(container) {
             const dateStr = vr.Fecha_Facturacion ? new Date(vr.Fecha_Facturacion).toLocaleString('es-SV') : new Date(vr['Marca Temporal']).toLocaleString('es-SV');
             const docLabel = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
             
-            tr.innerHTML = `
+            tr.innerHTML = html`
                 <td><strong style="font-family:monospace;">${escapeHtml(vr.ID_Venta_Rapida)}</strong></td>
                 <td>${dateStr}</td>
                 <td>${escapeHtml(vr.Nombre)}</td>
@@ -816,7 +816,7 @@ export function renderVentaRapida(container) {
         
         const client = db.clientes.find(c => c.Codigo_Cliente === vr.Cliente) || { Nombre: vr.Nombre };
         
-        billingBody.innerHTML = `
+        billingBody.innerHTML = html`
             <div style="background-color:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; font-size:0.85rem; display:flex; flex-direction:column; gap:0.4rem;">
                 <p>Venta Rápida: <strong>${vrId}</strong></p>
                 <p>Cliente: <strong>${client.Nombre}</strong></p>
@@ -1027,7 +1027,7 @@ export function renderVentaRapida(container) {
                 saveDatabase(db);
                 showToast("DTE Generado y Aprobado por MH El Salvador!", "success");
                 
-                billingBody.innerHTML = `
+                billingBody.innerHTML = html`
                     <div style="text-align: center; padding: 1.5rem 0;">
                         <i class="fa-solid fa-circle-check" style="font-size: 3rem; color: var(--success); margin-bottom: 0.75rem;"></i>
                         <h3 style="color: var(--success); margin-bottom:0.25rem;">Venta Facturada con Éxito</h3>

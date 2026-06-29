@@ -42,7 +42,7 @@ export function renderPresupuestos(container, queryParams) {
     if (queryParams.id) {
         const budget = db.presupuestos.find(p => p['ID Presupuesto'] === queryParams.id);
         if (!budget) {
-            container.innerHTML = `<div class="glass-card" style="text-align: center; padding: 2rem;"><h2>Presupuesto no encontrado</h2></div>`;
+            container.innerHTML = html`<div class="glass-card" style="text-align: center; padding: 2rem;"><h2>Presupuesto no encontrado</h2></div>`;
             return;
         }
         renderBudgetEditor(container, budget);
@@ -50,7 +50,7 @@ export function renderPresupuestos(container, queryParams) {
     }
 
     // Otherwise, show list of budgets
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="glass-card" style="margin-bottom: 2rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
                 <div class="search-bar-container" style="max-width: 320px;">
@@ -140,18 +140,18 @@ export function renderPresupuestos(container, queryParams) {
             const grandTotal = subtotal + iva + percVal - retVal;
 
             const tr = document.createElement('tr');
-            tr.innerHTML = `
+            tr.innerHTML = html`
                 <td><strong>${escapeHtml(p['ID Presupuesto'])}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${escapeHtml(p.Nombre)}</td>
                 <td><span class="badge-tag badge-primary">${escapeHtml(p.Placas || 'N/A')}</span></td>
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                <td>${statusBadge}</td>
+                <td>${safe(statusBadge)}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        ${deleteBtnHtml}
+                        ${safe(deleteBtnHtml)}
                     </div>
                 </td>
             `;
@@ -303,11 +303,11 @@ export function renderBudgetEditor(container, budget) {
         return `<option value="${escapeHtml(p.ID_Promocion)}" ${isSelected}>${escapeHtml(p.Nombre)} (${desc})</option>`;
     }).join('');
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="budget-editor" id="budget-editor-layout">
             <div class="items-section">
                 <!-- Header Info Card -->
-                ${headerHTML}
+                ${safe(headerHTML)}
 
                 <!-- Products (Spare Parts) Detail -->
                 <div class="glass-card" id="editor-products-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
@@ -371,7 +371,7 @@ export function renderBudgetEditor(container, budget) {
                     <label>Aplicar Promoción</label>
                     <select id="editor-promocion-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                         <option value="">Sin promoción / descuento</option>
-                        ${promoOptions}
+                        ${safe(promoOptions)}
                     </select>
                 </div>
                 
@@ -588,7 +588,7 @@ export function renderBudgetEditor(container, budget) {
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = 'item-row';
-            row.innerHTML = `
+            row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item['ID_Producto DPP'] || 'PROD')}</small></div>
                 <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
                 <div><input type="number" class="row-qty" data-type="product" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
@@ -607,7 +607,7 @@ export function renderBudgetEditor(container, budget) {
 
             const row = document.createElement('div');
             row.className = 'item-row';
-            row.innerHTML = `
+            row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item.ID_ManoObra || 'MO')}</small></div>
                 <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
                 <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
@@ -747,7 +747,7 @@ export function renderBudgetEditor(container, budget) {
         filtered.slice(0, 10).forEach(p => {
             const item = document.createElement('div');
             item.className = 'list-item';
-            item.innerHTML = `
+            item.innerHTML = html`
                 <div class="list-item-main">
                     <span class="list-item-title">${p.Descripcion}</span>
                     <span class="list-item-subtitle">Código: ${p['ID_ Producto']} • Unitario: $${parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0).toFixed(2)}</span>
@@ -796,7 +796,7 @@ export function renderBudgetEditor(container, budget) {
         filtered.slice(0, 10).forEach(mo => {
             const item = document.createElement('div');
             item.className = 'list-item';
-            item.innerHTML = `
+            item.innerHTML = html`
                 <div class="list-item-main">
                     <span class="list-item-title">${mo.Descripcion}</span>
                     <span class="list-item-subtitle">Servicio: ${mo.ID_ManoObra} • Base: $${parseFloat(mo.PrecioUnitario || 0).toFixed(2)}</span>

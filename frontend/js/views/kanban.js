@@ -41,7 +41,7 @@ export function renderKanban(container) {
         { state: 4, title: 'Anulado (30d)', class: 'border-left: 4px solid var(--danger);' }
     ];
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="kanban-board">
             ${columns.map(col => {
                 const budgetsInCol = db.presupuestos.filter(p => {

@@ -14,7 +14,7 @@ import {
     getActiveUser
 } from '../../app.js';
 
-import { showToast, hashPassword } from '../utils.js';
+import { showToast, html, safe, hashPassword } from '../utils.js';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -395,7 +395,7 @@ export function renderConfiguracion(container, queryParams) {
     }
 
     // Render outer structure
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             <div class="saas-tabs-container" style="margin-bottom: 0.5rem;">
                 <button class="saas-tab-btn ${activeConfigTab === 'taller' ? 'active' : ''}" data-tab="taller"><i class="fa-solid fa-sliders"></i> Taller y Roles</button>
@@ -1073,7 +1073,7 @@ export function renderConfiguracion(container, queryParams) {
             const limit = filtered.slice(0, 50);
 
             if (limit.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
+                tableBody.innerHTML = html`<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
                 return;
             }
 
@@ -1093,7 +1093,7 @@ export function renderConfiguracion(container, queryParams) {
                 }
 
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
+                tr.innerHTML = html`
                     <td><small style="color:var(--text-muted); font-family:monospace;">${p['ID_ Producto']}</small></td>
                     <td><strong>${p.Descripcion}</strong></td>
                     <td>${p.Presentacion || 'Unidad'}</td>
@@ -1317,13 +1317,13 @@ export function renderConfiguracion(container, queryParams) {
             );
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron servicios de mano de obra</td></tr>`;
+                tableBody.innerHTML = html`<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron servicios de mano de obra</td></tr>`;
                 return;
             }
 
             filtered.forEach(mo => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
+                tr.innerHTML = html`
                     <td><small style="color:var(--text-muted); font-family:monospace;">${mo.ID_ManoObra}</small></td>
                     <td><strong>${mo.Descripcion}</strong></td>
                     <td>${mo.Categoria || 'MO001'}</td>
@@ -1480,7 +1480,7 @@ export function renderConfiguracion(container, queryParams) {
             );
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron promociones</td></tr>`;
+                tableBody.innerHTML = html`<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron promociones</td></tr>`;
                 return;
             }
 
@@ -1494,7 +1494,7 @@ export function renderConfiguracion(container, queryParams) {
                 const valorFormat = p.Tipo === 'monto_fijo' ? `$ ${parseFloat(p.Valor || 0).toFixed(2)}` : `${parseFloat(p.Valor || 0)} %`;
                 const vigencia = (p.Fecha_Inicio || p.Fecha_Fin) ? `${p.Fecha_Inicio || 'Inmediato'} al ${p.Fecha_Fin || 'Indefinido'}` : 'Indefinido';
 
-                tr.innerHTML = `
+                tr.innerHTML = html`
                     <td><small style="color:var(--text-muted); font-family:monospace;">${p.ID_Promocion}</small></td>
                     <td><strong>${p.Nombre}</strong></td>
                     <td>${tipoLabel}</td>
@@ -1710,7 +1710,7 @@ export function renderConfiguracion(container, queryParams) {
                 `;
             }
             
-            content.innerHTML = `
+            content.innerHTML = html`
                 <div style="margin-top:1rem; display:flex; flex-direction:column; gap:1rem;">
                     <div>
                         <strong style="font-size:1.15rem; color:var(--cyan);">${tech.Nombre_Completo}</strong>
@@ -1724,10 +1724,10 @@ export function renderConfiguracion(container, queryParams) {
                     </div>
                     
                     <div class="table-container" style="max-height:220px; overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-sm);">
-                        ${listHTML}
+                        ${safe(listHTML)}
                     </div>
                     
-                    ${formHTML}
+                    ${safe(formHTML)}
                 </div>
             `;
             
@@ -1778,7 +1778,7 @@ export function renderConfiguracion(container, queryParams) {
         
         function updateCalcView(sal, bonos) {
             const calc = calculateElSalvadorPeriodPayroll(sal, bonos, 'M');
-            payrollContent.innerHTML = `
+            payrollContent.innerHTML = html`
                 <div style="display:flex; flex-direction:column; gap:1.25rem; margin-top:1rem;">
                     <div>
                         <strong style="font-size:1.1rem; color:var(--primary);">${tech.Nombre_Completo}</strong>

@@ -41,7 +41,7 @@ export function renderCaja(container) {
     let activeSession = db.cajas_sesiones.find(s => s.estado === 'ABIERTA');
     
     // Setup container layout
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="caja-view-wrapper" style="display:flex; flex-direction:column; gap:1.5rem;">
             <!-- Tabs Navigation -->
             <div class="caja-tabs" style="display:flex; gap:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
@@ -105,7 +105,7 @@ export function renderCaja(container) {
                                   .sort((a,b) => b.fecha_cierre - a.fecha_cierre)[0];
             const suggestedBalance = lastSession ? parseFloat(lastSession.saldo_real || 0) : 50.00;
             
-            tabContent.innerHTML = `
+            tabContent.innerHTML = html`
                 <div class="glass-card" style="max-width:500px; margin:2rem auto; padding:2rem; text-align:center; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:rgba(255,255,255,0.01);">
                     <div style="width:60px; height:60px; border-radius:50%; background:rgba(67,97,238,0.1); display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
                         <i class="fa-solid fa-lock" style="font-size:1.75rem; color:var(--primary);"></i>
@@ -178,7 +178,7 @@ export function renderCaja(container) {
         const totalOtherIn = totalCardIn + totalTransfersIn;
         const netOperations = totalCashIn + totalOtherIn + totalManualIn - totalManualOut;
         
-        tabContent.innerHTML = `
+        tabContent.innerHTML = html`
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
                 <!-- Header Stats Cards -->
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem;">
@@ -342,7 +342,7 @@ export function renderCaja(container) {
         modal.className = 'modal-backdrop active';
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;';
         
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); width:95%; max-width:400px; padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
                     <h4 style="margin:0;"><i class="fa-solid fa-arrow-right-arrow-left" style="color:var(--cyan);"></i> Registrar Movimiento Manual</h4>
@@ -434,7 +434,7 @@ export function renderCaja(container) {
         modal.className = 'modal-backdrop active';
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;';
         
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); width:95%; max-width:420px; padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
                     <h4 style="margin:0;"><i class="fa-solid fa-lock" style="color:var(--danger);"></i> Hacer Corte y Cierre de Caja</h4>
@@ -508,7 +508,7 @@ export function renderCaja(container) {
         const closedSessions = db.cajas_sesiones.filter(s => s.estado === 'CERRADA');
         
         if (closedSessions.length === 0) {
-            tabContent.innerHTML = `
+            tabContent.innerHTML = html`
                 <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
                     <i class="fa-solid fa-folder-open" style="font-size:3rem; margin-bottom:1rem; opacity:0.3;"></i>
                     <p>No se encontraron cortes de caja anteriores registrados en la base de datos.</p>
@@ -517,7 +517,7 @@ export function renderCaja(container) {
             return;
         }
         
-        tabContent.innerHTML = `
+        tabContent.innerHTML = html`
             <div class="glass-card" style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; background:rgba(255,255,255,0.01);">
                 <h4 style="margin-bottom:1rem; font-size:1rem; display:flex; align-items:center; gap:0.5rem;">
                     <i class="fa-solid fa-receipt" style="color:var(--primary);"></i> Historial de Cortes de Caja Diarios
@@ -617,7 +617,7 @@ export function renderCaja(container) {
         
         const monthKeys = Object.keys(monthlyData);
         if (monthKeys.length === 0) {
-            tabContent.innerHTML = `
+            tabContent.innerHTML = html`
                 <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
                     <i class="fa-solid fa-chart-pie" style="font-size:3rem; margin-bottom:1rem; opacity:0.3;"></i>
                     <p>No hay datos suficientes para realizar conciliación mensual.</p>
@@ -626,7 +626,7 @@ export function renderCaja(container) {
             return;
         }
         
-        tabContent.innerHTML = `
+        tabContent.innerHTML = html`
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
                 ${
                     monthKeys.map(key => {

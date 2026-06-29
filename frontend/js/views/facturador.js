@@ -48,7 +48,7 @@ export function renderTabbedListWorkspace(container) {
     const activeUser = getActiveUser();
     const isAdmin = activeUser && (activeUser.Nivel_Acceso === 'Administrador');
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="tabs-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 1rem;">
             <div style="display: flex; gap: 1rem;">
                 <button class="tab-btn" id="tab-btn-pending" style="background: none; border: none; color: var(--text-secondary); font-size: 1.1rem; font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; transition: all 0.2s;">
@@ -200,7 +200,7 @@ function openInvalidatedBudgetsModal() {
             });
         }
         
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 850px; width: 90%; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                     <h2><i class="fa-solid fa-ban" style="color: var(--warning);"></i> Presupuestos Anulados / Invalidados</h2>
@@ -220,7 +220,7 @@ function openInvalidatedBudgetsModal() {
                             </tr>
                         </thead>
                         <tbody id="anulados-table-rows">
-                            ${rowsHtml}
+                            ${safe(rowsHtml)}
                         </tbody>
                     </table>
                 </div>
@@ -304,7 +304,7 @@ export function renderPendingTab(container) {
 
     const pending = db.presupuestos.filter(p => p.Estado == 2);
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="glass-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                 <h3 style="margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Presupuestos Aprobados por Facturar</h3>
@@ -395,7 +395,7 @@ export function renderPendingTab(container) {
             const grandTotal = subtotal + iva + percVal - retVal;
             
             const tr = document.createElement('tr');
-            tr.innerHTML = `
+            tr.innerHTML = html`
                 <td><strong>${p['ID Presupuesto']}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${p.Nombre}</td>
@@ -437,7 +437,7 @@ export function renderIssuedTab(container) {
     const defaultStart = formatLocalYYYYMMDD(sevenDaysAgo);
     const defaultEnd = formatLocalYYYYMMDD(today);
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="glass-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                 <h3 style="margin: 0;"><i class="fa-solid fa-file-invoice-dollar"></i> Historial de DTEs Emitidos a Hacienda</h3>
@@ -643,7 +643,7 @@ export function renderIssuedTab(container) {
                 tr.style.opacity = '0.75';
                 tr.style.background = 'rgba(231, 76, 60, 0.03)';
             }
-            tr.innerHTML = `
+            tr.innerHTML = html`
                 <td>
                     <strong style="font-family: monospace; font-size: 0.85rem;" title="Número de Control: ${ctrlNum}">${displayCtrl}</strong>
                     ${uuidSub}
@@ -651,11 +651,11 @@ export function renderIssuedTab(container) {
                 <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${p.Nombre}</td>
                 <td><span class="badge-tag badge-primary">${p.Placas || 'N/A'}</span></td>
-                <td>${typeBadge}</td>
+                <td>${safe(typeBadge)}</td>
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>
                     <div>
-                        ${actionsHtml}
+                        ${safe(actionsHtml)}
                     </div>
                 </td>
             `;
@@ -721,7 +721,7 @@ export function renderInvoicingWorkspace(container, presId) {
     const db = getDatabase();
     const p = db.presupuestos.find(b => b['ID Presupuesto'] === presId);
     if (!p) {
-        container.innerHTML = `
+        container.innerHTML = html`
             <div class="glass-card" style="text-align: center; padding: 3rem;">
                 <h3 style="color: var(--danger);">Presupuesto no encontrado</h3>
                 <a href="#facturador" class="btn btn-secondary" style="margin-top: 1rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
@@ -733,7 +733,7 @@ export function renderInvoicingWorkspace(container, presId) {
     const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
 
     if (p.Estado == 3) {
-        container.innerHTML = `
+        container.innerHTML = html`
             <div style="margin-bottom: 1.5rem;">
                 <a href="#facturador" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
             </div>
@@ -758,7 +758,7 @@ export function renderInvoicingWorkspace(container, presId) {
         return;
     }
     
-    container.innerHTML = `
+    container.innerHTML = html`
         <div style="margin-bottom: 1.5rem;">
             <a href="#facturador" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Listado</a>
         </div>
@@ -895,7 +895,7 @@ export function renderInvoicingWorkspace(container, presId) {
         creditDaysGroup.style.display = 'none';
     }
     
-    detailsBox.innerHTML = `
+    detailsBox.innerHTML = html`
         <h4>Detalle del Presupuesto a Facturar</h4>
         <div style="margin: 1rem 0; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.4rem;">
             <p>Cliente: <strong>${client.Nombre}</strong></p>
@@ -1146,7 +1146,7 @@ export function renderInvoicingWorkspace(container, presId) {
             const wsConfig = getWorkshopConfig(db);
             
             resultBox.style.display = 'block';
-            resultBox.innerHTML = `
+            resultBox.innerHTML = html`
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--success); padding-bottom: 1rem; margin-bottom: 1.5rem; flex-wrap:wrap; gap:1rem;">
                     <div>
                         <h3 style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> DOCUMENTO TRANSMITIDO CON ÉXITO</h3>
@@ -1807,7 +1807,7 @@ function queryDteStatusMH(dteId) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
-    modal.innerHTML = `
+    modal.innerHTML = html`
         <div class="modal-content glass-card" style="max-width: 500px; text-align: center; padding: 2rem;">
             <h3><i class="fa-solid fa-spinner fa-spin" style="color: var(--primary);"></i> Consultando Ministerio de Hacienda...</h3>
             <p style="margin-top: 1rem; color: var(--text-secondary); font-size:0.85rem;">Consultando estado para el DTE:<br><strong style="word-break:break-all;">${dteId}</strong></p>
@@ -1819,7 +1819,7 @@ function queryDteStatusMH(dteId) {
     const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
     function renderQueryResult(data) {
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                     <h2>Resultado de Consulta MH</h2>
@@ -1856,7 +1856,7 @@ function queryDteStatusMH(dteId) {
     }
 
     if (!baseUrl) {
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                     <h2 style="color:var(--danger);">Error de Configuración</h2>
@@ -1910,7 +1910,7 @@ function queryDteStatusMH(dteId) {
         renderQueryResult(data);
     })
     .catch(err => {
-        modal.innerHTML = `
+        modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                     <h2 style="color:var(--danger);">Error de Consulta</h2>
@@ -1936,7 +1936,7 @@ function openInvalidateDteModal(dteId, presId) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
-    modal.innerHTML = `
+    modal.innerHTML = html`
         <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
             <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                 <h2>Anulación de Documento DTE</h2>

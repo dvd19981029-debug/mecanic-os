@@ -117,7 +117,7 @@ export function renderPlanilla(container, queryParams) {
             return sum;
         }, { gross: 0, deductions: 0, net: 0, employerCost: 0 });
         
-        container.innerHTML = `
+        container.innerHTML = html`
             <div class="glass-card" style="margin-bottom:1.5rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
                     <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
@@ -412,7 +412,7 @@ export function renderPlanilla(container, queryParams) {
                 const monthName = document.getElementById('pl-month').options[currentMonth-1].text;
                 
                 const recContent = document.getElementById('boleta-receipt-content');
-                recContent.innerHTML = `
+                recContent.innerHTML = html`
                     <div style="text-align:center; margin-bottom:1rem; border-bottom:1.5px dashed #000; padding-bottom:0.75rem;">
                         <h2 style="margin:0; font-size:1.4rem; font-weight:800; font-family:'Outfit', sans-serif;">${ws.nombre}</h2>
                         <div style="font-size:0.75rem; margin-top:0.25rem;">${ws.giro}</div>

@@ -33,7 +33,7 @@ export function renderClientesVehiculos(container, queryParams) {
     const db = getDatabase();
     
     // Render framework
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="master-detail-container">
             <div class="glass-card list-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
@@ -430,7 +430,7 @@ export function renderClientesVehiculos(container, queryParams) {
             const item = document.createElement('div');
             item.className = 'list-item';
             item.setAttribute('data-id', client.Codigo_Cliente);
-            item.innerHTML = `
+            item.innerHTML = html`
                 <div class="list-item-main">
                     <span class="list-item-title">${escapeHtml(client.Nombre)}</span>
                     <span class="list-item-subtitle">${escapeHtml(client.Codigo_Cliente)} • Tel: ${escapeHtml(client['Telefono 1 '] || client.Telefono || 'N/A')}</span>
@@ -456,13 +456,13 @@ export function renderClientesVehiculos(container, queryParams) {
         const clientVehicles = db.vehiculos.filter(v => v.Codigo_Cliente === client.Codigo_Cliente);
         const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === client.Codigo_Cliente);
         
-        clientDetailContainer.innerHTML = `
+        clientDetailContainer.innerHTML = html`
             <button class="btn btn-secondary mobile-only-btn" id="client-detail-back-btn" style="margin-bottom: 1.25rem; display: none; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver a la Lista</button>
             <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
                 <div>
                     <h2>${escapeHtml(client.Nombre)}</h2>
                     <span class="badge-tag badge-primary" style="margin-top: 0.5rem;">${escapeHtml(client['Tipo Cliente'] || 'Persona Natural')}</span>
-                    ${client['Contribuyente?'] === 'SI' ? '<span class="badge-tag badge-success">Contribuyente IVA</span>' : '<span class="badge-tag badge-warning">Consumidor Final</span>'}
+                    ${safe(client['Contribuyente?'] === 'SI' ? '<span class="badge-tag badge-success">Contribuyente IVA</span>' : '<span class="badge-tag badge-warning">Consumidor Final</span>')}
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button class="btn btn-secondary" id="edit-client-trigger-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-user-pen"></i> Editar</button>
@@ -603,7 +603,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 db.clientes = db.clientes.filter(c => c.Codigo_Cliente !== client.Codigo_Cliente);
                 saveDatabase(db);
                 showToast("Cliente eliminado correctamente", "success");
-                clientDetailContainer.innerHTML = `
+                clientDetailContainer.innerHTML = html`
                     <div style="text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">
                         <i class="fa-solid fa-id-card-user" style="font-size: 4rem; color: var(--border-color); margin-bottom: 1.5rem;"></i>
                         <h3>Selecciona un cliente de la lista</h3>

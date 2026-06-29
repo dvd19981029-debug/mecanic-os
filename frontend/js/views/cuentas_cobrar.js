@@ -48,7 +48,7 @@ export function renderCuentasCobrar(container) {
 
     let selectedClientId = null;
 
-    container.innerHTML = `
+    container.innerHTML = html`
         <div class="saas-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; overflow-x:auto;">
             <button class="saas-tab-btn ${activeCuentasCobrarTab === 'cartera' ? 'active' : ''}" data-tab="cartera" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-address-book"></i> Gestión de Cartera</button>
             <button class="saas-tab-btn ${activeCuentasCobrarTab === 'reporteria' ? 'active' : ''}" data-tab="reporteria" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-pdf"></i> Reportería y PDFs</button>
@@ -73,7 +73,7 @@ export function renderCuentasCobrar(container) {
     }
 
     function renderCxCReporteriaTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <div class="glass-card" style="max-width: 600px; margin: 2rem auto; padding: 2rem; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: rgba(255,255,255,0.01);">
                 <h3 style="margin-bottom: 1.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
                     <i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i> Generación de Reportes Financieros
@@ -238,7 +238,7 @@ export function renderCuentasCobrar(container) {
     }
 
     function renderCxCCarteraTab(parent) {
-        parent.innerHTML = `
+        parent.innerHTML = html`
             <!-- KPI summary metrics -->
             <div class="dashboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.5rem;">
                 <div class="glass-card stat-card">
@@ -412,12 +412,12 @@ export function renderCuentasCobrar(container) {
                 item.style.padding = '1rem';
                 item.style.marginBottom = '0.5rem';
                 
-                item.innerHTML = `
+                item.innerHTML = html`
                     <div class="list-item-main" style="flex-grow:1;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="list-item-title" style="font-weight:600;">${c.Nombre}</span>
-                            ${isExceeded ? '<span class="badge-tag badge-danger" style="font-size:0.65rem; padding:0.15rem 0.35rem;">EXCEDIDO</span>' : ''}
-                            ${!hasCreditEnabled && balance > 0 ? '<span class="badge-tag badge-warning" style="font-size:0.65rem; padding:0.15rem 0.35rem;">BLOQUEADO</span>' : ''}
+                            ${safe(isExceeded ? '<span class="badge-tag badge-danger" style="font-size:0.65rem; padding:0.15rem 0.35rem;">EXCEDIDO</span>' : '')}
+                            ${safe(!hasCreditEnabled && balance > 0 ? '<span class="badge-tag badge-warning" style="font-size:0.65rem; padding:0.15rem 0.35rem;">BLOQUEADO</span>' : '')}
                         </div>
                         <span class="list-item-subtitle" style="display:flex; justify-content:space-between; margin-top:0.25rem;">
                             <span>Cód: ${c.Codigo_Cliente}</span>
@@ -460,7 +460,7 @@ export function renderCuentasCobrar(container) {
             // Fetch client abonos
             const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
 
-            detailPanel.innerHTML = `
+            detailPanel.innerHTML = html`
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1.5rem;">
                     <div>
                         <h3 style="margin:0;">${client.Nombre}</h3>
@@ -483,7 +483,7 @@ export function renderCuentasCobrar(container) {
                         <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Saldo Pendiente</div>
                         <div style="font-size:1.5rem; font-weight:700; color:${balance > 0 ? 'var(--danger)' : 'var(--success)'}; margin-top:0.25rem;">$ ${balance.toFixed(2)}</div>
                         <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">
-                            ${isExceeded ? '<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Excede el límite!</span>' : 'Crédito Habilitado'}
+                            ${safe(isExceeded ? '<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Excede el límite!</span>' : 'Crédito Habilitado')}
                         </div>
                     </div>
                     <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px; padding:1rem;">

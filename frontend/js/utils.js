@@ -153,3 +153,30 @@ export function downloadExcelReport(filename, jsonData) {
         showToast("Error al exportar a Excel: " + err.message, "danger");
     });
 }
+
+// Tagged template literal for secure HTML escaping to prevent XSS
+export class SafeString {
+    constructor(val) {
+        this.val = val;
+    }
+    toString() {
+        return this.val;
+    }
+}
+
+export function safe(val) {
+    return new SafeString(val);
+}
+
+export function html(strings, ...values) {
+    let result = strings[0];
+    for (let i = 0; i < values.length; i++) {
+        const val = values[i] === null || values[i] === undefined ? '' : values[i];
+        if (val instanceof SafeString) {
+            result += val.toString() + strings[i + 1];
+        } else {
+            result += escapeHtml(val) + strings[i + 1];
+        }
+    }
+    return result;
+}
