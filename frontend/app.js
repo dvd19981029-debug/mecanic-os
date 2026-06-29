@@ -3,6 +3,28 @@
  * Premium Workshop & Electronic Invoicing Management System
  */
 
+import { 
+    showToast, 
+    escapeHtml, 
+    hashPassword, 
+    encryptString, 
+    decryptString, 
+    sanitizeBackendUrl, 
+    getBackendUrl, 
+    downloadExcelReport 
+} from './js/utils.js';
+
+// Expose critical functions globally to window for legacy compatibility
+window.showToast = showToast;
+window.escapeHtml = escapeHtml;
+window.hashPassword = hashPassword;
+window.encryptString = encryptString;
+window.decryptString = decryptString;
+window.getBackendUrl = getBackendUrl;
+window.downloadExcelReport = downloadExcelReport;
+window.getDatabase = getDatabase;
+window.handleRouting = handleRouting;
+
 // Embedded Database from Grupo Gema
 const DEFAULT_DATABASE = {
   "clientes": [],
@@ -17,94 +39,6 @@ const DEFAULT_DATABASE = {
 // Encryption and decryption helper utilities for localStorage security
 function getSessionKey() {
     return sessionStorage.getItem('mecanic_os_session_key') || '';
-}
-
-async function hashPassword(password) {
-    if (!password) return '';
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    if (typeof str !== 'string') str = String(str);
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-function downloadExcelReport(filename, jsonData) {
-    const db = getDatabase();
-    const backendUrl = getBackendUrl(db);
-    const endpoint = (backendUrl ? sanitizeBackendUrl(backendUrl) : '') + '/api/export/excel';
-    
-    showToast("Generando reporte Excel...", "info");
-    
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            filename: filename,
-            data: jsonData
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error("No se pudo generar el reporte en el servidor");
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-        showToast("Reporte descargado con éxito", "success");
-    })
-    .catch(err => {
-        console.error("Excel Export Error:", err);
-        showToast("Error al exportar a Excel: " + err.message, "danger");
-    });
-}
-
-function encryptString(str, key) {
-    if (!key) return str;
-    let result = '';
-    for (let i = 0; i < str.length; i++) {
-        const charCode = str.charCodeAt(i);
-        const keyChar = key.charCodeAt(i % key.length);
-        result += String.fromCharCode(charCode ^ keyChar);
-    }
-    return btoa(unescape(encodeURIComponent(result)));
-}
-
-function decryptString(str, key) {
-    if (!key) return str;
-    try {
-        const decoded = decodeURIComponent(escape(atob(str)));
-        let result = '';
-        for (let i = 0; i < decoded.length; i++) {
-            const charCode = decoded.charCodeAt(i);
-            const keyChar = key.charCodeAt(i % key.length);
-            result += String.fromCharCode(charCode ^ keyChar);
-        }
-        return result;
-    } catch(e) {
-        return str;
-    }
 }
 
 function getSecureDteConfig() {
@@ -213,42 +147,6 @@ async function initDatabase() {
 
 function getDatabase() {
     return dataService.cache;
-}
-
-function getBackendUrl(db) {
-    const config = db || getDatabase();
-    let url = (config && config.saas_config && config.saas_config.backendUrl) || '';
-    if (!url && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        return 'http://localhost:3005';
-    }
-    return sanitizeBackendUrl(url);
-}
-
-function sanitizeBackendUrl(url) {
-    if (!url) return '';
-    let clean = url.trim();
-    if (clean.endsWith('/')) {
-        clean = clean.slice(0, -1);
-    }
-    if (clean.endsWith('/api/dte/test-connection')) {
-        clean = clean.slice(0, -24);
-    }
-    if (clean.endsWith('/api/dte/invalidate')) {
-        clean = clean.slice(0, -19);
-    }
-    if (clean.endsWith('/api/dte/retrieve')) {
-        clean = clean.slice(0, -17);
-    }
-    if (clean.endsWith('/api/dte')) {
-        clean = clean.slice(0, -8);
-    }
-    if (clean.endsWith('/api')) {
-        clean = clean.slice(0, -4);
-    }
-    if (clean.endsWith('/')) {
-        clean = clean.slice(0, -1);
-    }
-    return clean;
 }
 
 async function saveDatabase(db) {
@@ -1400,26 +1298,6 @@ function startClock() {
     }
     updateClock();
     setInterval(updateClock, 1000);
-}
-
-// Show Toast Alert
-function showToast(message, type = 'primary') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    let iconClass = 'fa-info-circle';
-    if (type === 'success') iconClass = 'fa-circle-check';
-    if (type === 'warning') iconClass = 'fa-triangle-exclamation';
-    if (type === 'danger') iconClass = 'fa-circle-exclamation';
-    
-    toast.innerHTML = `<i class="fa-solid ${iconClass}"></i><span>${message}</span>`;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'toast-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) reverse';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
 }
 
 // SPA Routing System
