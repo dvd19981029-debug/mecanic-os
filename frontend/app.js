@@ -445,7 +445,7 @@ function smartRefreshView(changedCollection) {
 
 
 
-const DEPARTAMENTOS_CODES = {
+export const DEPARTAMENTOS_CODES = {
     "Ahuachapán": "01",
     "Santa Ana": "02",
     "Sonsonate": "03",
@@ -462,7 +462,7 @@ const DEPARTAMENTOS_CODES = {
     "La Unión": "14"
 };
 
-const MUNICIPIOS_CODES = {
+export const MUNICIPIOS_CODES = {
     "Ahuachapán Norte": "13", "Ahuachapán Centro": "14", "Ahuachapán Sur": "15",
     "Santa Ana Norte": "14", "Santa Ana Centro": "15", "Santa Ana Este": "16", "Santa Ana Oeste": "17",
     "Sonsonate Norte": "17", "Sonsonate Centro": "18", "Sonsonate Este": "19", "Sonsonate Oeste": "20",
@@ -1053,7 +1053,9 @@ export {
     updateNotifications,
     html,
     safe,
-    initSecureDteConfig
+    initSecureDteConfig,
+    DEPARTAMENTOS_CODES,
+    MUNICIPIOS_CODES
 };
 
 
