@@ -15,23 +15,33 @@ import {
 import { initUserSwitcher } from './views/saas.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Startup Firebase and Core Operations
-    initFirebase();
-    
-    if (typeof dataService !== 'undefined') {
-        await dataService.init();
+    try {
+        // 1. Startup Firebase and Core Operations
+        initFirebase();
+        
+        if (typeof dataService !== 'undefined') {
+            await dataService.init();
+        }
+        
+        await initDatabase();
+        initFirebaseAuthListener();
+        bindFirebaseEvents();
+        updateUserUI();
+        updateSidebarBrand();
+        startClock();
+        initUserSwitcher();
+    } catch (error) {
+        console.error("Mecanic OS Startup Error:", error);
+        const spinner = document.querySelector('.loading-spinner');
+        if (spinner) spinner.remove();
     }
     
-    await initDatabase();
-    initFirebaseAuthListener();
-    bindFirebaseEvents();
-    updateUserUI();
-    updateSidebarBrand();
-    startClock();
-    initUserSwitcher();
-    
-    // 2. Startup Navigation Router
-    initRouter();
+    try {
+        // 2. Startup Navigation Router
+        initRouter();
+    } catch (routerError) {
+        console.error("Mecanic OS Router Error:", routerError);
+    }
 });
 
 // Global protection against double submissions and duplicate clicks

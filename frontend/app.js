@@ -155,57 +155,84 @@ function generateUserSignature(user) {
 
 // Database Initialization in LocalStorage
 async function initDatabase() {
-    // Migration: Clear any old mock databases on first load
-    if (!localStorage.getItem('mecanic_os_db_cleared_v3')) {
-        localStorage.removeItem('mecanic_os_db');
-        localStorage.removeItem('mecanic_os_pos_cart');
-        localStorage.removeItem('mecanic_os_dte_config');
-        localStorage.removeItem('mecanic_os_firebase_config');
-        setActiveUser(null);
-        localStorage.setItem('mecanic_os_db_cleared_v3', 'true');
-        window.location.hash = 'landing';
-        window.location.reload();
-        return;
-    }
-    
-    // Check for auxiliary data
-    if (!localStorage.getItem('mecanic_os_pos_cart')) {
-        localStorage.setItem('mecanic_os_pos_cart', JSON.stringify([]));
-    }
+    try {
+        // Migration: Clear any old mock databases on first load
+        if (!localStorage.getItem('mecanic_os_db_cleared_v3')) {
+            localStorage.removeItem('mecanic_os_db');
+            localStorage.removeItem('mecanic_os_pos_cart');
+            localStorage.removeItem('mecanic_os_dte_config');
+            localStorage.removeItem('mecanic_os_firebase_config');
+            setActiveUser(null);
+            localStorage.setItem('mecanic_os_db_cleared_v3', 'true');
+            window.location.hash = 'landing';
+            window.location.reload();
+            return;
+        }
+        
+        // Check for auxiliary data
+        if (!localStorage.getItem('mecanic_os_pos_cart')) {
+            localStorage.setItem('mecanic_os_pos_cart', JSON.stringify([]));
+        }
 
-    if (!localStorage.getItem('mecanic_os_dte_config')) {
-        await setSecureDteConfig({
-            apiKey: '',
-            ambiente: '00',
-            mhCode: '0001',
-            posNumber: '1',
-            backendUrl: ''
-        });
+        if (!localStorage.getItem('mecanic_os_dte_config')) {
+            await setSecureDteConfig({
+                apiKey: '',
+                ambiente: '00',
+                mhCode: '0001',
+                posNumber: '1',
+                backendUrl: ''
+            });
+        }
+    } catch (e) {
+        console.warn("Storage settings could not be set/read:", e);
     }
 
     // Initialize/Decrypt DTE config from local storage in memory cache
-    await initSecureDteConfig();
+    try {
+        await initSecureDteConfig();
+    } catch (e) {
+        console.warn("DTE Config could not be decrypted:", e);
+    }
 
     // Auto-migration: hash existing plain-text technician passwords/PINs
-    const db = getDatabase();
-    if (db && db.tecnicos && Array.isArray(db.tecnicos)) {
-        let migrated = false;
-        for (let i = 0; i < db.tecnicos.length; i++) {
-            const t = db.tecnicos[i];
-            if (t.Contraseña && t.Contraseña.length < 64) {
-                t.Contraseña = await hashPassword(t.Contraseña);
-                migrated = true;
+    try {
+        const db = getDatabase();
+        if (db && db.tecnicos && Array.isArray(db.tecnicos)) {
+            let migrated = false;
+            for (let i = 0; i < db.tecnicos.length; i++) {
+                const t = db.tecnicos[i];
+                if (t.Contraseña && t.Contraseña.length < 64) {
+                    t.Contraseña = await hashPassword(t.Contraseña);
+                    migrated = true;
+                }
+            }
+            if (migrated) {
+                console.log("Database Migration: Plain-text passwords successfully hashed to SHA-256.");
+                await saveDatabase(db);
             }
         }
-        if (migrated) {
-            console.log("Database Migration: Plain-text passwords successfully hashed to SHA-256.");
-            await saveDatabase(db);
-        }
+    } catch (e) {
+        console.error("Migration error:", e);
     }
 }
 
 function getDatabase() {
-    return dataService.cache;
+    return dataService.cache || {
+        clientes: [],
+        vehiculos: [],
+        presupuestos: [],
+        revisiones: [],
+        tecnicos: [],
+        saas_state: { status: 'guest' },
+        cajas_sesiones: [],
+        detalle_productos: [],
+        detalle_mano_obra: [],
+        promociones: [],
+        proveedores: [],
+        gastos: [],
+        compras: [],
+        abonos_proveedores: []
+    };
 }
 
 async function saveDatabase(db) {

@@ -201,7 +201,13 @@ export function handleRouting() {
     }
     
     // 3. Reactive Status Listener for Super Admin Requests list
-    if (routeName === 'admin-solicitudes' && sessionStorage.getItem('mecanic_os_saas_admin_auth') === 'true') {
+    let saasAdminAuth = false;
+    try {
+        saasAdminAuth = sessionStorage.getItem('mecanic_os_saas_admin_auth') === 'true';
+    } catch (err) {
+        console.warn("sessionStorage read failed:", err);
+    }
+    if (routeName === 'admin-solicitudes' && saasAdminAuth) {
         if (!window.saasAdminRequestsUnsubscribe) {
             window.saasAdminRequestsUnsubscribe = dataService.saas.listenRequests((requests) => {
                 const currentDb = window.getDatabase();

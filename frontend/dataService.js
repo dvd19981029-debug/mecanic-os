@@ -43,8 +43,13 @@ const dataService = {
                 console.error("localforage.getItem failed:", e);
             }
         }
-        const val = localStorage.getItem(key);
-        return val ? JSON.parse(val) : null;
+        try {
+            const val = localStorage.getItem(key);
+            return val ? JSON.parse(val) : null;
+        } catch (e) {
+            console.error("localStorage.getItem failed:", e);
+            return null;
+        }
     },
 
     async setStorageItem(key, value) {
@@ -55,7 +60,11 @@ const dataService = {
                 console.error("localforage.setItem failed:", e);
             }
         }
-        return localStorage.setItem(key, JSON.stringify(value));
+        try {
+            return localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error("localStorage.setItem failed:", e);
+        }
     },
 
     async removeStorageItem(key) {
@@ -66,44 +75,56 @@ const dataService = {
                 console.error("localforage.removeItem failed:", e);
             }
         }
-        return localStorage.removeItem(key);
+        try {
+            return localStorage.removeItem(key);
+        } catch (e) {
+            console.error("localStorage.removeItem failed:", e);
+        }
     },
 
     // Initialize database cache from storage and setup Firestore persistence
     async init() {
-        if (typeof localforage !== 'undefined') {
-            localforage.config({
-                name: 'MecanicOS',
-                storeName: 'database'
-            });
+        try {
+            if (typeof localforage !== 'undefined') {
+                localforage.config({
+                    name: 'MecanicOS',
+                    storeName: 'database'
+                });
+            }
+        } catch (e) {
+            console.error("localforage config failed:", e);
         }
 
-        // Automatic transparent migration from localStorage to IndexedDB
         let dbData = null;
-        const oldDbStr = localStorage.getItem('mecanic_os_db');
-        if (oldDbStr) {
-            console.log("IndexedDB Migration: Found legacy localStorage database. Migrating...");
-            try {
-                dbData = JSON.parse(oldDbStr);
-                await this.setStorageItem('mecanic_os_db', dbData);
-                
-                const dteConfig = localStorage.getItem('mecanic_os_dte_config');
-                if (dteConfig) {
-                    await this.setStorageItem('mecanic_os_dte_config', JSON.parse(dteConfig));
-                    await this.removeStorageItem('mecanic_os_dte_config');
+        try {
+            // Automatic transparent migration from localStorage to IndexedDB
+            const oldDbStr = localStorage.getItem('mecanic_os_db');
+            if (oldDbStr) {
+                console.log("IndexedDB Migration: Found legacy localStorage database. Migrating...");
+                try {
+                    dbData = JSON.parse(oldDbStr);
+                    await this.setStorageItem('mecanic_os_db', dbData);
+                    
+                    const dteConfig = localStorage.getItem('mecanic_os_dte_config');
+                    if (dteConfig) {
+                        await this.setStorageItem('mecanic_os_dte_config', JSON.parse(dteConfig));
+                        await this.removeStorageItem('mecanic_os_dte_config');
+                    }
+                    const fbConfig = localStorage.getItem('mecanic_os_firebase_config');
+                    if (fbConfig) {
+                        await this.setStorageItem('mecanic_os_firebase_config', JSON.parse(fbConfig));
+                        await this.removeStorageItem('mecanic_os_firebase_config');
+                    }
+                    await this.removeStorageItem('mecanic_os_db');
+                    console.log("IndexedDB Migration: Completed successfully.");
+                } catch (e) {
+                    console.error("IndexedDB Migration Error:", e);
                 }
-                const fbConfig = localStorage.getItem('mecanic_os_firebase_config');
-                if (fbConfig) {
-                    await this.setStorageItem('mecanic_os_firebase_config', JSON.parse(fbConfig));
-                    await this.removeStorageItem('mecanic_os_firebase_config');
-                }
-                await this.removeStorageItem('mecanic_os_db');
-                console.log("IndexedDB Migration: Completed successfully.");
-            } catch (e) {
-                console.error("IndexedDB Migration Error:", e);
+            } else {
+                dbData = await this.getStorageItem('mecanic_os_db');
             }
-        } else {
-            dbData = await this.getStorageItem('mecanic_os_db');
+        } catch (storageErr) {
+            console.error("Storage migration / fetch failed (likely Incognito storage block):", storageErr);
         }
         const defaultRolePermissions = {
             "Administrador": [
