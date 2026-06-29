@@ -35,9 +35,76 @@ const dataService = {
     readOnlyMode: false,      // true cuando el dispositivo es de un empleado (sin Firebase Auth propio)
     listeners: [],
 
+    async getStorageItem(key) {
+        if (typeof localforage !== 'undefined') {
+            try {
+                return await localforage.getItem(key);
+            } catch (e) {
+                console.error("localforage.getItem failed:", e);
+            }
+        }
+        const val = localStorage.getItem(key);
+        return val ? JSON.parse(val) : null;
+    },
+
+    async setStorageItem(key, value) {
+        if (typeof localforage !== 'undefined') {
+            try {
+                return await localforage.setItem(key, value);
+            } catch (e) {
+                console.error("localforage.setItem failed:", e);
+            }
+        }
+        return localStorage.setItem(key, JSON.stringify(value));
+    },
+
+    async removeStorageItem(key) {
+        if (typeof localforage !== 'undefined') {
+            try {
+                return await localforage.removeItem(key);
+            } catch (e) {
+                console.error("localforage.removeItem failed:", e);
+            }
+        }
+        return localStorage.removeItem(key);
+    },
+
     // Initialize database cache from storage and setup Firestore persistence
     async init() {
-        let dbStr = localStorage.getItem('mecanic_os_db');
+        if (typeof localforage !== 'undefined') {
+            localforage.config({
+                name: 'MecanicOS',
+                storeName: 'database'
+            });
+        }
+
+        // Automatic transparent migration from localStorage to IndexedDB
+        let dbData = null;
+        const oldDbStr = localStorage.getItem('mecanic_os_db');
+        if (oldDbStr) {
+            console.log("IndexedDB Migration: Found legacy localStorage database. Migrating...");
+            try {
+                dbData = JSON.parse(oldDbStr);
+                await this.setStorageItem('mecanic_os_db', dbData);
+                
+                const dteConfig = localStorage.getItem('mecanic_os_dte_config');
+                if (dteConfig) {
+                    await this.setStorageItem('mecanic_os_dte_config', JSON.parse(dteConfig));
+                    await this.removeStorageItem('mecanic_os_dte_config');
+                }
+                const fbConfig = localStorage.getItem('mecanic_os_firebase_config');
+                if (fbConfig) {
+                    await this.setStorageItem('mecanic_os_firebase_config', JSON.parse(fbConfig));
+                    await this.removeStorageItem('mecanic_os_firebase_config');
+                }
+                await this.removeStorageItem('mecanic_os_db');
+                console.log("IndexedDB Migration: Completed successfully.");
+            } catch (e) {
+                console.error("IndexedDB Migration Error:", e);
+            }
+        } else {
+            dbData = await this.getStorageItem('mecanic_os_db');
+        }
         const defaultRolePermissions = {
             "Administrador": [
                 "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
@@ -65,7 +132,7 @@ const dataService = {
             { codigo: 'OS15OFF', tipo: 'fijo', valor: 15, descripcion: '$15 de descuento fijo', activo: true, expiracion: '2026-12-31' }
         ];
 
-        if (!dbStr) {
+        if (!dbData) {
             // Fallback default schema structure
             this.cache = {
                 clientes: [],
@@ -97,9 +164,9 @@ const dataService = {
                 compras: [],
                 abonos_proveedores: []
             };
-            localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+            await this.setStorageItem('mecanic_os_db', this.cache);
         } else {
-            this.cache = JSON.parse(dbStr);
+            this.cache = dbData;
             
             // Self-healing database check for missing objects
             let changed = false;
@@ -157,7 +224,7 @@ const dataService = {
             });
             
             if (changed) {
-                localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                await this.setStorageItem('mecanic_os_db', this.cache);
             }
         }
 
@@ -243,20 +310,20 @@ const dataService = {
                     delete prunedDb['43 Venta Rapida'];
                     delete prunedDb['46 Gastos'];
                     delete prunedDb['45 Pagos VR'];
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(prunedDb));
+                    await this.setStorageItem('mecanic_os_db', prunedDb);
                 } else {
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(db));
+                    await this.setStorageItem('mecanic_os_db', db);
                 }
                 
                 if (db && db.saas_state && db.saas_state.workshopData) {
                     const wsData = db.saas_state.workshopData;
                     if (wsData.dte_config) {
-                        localStorage.setItem('mecanic_os_dte_config', JSON.stringify(wsData.dte_config));
+                        await this.setStorageItem('mecanic_os_dte_config', wsData.dte_config);
                     }
                     if (wsData.firebase_config) {
-                        localStorage.setItem('mecanic_os_firebase_config', JSON.stringify(wsData.firebase_config));
+                        await this.setStorageItem('mecanic_os_firebase_config', wsData.firebase_config);
                     } else if (db.saas_state.status === 'guest') {
-                        localStorage.removeItem('mecanic_os_firebase_config');
+                        await this.removeStorageItem('mecanic_os_firebase_config');
                     }
                 }
 
@@ -378,7 +445,7 @@ const dataService = {
         };
 
         // 1. Listen to Root document updates (Metadata & Configs)
-        const rootListener = docRef.onSnapshot((doc) => {
+        const rootListener = docRef.onSnapshot(async (doc) => {
             this.saas.logOp('reads', 1);
             if (doc.exists) {
                 const data = doc.data();
@@ -405,7 +472,7 @@ const dataService = {
                 }
                 
                 if (changed) {
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                    await this.setStorageItem('mecanic_os_db', this.cache);
                     this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     if (typeof handleRouting === 'function') handleRouting();
                 }
@@ -415,7 +482,7 @@ const dataService = {
 
         // 2. Setup reactive listeners dynamically for all subcollections
         collectionConfigs.forEach(config => {
-            const listener = docRef.collection(config.path).onSnapshot((snapshot) => {
+            const listener = docRef.collection(config.path).onSnapshot(async (snapshot) => {
                 this.saas.logOp('reads', snapshot.docChanges().length || 1);
                 let updated = false;
                 // fromCache=true significa que el cambio ya se aplicó localmente (este mismo dispositivo)
@@ -466,9 +533,9 @@ const dataService = {
                         delete prunedDb['43 Venta Rapida'];
                         delete prunedDb['46 Gastos'];
                         delete prunedDb['45 Pagos VR'];
-                        localStorage.setItem('mecanic_os_db', JSON.stringify(prunedDb));
+                        await this.setStorageItem('mecanic_os_db', prunedDb);
                     } else {
-                        localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
+                        await this.setStorageItem('mecanic_os_db', this.cache);
                     }
                     this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     // Solo refrescar UI si el cambio vino de otro dispositivo
@@ -496,7 +563,7 @@ const dataService = {
     },
 
     // Desconectar completamente (cierre de sesión / logout real)
-    disconnect() {
+    async disconnect() {
         this.stopSync();
         this.activeUserUid = null;
         this.workshopOwnerUid = null;
@@ -525,10 +592,10 @@ const dataService = {
             this.cache.solicitudes_registro = [];
             this.cache.saas_payments = [];
         }
-        localStorage.setItem('mecanic_os_db', JSON.stringify(this.cache));
-        localStorage.removeItem('mecanic_os_workshop_uid');
-        localStorage.removeItem('mecanic_os_dte_config');
-        localStorage.removeItem('mecanic_os_firebase_config');
+        await this.setStorageItem('mecanic_os_db', this.cache);
+        await this.removeStorageItem('mecanic_os_workshop_uid');
+        await this.removeStorageItem('mecanic_os_dte_config');
+        await this.removeStorageItem('mecanic_os_firebase_config');
     },
 
     // Check if Firestore collections are empty and perform auto-migration of local data (Phase 3)
@@ -689,7 +756,7 @@ const dataService = {
                         const plans = [];
                         snap.forEach(doc => plans.push(doc.data()));
                         dataService.cache.saas_plans = plans;
-                        localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                        await dataService.setStorageItem('mecanic_os_db', dataService.cache);
                         return plans;
                     }
                 } catch (e) {
@@ -707,7 +774,7 @@ const dataService = {
                         const coupons = [];
                         snap.forEach(doc => coupons.push(doc.data()));
                         dataService.cache.saas_coupons = coupons;
-                        localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                        await dataService.setStorageItem('mecanic_os_db', dataService.cache);
                         return coupons;
                     }
                 } catch (e) {
@@ -724,7 +791,7 @@ const dataService = {
             } else {
                 dataService.cache.saas_plans.push(plan);
             }
-            localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            await dataService.setStorageItem('mecanic_os_db', dataService.cache);
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_plans").doc(plan.id).set(plan);
@@ -737,7 +804,7 @@ const dataService = {
         async deletePlan(planId) {
             if (dataService.cache.saas_plans) {
                 dataService.cache.saas_plans = dataService.cache.saas_plans.filter(p => p.id !== planId);
-                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                await dataService.setStorageItem('mecanic_os_db', dataService.cache);
             }
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
@@ -756,7 +823,7 @@ const dataService = {
             } else {
                 dataService.cache.saas_coupons.push(coupon);
             }
-            localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            await dataService.setStorageItem('mecanic_os_db', dataService.cache);
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     await dbFirestore.collection("saas_coupons").doc(coupon.codigo).set(coupon);
@@ -769,7 +836,7 @@ const dataService = {
         async deleteCoupon(code) {
             if (dataService.cache.saas_coupons) {
                 dataService.cache.saas_coupons = dataService.cache.saas_coupons.filter(c => c.codigo !== code);
-                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                await dataService.setStorageItem('mecanic_os_db', dataService.cache);
             }
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
@@ -792,7 +859,7 @@ const dataService = {
             } else {
                 if (!dataService.cache.solicitudes_registro) dataService.cache.solicitudes_registro = [];
                 dataService.cache.solicitudes_registro.push(requestData);
-                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                await dataService.setStorageItem('mecanic_os_db', dataService.cache);
             }
         },
         async updateRequestStatus(requestId, status, additionalData = {}) {
@@ -801,7 +868,7 @@ const dataService = {
                 const req = dataService.cache.solicitudes_registro.find(s => s.id === requestId);
                 if (req) {
                     Object.assign(req, updateObj);
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                    await dataService.setStorageItem('mecanic_os_db', dataService.cache);
                 }
             }
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
@@ -841,13 +908,13 @@ const dataService = {
         },
         listenRequests(callback) {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
-                return dbFirestore.collection("saas_requests").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                return dbFirestore.collection("saas_requests").orderBy("createdAt", "desc").onSnapshot(async (snapshot) => {
                     const requests = [];
                     snapshot.forEach(doc => {
                         requests.push(doc.data());
                     });
                     dataService.cache.solicitudes_registro = requests;
-                    localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+                    await dataService.setStorageItem('mecanic_os_db', dataService.cache);
                     callback(requests);
                 }, (err) => {
                     console.error("listenRequests error:", err);
