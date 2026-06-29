@@ -29,6 +29,8 @@ import {
     downloadExcelReport
 } from '../utils.js';
 
+let activeInventarioTab = 'catalogo';
+
 export function renderInventario(container) {
     const db = getDatabase();
     db.productos = db.productos || [];

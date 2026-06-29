@@ -29,6 +29,8 @@ import {
     downloadExcelReport
 } from '../utils.js';
 
+let activeCuentasCobrarTab = 'cartera';
+
 export function renderCuentasCobrar(container) {
     const db = getDatabase();
     

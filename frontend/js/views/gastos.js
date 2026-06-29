@@ -29,6 +29,8 @@ import {
     downloadExcelReport
 } from '../utils.js';
 
+let activeGastosTab = 'egresos';
+
 export function renderGastos(container) {
     const db = getDatabase();
     
