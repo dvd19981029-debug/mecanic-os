@@ -54,7 +54,7 @@ export function renderLockScreen(container) {
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 2rem; color: var(--text-primary);">Selecciona tu Perfil de Empleado</h2>
                 
                 <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; justify-content: center; max-width: 650px; margin: 0 auto;">
-                    ${safe(tecnicos.map(t => {
+                    ${tecnicos.map(t => {
                         const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
                         return html`
                             <div class="user-card lock-profile-card" data-id="${t.Codigo_Cliente || t.Nombre_Completo || t.Email}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.5rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
@@ -65,7 +65,7 @@ export function renderLockScreen(container) {
                                 </div>
                             </div>
                         `;
-                    }))}
+                    })}
                 </div>
                 
                 <div style="margin-top: 3.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
