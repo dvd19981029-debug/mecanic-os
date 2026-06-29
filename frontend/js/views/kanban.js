@@ -43,7 +43,7 @@ export function renderKanban(container) {
 
     container.innerHTML = html`
         <div class="kanban-board">
-            ${columns.map(col => {
+            ${safe(columns.map(col => {
                 const budgetsInCol = db.presupuestos.filter(p => {
                     const st = parseInt(p.Estado || 1);
                     if (st !== col.state) return false;
@@ -88,7 +88,7 @@ export function renderKanban(container) {
                         </div>
                     </div>
                 `;
-            }).join('')}
+            }).join(''))}
         </div>
     `;
 }

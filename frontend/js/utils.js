@@ -227,8 +227,11 @@ export function safe(val) {
 export function html(strings, ...values) {
     let result = strings[0];
     for (let i = 0; i < values.length; i++) {
-        const val = values[i] === null || values[i] === undefined ? '' : values[i];
-        if (val instanceof SafeString) {
+        let val = values[i] === null || values[i] === undefined ? '' : values[i];
+        if (Array.isArray(val)) {
+            val = val.map(item => item instanceof SafeString ? item.toString() : escapeHtml(item)).join('');
+            result += val + strings[i + 1];
+        } else if (val instanceof SafeString) {
             result += val.toString() + strings[i + 1];
         } else {
             result += escapeHtml(val) + strings[i + 1];

@@ -194,7 +194,7 @@ export async function renderRegistroSaaS(container) {
                         <div class="form-group">
                             <label>Plan Comercial</label>
                             <select id="reg-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                                ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                                ${safe(plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join(''))}
                             </select>
                         </div>
                         <div class="form-group">
@@ -519,12 +519,12 @@ export function renderPagoSuscripcionSaaS(container, queryParams) {
                             <p style="color:var(--text-secondary); font-size:0.85rem; line-height:1.5; margin-bottom:1.5rem;">${originalPlan.descripcion || 'Acceso completo a las herramientas y automatizaciones del sistema.'}</p>
                             
                             <div style="display:flex; flex-direction:column; gap:0.65rem; margin-bottom:1.5rem;">
-                                ${(originalPlan.features || ['Gestión de taller integrada', 'Facturación electrónica DTE', 'Soporte prioritario']).map(f => `
+                                ${safe((originalPlan.features || ['Gestión de taller integrada', 'Facturación electrónica DTE', 'Soporte prioritario']).map(f => `
                                     <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
                                         <i class="fa-solid fa-circle-check" style="color:var(--success); font-size:0.95rem;"></i>
                                         <span>${f}</span>
                                     </div>
-                                `).join('')}
+                                `).join(''))}
                             </div>
                         </div>
                         
@@ -1361,7 +1361,7 @@ export async function renderAdminSolicitudes(container) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${wsPayments.map(p => {
+                                ${safe(wsPayments.map(p => {
                                     const pDate = new Date(p.fecha).toLocaleDateString();
                                     return `
                                         <tr>
@@ -1375,7 +1375,7 @@ export async function renderAdminSolicitudes(container) {
                                             </td>
                                         </tr>
                                     `;
-                                }).join('')}
+                                }).join(''))}
                             </tbody>
                         </table>
                     </div>
@@ -2063,7 +2063,7 @@ export async function renderAdminSolicitudes(container) {
                         <div class="form-group">
                             <label>Plan de Suscripción</label>
                             <select id="man-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                                ${plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">Plan ${p.nombre} ($${p.precio}/mes)</option>`).join('')}
+                                ${safe(plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">Plan ${p.nombre} ($${p.precio}/mes)</option>`).join(''))}
                             </select>
                         </div>
                         <div class="form-group">
@@ -3028,7 +3028,7 @@ if (window.saasViewReceiptPaymentId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${solicitudes.map(s => {
+                            ${safe(solicitudes.map(s => {
                                 let badgeColor = 'badge-warning';
                                 if (s.status === 'aprobado' || s.status === 'active') badgeColor = 'badge-success';
                                 if (s.status === 'rechazado') badgeColor = 'badge-danger';
@@ -3063,7 +3063,7 @@ if (window.saasViewReceiptPaymentId) {
                                         </td>
                                     </tr>
                                 `;
-                            }).join('')}
+                            }).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -3081,7 +3081,7 @@ if (window.saasViewReceiptPaymentId) {
                     <button id="btn-man-register-saas" class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-square-plus"></i> Registrar Taller Manualmente</button>
                 </div>
                 
-                ${approvedClients.length === 0 ? `
+                ${safe(approvedClients.length === 0 ? `
                     <div style="text-align:center; padding:3rem; color:var(--text-secondary);">
                         <div style="font-size:3rem; margin-bottom:1rem; opacity:0.5;"><i class="fa-solid fa-user-xmark"></i></div>
                         <p>No hay clientes o talleres activos aprobados en este momento.</p>
@@ -3150,7 +3150,7 @@ if (window.saasViewReceiptPaymentId) {
                             </tbody>
                         </table>
                     </div>
-                `}
+                `)}
             </div>
         `;
     }
@@ -3186,7 +3186,7 @@ if (window.saasViewReceiptPaymentId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${payments.slice().sort((a,b) => b.fecha - a.fecha).map(p => `
+                            ${safe(payments.slice().sort((a,b) => b.fecha - a.fecha).map(p => `
                                 <tr>
                                     <td>${new Date(p.fecha).toLocaleDateString()}</td>
                                     <td><strong>${p.workshopName}</strong></td>
@@ -3209,7 +3209,7 @@ if (window.saasViewReceiptPaymentId) {
                                         ` : ''}
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -3321,7 +3321,7 @@ if (window.saasViewReceiptPaymentId) {
                         </div>
                         
                         <div style="flex:1; min-width:180px; display:flex; flex-direction:column; gap:0.75rem; max-height:150px; overflow-y:auto;">
-                            ${activeClients.length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted);">No hay talleres activos</p>' : activeClients.map((c, idx) => {
+                            ${safe(activeClients.length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted);">No hay talleres activos</p>' : activeClients.map((c, idx) => {
                                 const share = mrr > 0 ? (((c.precio_mensual || 75.00) / mrr) * 100) : 0;
                                 const colors = ['var(--primary)', 'var(--success)', 'var(--warning)', 'var(--danger)', '#6366f1', '#a855f7', '#ec4899'];
                                 const color = colors[idx % colors.length];
@@ -3336,7 +3336,7 @@ if (window.saasViewReceiptPaymentId) {
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                            }).join(''))}
                         </div>
                     </div>
                 </div>
@@ -3345,7 +3345,7 @@ if (window.saasViewReceiptPaymentId) {
                 <div class="glass-card" style="padding:1.5rem;">
                     <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1.5rem; color:var(--text-primary);">Volumen de Venta por Método de Pago</h3>
                     <div style="display:flex; flex-direction:column; gap:1rem;">
-                        ${Object.keys(paymentMethods).length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:2rem;">No hay cobros registrados</p>' : Object.entries(paymentMethods).map(([method, amount]) => {
+                        ${safe(Object.keys(paymentMethods).length === 0 ? '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:2rem;">No hay cobros registrados</p>' : Object.entries(paymentMethods).map(([method, amount]) => {
                             const pct = totalCollected > 0 ? ((amount / totalCollected) * 100) : 0;
                             let color = 'var(--primary)';
                             if (method.includes('Tarjeta')) color = 'var(--primary)';
@@ -3364,7 +3364,7 @@ if (window.saasViewReceiptPaymentId) {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+                        }).join(''))}
                     </div>
                 </div>
             </div>
@@ -3538,7 +3538,7 @@ if (window.saasViewReceiptPaymentId) {
                     </div>
 
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
-                        ${plans.map(p => `
+                        ${safe(plans.map(p => `
                             <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; border-color: rgba(255,255,255,0.08);">
                                 <div>
                                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
@@ -3557,7 +3557,7 @@ if (window.saasViewReceiptPaymentId) {
                                     <button class="btn btn-secondary btn-delete-saas-plan" data-id="${p.id}" style="flex:1; padding:0.4rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-trash"></i> Eliminar</button>
                                 </div>
                             </div>
-                        `).join('')}
+                        `).join(''))}
                     </div>
                 </div>
 
@@ -3568,7 +3568,7 @@ if (window.saasViewReceiptPaymentId) {
                         <button id="btn-add-saas-coupon" class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Crear Cupón</button>
                     </div>
 
-                    ${coupons.length === 0 ? `
+                    ${safe(coupons.length === 0 ? `
                         <div style="text-align:center; padding:2rem; color:var(--text-secondary);">
                             <p>No se han registrado cupones comerciales.</p>
                         </div>
@@ -3618,7 +3618,7 @@ if (window.saasViewReceiptPaymentId) {
                                 </tbody>
                             </table>
                         </div>
-                    `}
+                    `)}
                 </div>
             </div>
         `;

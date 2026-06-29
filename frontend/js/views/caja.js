@@ -275,7 +275,7 @@ export function renderCaja(container) {
                                 </tr>
                                 
                                 ${
-                                    // Combine and sort
+                                    safe(// Combine and sort
                                     [
                                         ...sessionPayments.map(p => ({
                                             timestamp: p["Fecha Pago"],
@@ -312,7 +312,7 @@ export function renderCaja(container) {
                                                 ${row.isNegative ? '-' : '+'} $ ${row.monto.toFixed(2)}
                                             </td>
                                         </tr>
-                                    `).join('')
+                                    `).join(''))
                                 }
                             </tbody>
                         </table>
@@ -538,7 +538,7 @@ export function renderCaja(container) {
                         </thead>
                         <tbody>
                             ${
-                                closedSessions.map(s => {
+                                safe(closedSessions.map(s => {
                                     const diff = s.diferencia || 0;
                                     let diffColor = 'var(--text-primary)';
                                     if (diff > 0.01) diffColor = 'var(--success)';
@@ -567,7 +567,7 @@ export function renderCaja(container) {
                                             </td>
                                         </tr>
                                     `;
-                                }).join('')
+                                }).join(''))
                             }
                         </tbody>
                     </table>
@@ -629,7 +629,7 @@ export function renderCaja(container) {
         tabContent.innerHTML = html`
             <div style="display:flex; flex-direction:column; gap:1.25rem;">
                 ${
-                    monthKeys.map(key => {
+                    safe(monthKeys.map(key => {
                         const data = monthlyData[key];
                         const totalSales = data.ingresosMetodo.EFECTIVO + data.ingresosMetodo.TARJETA + data.ingresosMetodo.TRANSFERENCIA;
                         return `
@@ -672,7 +672,7 @@ export function renderCaja(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')
+                    }).join(''))
                 }
             </div>
         `;

@@ -151,7 +151,7 @@ export function renderTallerDashboard(container) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${db.presupuestos.filter(p => p.Estado != 3 && p.Estado != '3' && p.Estado != 4 && p.Estado != '4').slice(0, 5).map(p => {
+                            ${safe(db.presupuestos.filter(p => p.Estado != 3 && p.Estado != '3' && p.Estado != 4 && p.Estado != '4').slice(0, 5).map(p => {
                                 const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || { Placas: p.Placas || 'N/A' };
                                 const tech = db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
                                 let statusBadge = '';
@@ -171,7 +171,7 @@ export function renderTallerDashboard(container) {
                                         <td><a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-eye"></i> Ver</a></td>
                                     </tr>
                                 `;
-                            }).join('')}
+                            }).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -183,7 +183,7 @@ export function renderTallerDashboard(container) {
                     <p style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 1.5rem;">Carga por técnico asignado</p>
                     
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        ${db.tecnicos.map(t => {
+                        ${safe(db.tecnicos.map(t => {
                             const count = db.presupuestos.filter(p => p.Tecnico_Asignado === t.Tecnico_ID && p.Estado !== 3 && p.Estado !== '3' && p.Estado !== 4 && p.Estado !== '4').length;
                             const percentage = Math.min((count / 5) * 100, 100);
                             return `
@@ -197,7 +197,7 @@ export function renderTallerDashboard(container) {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+                        }).join(''))}
                     </div>
                 </div>
                 

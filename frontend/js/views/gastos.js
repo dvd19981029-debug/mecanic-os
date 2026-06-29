@@ -91,7 +91,7 @@ export function renderGastos(container) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${db.gastos.length === 0 
+                                ${safe(db.gastos.length === 0 
                                     ? '<tr><td colspan="5" style="text-align:center; color:var(--text-muted)">Sin gastos registrados</td></tr>'
                                     : db.gastos.map(g => {
                                         const provName = g.ID_Proveedor ? (db.proveedores.find(p => p.ID_Proveedor === g.ID_Proveedor)?.Nombre || 'Proveedor') : 'General/Otros';
@@ -129,7 +129,7 @@ export function renderGastos(container) {
                                                 <td><span class="badge-tag badge-success">${escapeHtml(g['Forma de Pago'] || 'EFECTIVO')}</span></td>
                                             </tr>
                                         `;
-                                    }).join('')}
+                                    }).join(''))}
                             </tbody>
                         </table>
                     </div>
@@ -165,7 +165,7 @@ export function renderGastos(container) {
                                 <label>Proveedor / Acreedor</label>
                                 <select id="exp-proveedor" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                     <option value="">-- General / Ninguno --</option>
-                                    ${db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join('')}
+                                    ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join(''))}
                                 </select>
                             </div>
                             <div class="form-group">
@@ -227,7 +227,7 @@ export function renderGastos(container) {
                             <label>Proveedor</label>
                             <select id="pur-proveedor" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                 <option value="">-- Seleccionar Proveedor --</option>
-                                ${db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join('')}
+                                ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join(''))}
                             </select>
                         </div>
                         <div class="form-group">
@@ -304,7 +304,7 @@ export function renderGastos(container) {
                     <td>
                         <select class="pur-row-prod" required style="width:100%; padding:0.4rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                             <option value="">-- Seleccionar Repuesto --</option>
-                            ${db.productos.map(p => `<option value="${p['ID_ Producto']}" ${item.id_producto === p['ID_ Producto'] ? 'selected' : ''}>${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join('')}
+                            ${safe(db.productos.map(p => `<option value="${p['ID_ Producto']}" ${item.id_producto === p['ID_ Producto'] ? 'selected' : ''}>${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join(''))}
                         </select>
                     </td>
                     <td>
@@ -539,7 +539,7 @@ export function renderGastos(container) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${pendingPurchases.length === 0
+                            ${safe(pendingPurchases.length === 0
                                 ? '<tr><td colspan="7" style="text-align:center; color:var(--text-muted)">No hay facturas pendientes de pago (Sin deudas)</td></tr>'
                                 : pendingPurchases.map(c => {
                                     const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
@@ -589,7 +589,7 @@ export function renderGastos(container) {
                                             </td>
                                         </tr>
                                     `;
-                                }).join('')}
+                                }).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -743,7 +743,7 @@ export function renderGastos(container) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${db.proveedores.length === 0
+                                ${safe(db.proveedores.length === 0
                                     ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted)">Sin proveedores registrados</td></tr>'
                                     : db.proveedores.map(p => `
                                         <tr>
@@ -759,7 +759,7 @@ export function renderGastos(container) {
                                                 </div>
                                             </td>
                                         </tr>
-                                    `).join('')}
+                                    `).join(''))}
                             </tbody>
                         </table>
                     </div>

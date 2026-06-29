@@ -826,7 +826,7 @@ export function renderRegistrarTab(db, checkpoints) {
                     <div>Observaciones Técnicas Específicas</div>
                 </div>
                 
-                ${checkpoints.map((cp, idx) => `
+                ${safe(checkpoints.map((cp, idx) => `
                     <div class="checkpoint-row" data-key="${cp.key}">
                         <div class="checkpoint-info">
                             <span class="checkpoint-title">${idx + 1}. ${cp.title}</span>
@@ -840,7 +840,7 @@ export function renderRegistrarTab(db, checkpoints) {
                             <input type="text" class="checkpoint-obs" placeholder="Detalles de falla si aplica..." style="padding: 0.5rem; font-size: 0.85rem;">
                         </div>
                     </div>
-                `).join('')}
+                `).join(''))}
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">

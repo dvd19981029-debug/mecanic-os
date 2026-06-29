@@ -262,7 +262,7 @@ export function renderConfiguracion(container, queryParams) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${db.tecnicos.map(t => `
+                            ${safe(db.tecnicos.map(t => `
                                 <tr>
                                     <td><strong>${t.Nombre_Completo}</strong></td>
                                     <td>${t.Especialidad || 'Mecánico General'}</td>
@@ -277,7 +277,7 @@ export function renderConfiguracion(container, queryParams) {
                                         </div>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -1643,10 +1643,10 @@ export function renderConfiguracion(container, queryParams) {
                     : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
                         <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Diagnóstico</th><th style="padding:0.5rem;">Ref. ISSS</th></tr></thead>
                         <tbody>
-                            ${tech.Incapacidades.map(inc => {
+                            ${safe(tech.Incapacidades.map(inc => {
                                 const diff = Math.ceil((new Date(inc.Fin) - new Date(inc.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
                                 return `<tr><td style="padding:0.5rem;">${inc.Inicio}</td><td style="padding:0.5rem;">${inc.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${inc.Diagnostico}</td><td style="padding:0.5rem;">${inc.RefISSS || 'N/A'}</td></tr>`;
-                            }).join('')}
+                            }).join(''))}
                         </tbody>
                        </table>`;
                        
@@ -1670,10 +1670,10 @@ export function renderConfiguracion(container, queryParams) {
                     : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
                         <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Inicio</th><th style="padding:0.5rem;">Fin</th><th style="padding:0.5rem;">Días</th><th style="padding:0.5rem;">Detalles</th></tr></thead>
                         <tbody>
-                            ${tech.Vacaciones.map(v => {
+                            ${safe(tech.Vacaciones.map(v => {
                                 const diff = Math.ceil((new Date(v.Fin) - new Date(v.Inicio)) / (1000 * 60 * 60 * 24)) + 1;
                                 return `<tr><td style="padding:0.5rem;">${v.Inicio}</td><td style="padding:0.5rem;">${v.Fin}</td><td style="padding:0.5rem;">${diff} días</td><td style="padding:0.5rem;">${v.Detalles || 'Período regular'}</td></tr>`;
-                            }).join('')}
+                            }).join(''))}
                         </tbody>
                        </table>`;
                        
@@ -1694,7 +1694,7 @@ export function renderConfiguracion(container, queryParams) {
                     : `<table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-top:0.5rem;">
                         <thead><tr style="background-color:var(--bg-input);"><th style="padding:0.5rem;">Fecha</th><th style="padding:0.5rem;">Monto</th><th style="padding:0.5rem;">Concepto</th></tr></thead>
                         <tbody>
-                            ${tech.Bonos.map(b => `<tr><td style="padding:0.5rem;">${new Date(b.Fecha).toLocaleDateString('es-SV')}</td><td style="padding:0.5rem; font-weight:700; color:var(--cyan);">$ ${parseFloat(b.Monto).toFixed(2)}</td><td style="padding:0.5rem;">${b.Concepto}</td></tr>`).join('')}
+                            ${safe(tech.Bonos.map(b => `<tr><td style="padding:0.5rem;">${new Date(b.Fecha).toLocaleDateString('es-SV')}</td><td style="padding:0.5rem; font-weight:700; color:var(--cyan);">$ ${parseFloat(b.Monto).toFixed(2)}</td><td style="padding:0.5rem;">${b.Concepto}</td></tr>`).join(''))}
                         </tbody>
                        </table>`;
                        

@@ -242,7 +242,7 @@ export function renderBudgetEditor(container, budget) {
                         <label>1. Seleccionar Cliente</label>
                         <select id="editor-client-select" required style="padding: 0.65rem;">
                             <option value="">-- Busque y seleccione Cliente --</option>
-                            ${db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join('')}
+                            ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join(''))}
                         </select>
                     </div>
                     <div class="form-group">

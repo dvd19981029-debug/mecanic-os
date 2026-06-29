@@ -511,7 +511,7 @@ export function renderClientesVehiculos(container, queryParams) {
             
             <h3 style="margin-top: 2rem;">Flota de Vehículos (${clientVehicles.length})</h3>
             <div class="vehicles-grid">
-                ${clientVehicles.length === 0 
+                ${safe(clientVehicles.length === 0 
                     ? '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">No se han registrado vehículos para este cliente.</div>' 
                     : clientVehicles.map(v => `
                         <div class="vehicle-card">
@@ -523,7 +523,7 @@ export function renderClientesVehiculos(container, queryParams) {
                             <div class="vehicle-detail-row"><span>Odómetro:</span><span>${escapeHtml(v.Odometro || '0')}</span></div>
                             <div class="vehicle-detail-row"><span>VIN/Nº Motor:</span><span>${escapeHtml(v.Nª_VIN || 'N/A')}</span></div>
                         </div>
-                    `).join('')}
+                    `).join(''))}
             </div>
 
             <h3 style="margin-top: 2rem;">Historial de Presupuestos e Inicios (${clientBudgets.length})</h3>
@@ -540,7 +540,7 @@ export function renderClientesVehiculos(container, queryParams) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${clientBudgets.length === 0 
+                        ${safe(clientBudgets.length === 0 
                             ? '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin presupuestos previos</td></tr>'
                             : clientBudgets.map(p => {
                                 let statusBadge = '';
@@ -557,7 +557,7 @@ export function renderClientesVehiculos(container, queryParams) {
                                         <td>${statusBadge}</td>
                                     </tr>
                                 `;
-                            }).join('')}
+                            }).join(''))}
                     </tbody>
                 </table>
             </div>

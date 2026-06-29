@@ -860,8 +860,8 @@ export function renderInvoicingWorkspace(container, presId) {
         <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
             <h5 style="margin-bottom:0.75rem;">Ítems a Emitir</h5>
             <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                ${prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, false)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
-                ${laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, true)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join('')}
+                ${safe(prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, false)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join(''))}
+                ${safe(laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, true)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join(''))}
             </div>
         </div>
 
@@ -1143,7 +1143,7 @@ export function renderInvoicingWorkspace(container, presId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${prodItems.map(item => {
+                            ${safe(prodItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, false);
                                 return `
                                     <tr>
@@ -1153,8 +1153,8 @@ export function renderInvoicingWorkspace(container, presId) {
                                         <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
                                     </tr>
                                 `;
-                            }).join('')}
-                            ${laborItems.map(item => {
+                            }).join(''))}
+                            ${safe(laborItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, true);
                                 return `
                                     <tr>
@@ -1164,7 +1164,7 @@ export function renderInvoicingWorkspace(container, presId) {
                                         <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
                                     </tr>
                                 `;
-                            }).join('')}
+                            }).join(''))}
                         </tbody>
                     </table>
                     <p>--------------------------------------------------</p>
@@ -1627,22 +1627,22 @@ export function printDteTicket(presId) {
                 </tr>
             </thead>
             <tbody>
-                ${prodItems.map(item => `
+                ${safe(prodItems.map(item => `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
                         <td style="text-align: center;">${item.Cantidad || item.qty}</td>
                         <td style="text-align: right;">$${parseFloat(item.PrecioUnitario || item.price || 0).toFixed(2)}</td>
                         <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
                     </tr>
-                `).join('')}
-                ${laborItems.map(item => `
+                `).join(''))}
+                ${safe(laborItems.map(item => `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
                         <td style="text-align: center;">${item.Cantidad || item.qty}</td>
                         <td style="text-align: right;">$${parseFloat(item.PrecioUnitario || item.price || 0).toFixed(2)}</td>
                         <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
                     </tr>
-                `).join('')}
+                `).join(''))}
             </tbody>
         </table>
         <div class="double-divider"></div>

@@ -104,7 +104,7 @@ export function renderInventario(container) {
                         <div class="form-group">
                             <label>Seleccionar Repuesto</label>
                             <select id="stock-prod-select" required style="padding: 0.65rem; width:100%; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
-                                ${db.productos.map(p => `<option value="${escapeHtml(p['ID_ Producto'])}">${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join('')}
+                                ${safe(db.productos.map(p => `<option value="${escapeHtml(p['ID_ Producto'])}">${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join(''))}
                             </select>
                         </div>
                         <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">

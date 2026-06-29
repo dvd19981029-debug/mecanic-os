@@ -219,7 +219,7 @@ export function renderPlanilla(container, queryParams) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${payrollList.map(item => `
+                            ${safe(payrollList.map(item => `
                                 <tr>
                                     <td>
                                         <strong>${item.Nombre_Completo}</strong>
@@ -240,7 +240,7 @@ export function renderPlanilla(container, queryParams) {
                                         </div>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -660,7 +660,7 @@ export function exportPlanillaConsolidada(year, month, periodType, payrollData) 
                     </tr>
                 </thead>
                 <tbody>
-                    ${payrollData.map(item => `
+                    ${safe(payrollData.map(item => `
                         <tr>
                             <td><strong>${item.Nombre_Completo}</strong><br><small style="color:#666;">${item.Especialidad}</small></td>
                             <td>$ ${parseFloat(item.Salario_Periodo_Base).toFixed(2)}</td>
@@ -672,7 +672,7 @@ export function exportPlanillaConsolidada(year, month, periodType, payrollData) 
                             <td class="text-right" style="font-weight:bold;">$ ${item.netSalary.toFixed(2)}</td>
                             <td class="text-right">$ ${item.employerCost.toFixed(2)}</td>
                         </tr>
-                    `).join('')}
+                    `).join(''))}
                     <tr class="totals-row">
                         <td>TOTALES PLANILLA</td>
                         <td>$ ${totals.base.toFixed(2)}</td>

@@ -61,7 +61,7 @@ export function renderVentaRapida(container) {
                             <div class="form-group" style="margin:0;">
                                 <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">Seleccionar Cliente</label>
                                 <select id="pos-client-select" style="padding: 0.65rem; width:100%; font-family:inherit;">
-                                    ${db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join('')}
+                                    ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join(''))}
                                 </select>
                             </div>
                             <div class="form-group" style="margin:0;">
@@ -126,10 +126,10 @@ export function renderVentaRapida(container) {
                         <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">Aplicar Promoción / Descuento</label>
                         <select id="pos-promo-select" style="padding: 0.5rem; width:100%; font-family:inherit;">
                             <option value="">Sin promoción / descuento</option>
-                            ${(db.promociones || []).filter(pr => pr.Estado === 'Activo').map(pr => {
+                            ${safe((db.promociones || []).filter(pr => pr.Estado === 'Activo').map(pr => {
                                 const desc = pr.Tipo === 'monto_fijo' ? `$${parseFloat(pr.Valor).toFixed(2)}` : `${parseFloat(pr.Valor)}%`;
                                 return `<option value="${escapeHtml(pr.ID_Promocion)}">${escapeHtml(pr.Nombre)} (${desc})</option>`;
-                            }).join('')}
+                            }).join(''))}
                         </select>
                     </div>
 

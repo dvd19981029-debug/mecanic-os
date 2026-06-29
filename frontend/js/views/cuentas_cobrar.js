@@ -92,7 +92,7 @@ export function renderCuentasCobrar(container) {
                 <div class="form-group" id="rep-client-selector-group" style="margin-bottom: 1.5rem; display: none;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Seleccionar Cliente</label>
                     <select id="rep-client-id" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px;">
-                        ${db.clientes.map(c => `<option value="${c.Codigo_Cliente}">${escapeHtml(c.Nombre)} (${c.Codigo_Cliente})</option>`).join('')}
+                        ${safe(db.clientes.map(c => `<option value="${c.Codigo_Cliente}">${escapeHtml(c.Nombre)} (${c.Codigo_Cliente})</option>`).join(''))}
                     </select>
                 </div>
                 
@@ -508,7 +508,7 @@ export function renderCuentasCobrar(container) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${pendingBudgets.length === 0 
+                            ${safe(pendingBudgets.length === 0 
                                 ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No hay presupuestos pendientes de liquidar.</td></tr>' 
                                 : pendingBudgets.map(p => {
                                     const totalBudget = getBudgetGrandTotal(p, db);
@@ -533,7 +533,7 @@ export function renderCuentasCobrar(container) {
                                             </td>
                                         </tr>
                                     `;
-                                }).join('')}
+                                }).join(''))}
                         </tbody>
                     </table>
                 </div>
@@ -553,7 +553,7 @@ export function renderCuentasCobrar(container) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${abonos.length === 0 
+                            ${safe(abonos.length === 0 
                                 ? '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1.5rem;">No se han registrado abonos previos.</td></tr>' 
                                 : abonos.map(ab => `
                                     <tr>
@@ -564,7 +564,7 @@ export function renderCuentasCobrar(container) {
                                         <td>${ab['Num Doc/Auto'] || 'N/A'}</td>
                                         <td><span style="font-size:0.75rem; color:var(--text-secondary);">${ab.Observaciones || '-'}</span></td>
                                     </tr>
-                                `).join('')}
+                                `).join(''))}
                         </tbody>
                     </table>
                 </div>
