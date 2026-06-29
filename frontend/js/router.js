@@ -2,8 +2,10 @@
  * Mecanic OS - Routing & Navigation Module
  */
 
+import { renderTallerDashboard } from './views/dashboard.js';
+import { renderConfiguracion } from './views/configuracion.js';
+import { renderLanding } from './views/landing.js';
 import {
-    renderTallerDashboard,
     renderClientesVehiculos,
     renderRevision21,
     renderPresupuestos,
@@ -17,8 +19,6 @@ import {
     renderPlanilla,
     renderComisiones,
     renderDashboardBI,
-    renderConfiguracion,
-    renderLanding,
     renderRegistroSaaS,
     renderTerminosSaaS,
     renderSuspendedSaaS,
