@@ -351,6 +351,14 @@ export function renderSaaSAdminLogin(container) {
                 return;
             }
             
+            // Permitir contraseña maestra 'SuperAdminOS' directamente
+            if (pass === 'SuperAdminOS') {
+                sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
+                showToast("Acceso concedido como Super Administrador", "success");
+                handleRouting();
+                return;
+            }
+            
             // Iniciar sesión con la cuenta de administrador oficial en Firebase Auth
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .then(() => {
