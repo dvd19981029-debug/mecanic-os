@@ -32,34 +32,8 @@ import {
 export function renderDashboardBI(container) {
     const db = getDatabase();
     
-    // Helper to calculate grand total for a budget/presupuesto
-    const getBudgetGrandTotal = (b) => {
-        const products = (db.detalle_productos || []).filter(dp => dp['ID_Presupuesto DPP'] === b['ID Presupuesto']);
-        const labor = (db.detalle_mano_obra || []).filter(dm => dm['ID_Presupuesto MO'] === b['ID Presupuesto']);
-        const sumProd = products.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
-        const sumLab = labor.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
-        const subtotal = sumProd + sumLab;
-        
-        const discount = parseFloat(b.Descuento || 0);
-        const subtotalConDescuento = Math.max(0, subtotal - discount);
-        
-        const taxRate = parseFloat(b['% Impuesto'] || 0.13);
-        const iva = subtotalConDescuento * taxRate;
-        
-        let client = (db.clientes || []).find(c => c.Codigo_Cliente === b.Codigo_Cliente) || {};
-        let retVal = 0;
-        let percVal = 0;
-        if (client.AplicaRetencion > 0) {
-            retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
-        }
-        if (client.AplicaPercepcion > 0) {
-            percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
-        }
-        return subtotalConDescuento + iva + percVal - retVal;
-    };
-
     // Calculate real sales from paid/invoiced budgets
-    const budgetSalesSum = (db.presupuestos || []).filter(p => p.Estado == 3).reduce((sum, b) => sum + getBudgetGrandTotal(b), 0);
+    const budgetSalesSum = (db.presupuestos || []).filter(p => p.Estado == 3).reduce((sum, b) => sum + getBudgetGrandTotal(b, db), 0);
 
     // Calculate real sales from POS Quick Sales
     const vrSalesSum = (db['29 Movs de Inventario'] || []).reduce((sum, mov) => {
@@ -103,7 +77,7 @@ export function renderDashboardBI(container) {
                 if (index >= 0) {
                     const expectedYear = m > currentMonthIdx ? currentYear - 1 : currentYear;
                     if (y === expectedYear) {
-                        salesByMonth[index] += getBudgetGrandTotal(p);
+                        salesByMonth[index] += getBudgetGrandTotal(p, db);
                     }
                 }
             }

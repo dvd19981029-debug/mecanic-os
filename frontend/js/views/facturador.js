@@ -111,52 +111,6 @@ export function renderTabbedListWorkspace(container) {
     switchTab(currentTab);
 }
 
-function getBudgetGrandTotal(p, db) {
-    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
-    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
-    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-    const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-    const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-    const subtotal = sumProd + sumLab;
-    
-    // Manual discount
-    let discount = parseFloat(p.Descuento || 0);
-    
-    // Dynamic Promotion discount
-    if (p.ID_Promocion) {
-        const promo = (db.promociones || []).find(promoItem => promoItem.ID_Promocion === p.ID_Promocion);
-        if (promo) {
-            let promoDiscount = 0;
-            if (promo.Tipo === 'desc_mano_obra') {
-                promoDiscount = sumLab * (parseFloat(promo.Valor || 0) / 100);
-            } else if (promo.Tipo === 'desc_productos') {
-                promoDiscount = sumProd * (parseFloat(promo.Valor || 0) / 100);
-            } else if (promo.Tipo === 'monto_fijo') {
-                promoDiscount = parseFloat(promo.Valor || 0);
-            }
-            discount = Math.max(discount, promoDiscount);
-        }
-    }
-    
-    discount = Math.min(discount, subtotal);
-    const subtotalConDescuento = Math.max(0, subtotal - discount);
-    
-    const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-    const iva = subtotalConDescuento * taxRate;
-    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-    let retVal = 0;
-    let percVal = 0;
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
-    }
-    if (client.AplicaPercepcion > 0) {
-        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
-    }
-    
-    const rawTotal = subtotalConDescuento + iva + percVal - retVal;
-    return Math.round(rawTotal * 100) / 100;
-}
 
 function openInvalidatedBudgetsModal() {
     const activeUser = getActiveUser();

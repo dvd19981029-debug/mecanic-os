@@ -235,16 +235,42 @@ export function updateNotifications() {
 
 // Update cloud connection status UI
 export function updateCloudStatusUI(active, state = "") {
-    const indicator = document.getElementById('cloud-status-indicator');
-    if (!indicator) return;
+    const dot = document.getElementById('cloud-sync-dot');
+    const label = document.getElementById('cloud-sync-label');
     
-    if (active) {
-        indicator.innerHTML = '<span class="status-dot online"></span> Conectado a la nube';
-        if (state) indicator.innerHTML += ` (${state})`;
-        indicator.className = 'cloud-status-badge active';
+    if (!dot || !label) return;
+    
+    const loggedOutView = document.getElementById('fb-logged-out-view');
+    const loggedInView = document.getElementById('fb-logged-in-view');
+    const userEmailSpan = document.getElementById('fb-user-email');
+    const currentFirebaseUser = window.currentFirebaseUser;
+    
+    if (active && state === "active") {
+        if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
+            // Dueño autenticado
+            dot.style.backgroundColor = "#2ecc71"; // Green
+            label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> BD Online`;
+            if (loggedOutView) loggedOutView.style.display = "none";
+            if (loggedInView) loggedInView.style.display = "block";
+            if (userEmailSpan) userEmailSpan.textContent = currentFirebaseUser.email;
+        } else {
+            // Empleado anónimo (sync en background) pero tratamos la UI como desconectada para login
+            dot.style.backgroundColor = "#7f8c8d"; // Grey
+            label.innerHTML = `<i class="fa-solid fa-cloud"></i> BD Local (Sin nube)`;
+            if (loggedOutView) loggedOutView.style.display = "block";
+            if (loggedInView) loggedInView.style.display = "none";
+        }
+    } else if (state === "syncing") {
+        dot.style.backgroundColor = "#f1c40f"; // Yellow
+        label.innerHTML = `<i class="fa-solid fa-sync fa-spin"></i> Sincronizando BD...`;
+    } else if (state === "offline" || state === "logged-out") {
+        dot.style.backgroundColor = "#7f8c8d"; // Grey
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> BD Local (Sin nube)`;
+        if (loggedOutView) loggedOutView.style.display = "block";
+        if (loggedInView) loggedInView.style.display = "none";
     } else {
-        indicator.innerHTML = '<span class="status-dot offline"></span> Modo Local (Desconectado)';
-        indicator.className = 'cloud-status-badge offline';
+        dot.style.backgroundColor = "#e74c3c"; // Red
+        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Error de BD`;
     }
 }
 

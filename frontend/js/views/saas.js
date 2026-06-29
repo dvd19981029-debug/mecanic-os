@@ -4114,7 +4114,7 @@ export function initUserSwitcher() {
 
     // Initial load of notifications
     updateNotifications();
-});
+}
 
 // Dismissed notifications list (stored in memory)
 let dismissedNotifications = [];

@@ -43,7 +43,6 @@ window.decryptString = decryptString;
 window.getBackendUrl = getBackendUrl;
 window.downloadExcelReport = downloadExcelReport;
 window.getDatabase = getDatabase;
-window.handleRouting = handleRouting;
 window.smartRefreshView = smartRefreshView;
 window.updateNotifications = updateNotifications;
 window.html = html;
@@ -602,44 +601,6 @@ async function emitSubscriptionDTE(payment, workshop) {
     }
 }
 
-function updateCloudStatusUI(active, state = "") {
-    const dot = document.getElementById('cloud-sync-dot');
-    const label = document.getElementById('cloud-sync-label');
-    
-    if (!dot || !label) return;
-    
-    const loggedOutView = document.getElementById('fb-logged-out-view');
-    const loggedInView = document.getElementById('fb-logged-in-view');
-    const userEmailSpan = document.getElementById('fb-user-email');
-    
-    if (active && state === "active") {
-        if (currentFirebaseUser && !currentFirebaseUser.isAnonymous) {
-            // Dueño autenticado
-            dot.style.backgroundColor = "#2ecc71"; // Green
-            label.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> BD Online`;
-            if (loggedOutView) loggedOutView.style.display = "none";
-            if (loggedInView) loggedInView.style.display = "block";
-            if (userEmailSpan) userEmailSpan.textContent = currentFirebaseUser.email;
-        } else {
-            // Empleado anónimo (sync en background) pero tratamos la UI como desconectada para login
-            dot.style.backgroundColor = "#7f8c8d"; // Grey
-            label.innerHTML = `<i class="fa-solid fa-cloud"></i> BD Local (Sin nube)`;
-            if (loggedOutView) loggedOutView.style.display = "block";
-            if (loggedInView) loggedInView.style.display = "none";
-        }
-    } else if (state === "syncing") {
-        dot.style.backgroundColor = "#f1c40f"; // Yellow
-        label.innerHTML = `<i class="fa-solid fa-sync fa-spin"></i> Sincronizando BD...`;
-    } else if (state === "offline" || state === "logged-out") {
-        dot.style.backgroundColor = "#7f8c8d"; // Grey
-        label.innerHTML = `<i class="fa-solid fa-cloud"></i> BD Local (Sin nube)`;
-        if (loggedOutView) loggedOutView.style.display = "block";
-        if (loggedInView) loggedInView.style.display = "none";
-    } else {
-        dot.style.backgroundColor = "#e74c3c"; // Red
-        label.innerHTML = `<i class="fa-solid fa-cloud"></i> Error de BD`;
-    }
-}
 
 async function performUnifiedLogin(email, pass, btn, onComplete) {
     if (typeof firebase === 'undefined') {
@@ -971,7 +932,7 @@ function bindFirebaseEvents() {
     }
 }
 
-export function getWorkshopConfig(db) {
+function getWorkshopConfig(db) {
     if (!db || !db.config_taller) {
         return {
             nombre: 'GRUPO GEMA, S.A. DE C.V.',
@@ -1047,96 +1008,7 @@ function setActiveUser(user) {
     updateUserUI();
 }
 
-// Update User info in UI
-function updateUserUI() {
-    const user = getActiveUser();
-    const avatarEl = document.getElementById('current-user-avatar');
-    const nameEl = document.getElementById('current-user-name');
-    const roleEl = document.getElementById('current-user-role');
-    
-    if (user) {
-        nameEl.textContent = user.Nombre_Completo || user.Nombre || "Usuario";
-        const roleName = user.Nivel_Acceso || "Mecánico";
-        roleEl.textContent = roleName;
-        if (user.Foto_Perfil) {
-            avatarEl.src = user.Foto_Perfil;
-        } else {
-            avatarEl.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
-        }
 
-        // --- FILTER SIDEBAR MENU BASED ON ROLE PERMISSIONS ---
-        const db = getDatabase();
-        let allowedRoutes = [];
-        let normalizedRole = roleName ? roleName.trim() : '';
-        let foundPermissions = false;
-        
-        if (db && db.role_permissions) {
-            const keys = Object.keys(db.role_permissions);
-            const matchKey = keys.find(k => k.toLowerCase() === normalizedRole.toLowerCase() || 
-                k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-            if (matchKey) {
-                allowedRoutes = db.role_permissions[matchKey];
-                foundPermissions = true;
-            }
-        }
-        
-        if (!foundPermissions) {
-            // Sensible fallbacks
-            const searchRole = normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (searchRole === "administrador") {
-                allowedRoutes = [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                    "facturador", "venta-rapida", "caja", "cuentas-cobrar", "inventario", "gastos", "planilla",
-                    "comisiones", "dashboard-bi", "configuracion"
-                ];
-            } else if (searchRole === "recepcionista") {
-                allowedRoutes = [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                    "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"
-                ];
-            } else {
-                // Default to Técnico permissions (now including presupuestos)
-                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "comisiones"];
-            }
-        }
-
-        // Update display of each menu-item
-        document.querySelectorAll('.menu-item').forEach(item => {
-            const route = item.getAttribute('data-route');
-            if (route) {
-                if (allowedRoutes.includes(route)) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
-                }
-            }
-        });
-
-        // Hide/show menu sections based on whether they contain any visible items
-        let lastSectionEl = null;
-        let sectionHasVisibleItem = false;
-        
-        const sidebarMenu = document.querySelector('.sidebar-menu');
-        if (sidebarMenu) {
-            Array.from(sidebarMenu.children).forEach(child => {
-                if (child.classList.contains('menu-section')) {
-                    if (lastSectionEl) {
-                        lastSectionEl.style.display = sectionHasVisibleItem ? '' : 'none';
-                    }
-                    lastSectionEl = child;
-                    sectionHasVisibleItem = false;
-                } else if (child.classList.contains('menu-item')) {
-                    if (child.style.display !== 'none') {
-                        sectionHasVisibleItem = true;
-                    }
-                }
-            });
-            if (lastSectionEl) {
-                lastSectionEl.style.display = sectionHasVisibleItem ? '' : 'none';
-            }
-        }
-    }
-}
 
 
 
