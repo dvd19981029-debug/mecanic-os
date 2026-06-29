@@ -2,22 +2,22 @@
  * Mecanic OS - Routing & Navigation Module
  */
 
-import { renderTallerDashboard } from './views/dashboard.js';
-import { renderConfiguracion } from './views/configuracion.js';
-import { renderLanding } from './views/landing.js';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js';
-import { renderRevision21 } from './views/revision21.js';
-import { renderPresupuestos } from './views/presupuestos.js';
-import { renderKanban } from './views/kanban.js';
-import { renderFacturador } from './views/facturador.js';
-import { renderVentaRapida } from './views/venta_rapida.js';
-import { renderCaja } from './views/caja.js';
-import { renderCuentasCobrar } from './views/cuentas_cobrar.js';
-import { renderInventario } from './views/inventario.js';
-import { renderGastos } from './views/gastos.js';
-import { renderDashboardBI } from './views/dashboard_bi.js';
-import { renderPlanilla } from './views/planilla.js';
-import { renderComisiones } from './views/comisiones.js';
+import { renderTallerDashboard } from './views/dashboard.js?v=21';
+import { renderConfiguracion } from './views/configuracion.js?v=21';
+import { renderLanding } from './views/landing.js?v=21';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=21';
+import { renderRevision21 } from './views/revision21.js?v=21';
+import { renderPresupuestos } from './views/presupuestos.js?v=21';
+import { renderKanban } from './views/kanban.js?v=21';
+import { renderFacturador } from './views/facturador.js?v=21';
+import { renderVentaRapida } from './views/venta_rapida.js?v=21';
+import { renderCaja } from './views/caja.js?v=21';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=21';
+import { renderInventario } from './views/inventario.js?v=21';
+import { renderGastos } from './views/gastos.js?v=21';
+import { renderDashboardBI } from './views/dashboard_bi.js?v=21';
+import { renderPlanilla } from './views/planilla.js?v=21';
+import { renderComisiones } from './views/comisiones.js?v=21';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -25,19 +25,19 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js';
+} from './views/saas.js?v=21';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js';
+} from './views/auth.js?v=21';
 
 import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js';
+} from '../app.js?v=21';
 
-import { showToast } from './utils.js';
+import { showToast } from './utils.js?v=21';
 
 const routes = {
     'taller-dashboard': renderTallerDashboard,
