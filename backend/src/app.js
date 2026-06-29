@@ -23,8 +23,8 @@ const frontendPath = path.join(__dirname, '..', '..', 'frontend');
 app.use(express.static(frontendPath));
 
 // Fallback SPA: sirve index.html para rutas no encontradas en el frontend
-app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+app.get('*any', (req, res) => {
+    res.sendFile('index.html', { root: frontendPath });
 });
 
 module.exports = app;
