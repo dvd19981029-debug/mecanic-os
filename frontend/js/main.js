@@ -10,9 +10,9 @@ import {
     bindFirebaseEvents,
     updateUserUI,
     updateSidebarBrand,
-    startClock,
-    initUserSwitcher
+    startClock
 } from '../app.js';
+import { initUserSwitcher } from './views/saas.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Startup Firebase and Core Operations

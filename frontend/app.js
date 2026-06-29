@@ -24,6 +24,8 @@ window.getBackendUrl = getBackendUrl;
 window.downloadExcelReport = downloadExcelReport;
 window.getDatabase = getDatabase;
 window.handleRouting = handleRouting;
+window.smartRefreshView = smartRefreshView;
+window.updateNotifications = updateNotifications;
 
 // Embedded Database from Grupo Gema
 const DEFAULT_DATABASE = {
@@ -160,6 +162,19 @@ async function saveDatabase(db) {
 let isFirebaseConnected = false;
 let dbFirestore = null;
 let currentFirebaseUser = null;
+
+Object.defineProperty(window, 'dbFirestore', {
+    get() { return dbFirestore; },
+    set(val) { dbFirestore = val; },
+    configurable: true
+});
+
+Object.defineProperty(window, 'currentFirebaseUser', {
+    get() { return currentFirebaseUser; },
+    set(val) { currentFirebaseUser = val; },
+    configurable: true
+});
+
 let firebaseUnsubscribe = null;
 let preventFirestoreSync = false;
 let lastSyncTime = null;
@@ -1469,7 +1484,6 @@ export {
     updateUserUI,
     updateSidebarBrand,
     startClock,
-    initUserSwitcher,
     getWorkshopConfig,
     setupMunicipiosSelect,
     setupOfficialCatalogsSelect,
