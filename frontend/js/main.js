@@ -33,3 +33,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Startup Navigation Router
     initRouter();
 });
+
+// Global protection against double submissions and duplicate clicks
+document.addEventListener('submit', (e) => {
+    const submitBtns = e.target.querySelectorAll('button[type="submit"], input[type="submit"]');
+    submitBtns.forEach(btn => {
+        if (!btn.disabled) {
+            btn.disabled = true;
+            setTimeout(() => { btn.disabled = false; }, 1000);
+        }
+    });
+}, true);
