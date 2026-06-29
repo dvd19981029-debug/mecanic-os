@@ -16,6 +16,10 @@
     <script>
         // Global Error Interceptor for Mecanic OS
         window.addEventListener('error', function(e) {
+            // Ignore non-script resource loading errors (like images, stylesheets)
+            if (e.target && e.target !== window && e.target.tagName !== 'SCRIPT') {
+                return;
+            }
             console.error("Global Error Interceptor:", e);
             const container = document.getElementById('view-container') || document.body;
             if (container) {
