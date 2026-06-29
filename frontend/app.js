@@ -14,6 +14,24 @@ import {
     downloadExcelReport 
 } from './js/utils.js';
 
+import {
+    calculateElSalvadorPeriodPayroll,
+    getBudgetGrandTotal,
+    getClientPendingBalance
+} from './js/businessLogic.js';
+
+import {
+    updateUserUI,
+    updateSidebarBrand,
+    startClock,
+    updateNotifications,
+    updateCloudStatusUI,
+    setupMunicipiosSelect,
+    setupOfficialCatalogsSelect,
+    getGirosOptionsHtml,
+    getValidEconomicActivityCode
+} from './js/ui.js';
+
 // Expose critical functions globally to window for legacy compatibility
 window.showToast = showToast;
 window.escapeHtml = escapeHtml;
@@ -26,6 +44,18 @@ window.getDatabase = getDatabase;
 window.handleRouting = handleRouting;
 window.smartRefreshView = smartRefreshView;
 window.updateNotifications = updateNotifications;
+
+window.calculateElSalvadorPeriodPayroll = calculateElSalvadorPeriodPayroll;
+window.getBudgetGrandTotal = getBudgetGrandTotal;
+window.getClientPendingBalance = getClientPendingBalance;
+window.updateUserUI = updateUserUI;
+window.updateSidebarBrand = updateSidebarBrand;
+window.startClock = startClock;
+window.updateCloudStatusUI = updateCloudStatusUI;
+window.setupMunicipiosSelect = setupMunicipiosSelect;
+window.setupOfficialCatalogsSelect = setupOfficialCatalogsSelect;
+window.getGirosOptionsHtml = getGirosOptionsHtml;
+window.getValidEconomicActivityCode = getValidEconomicActivityCode;
 
 // Embedded Database from Grupo Gema
 const DEFAULT_DATABASE = {
@@ -382,89 +412,11 @@ function smartRefreshView(changedCollection) {
     }, 300); // Esperar 300ms para agrupar cambios
 }
 
-const SALVADOR_TERRITORY = {
-    "Ahuachapán": ["Ahuachapán Norte", "Ahuachapán Centro", "Ahuachapán Sur"],
-    "Cabañas": ["Cabañas Este", "Cabañas Oeste"],
-    "Chalatenango": ["Chalatenango Norte", "Chalatenango Centro", "Chalatenango Sur"],
-    "Cuscatlán": ["Cuscatlán Norte", "Cuscatlán Sur"],
-    "La Libertad": ["La Libertad Norte", "La Libertad Centro", "La Libertad Oeste", "La Libertad Este", "La Libertad Costa", "La Libertad Sur"],
-    "La Paz": ["La Paz Centro", "La Paz Oeste", "La Paz Este"],
-    "La Unión": ["La Unión Norte", "La Unión Sur"],
-    "Morazán": ["Morazán Norte", "Morazán Sur"],
-    "San Miguel": ["San Miguel Norte", "San Miguel Centro", "San Miguel Oeste"],
-    "San Salvador": ["San Salvador Norte", "San Salvador Oeste", "San Salvador Centro", "San Salvador Este", "San Salvador Sur"],
-    "San Vicente": ["San Vicente Norte", "San Vicente Sur"],
-    "Santa Ana": ["Santa Ana Norte", "Santa Ana Centro", "Santa Ana Este", "Santa Ana Oeste"],
-    "Sonsonate": ["Sonsonate Norte", "Sonsonate Centro", "Sonsonate Este", "Sonsonate Oeste"],
-    "Usulután": ["Usulután Norte", "Usulután Este", "Usulután Oeste"]
-};
 
-function setupMunicipiosSelect(deptSelectId, muniSelectId, selectedMuniValue = '') {
-    const deptSelect = document.getElementById(deptSelectId);
-    const muniSelect = document.getElementById(muniSelectId);
-    if (!deptSelect || !muniSelect) return;
 
-    function populate() {
-        const dept = deptSelect.value;
-        const munis = SALVADOR_TERRITORY[dept] || [];
-        muniSelect.innerHTML = munis.map(m => `<option value="${m}">${m}</option>`).join('');
-        
-        if (selectedMuniValue && munis.includes(selectedMuniValue)) {
-            muniSelect.value = selectedMuniValue;
-        } else if (munis.length > 0) {
-            muniSelect.value = munis[0];
-        }
-    }
 
-    deptSelect.addEventListener('change', () => {
-        const dept = deptSelect.value;
-        const munis = SALVADOR_TERRITORY[dept] || [];
-        muniSelect.innerHTML = munis.map(m => `<option value="${m}">${m}</option>`).join('');
-        if (munis.length > 0) {
-            muniSelect.value = munis[0];
-        }
-    });
 
-    populate();
-}
 
-function setupOfficialCatalogsSelect(deptSelectId, muniSelectId, selectedDeptValue = '', selectedMuniValue = '') {
-    const deptSelect = document.getElementById(deptSelectId);
-    const muniSelect = document.getElementById(muniSelectId);
-    if (!deptSelect || !muniSelect || typeof DEPARTAMENTOS_CATALOG === 'undefined' || typeof MUNICIPIOS_CATALOG === 'undefined') return;
-
-    // Populate departments
-    deptSelect.innerHTML = '<option value="">-- Seleccione Departamento --</option>' + 
-        DEPARTAMENTOS_CATALOG.map(d => `<option value="${d.id}">${d.nombre.toUpperCase()}</option>`).join('');
-
-    function updateMunicipios(deptId, preselectedValue = '') {
-        if (!deptId) {
-            muniSelect.innerHTML = '<option value="">-- Seleccione Municipio --</option>';
-            muniSelect.disabled = true;
-            return;
-        }
-        
-        const filtered = MUNICIPIOS_CATALOG.filter(m => m.departamentoId === deptId);
-        muniSelect.innerHTML = '<option value="">-- Seleccione Municipio --</option>' +
-            filtered.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('');
-        muniSelect.disabled = false;
-        
-        if (preselectedValue) {
-            muniSelect.value = preselectedValue;
-        }
-    }
-
-    deptSelect.addEventListener('change', (e) => {
-        updateMunicipios(e.target.value);
-    });
-
-    if (selectedDeptValue) {
-        deptSelect.value = selectedDeptValue;
-        updateMunicipios(selectedDeptValue, selectedMuniValue);
-    } else {
-        updateMunicipios('');
-    }
-}
 
 const DEPARTAMENTOS_CODES = {
     "Ahuachapán": "01",
@@ -500,52 +452,9 @@ const MUNICIPIOS_CODES = {
     "La Unión Norte": "19", "La Unión Sur": "20"
 };
 
-function getGirosOptionsHtml(selectedValue = '') {
-    const list = [
-        { code: "45201", desc: "Mantenimiento y reparación mecánica de vehículos" },
-        { code: "45202", desc: "Mantenimiento y reparación eléctrica de vehículos" },
-        { code: "45203", desc: "Mantenimiento y reparación de motocicletas" },
-        { code: "45204", desc: "Lavado y pulido de vehículos (carwash)" },
-        { code: "45205", desc: "Alineación y balanceo de vehículos automotores" },
-        { code: "45206", desc: "Reparación de carrocería y pintura (enderezado)" },
-        { code: "45300", desc: "Comercio de repuestos y accesorios de vehículos" },
-        { code: "45101", desc: "Comercio de vehículos automotores nuevos y usados" },
-        { code: "62020", desc: "Consultoría y gestión de servicios informáticos" },
-        { code: "99999", desc: "Otras actividades de servicios automotrices/comercio" }
-    ];
-    
-    // Normalize selected value for comparison
-    const normSelected = String(selectedValue || '').trim().toLowerCase();
-    
-    return list.map(item => {
-        const isSelected = normSelected === item.code.toLowerCase() || normSelected === item.desc.toLowerCase();
-        return `<option value="${item.code}" data-desc="${item.desc}" ${isSelected ? 'selected' : ''}>${item.code} - ${item.desc}</option>`;
-    }).join('');
-}
 
-function getValidEconomicActivityCode(val) {
-    if (!val) return '45201'; // Default: Mantenimiento y reparación mecánica de vehículos
-    const clean = String(val).trim();
-    if (/^\d{5}$/.test(clean)) {
-        return clean;
-    }
-    const list = [
-        { code: "45201", desc: "Mantenimiento y reparación mecánica de vehículos" },
-        { code: "45202", desc: "Mantenimiento y reparación eléctrica de vehículos" },
-        { code: "45203", desc: "Mantenimiento y reparación de motocicletas" },
-        { code: "45204", desc: "Lavado y pulido de vehículos (carwash)" },
-        { code: "45205", desc: "Alineación y balanceo de vehículos automotores" },
-        { code: "45206", desc: "Reparación de carrocería y pintura (enderezado)" },
-        { code: "45300", desc: "Comercio de repuestos y accesorios de vehículos" },
-        { code: "45101", desc: "Comercio de vehículos automotores nuevos y usados" },
-        { code: "62020", desc: "Consultoría y gestión de servicios informáticos" }
-    ];
-    const matched = list.find(item => item.desc.toLowerCase() === clean.toLowerCase() || clean.toLowerCase().includes(item.desc.toLowerCase()));
-    if (matched) {
-        return matched.code;
-    }
-    return '45201';
-}
+
+
 
 async function emitSubscriptionDTE(payment, workshop) {
     if (!workshop) return;
@@ -1034,7 +943,7 @@ function bindFirebaseEvents() {
     }
 }
 
-function getWorkshopConfig(db) {
+export function getWorkshopConfig(db) {
     if (!db || !db.config_taller) {
         return {
             nombre: 'GRUPO GEMA, S.A. DE C.V.',
@@ -1069,100 +978,10 @@ function getWorkshopConfig(db) {
 }
 
 // Helper: Calculate total for any budget in db
-function getBudgetGrandTotal(budget, db) {
-    if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
-    if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
-    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === budget['ID Presupuesto']);
-    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === budget['ID Presupuesto']);
-
-    const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
-    const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
-    const subtotal = sumProd + sumLab;
-    
-    // Manual discount
-    let discount = parseFloat(budget.Descuento || 0);
-    
-    // Dynamic Promotion discount
-    if (budget.ID_Promocion) {
-        const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
-        if (promo) {
-            let promoDiscount = 0;
-            if (promo.Tipo === 'desc_mano_obra') {
-                promoDiscount = sumLab * (parseFloat(promo.Valor || 0) / 100);
-            } else if (promo.Tipo === 'desc_productos') {
-                promoDiscount = sumProd * (parseFloat(promo.Valor || 0) / 100);
-            } else if (promo.Tipo === 'monto_fijo') {
-                promoDiscount = parseFloat(promo.Valor || 0);
-            }
-            discount = Math.max(discount, promoDiscount);
-        }
-    }
-    
-    discount = Math.min(discount, subtotal);
-    const subtotalConDescuento = Math.max(0, subtotal - discount);
-    
-    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
-    const iva = subtotalConDescuento * taxRate;
-
-    let retVal = 0;
-    let percVal = 0;
-    const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
-    }
-    if (client.AplicaPercepcion > 0) {
-        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
-    }
-
-    const rawTotal = subtotalConDescuento + iva + percVal - retVal;
-    return Math.round(rawTotal * 100) / 100;
-}
 
 // Helper: Calculate client unpaid credit balance
-function getClientPendingBalance(clientCode, db) {
-    // 1. Get all budgets for client that are CREDIT, status is FACTURADO (Estado === 3) and NOT marked as paid (Pagado? !== 'SI')
-    const unpaidBudgets = db.presupuestos.filter(p => 
-        p.Codigo_Cliente === clientCode && 
-        (p.Estado === 3 || p.Estado === '3') && 
-        p.Condicion === 'CREDITO' && 
-        p['Pagado?'] !== 'SI'
-    );
-    
-    // All abonos for this client
-    const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
-    
-    // Sum remaining balances of unpaid budgets
-    let totalUnpaidRemaining = 0;
-    unpaidBudgets.forEach(b => {
-        const budgetId = b['ID Presupuesto'];
-        const budgetTotal = getBudgetGrandTotal(b, db);
-        
-        // Sum abonos linked to this specific budget (by ID_Presupuesto or fallback in Observaciones)
-        const linkedAbonos = clientAbonos.filter(ab => 
-            ab.ID_Presupuesto === budgetId || 
-            (ab.Observaciones && ab.Observaciones.includes(`presupuesto ${budgetId}`))
-        );
-        const totalLinkedAmount = linkedAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
-        
-        totalUnpaidRemaining += Math.max(0, budgetTotal - totalLinkedAmount);
-    });
-    
-    // Sum general abonos (not linked to any budget, or linked to a budget that is NOT in unpaidBudgets, meaning it is paid)
-    const generalAbonos = clientAbonos.filter(ab => {
-        if (ab.ID_Presupuesto) {
-            return false;
-        }
-        if (ab.Observaciones && ab.Observaciones.includes('presupuesto ')) {
-            return false;
-        }
-        return true;
-    });
-    
-    const totalGeneralAbonos = generalAbonos.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
-    
-    return Math.max(0, totalUnpaidRemaining - totalGeneralAbonos);
-}
+
 
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -1291,29 +1110,10 @@ function updateUserUI() {
     }
 }
 
-function updateSidebarBrand() {
-    const db = getDatabase();
-    if (db) {
-        const ws = getWorkshopConfig(db);
-        const brandEl = (document && typeof document.querySelector === 'function') ? document.querySelector('.brand-tag') : null;
-        if (brandEl) {
-            brandEl.textContent = ws.logoText || 'MecanicOS';
-        }
-    }
-}
+
 
 // Live Clock
-function startClock() {
-    const clockEl = document.getElementById('live-clock');
-    if (!clockEl) return;
-    function updateClock() {
-        const now = new Date();
-        const options = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-        clockEl.textContent = now.toLocaleDateString('es-SV', options);
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
-}
+
 
 // ----------------------------------------------------
 // VIEW RENDERING FUNCTIONS
@@ -1321,153 +1121,10 @@ function startClock() {
 
 // 1. TALLER DASHBOARD VIEW
 // 2. CLIENTES Y VEHICULOS VIEW
-function calculateElSalvadorPeriodPayroll(baseSalary, extraEarnings = 0, periodType = 'M') {
-    // Si es quincenal, el salario base se divide entre 2 para el período
-    const currentBase = periodType === 'M' ? baseSalary : baseSalary / 2;
-    const totalGravado = currentBase + extraEarnings;
-    
-    // Topes de ISSS según período
-    const isssLimit = periodType === 'M' ? 1000 : 500;
-    
-    const isssEmployee = Math.min(totalGravado, isssLimit) * 0.03;
-    const afpEmployee = totalGravado * 0.0725;
-    
-    const rentBase = totalGravado - isssEmployee - afpEmployee;
-    let isr = 0;
-    
-    if (periodType === 'M') {
-        // ISR Mensual
-        if (rentBase > 2038.10) {
-            isr = (rentBase - 2038.10) * 0.30 + 288.57;
-        } else if (rentBase > 895.24) {
-            isr = (rentBase - 895.24) * 0.20 + 60.00;
-        } else if (rentBase > 472.00) {
-            isr = (rentBase - 472.00) * 0.10 + 17.67;
-        }
-    } else {
-        // ISR Quincenal
-        if (rentBase > 1019.05) {
-            isr = (rentBase - 1019.05) * 0.30 + 144.28;
-        } else if (rentBase > 447.62) {
-            isr = (rentBase - 447.62) * 0.20 + 30.00;
-        } else if (rentBase > 236.00) {
-            isr = (rentBase - 236.00) * 0.10 + 8.83;
-        }
-    }
-    
-    const totalDeductions = isssEmployee + afpEmployee + isr;
-    const netSalary = totalGravado - totalDeductions;
-    
-    const isssEmployer = Math.min(totalGravado, isssLimit) * 0.075;
-    const afpEmployer = totalGravado * 0.0875;
-    const insaforpLimit = periodType === 'M' ? 1000 : 500;
-    const insaforp = totalGravado >= insaforpLimit ? totalGravado * 0.01 : 0;
-    const employerCost = totalGravado + isssEmployer + afpEmployer + insaforp;
-    
-    return {
-        totalGravado,
-        isssEmployee,
-        afpEmployee,
-        isr,
-        totalDeductions,
-        netSalary,
-        isssEmployer,
-        afpEmployer,
-        insaforp,
-        employerCost
-    };
-}
 
 
-function updateNotifications() {
-    const db = getDatabase();
-    if (!db) return;
 
-    const notifications = [];
 
-    // 1. Check for low stock products (quantity <= 3)
-    if (db.productos) {
-        db.productos.forEach(p => {
-            const stock = p.Minimos || 0;
-            if (stock <= 3) {
-                const id = `stock-${p['ID_ Producto']}-${stock}`;
-                if (!dismissedNotifications.includes(id)) {
-                    notifications.push({
-                        id: id,
-                        type: 'warning',
-                        icon: '<i class="fa-solid fa-triangle-exclamation" style="color: var(--warning);"></i>',
-                        title: 'Stock Bajo',
-                        desc: `El repuesto "${p.Descripcion}" tiene stock bajo (${stock} unidades).`,
-                        time: 'Inventario'
-                    });
-                }
-            }
-        });
-    }
-
-    // 2. Check for pending budgets (Estado === 1 / "Creado")
-    if (db.presupuestos) {
-        db.presupuestos.forEach(p => {
-            if (p.Estado == 1 || p.Estado == '1') {
-                const id = `budget-pending-${p['ID Presupuesto']}`;
-                if (!dismissedNotifications.includes(id)) {
-                    notifications.push({
-                        id: id,
-                        type: 'info',
-                        icon: '<i class="fa-solid fa-file-signature" style="color: var(--primary);"></i>',
-                        title: 'Presupuesto Creado',
-                        desc: `Presupuesto ${p['ID Presupuesto']} de ${p.Nombre} está pendiente de aprobación.`,
-                        time: 'Operaciones'
-                    });
-                }
-            }
-        });
-    }
-
-    // Update UI elements
-    const badge = document.getElementById('alert-badge');
-    const dropdownBody = document.getElementById('notifications-dropdown-body');
-
-    if (badge) {
-        badge.textContent = notifications.length;
-        if (notifications.length > 0) {
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
-
-    if (dropdownBody) {
-        if (notifications.length === 0) {
-            dropdownBody.innerHTML = `
-                <div style="padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
-                    <i class="fa-regular fa-bell-slash" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--text-muted);"></i>
-                    No tienes notificaciones pendientes
-                </div>
-            `;
-        } else {
-            dropdownBody.innerHTML = notifications.map(n => `
-                <div class="notification-item" data-id="${n.id}" style="cursor: pointer;">
-                    <div class="notification-item-icon">${n.icon}</div>
-                    <div class="notification-item-info">
-                        <span class="notification-item-title">${n.title}</span>
-                        <span class="notification-item-desc">${n.desc}</span>
-                        <span class="notification-item-time">${n.time}</span>
-                    </div>
-                </div>
-            `).join('');
-            
-            // Add click event to dismiss individual notifications
-            dropdownBody.querySelectorAll('.notification-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const id = item.getAttribute('data-id');
-                    dismissedNotifications.push(id);
-                    updateNotifications();
-                });
-            });
-        }
-    }
-}
 
 
 export {
