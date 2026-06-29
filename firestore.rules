@@ -28,13 +28,17 @@ service cloud.firestore {
     // SOLICITUDES SAAS (Registro de nuevos talleres)
     // ============================================================
     match /saas_requests/{requestId} {
-      // Permitir la creación (escritura inicial) a cualquiera (para que los nuevos talleres puedan registrarse)
+      // Permitir la creación (escritura inicial) a cualquiera
       allow create: if true;
       
-      // Permitir leer y actualizar si conocen el requestId (los solicitantes leen su propio estado)
-      allow get, update: if true;
+      // Permitir leer y actualizar si es administrador, si es el dueño
+      // de la cuenta, o si la solicitud aún no ha sido vinculada a un UID (flujo inicial)
+      allow get, update: if (request.auth != null && (
+        request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"] ||
+        request.auth.uid == resource.data.uid
+      )) || (resource == null || resource.data.uid == null);
       
-      // Solo el correo del administrador de la plataforma puede listar o borrar solicitudes
+      // Solo administradores listan o borran solicitudes
       allow list, delete: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     
@@ -42,10 +46,12 @@ service cloud.firestore {
     // PLANES Y CUPONES (Catálogo comercial)
     // ============================================================
     match /saas_plans/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     match /saas_coupons/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     
     // ============================================================
