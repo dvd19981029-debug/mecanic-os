@@ -156,17 +156,17 @@ export function renderPlanilla(container, queryParams) {
                         </div>
                         
                         <div style="margin-top:1.1rem;">
-                            ${isClosed 
+                            ${safe(isClosed 
                                 ? '<span class="badge-tag badge-success" style="padding: 0.5rem 0.75rem;"><i class="fa-solid fa-lock"></i> Planilla Cerrada e Historial Guardado</span>' 
-                                : '<span class="badge-tag badge-warning" style="padding: 0.5rem 0.75rem;"><i class="fa-solid fa-pen-to-square"></i> Período Abierto (Editable)</span>'}
+                                : '<span class="badge-tag badge-warning" style="padding: 0.5rem 0.75rem;"><i class="fa-solid fa-pen-to-square"></i> Período Abierto (Editable)</span>')}
                         </div>
                     </div>
                     
                     <div style="display:flex; gap:0.5rem; margin-top:1.1rem;">
                         <button class="btn btn-secondary" id="btn-export-consolidated-planilla"><i class="fa-solid fa-print"></i> Exportar Hoja</button>
-                        ${isClosed 
+                        ${safe(isClosed 
                             ? `<button class="btn btn-secondary" id="btn-reopen-planilla" style="color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-lock-open"></i> Reabrir</button>` 
-                            : `<button class="btn btn-primary" id="btn-lock-planilla"><i class="fa-solid fa-lock"></i> Cerrar Período</button>`}
+                            : `<button class="btn btn-primary" id="btn-lock-planilla"><i class="fa-solid fa-lock"></i> Cerrar Período</button>`)}
                     </div>
                 </div>
             </div>
@@ -544,7 +544,7 @@ export function renderPlanilla(container, queryParams) {
                         </head>
                         <body>
                             <div style="max-width:600px; margin:0 auto; border:1px solid #000; padding:20px;">
-                                ${recContent.innerHTML}
+                                ${safe(recContent.innerHTML)}
                             </div>
                             <script>window.print();<\/script>
                         </body>

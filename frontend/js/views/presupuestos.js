@@ -149,7 +149,7 @@ export function renderPresupuestos(container, queryParams) {
                 <td>${safe(statusBadge)}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${actionText}</a>
+                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${safe(actionText)}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         ${safe(deleteBtnHtml)}
                     </div>
@@ -261,7 +261,7 @@ export function renderBudgetEditor(container, budget) {
                     <div class="form-group">
                         <label>Técnico Asignado</label>
                         <select id="editor-tech-select" style="padding: 0.6rem;">
-                            ${techsHTML}
+                            ${safe(techsHTML)}
                         </select>
                     </div>
                 </div>
@@ -284,7 +284,7 @@ export function renderBudgetEditor(container, budget) {
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>
                         <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
-                            ${techsHTML}
+                            ${safe(techsHTML)}
                         </select>
                     </div>
                 </div>
@@ -393,19 +393,19 @@ export function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
-                ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? `
+                ${safe((budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? `
                 <div style="background: ${budget.Estado == 4 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)'}; border: 1px solid ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
                     <i class="fa-solid ${budget.Estado == 4 ? 'fa-ban' : 'fa-circle-check'}"></i>
                     <span>${budget.Estado == 2 ? 'Presupuesto aprobado (Lectura).' : budget.Estado == 4 ? 'DTE Anulado / Invalidado (Lectura).' : 'Presupuesto facturado (Lectura).'}</span>
                 </div>
-                ` : ''}
+                ` : '')}
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
-                    ${(!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : ''}
+                    ${safe((!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : '')}
                     <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
-                    ${(!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : ''}
-                    ${(!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : ''}
-                    ${!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : ''}
+                    ${safe((!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : '')}
+                    ${safe((!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : '')}
+                    ${safe(!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : '')}
                     <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
             </div>
@@ -1354,7 +1354,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 </div>
             </div>
             <div class="logo-container" style="display: flex; justify-content: center; align-items: center; min-height: 90px;">
-                ${ws.logo ? `
+                ${safe(ws.logo ? `
                     <img src="${ws.logo}" style="max-width: 220px; max-height: 90px; object-fit: contain; border-radius: 4px;" />
                 ` : `
                     <svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
@@ -1373,7 +1373,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                         <text x="76" y="55" font-family="'Inter', sans-serif" font-size="6" font-weight="600" fill="#1e293b">${(ws.logoTagline || '').toUpperCase()}</text>
                         <text x="76" y="65" font-family="'Inter', sans-serif" font-size="5.5" font-weight="600" fill="#64748b">${(ws.giro || '').substring(0, 50).toUpperCase()}</text>
                     </svg>
-                `}
+                `)}
             </div>
         </div>
 
@@ -1440,7 +1440,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 </tr>
             </thead>
             <tbody>
-                ${productsHTML}
+                ${safe(productsHTML)}
                 <tr class="table-footer-row">
                     <td colspan="3">Total Repuestos y Lubricantes</td>
                     <td style="text-align: right;">$ ${sumProd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -1459,7 +1459,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 </tr>
             </thead>
             <tbody>
-                ${laborHTML}
+                ${safe(laborHTML)}
                 <tr class="table-footer-row">
                     <td colspan="3">Total Mano de obra</td>
                     <td style="text-align: right;">$ ${sumLab.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -1482,12 +1482,12 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                     <td class="totals-label">Sumas</td>
                     <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ${discount > 0 ? `
+                ${safe(discount > 0 ? `
                 <tr>
                     <td class="totals-label">(-) Descuento</td>
                     <td class="totals-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ` : ''}
+                ` : '')}
                 <tr>
                     <td class="totals-label">IVA</td>
                     <td class="totals-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -1912,7 +1912,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Punto de Venta:</strong> P001</div>
             </div>
             <div class="logo-container">
-                ${logoHTML}
+                ${safe(logoHTML)}
             </div>
         </div>
 
@@ -1996,7 +1996,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 </tr>
             </thead>
             <tbody>
-                ${itemsHTML}
+                ${safe(itemsHTML)}
             </tbody>
         </table>
 
@@ -2376,7 +2376,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         <!-- Centered Header -->
         <div class="centered-header">
             <div class="header-logo">
-                ${logoHTML}
+                ${safe(logoHTML)}
             </div>
             <div class="header-title" style="display:${ws.logo ? 'block' : 'none'}; font-size:1.4rem; font-weight:600; margin-top:5px;">${ws.nombre_comercial || ws.nombre}</div>
             <div class="header-tagline">${ws.logoTagline || 'Mantenimiento de Flotas y Vehículos'}</div>
@@ -2445,7 +2445,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                 </tr>
             </thead>
             <tbody>
-                ${productsHTML}
+                ${safe(productsHTML)}
             </tbody>
         </table>
 
@@ -2460,7 +2460,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                 </tr>
             </thead>
             <tbody>
-                ${laborHTML}
+                ${safe(laborHTML)}
             </tbody>
         </table>
 
@@ -2471,12 +2471,12 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                     <td class="total-label">Sumatoria Repuestos y Servicios</td>
                     <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ${discount > 0 ? `
+                ${safe(discount > 0 ? `
                 <tr>
                     <td class="total-label">(-) Descuento</td>
                     <td class="total-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ` : ''}
+                ` : '')}
                 <tr>
                     <td class="total-label">IVA (13%)</td>
                     <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

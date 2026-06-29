@@ -121,7 +121,7 @@ export function renderCaja(container) {
                             <span style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); font-weight:600; color:var(--text-secondary); font-size:0.9rem;">$</span>
                             <input type="number" id="caja-monto-inicial" class="form-control" style="padding-left:1.75rem; width:100%;" step="0.01" value="${suggestedBalance.toFixed(2)}">
                         </div>
-                        ${lastSession ? `<span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; display:block;"><i class="fa-solid fa-info-circle"></i> Saldo sugerido basado en el saldo real del último corte de caja.</span>` : ''}
+                        ${safe(lastSession ? `<span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; display:block;"><i class="fa-solid fa-info-circle"></i> Saldo sugerido basado en el saldo real del último corte de caja.</span>` : '')}
                     </div>
                     
                     <button class="btn btn-primary" id="btn-caja-apertura" style="width:100%; font-weight:600; padding:0.75rem; display:flex; align-items:center; justify-content:center; gap:0.5rem;">

@@ -58,7 +58,7 @@ export function renderTabbedListWorkspace(container) {
                     <i class="fa-solid fa-file-invoice-dollar"></i> Historial DTEs Emitidos
                 </button>
             </div>
-            ${isAdmin ? `<button class="btn btn-warning" id="view-invalidated-budgets-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-ban"></i> Presupuestos Anulados</button>` : ''}
+            ${safe(isAdmin ? `<button class="btn btn-warning" id="view-invalidated-budgets-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-ban"></i> Presupuestos Anulados</button>` : '')}
         </div>
         
         <div id="tab-content-area">
@@ -868,8 +868,8 @@ export function renderInvoicingWorkspace(container, presId) {
         <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem;">
             <div style="display:flex; justify-content:space-between;"><span>Subtotal Neto:</span><span>$ ${subtotal.toFixed(2)}</span></div>
             <div style="display:flex; justify-content:space-between;"><span>IVA (13%):</span><span>$ ${iva.toFixed(2)}</span></div>
-            ${perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : ''}
-            ${retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : ''}
+            ${safe(perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : '')}
+            ${safe(retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : '')}
             <div style="display:flex; justify-content:space-between; font-weight:700; margin-top:0.5rem; font-size:1.1rem; color:var(--cyan);"><span>TOTAL DTE:</span><span>$ ${grandTotal.toFixed(2)}</span></div>
         </div>
     `;
@@ -1171,8 +1171,8 @@ export function renderInvoicingWorkspace(container, presId) {
                     <div style="text-align:right;">
                         <p>Subtotal Neto: $ ${subtotal.toFixed(2)}</p>
                         <p>IVA (13%): $ ${iva.toFixed(2)}</p>
-                        ${perception > 0 ? `<p>Percepción (2%): $ ${perception.toFixed(2)}</p>` : ''}
-                        ${retention > 0 ? `<p>Retención (1%): $ ${retention.toFixed(2)}</p>` : ''}
+                        ${safe(perception > 0 ? `<p>Percepción (2%): $ ${perception.toFixed(2)}</p>` : '')}
+                        ${safe(retention > 0 ? `<p>Retención (1%): $ ${retention.toFixed(2)}</p>` : '')}
                         <p><strong>TOTAL: $ ${grandTotal.toFixed(2)}</strong></p>
                     </div>
                     <p>--------------------------------------------------</p>
@@ -1597,7 +1597,7 @@ export function printDteTicket(presId) {
                 <td class="label">NIT/DUI:</td>
                 <td>${client.NIT || client['Num Doc'] || 'N/A'}</td>
             </tr>
-            ${isCCF ? `
+            ${safe(isCCF ? `
             <tr>
                 <td class="label">NRC:</td>
                 <td>${client.NRC || 'N/A'}</td>
@@ -1610,7 +1610,7 @@ export function printDteTicket(presId) {
                 <td class="label">Dirección:</td>
                 <td>${client.Direccion || 'N/A'}</td>
             </tr>
-            ` : ''}
+            ` : '')}
             <tr>
                 <td class="label">Placa Auto:</td>
                 <td>${p.Placas || 'N/A'}</td>
@@ -1655,16 +1655,16 @@ export function printDteTicket(presId) {
                 <td>IVA (13%):</td>
                 <td class="text-right">$ ${iva.toFixed(2)}</td>
             </tr>
-            ${perception > 0 ? `
+            ${safe(perception > 0 ? `
             <tr>
                 <td>Percepción (2%):</td>
                 <td class="text-right">$ ${perception.toFixed(2)}</td>
-            </tr>` : ''}
-            ${retention > 0 ? `
+            </tr>` : '')}
+            ${safe(retention > 0 ? `
             <tr>
                 <td>Retención (1%):</td>
                 <td class="text-right">$ ${retention.toFixed(2)}</td>
-            </tr>` : ''}
+            </tr>` : '')}
             <tr class="total-row">
                 <td>TOTAL A PAGAR:</td>
                 <td class="text-right">$ ${grandTotal.toFixed(2)}</td>

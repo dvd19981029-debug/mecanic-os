@@ -50,9 +50,9 @@ export function renderRevision21(container, queryParams) {
             </div>
             
             <div class="inspeccion-tab-body">
-                ${activeTab === 'registrar' ? renderRegistrarTab(db, checkpoints) : ''}
-                ${activeTab === 'historial' ? renderHistorialTab(db) : ''}
-                ${activeTab === 'configurar' ? renderConfigurarTab(db, checkpoints) : ''}
+                ${safe(activeTab === 'registrar' ? renderRegistrarTab(db, checkpoints) : '')}
+                ${safe(activeTab === 'historial' ? renderHistorialTab(db) : '')}
+                ${safe(activeTab === 'configurar' ? renderConfigurarTab(db, checkpoints) : '')}
             </div>
         </div>
 
@@ -705,7 +705,7 @@ window.exportInspectionPDF = function(revId) {
     <div class="page-container">
         <div class="header">
             <div class="header-left">
-                ${logoHtml}
+                ${safe(logoHtml)}
                 <div style="font-size:11px; color:#475569; margin-top:5px;">
                     <strong>${ws.nombre || ''}</strong><br>
                     ${ws.direccion || ''}<br>
@@ -793,7 +793,7 @@ export function renderRegistrarTab(db, checkpoints) {
                     <label>Cliente</label>
                     <select id="ins-client-select" required>
                         <option value="">-- Seleccionar Cliente --</option>
-                        ${clientOptionsHTML}
+                        ${safe(clientOptionsHTML)}
                     </select>
                 </div>
                 <div class="form-group">
@@ -908,7 +908,7 @@ export function renderHistorialTab(db) {
                         </tr>
                     </thead>
                     <tbody id="ins-history-tbody">
-                        ${rowsHTML}
+                        ${safe(rowsHTML)}
                     </tbody>
                 </table>
             </div>
@@ -953,7 +953,7 @@ export function renderConfigurarTab(db, checkpoints) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${rowsHTML}
+                            ${safe(rowsHTML)}
                         </tbody>
                     </table>
                 </div>

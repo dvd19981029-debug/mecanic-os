@@ -846,7 +846,7 @@ export function printGeneralPortfolioPDF(db, ws) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${rowsHTML || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#666;">No hay clientes con saldo o crédito registrado</td></tr>'}
+                    ${safe(rowsHTML || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#666;">No hay clientes con saldo o crédito registrado</td></tr>')}
                 </tbody>
             </table>
             
@@ -977,7 +977,7 @@ export function printOverlimitPortfolioPDF(db, ws) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${rowsHTML || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#666;">No hay clientes que superen su límite de crédito.</td></tr>'}
+                    ${safe(rowsHTML || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#666;">No hay clientes que superen su límite de crédito.</td></tr>')}
                 </tbody>
             </table>
             
@@ -1069,9 +1069,9 @@ export function printClientStatementPDF(db, ws, clientId) {
                 <td style="padding:8px 6px; border:1px solid #ddd; text-align:right; font-size:10px; white-space:nowrap; color:${t.abono > 0 ? '#10b981' : '#333'};">${abonoText}</td>
                 <td style="padding:8px 6px; border:1px solid #ddd; text-align:right; font-size:10px; font-weight:bold; white-space:nowrap;">$ ${runningBalance.toFixed(2)}</td>
                 <td style="padding:8px 6px; border:1px solid #ddd; text-align:center; font-size:10px;">
-                    ${isTransAnulada 
+                    ${safe(isTransAnulada 
                         ? '<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold;">ANULADO</span>' 
-                        : '<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold;">ACTIVO</span>'}
+                        : '<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold;">ACTIVO</span>')}
                 </td>
             </tr>
         `;
@@ -1151,7 +1151,7 @@ export function printClientStatementPDF(db, ws, clientId) {
                     <div><strong>Punto de Venta:</strong> P001</div>
                 </div>
                 <div style="width:180px; text-align:right; margin-left:15px; border-right:3px solid #ddd; padding-right:15px;">
-                    ${logoHTML}
+                    ${safe(logoHTML)}
                 </div>
             </div>
 
@@ -1182,9 +1182,9 @@ export function printClientStatementPDF(db, ws, clientId) {
                     <div><strong>Saldo Pendiente Actual:</strong> <strong style="color:${balance > 0 ? '#ef233c' : '#10b981'};">$ ${balance.toFixed(2)}</strong></div>
                     <div><strong>Crédito Disponible:</strong> <strong style="color:#10b981;">$ ${availableCredit.toFixed(2)}</strong></div>
                     <div><strong>Estado:</strong> 
-                        ${isExceeded 
+                        ${safe(isExceeded 
                             ? '<span style="color:#ef233c; font-weight:bold;">LÍMITE EXCEDIDO</span>' 
-                            : '<span style="color:#10b981; font-weight:bold;">CUENTA AL DÍA</span>'}
+                            : '<span style="color:#10b981; font-weight:bold;">CUENTA AL DÍA</span>')}
                     </div>
                 </div>
             </div>
@@ -1208,7 +1208,7 @@ export function printClientStatementPDF(db, ws, clientId) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${rowsHTML || '<tr><td colspan="8" style="text-align:center; padding:20px; color:#666; border:1px solid #ddd;">No se registran cargos ni abonos para este cliente</td></tr>'}
+                    ${safe(rowsHTML || '<tr><td colspan="8" style="text-align:center; padding:20px; color:#666; border:1px solid #ddd;">No se registran cargos ni abonos para este cliente</td></tr>')}
                 </tbody>
             </table>
             

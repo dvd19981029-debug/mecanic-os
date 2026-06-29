@@ -175,14 +175,14 @@ export function renderDashboardBI(container) {
     const externalPct = totalProfitability > 0 ? Math.round((externalSum / totalProfitability) * 100) : 5;
 
     container.innerHTML = html`
-        ${isMockData ? `
+        ${safe(isMockData ? `
         <div class="glass-card" style="padding:1rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.75rem; border-left:4px solid var(--primary); background:rgba(99,102,241,0.08);">
             <i class="fa-solid fa-circle-info" style="color:var(--primary); font-size:1.2rem;"></i>
             <span style="font-size:0.85rem; color:var(--text-primary);">
                 Actualmente viendo datos de demostración. Los gráficos se actualizarán automáticamente con sus ingresos y costos reales a medida que registre facturas cobradas, presupuestos aprobados o ventas rápidas (POS).
             </span>
         </div>
-        ` : ''}
+        ` : '')}
 
         <div class="dashboard-grid">
             <div class="glass-card stat-card">

@@ -1387,7 +1387,7 @@ export async function renderAdminSolicitudes(container) {
                     <!-- Columna Izquierda: Tabla de Historial -->
                     <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
                         <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-list-check"></i> Registro de Pagos Recibidos</h4>
-                        ${paymentsTableHtml}
+                        ${safe(paymentsTableHtml)}
                     </div>
 
                     <!-- Columna Derecha: Registrar Pago Manual -->
@@ -1457,7 +1457,7 @@ export async function renderAdminSolicitudes(container) {
                     <div class="glass-card" style="padding:1.5rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
                         <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; color:var(--primary); margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-money-bill-transfer"></i> Enlace de Suscripción Wompi SV</h4>
                         <div style="display:flex; flex-direction:column; gap:1.25rem;">
-                            ${workshop.idEnlace ? `
+                            ${safe(workshop.idEnlace ? `
                                 <div style="background:rgba(46, 204, 113, 0.08); border:1px solid rgba(46, 204, 113, 0.2); padding:1rem; border-radius:8px;">
                                     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; color:#2ecc71;">
                                         <i class="fa-solid fa-circle-check"></i>
@@ -1484,7 +1484,7 @@ export async function renderAdminSolicitudes(container) {
                                     </div>
                                     <button type="submit" class="btn btn-secondary" style="padding:0.45rem; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-link"></i> Vincular Enlace</button>
                                 </form>
-                            `}
+                            `)}
                         </div>
                     </div>
                 </div>
@@ -1497,7 +1497,7 @@ export async function renderAdminSolicitudes(container) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
                     <div>
                         <div style="display:flex; align-items:center; gap:0.75rem;">
-                            ${workshop.logo ? `<img src="${workshop.logo}" style="max-height:45px; max-width:100px; object-fit:contain; border-radius:4px; padding:2px; background:white;" />` : `<div style="font-size: 1.8rem; color: var(--primary);"><i class="fa-solid fa-gears"></i></div>`}
+                            ${safe(workshop.logo ? `<img src="${workshop.logo}" style="max-height:45px; max-width:100px; object-fit:contain; border-radius:4px; padding:2px; background:white;" />` : `<div style="font-size: 1.8rem; color: var(--primary);"><i class="fa-solid fa-gears"></i></div>`)}
                             <div>
                                 <h2 style="font-family:'Outfit', sans-serif; font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:0;">${workshop.nombre}</h2>
                                 <p style="color:var(--text-secondary); font-size:0.85rem; margin:0; margin-top:0.15rem;">Expediente del Taller: <code style="color:var(--primary);">${workshop.id}</code></p>
@@ -1516,7 +1516,7 @@ export async function renderAdminSolicitudes(container) {
                 
                 <!-- Cuerpo de la Pestaña Activa -->
                 <div style="min-height:350px;">
-                    ${tabBodyHtml}
+                    ${safe(tabBodyHtml)}
                 </div>
             </div>
         `;
@@ -2279,14 +2279,14 @@ if (window.saasViewReceiptPaymentId) {
                                 </td>
                                 <td style="padding:0.75rem 0; text-align:right; font-weight:600;">$${(payment.subtotal || payment.monto).toFixed(2)}</td>
                             </tr>
-                            ${payment.descuento_aplicado && payment.descuento_aplicado > 0 ? `
+                            ${safe(payment.descuento_aplicado && payment.descuento_aplicado > 0 ? `
                             <tr style="color:var(--success);">
                                 <td style="padding:0.5rem 0; font-size:0.8rem;">
                                     Descuento Promocional ${payment.cupon_usado ? `(${payment.cupon_usado})` : ''}
                                 </td>
                                 <td style="padding:0.5rem 0; text-align:right; font-weight:600;">-$${payment.descuento_aplicado.toFixed(2)}</td>
                             </tr>
-                            ` : ''}
+                            ` : '')}
                         </tbody>
                     </table>
                     
@@ -2308,7 +2308,7 @@ if (window.saasViewReceiptPaymentId) {
                         </div>
                     </div>
                     
-                    ${payment.dte ? `
+                    ${safe(payment.dte ? `
                     <div style="margin-top:1.5rem; padding:1rem; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:6px; font-size:0.8rem; line-height:1.4;">
                         <div style="font-weight:700; color:#2ecc71; margin-bottom:0.4rem; display:flex; align-items:center; gap:0.4rem;">
                             <i class="fa-solid fa-circle-check"></i> Factura Electrónica Certificada (MH El Salvador)
@@ -2319,7 +2319,7 @@ if (window.saasViewReceiptPaymentId) {
                             <div><strong>Sello Recepción:</strong> ${payment.dte.receptionSeal}</div>
                         </div>
                     </div>
-                    ` : ''}
+                    ` : '')}
                     
                     <div style="margin-top:2rem; text-align:center; border-top:1px solid var(--border-color); padding-top:1rem; font-size:0.75rem; color:var(--text-secondary); font-style:italic;">
                         ¡Gracias por utilizar Mecanic OS! Si tienes dudas técnicas, contáctanos a soporte@mecanicos.com
@@ -2328,9 +2328,9 @@ if (window.saasViewReceiptPaymentId) {
                 
                 <div style="display:flex; gap:1rem; margin-top:1.5rem;">
                     <button id="btn-print-receipt-modal" class="btn btn-primary" style="flex:1; padding:0.75rem;"><i class="fa-solid fa-print"></i> Imprimir Comprobante</button>
-                    ${payment.dte ? `
+                    ${safe(payment.dte ? `
                     <a href="${payment.dte.mhDteUrl}" target="_blank" class="btn btn-secondary" style="flex:1; padding:0.75rem; display:flex; align-items:center; justify-content:center; gap:0.4rem; border-color:#2ecc71; color:#2ecc71; text-decoration:none;"><i class="fa-solid fa-cloud-arrow-down"></i> Descargar PDF MH</a>
-                    ` : ''}
+                    ` : '')}
                     <button type="button" onclick="window.saasCloseForm()" class="btn btn-secondary" style="flex:1; padding:0.75rem;">Cerrar</button>
                 </div>
             </div>
@@ -2434,11 +2434,11 @@ if (window.saasViewReceiptPaymentId) {
             
             <!-- Tab Body -->
             <div class="saas-tab-body">
-                ${activeTab === 'req' ? renderRequestsTab() : ''}
-                ${activeTab === 'sub' ? renderSubscriptionsTab() : ''}
-                ${activeTab === 'pay' ? renderPaymentsTab() : ''}
-                ${activeTab === 'plans-coupons' ? renderPlansCouponsTab() : ''}
-                ${activeTab === 'metrics' ? renderMetricsTab() : ''}
+                ${safe(activeTab === 'req' ? renderRequestsTab() : '')}
+                ${safe(activeTab === 'sub' ? renderSubscriptionsTab() : '')}
+                ${safe(activeTab === 'pay' ? renderPaymentsTab() : '')}
+                ${safe(activeTab === 'plans-coupons' ? renderPlansCouponsTab() : '')}
+                ${safe(activeTab === 'metrics' ? renderMetricsTab() : '')}
             </div>
         </div>
     `;
@@ -2974,7 +2974,7 @@ if (window.saasViewReceiptPaymentId) {
                             <div style="height:6px; background:var(--border-color); border-radius:3px; overflow:hidden; display:flex;">
                                 <div style="width:${writesPct}%; height:100%; background:${getBarColor(writesPct)}; border-radius:3px; transition: width 0.5s ease;"></div>
                             </div>
-                            ${writes > 15000 ? `<div style="color:#e74c3c; font-size:0.7rem; font-weight:bold; margin-top:3px;"><i class="fa-solid fa-triangle-exclamation"></i> ¡Advertencia: Acercándose al límite diario de 20k escrituras!</div>` : ''}
+                            ${safe(writes > 15000 ? `<div style="color:#e74c3c; font-size:0.7rem; font-weight:bold; margin-top:3px;"><i class="fa-solid fa-triangle-exclamation"></i> ¡Advertencia: Acercándose al límite diario de 20k escrituras!</div>` : '')}
                         </div>
 
                         <!-- Eliminaciones -->

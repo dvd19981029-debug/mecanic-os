@@ -317,7 +317,7 @@ export function renderGastos(container) {
                         $ ${(item.cant * item.precio_costo).toFixed(2)}
                     </td>
                     <td style="text-align:center;">
-                        ${purchaseItems.length > 1 ? `<button type="button" class="pur-row-delete-btn" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;">&times;</button>` : ''}
+                        ${safe(purchaseItems.length > 1 ? `<button type="button" class="pur-row-delete-btn" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;">&times;</button>` : '')}
                     </td>
                 </tr>
             `).join('');

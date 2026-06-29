@@ -778,13 +778,13 @@ export function renderVentaRapida(container) {
                 <td><span class="badge-tag badge-secondary">${docLabel}</span></td>
                 <td>
                     <strong style="font-family:monospace; font-size:0.8rem;">${escapeHtml(vr.mhControlNumber || vr.controlNumber || 'N/A')}</strong>
-                    ${vr.controlNumber ? `<div style="font-size:0.65rem; color:var(--text-muted);">Gen: ${vr.controlNumber.substring(0,8)}...</div>` : ''}
+                    ${safe(vr.controlNumber ? `<div style="font-size:0.65rem; color:var(--text-muted);">Gen: ${vr.controlNumber.substring(0,8)}...</div>` : '')}
                 </td>
                 <td><strong>$ ${vr.total.toFixed(2)}</strong></td>
                 <td>
                     <div style="display:flex; gap:0.5rem;">
                         <button class="btn btn-secondary btn-print-pos-ticket" data-id="${vr.ID_Venta_Rapida}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-receipt"></i> Ticket</button>
-                        ${vr.controlNumber ? `<button class="btn btn-primary btn-view-pos-pdf" data-id="${vr.controlNumber}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : ''}
+                        ${safe(vr.controlNumber ? `<button class="btn btn-primary btn-view-pos-pdf" data-id="${vr.controlNumber}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : '')}
                     </div>
                 </td>
             `;
