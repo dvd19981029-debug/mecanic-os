@@ -274,13 +274,40 @@ export function renderInventario(container) {
         const searchInput = document.getElementById('kardex-search');
         const exportBtn = document.getElementById('btn-export-kardex');
 
-        function populateKardexList(filter = '') {
-            rowsEl.innerHTML = '';
-            const list = db['29 Movs de Inventario'] || [];
+        function getCombinedKardexList() {
+            const productMovs = db['29 Movs de Inventario'] || [];
+            const facturados = (db.presupuestos || []).filter(p => p.Estado == 3);
+            const laborDetails = db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || [];
+            const productDetails = db.detalle_productos || db['21 Detalle Presupuesto Producto'] || [];
             
-            const filtered = list.filter(mov => {
+            // Create virtual labor movements
+            const laborMovs = [];
+            facturados.forEach(p => {
+                const pLabor = laborDetails.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+                pLabor.forEach(dm => {
+                    const tech = db.tecnicos.find(t => t.Tecnico_ID === dm.Tecnico_ID) || db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+                    let dteVal = p.mhControlNumber || p.controlNumber || 'N/A';
+                    
+                    laborMovs.push({
+                        id_Mov: "MOVINV-LAB-" + dm.ID_DetalleMO,
+                        id_producto: dm.ID_ManoObra || 'SERV',
+                        descripcion: dm.Descripcion,
+                        Tipo: "SALIDA",
+                        Cant_Mov: parseInt(dm.Cantidad || 1),
+                        "Fecha Mov": p.Fecha_Facturacion || p.Fecha || Date.now(),
+                        "Valor ($)": parseFloat(dm.PrecioUnitario || 0),
+                        Observacion: `Servicio Presupuesto ${p['ID Presupuesto']} - Técnico: ${tech.Nombre_Completo}`,
+                        DTE: dteVal,
+                        isLabor: true
+                    });
+                });
+            });
+            
+            // Enhance product movements with technician names and clean up DTEs
+            const enhancedProductMovs = productMovs.map(mov => {
                 let obsVal = mov.Observacion || mov.observacion || '';
                 let dteVal = mov.DTE || mov.dte || 'N/A';
+                
                 if (dteVal === 'N/A') {
                     if (obsVal.includes(' - DTE ')) {
                         const parts = obsVal.split(' - DTE ');
@@ -299,6 +326,47 @@ export function renderInventario(container) {
                         dteVal = vr.controlNumber;
                     }
                 }
+
+                // Try to extract budget ID
+                let budgetId = '';
+                if (obsVal.includes('Presupuesto ')) {
+                    const match = obsVal.match(/PRES-CS-[0-9]+/);
+                    if (match) budgetId = match[0];
+                }
+                
+                let techName = '';
+                if (budgetId) {
+                    const p = (db.presupuestos || []).find(x => x['ID Presupuesto'] === budgetId);
+                    if (p) {
+                        const dp = productDetails.find(d => d['ID_Presupuesto DPP'] === budgetId && d['ID_Producto DPP'] === mov.id_producto);
+                        const techId = (dp && dp.Tecnico_ID) || (p && p.Tecnico_Asignado) || '';
+                        const tech = db.tecnicos.find(t => t.Tecnico_ID === techId);
+                        if (tech) techName = tech.Nombre_Completo;
+                    }
+                }
+                
+                return {
+                    ...mov,
+                    Observacion: techName ? `${obsVal} - Técnico: ${techName}` : obsVal,
+                    DTE: dteVal
+                };
+            });
+
+            // Combine and sort by date descending
+            return [...enhancedProductMovs, ...laborMovs].sort((a, b) => {
+                const timeA = new Date(a['Fecha Mov']).getTime();
+                const timeB = new Date(b['Fecha Mov']).getTime();
+                return timeB - timeA;
+            });
+        }
+
+        function populateKardexList(filter = '') {
+            rowsEl.innerHTML = '';
+            const list = getCombinedKardexList();
+            
+            const filtered = list.filter(mov => {
+                const obsVal = mov.Observacion || '';
+                const dteVal = mov.DTE || 'N/A';
                 const filterLower = filter.toLowerCase();
                 return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
                        (mov.descripcion || '').toLowerCase().includes(filterLower) ||
@@ -321,27 +389,6 @@ export function renderInventario(container) {
                     dateStr = new Date(mov['Fecha Mov']).toLocaleString('es-SV');
                 } catch(e) {}
 
-                let obsVal = mov.Observacion || mov.observacion || '';
-                let dteVal = mov.DTE || mov.dte || 'N/A';
-                if (dteVal === 'N/A') {
-                    if (obsVal.includes(' - DTE ')) {
-                        const parts = obsVal.split(' - DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    } else if (obsVal.includes(' DTE ')) {
-                        const parts = obsVal.split(' DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    }
-                }
-                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
-                    const vrId = obsVal.replace('Venta POS ', '').trim();
-                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
-                    if (vr && vr.controlNumber) {
-                        dteVal = vr.controlNumber;
-                    }
-                }
-
                 tr.innerHTML = html`
                     <td>${dateStr}</td>
                     <td><code>${escapeHtml(mov.id_producto)}</code></td>
@@ -350,8 +397,8 @@ export function renderInventario(container) {
                     <td style="text-align:center; font-weight:700;">${mov.Cant_Mov}</td>
                     <td style="text-align:right;">$ ${val.toFixed(2)}</td>
                     <td style="text-align:right; font-weight:600;">$ ${sub.toFixed(2)}</td>
-                    <td><span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(obsVal)}</span></td>
-                    <td><span style="font-size:0.8rem; font-family:monospace; color:var(--cyan); font-weight:600;">${escapeHtml(dteVal)}</span></td>
+                    <td><span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(mov.Observacion)}</span></td>
+                    <td><span style="font-size:0.8rem; font-family:monospace; color:var(--cyan); font-weight:600;">${escapeHtml(mov.DTE)}</span></td>
                 `;
                 rowsEl.appendChild(tr);
             });
@@ -365,29 +412,11 @@ export function renderInventario(container) {
 
         exportBtn.addEventListener('click', () => {
             const filter = searchInput.value;
-            const list = db['29 Movs de Inventario'] || [];
+            const list = getCombinedKardexList();
             
             const filtered = list.filter(mov => {
-                let obsVal = mov.Observacion || mov.observacion || '';
-                let dteVal = mov.DTE || mov.dte || 'N/A';
-                if (dteVal === 'N/A') {
-                    if (obsVal.includes(' - DTE ')) {
-                        const parts = obsVal.split(' - DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    } else if (obsVal.includes(' DTE ')) {
-                        const parts = obsVal.split(' DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    }
-                }
-                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
-                    const vrId = obsVal.replace('Venta POS ', '').trim();
-                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
-                    if (vr && vr.controlNumber) {
-                        dteVal = vr.controlNumber;
-                    }
-                }
+                const obsVal = mov.Observacion || '';
+                const dteVal = mov.DTE || 'N/A';
                 const filterLower = filter.toLowerCase();
                 return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
                        (mov.descripcion || '').toLowerCase().includes(filterLower) ||
@@ -401,26 +430,6 @@ export function renderInventario(container) {
             }
 
             const excelData = filtered.map(mov => {
-                let obsVal = mov.Observacion || mov.observacion || '';
-                let dteVal = mov.DTE || mov.dte || 'N/A';
-                if (dteVal === 'N/A') {
-                    if (obsVal.includes(' - DTE ')) {
-                        const parts = obsVal.split(' - DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    } else if (obsVal.includes(' DTE ')) {
-                        const parts = obsVal.split(' DTE ');
-                        obsVal = parts[0];
-                        dteVal = parts[1];
-                    }
-                }
-                if (dteVal === 'N/A' && obsVal.includes('Venta POS ')) {
-                    const vrId = obsVal.replace('Venta POS ', '').trim();
-                    const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
-                    if (vr && vr.controlNumber) {
-                        dteVal = vr.controlNumber;
-                    }
-                }
                 return {
                     "Fecha": new Date(mov['Fecha Mov']).toLocaleString('es-SV'),
                     "Código Producto": mov.id_producto || '',
@@ -429,8 +438,8 @@ export function renderInventario(container) {
                     "Cantidad": mov.Cant_Mov || 0,
                     "Valor ($)": parseFloat(mov['Valor ($)'] || 0),
                     "Subtotal ($)": (mov.Cant_Mov || 0) * parseFloat(mov['Valor ($)'] || 0),
-                    "Observación": obsVal,
-                    "Número DTE": dteVal
+                    "Observación": mov.Observacion || '',
+                    "Número DTE": mov.DTE || 'N/A'
                 };
             });
 
