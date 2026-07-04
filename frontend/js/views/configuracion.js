@@ -57,15 +57,9 @@ export function renderConfiguracion(container, queryParams) {
                                 <label>Nombre o Razón Social</label>
                                 <input type="text" id="cfg-taller-nombre" value="${ws.nombre || ''}" required style="padding:0.6rem;">
                             </div>
-                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                                <div class="form-group">
-                                    <label>Alias (Nombre Corto)</label>
-                                    <input type="text" id="cfg-taller-alias" value="${ws.alias || ''}" required style="padding:0.6rem;">
-                                </div>
-                                <div class="form-group">
-                                    <label>Nombre Comercial</label>
-                                    <input type="text" id="cfg-taller-nombre-comercial" value="${ws.nombre_comercial || ''}" required style="padding:0.6rem;">
-                                </div>
+                            <div class="form-group">
+                                <label>Nombre Comercial</label>
+                                <input type="text" id="cfg-taller-nombre-comercial" value="${ws.nombre_comercial || ''}" required style="padding:0.6rem;">
                             </div>
                             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div class="form-group">
@@ -737,7 +731,7 @@ export function renderConfiguracion(container, queryParams) {
                 e.preventDefault();
                 db.config_taller = {
                     nombre: document.getElementById('cfg-taller-nombre').value,
-                    alias: document.getElementById('cfg-taller-alias').value,
+                    alias: document.getElementById('cfg-taller-nombre-comercial').value,
                     nombre_comercial: document.getElementById('cfg-taller-nombre-comercial').value,
                     giro: (() => { const el = document.getElementById('cfg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
                     direccion: document.getElementById('cfg-taller-direccion').value,
