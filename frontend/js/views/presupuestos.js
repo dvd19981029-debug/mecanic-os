@@ -843,7 +843,7 @@ export function renderBudgetEditor(container, budget) {
     searchLaborInput.addEventListener('input', (e) => populateLaborCatalog(e.target.value));
 
     // Save budget changes helper
-    const saveBudget = () => {
+    const saveBudget = (newState = null) => {
         if (isNew) {
             const clientSelect = document.getElementById('editor-client-select');
             const vehicleSelect = document.getElementById('editor-vehicle-select');
@@ -857,7 +857,19 @@ export function renderBudgetEditor(container, budget) {
         // Save headers
         budget.Fallas_Detectadas = document.getElementById('editor-fallas').value;
         budget.Tecnico_Asignado = document.getElementById('editor-tech-select').value;
-        budget.Estado = parseInt(document.getElementById('editor-state').value);
+        
+        // Use explicit newState if provided to bypass disabled select/option browser limits
+        if (newState !== null) {
+            budget.Estado = newState;
+            const stateSelect = document.getElementById('editor-state');
+            if (stateSelect) {
+                stateSelect.disabled = false;
+                Array.from(stateSelect.options).forEach(opt => opt.disabled = false);
+                stateSelect.value = newState.toString();
+            }
+        } else {
+            budget.Estado = parseInt(document.getElementById('editor-state').value);
+        }
         
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
@@ -884,13 +896,12 @@ export function renderBudgetEditor(container, budget) {
         }
     };
 
-    document.getElementById('save-budget-btn').addEventListener('click', saveBudget);
+    document.getElementById('save-budget-btn').addEventListener('click', () => saveBudget(null));
 
     const approveBtn = document.getElementById('approve-budget-shortcut-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', () => {
-            document.getElementById('editor-state').value = "2";
-            saveBudget();
+            saveBudget(2);
         });
     }
 
@@ -898,8 +909,7 @@ export function renderBudgetEditor(container, budget) {
     if (rejectBtn) {
         rejectBtn.addEventListener('click', () => {
             if (confirm("¿Estás seguro de que deseas rechazar esta cotización? El auto pasará al estado de salida/anulado.")) {
-                document.getElementById('editor-state').value = "4";
-                saveBudget();
+                saveBudget(4);
             }
         });
     }
@@ -908,8 +918,7 @@ export function renderBudgetEditor(container, budget) {
     if (finalizeBtn) {
         finalizeBtn.addEventListener('click', () => {
             if (confirm("¿Confirmas que los trabajos físicos han sido finalizados y el presupuesto está listo para facturar?")) {
-                document.getElementById('editor-state').value = "5";
-                saveBudget();
+                saveBudget(5);
             }
         });
     }
@@ -918,8 +927,7 @@ export function renderBudgetEditor(container, budget) {
     if (reopenBtn) {
         reopenBtn.addEventListener('click', () => {
             if (confirm("¿Deseas reabrir la orden de reparación en el taller? El auto volverá al estado 'Trabajando'.")) {
-                document.getElementById('editor-state').value = "2";
-                saveBudget();
+                saveBudget(2);
             }
         });
     }
