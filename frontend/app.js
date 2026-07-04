@@ -14,13 +14,13 @@ import {
     downloadExcelReport,
     html,
     safe
-} from './js/utils.js?v=22';
+} from './js/utils.js?v=23';
 
 import {
     calculateElSalvadorPeriodPayroll,
     getBudgetGrandTotal,
     getClientPendingBalance
-} from './js/businessLogic.js?v=22';
+} from './js/businessLogic.js?v=23';
 
 import {
     updateUserUI,
@@ -32,7 +32,7 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode
-} from './js/ui.js?v=22';
+} from './js/ui.js?v=23';
 
 // Expose critical functions globally to window for legacy compatibility
 window.showToast = showToast;
@@ -250,6 +250,12 @@ let currentFirebaseUser = null;
 Object.defineProperty(window, 'dbFirestore', {
     get() { return dbFirestore; },
     set(val) { dbFirestore = val; },
+    configurable: true
+});
+
+Object.defineProperty(window, 'isFirebaseConnected', {
+    get() { return isFirebaseConnected; },
+    set(val) { isFirebaseConnected = val; },
     configurable: true
 });
 
