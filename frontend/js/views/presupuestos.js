@@ -842,8 +842,8 @@ export function renderBudgetEditor(container, budget) {
 
     searchLaborInput.addEventListener('input', (e) => populateLaborCatalog(e.target.value));
 
-    // Save budget changes
-    document.getElementById('save-budget-btn').addEventListener('click', () => {
+    // Save budget changes helper
+    const saveBudget = () => {
         if (isNew) {
             const clientSelect = document.getElementById('editor-client-select');
             const vehicleSelect = document.getElementById('editor-vehicle-select');
@@ -873,14 +873,24 @@ export function renderBudgetEditor(container, budget) {
         // Save to LocalStorage
         saveDatabase(db);
         showToast("Presupuesto guardado correctamente", "success");
-        window.location.hash = '#presupuestos';
-    });
+        
+        // Dynamic redirection based on new state
+        if (budget.Estado === 5) {
+            window.location.hash = '#facturador';
+        } else if (budget.Estado === 2) {
+            window.location.hash = '#kanban';
+        } else {
+            window.location.hash = '#presupuestos';
+        }
+    };
+
+    document.getElementById('save-budget-btn').addEventListener('click', saveBudget);
 
     const approveBtn = document.getElementById('approve-budget-shortcut-btn');
     if (approveBtn) {
         approveBtn.addEventListener('click', () => {
             document.getElementById('editor-state').value = "2";
-            document.getElementById('save-budget-btn').click();
+            saveBudget();
         });
     }
 
@@ -889,7 +899,7 @@ export function renderBudgetEditor(container, budget) {
         rejectBtn.addEventListener('click', () => {
             if (confirm("¿Estás seguro de que deseas rechazar esta cotización? El auto pasará al estado de salida/anulado.")) {
                 document.getElementById('editor-state').value = "4";
-                document.getElementById('save-budget-btn').click();
+                saveBudget();
             }
         });
     }
@@ -899,7 +909,7 @@ export function renderBudgetEditor(container, budget) {
         finalizeBtn.addEventListener('click', () => {
             if (confirm("¿Confirmas que los trabajos físicos han sido finalizados y el presupuesto está listo para facturar?")) {
                 document.getElementById('editor-state').value = "5";
-                document.getElementById('save-budget-btn').click();
+                saveBudget();
             }
         });
     }
@@ -909,7 +919,7 @@ export function renderBudgetEditor(container, budget) {
         reopenBtn.addEventListener('click', () => {
             if (confirm("¿Deseas reabrir la orden de reparación en el taller? El auto volverá al estado 'Trabajando'.")) {
                 document.getElementById('editor-state').value = "2";
-                document.getElementById('save-budget-btn').click();
+                saveBudget();
             }
         });
     }
