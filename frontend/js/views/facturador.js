@@ -1041,6 +1041,8 @@ export function renderInvoicingWorkspace(container, presId) {
             const mhUrl = resData.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
 
             p.Estado = 3;
+            const wsConfig = getWorkshopConfig(db);
+            p.Tipo_Comision = wsConfig.tipo_comision || 'general';
             p.controlNumber = genCode;
             p.mhControlNumber = ctrlNum;
             p.receptionSeal = seal;

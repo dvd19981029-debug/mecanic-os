@@ -510,6 +510,9 @@ export function renderBudgetEditor(container, budget) {
             budget.Kilometraje = odoEl.value;
         }
 
+        const config = getWorkshopConfig(db);
+        budget.Tipo_Comision = config.tipo_comision || 'general';
+
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);

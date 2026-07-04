@@ -184,11 +184,12 @@ export function renderComisiones(container, queryParams) {
         const facturados = db.presupuestos.filter(p => {
             if (p.Estado != 3) return false;
             
-            const pProds = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const pLabor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            const hasAnyLineAssignment = pProds.some(dp => dp.Tecnico_ID) || pLabor.some(dm => dm.Tecnico_ID);
+            const budgetTipoComision = p.Tipo_Comision || 'general';
 
-            if (tipoComision === 'detallada' && hasAnyLineAssignment) {
+            if (budgetTipoComision === 'detallada') {
+                const pProds = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+                const pLabor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+                
                 const hasProd = pProds.some(dp => dp.Tecnico_ID === tId);
                 if (hasProd) return true;
                 const hasLabor = pLabor.some(dm => dm.Tecnico_ID === tId);
@@ -777,21 +778,17 @@ export function getBudgetCommissions(p, t, db) {
         return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
     }
 
-    const config = getWorkshopConfig(db);
-    const tipoComision = config.tipo_comision || 'general';
+    const budgetTipoComision = p.Tipo_Comision || 'general';
     
     let products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
     let labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
     
-    const hasAnyLineAssignment = products.some(dp => dp.Tecnico_ID) || labor.some(dm => dm.Tecnico_ID);
-    
-    if (tipoComision === 'detallada' && hasAnyLineAssignment) {
+    if (budgetTipoComision === 'detallada') {
         // Filter items where the assigned technician is strictly this technician
         products = products.filter(dp => dp.Tecnico_ID === t.Tecnico_ID);
         labor = labor.filter(dm => dm.Tecnico_ID === t.Tecnico_ID);
     } else {
-        // General mode OR detailed mode on historical budgets with no line assignments:
-        // if budget header is not assigned to this technician, they get nothing
+        // General mode: if budget header is not assigned to this technician, they get nothing
         if (p.Tecnico_Asignado !== t.Tecnico_ID) {
             return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
         }
