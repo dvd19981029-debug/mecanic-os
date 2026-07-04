@@ -292,29 +292,27 @@ const dataService = {
     // Save cache state back to storage asynchronously with automated granular diffing
     async save(db) {
         const oldCache = this.lastSyncedState || {};
+        // Align aliased array references in memory, prioritizing new camelCase keys if they have been reassigned
+        const alignAlias = (newKey, legacyKey) => {
+            if (db[newKey] && db[newKey] !== db[legacyKey]) {
+                db[legacyKey] = db[newKey];
+            } else if (db[legacyKey]) {
+                db[newKey] = db[legacyKey];
+            } else {
+                db[newKey] = db[newKey] || [];
+                db[legacyKey] = db[newKey];
+            }
+        };
+
+        alignAlias('detalle_productos', '21 Detalle Presupuesto Producto');
+        alignAlias('detalle_mano_obra', '11 Detalle Mano de Obra');
+        alignAlias('abonos_credito', '30 Abonos Creditos');
+        alignAlias('movs_inventario', '29 Movs de Inventario');
+        alignAlias('venta_rapida', '43 Venta Rapida');
+        alignAlias('gastos', '46 Gastos');
+        alignAlias('pagos_vr', '45 Pagos VR');
+
         this.cache = db;
-
-        // Re-align aliased array references in memory, preferring legacy key data if modified by frontend
-        this.cache.detalle_productos = this.cache['21 Detalle Presupuesto Producto'] || this.cache.detalle_productos || [];
-        this.cache['21 Detalle Presupuesto Producto'] = this.cache.detalle_productos;
-
-        this.cache.detalle_mano_obra = this.cache['11 Detalle Mano de Obra'] || this.cache.detalle_mano_obra || [];
-        this.cache['11 Detalle Mano de Obra'] = this.cache.detalle_mano_obra;
-
-        this.cache.abonos_credito = this.cache['30 Abonos Creditos'] || this.cache.abonos_credito || [];
-        this.cache['30 Abonos Creditos'] = this.cache.abonos_credito;
-
-        this.cache.movs_inventario = this.cache['29 Movs de Inventario'] || this.cache.movs_inventario || [];
-        this.cache['29 Movs de Inventario'] = this.cache.movs_inventario;
-
-        this.cache.venta_rapida = this.cache['43 Venta Rapida'] || this.cache.venta_rapida || [];
-        this.cache['43 Venta Rapida'] = this.cache.venta_rapida;
-
-        this.cache.gastos = this.cache['46 Gastos'] || this.cache.gastos || [];
-        this.cache['46 Gastos'] = this.cache.gastos;
-
-        this.cache.pagos_vr = this.cache['45 Pagos VR'] || this.cache.pagos_vr || [];
-        this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
         // Perform I/O write operations asynchronously using setTimeout
         return new Promise((resolve) => {
