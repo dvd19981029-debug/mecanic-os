@@ -32,7 +32,7 @@ import {
 export function renderKanban(container) {
     const db = getDatabase();
     
-    // Columns definition corresponding exactly to budget states:
+    // Columns definition corresponding exactly to budget states (Trigger rebuild 1):
     // 1: Creado/Borrador, 2: Aprobado/Reparación, 5: Trabajos Finalizados, 3: Facturado/Entregado, 4: Anulado
     const columns = [
         { state: 1, title: 'Creado / Diagnóstico', class: 'border-left: 4px solid var(--warning);' },
