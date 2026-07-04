@@ -118,23 +118,23 @@ export function renderTrabajosTaller(container) {
 
                     <!-- Tasks and Parts Section -->
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                        ${labor.length > 0 ? html`
+                        ${labor.length > 0 ? safe(html`
                             <div>
                                 <h4 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; text-transform: uppercase; color: #a855f7; letter-spacing: 0.5px; font-weight: bold;"><i class="fa-solid fa-screwdriver-wrench"></i> Mano de Obra / Servicios (${labor.length})</h4>
                                 <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">
                                     ${safe(labor.map(l => `<li>${escapeHtml(l.Descripcion)} <span style="color: var(--text-muted); font-size: 0.75rem;">(Cant: ${l.Cantidad})</span></li>`).join(''))}
                                 </ul>
                             </div>
-                        ` : ''}
+                        `) : ''}
 
-                        ${products.length > 0 ? html`
+                        ${products.length > 0 ? safe(html`
                             <div>
                                 <h4 style="margin: 0 0 0.25rem 0; font-size: 0.75rem; text-transform: uppercase; color: var(--primary); letter-spacing: 0.5px; font-weight: bold;"><i class="fa-solid fa-box-open"></i> Repuestos a Instalar (${products.length})</h4>
                                 <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">
                                     ${safe(products.map(pr => `<li>${escapeHtml(pr.Descripcion)} <span style="color: var(--text-muted); font-size: 0.75rem;">(Cant: ${pr.Cantidad})</span></li>`).join(''))}
                                 </ul>
                             </div>
-                        ` : ''}
+                        `) : ''}
                     </div>
                 </div>
 
