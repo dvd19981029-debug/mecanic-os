@@ -16,7 +16,8 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
-    calculateElSalvadorPeriodPayroll
+    calculateElSalvadorPeriodPayroll,
+    safe
 } from '../../app.js?v=21';
 import {
     showToast,
@@ -121,7 +122,7 @@ export async function renderRegistroSaaS(container) {
                         <div class="form-group">
                             <label>Giro / Actividad Económica</label>
                             <select id="reg-taller-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px; width: 100%;">
-                                ${getGirosOptionsHtml()}
+                                ${safe(getGirosOptionsHtml())}
                             </select>
                         </div>
                     </div>
@@ -1272,7 +1273,7 @@ export async function renderAdminSolicitudes(container) {
                                 <div class="form-group">
                                     <label>Giro / Actividad Económica</label>
                                     <select id="edit-saas-giro" required style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px; width:100%;">
-                                        ${getGirosOptionsHtml(workshop.actividad_economica || workshop.giro)}
+                                        ${safe(getGirosOptionsHtml(workshop.actividad_economica || workshop.giro))}
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -1996,7 +1997,7 @@ export async function renderAdminSolicitudes(container) {
                         <div class="form-group">
                             <label>Giro / Actividad Económica</label>
                             <select id="man-taller-giro" required style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px; width: 100%;">
-                                ${getGirosOptionsHtml()}
+                                ${safe(getGirosOptionsHtml())}
                             </select>
                         </div>
                     </div>
