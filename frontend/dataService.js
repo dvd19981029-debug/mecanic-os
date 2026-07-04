@@ -353,23 +353,25 @@ const dataService = {
                     try {
                         const docRef = dbFirestore.collection("workshops").doc(this.activeUserUid);
 
-                        // 1. Sync metadata to root document differentially
+                        // 1. Sync metadata to root document differentially (only if baseline has been loaded from cloud)
                         const updateObj = {};
                         
-                        if (db.config_taller && Object.keys(db.config_taller).length > 0 && JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
-                            updateObj.config_taller = db.config_taller;
-                        }
-                        if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
-                            updateObj.saas_state = db.saas_state;
-                        }
-                        if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
-                            updateObj.role_permissions = db.role_permissions;
-                        }
-                        if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
-                            updateObj.saas_payments = db.saas_payments;
-                        }
-                        if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
-                            updateObj.saas_config = db.saas_config;
+                        if (this.lastSyncedState) {
+                            if (db.config_taller && Object.keys(db.config_taller).length > 0 && JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
+                                updateObj.config_taller = db.config_taller;
+                            }
+                            if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
+                                updateObj.saas_state = db.saas_state;
+                            }
+                            if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
+                                updateObj.role_permissions = db.role_permissions;
+                            }
+                            if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
+                                updateObj.saas_payments = db.saas_payments;
+                            }
+                            if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
+                                updateObj.saas_config = db.saas_config;
+                            }
                         }
 
                         if (Object.keys(updateObj).length > 0) {
@@ -506,9 +508,9 @@ const dataService = {
                 
                 if (changed) {
                     await this.setStorageItem('mecanic_os_db', this.cache);
-                    this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     if (typeof handleRouting === 'function') handleRouting();
                 }
+                this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
             }
         }, handleSyncError);
         this.listeners.push(rootListener);
@@ -570,7 +572,6 @@ const dataService = {
                     } else {
                         await this.setStorageItem('mecanic_os_db', this.cache);
                     }
-                    this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
                     // Solo refrescar UI si el cambio vino de otro dispositivo
                     if (isRemoteChange && typeof smartRefreshView === 'function') {
                         smartRefreshView(config.name);
@@ -582,6 +583,7 @@ const dataService = {
                         updateNotifications();
                     }
                 }
+                this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
             }, handleSyncError);
             this.listeners.push(listener);
         });
