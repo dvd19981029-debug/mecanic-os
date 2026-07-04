@@ -53,15 +53,9 @@ export async function renderRegistroSaaS(container) {
                         <label>Nombre o Razón Social</label>
                         <input type="text" id="reg-taller-nombre" required placeholder="Ej: Taller Automotriz San José S.A. de C.V." style="padding:0.6rem;">
                     </div>
-                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                        <div class="form-group">
-                            <label>Alias del Taller (Nombre Corto)</label>
-                            <input type="text" id="reg-taller-alias" required placeholder="Ej: Automotriz San José" style="padding:0.6rem;">
-                        </div>
-                        <div class="form-group">
-                            <label>Nombre Comercial</label>
-                            <input type="text" id="reg-taller-nombre-comercial" required placeholder="Ej: Taller San José" style="padding:0.6rem;">
-                        </div>
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>Nombre Comercial</label>
+                        <input type="text" id="reg-taller-nombre-comercial" required placeholder="Ej: Taller San José" style="padding:0.6rem;">
                     </div>
                     <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                         <div class="form-group">
@@ -336,7 +330,7 @@ export async function renderRegistroSaaS(container) {
             const requestData = {
                 id: uid,
                 nombre: document.getElementById('reg-taller-nombre').value,
-                alias: document.getElementById('reg-taller-alias').value,
+                alias: document.getElementById('reg-taller-nombre-comercial').value,
                 nombre_comercial: document.getElementById('reg-taller-nombre-comercial').value,
                 giro: (() => { const el = document.getElementById('reg-taller-giro'); return el.options[el.selectedIndex].getAttribute('data-desc') || el.value; })(),
                 direccion: document.getElementById('reg-taller-direccion').value,
@@ -344,7 +338,7 @@ export async function renderRegistroSaaS(container) {
                 correo: email,
                 nit: document.getElementById('reg-taller-tipo-doc').value === 'NIT' ? document.getElementById('reg-taller-num-doc').value : '',
                 nrc: document.getElementById('reg-taller-nrc').value,
-                logoText: document.getElementById('reg-taller-alias').value.substring(0, 15).toUpperCase(),
+                logoText: document.getElementById('reg-taller-nombre-comercial').value.substring(0, 15).toUpperCase(),
                 logoTagline: 'Servicio Automotriz Especializado',
                 tipo_persona: document.getElementById('reg-taller-tipo-persona').value,
                 clasificacion_tributaria: document.getElementById('reg-taller-clasificacion').value,
