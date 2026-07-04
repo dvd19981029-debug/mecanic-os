@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=23';
+} from '../../app.js?v=24';
 import {
     showToast,
     escapeHtml,
@@ -28,8 +28,8 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=23';
-import { renderSaaSAdminLogin } from './auth.js?v=23';
+} from '../utils.js?v=24';
+import { renderSaaSAdminLogin } from './auth.js?v=24';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -903,6 +903,8 @@ export async function renderAdminSolicitudes(container) {
         return;
     }
     const db = getDatabase();
+    const currentUser = (typeof firebase !== 'undefined' && firebase.apps.length > 0) ? firebase.auth().currentUser : null;
+    const isFirebaseAdmin = currentUser && ['dvd19981029@gmail.com', 'amejia2998@gmail.com'].includes((currentUser.email || '').toLowerCase());
     
     // Wire up central requests listener
     if (typeof dbFirestore !== 'undefined' && dbFirestore && !window.saasRequestsListenerWired) {
@@ -2427,10 +2429,28 @@ if (window.saasViewReceiptPaymentId) {
                     <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Panel central de control para suscripciones, cobros y clientes de Mecanic OS</p>
                 </div>
                 <div style="display:flex; gap:0.75rem;">
+                    <button id="btn-logout-saas-admin" class="btn btn-secondary" style="color:var(--warning); border-color:var(--warning);"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión Admin</button>
                     <button id="btn-reset-demo-saas" class="btn btn-secondary" style="color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-trash-can"></i> Reiniciar Onboarding</button>
                     <a href="#taller-dashboard" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Volver a App</a>
                 </div>
             </div>
+            
+            ${!isFirebaseAdmin ? `
+                <div style="background:rgba(231, 76, 60, 0.08); border:1px solid rgba(231, 76, 60, 0.3); color:#ff7675; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:0.75rem; font-size:0.9rem; line-height:1.5; text-align:left;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:1.4rem; color:#e74c3c; margin-top:0.1rem;"></i>
+                    <div style="flex:1;">
+                        <strong style="color:#fff; font-family:'Outfit', sans-serif; font-size:1rem; display:block; margin-bottom:0.4rem;">⚠️ Advertencia: Sesión de Google Cloud Firebase no iniciada como Administrador</strong>
+                        Has ingresado usando la contraseña maestra local. Firebase no tiene una sesión de red activa con privilegios de lectura para tu cuenta.
+                        <br><br>
+                        <strong>Para ver la base de datos de la nube y corregir este estado:</strong>
+                        <ol style="margin: 0.5rem 0 0 1.25rem; padding: 0;">
+                            <li>Haz clic en el botón <strong>"Cerrar Sesión Admin"</strong> arriba a la derecha.</li>
+                            <li>Ingresa nuevamente tu correo (<code>${currentUser ? currentUser.email : 'tu-correo-admin@gmail.com'}</code>).</li>
+                            <li>Digita tu <strong>contraseña real de Firebase Auth</strong> (no escribas <code>SuperAdminOS</code>, ya que ese código solo funciona a nivel local en tu navegador).</li>
+                        </ol>
+                    </div>
+                </div>
+            ` : ''}
             
             <!-- Tabs Bar -->
             <div class="saas-tabs-container">
@@ -2451,6 +2471,21 @@ if (window.saasViewReceiptPaymentId) {
             </div>
         </div>
     `;
+    
+    // Bind logout button
+    const logoutAdminBtn = document.getElementById('btn-logout-saas-admin');
+    if (logoutAdminBtn) {
+        logoutAdminBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('mecanic_os_saas_admin_auth');
+            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+                firebase.auth().signOut().then(() => {
+                    window.location.reload();
+                });
+            } else {
+                window.location.reload();
+            }
+        });
+    }
     
     // Bind global reset button
     const resetBtn = document.getElementById('btn-reset-demo-saas');
