@@ -18,6 +18,7 @@ import { renderGastos } from './views/gastos.js?v=21';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=21';
 import { renderPlanilla } from './views/planilla.js?v=21';
 import { renderComisiones } from './views/comisiones.js?v=21';
+import { renderTrabajosTaller } from './views/trabajos.js?v=21';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -44,6 +45,7 @@ const routes = {
     'clientes-vehiculos': renderClientesVehiculos,
     'revision-21': renderRevision21,
     'presupuestos': renderPresupuestos,
+    'trabajos-taller': renderTrabajosTaller,
     'kanban': renderKanban,
     'facturador': renderFacturador,
     'venta-rapida': renderVentaRapida,
