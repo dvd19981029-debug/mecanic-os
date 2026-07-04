@@ -183,10 +183,15 @@ export function renderComisiones(container, queryParams) {
         // Loop through all budgets in state 3 (Facturado) where technician worked
         const facturados = db.presupuestos.filter(p => {
             if (p.Estado != 3) return false;
-            if (tipoComision === 'detallada') {
-                const hasProd = db.detalle_productos.some(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto'] && dp.Tecnico_ID === tId);
+            
+            const pProds = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const pLabor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            const hasAnyLineAssignment = pProds.some(dp => dp.Tecnico_ID) || pLabor.some(dm => dm.Tecnico_ID);
+
+            if (tipoComision === 'detallada' && hasAnyLineAssignment) {
+                const hasProd = pProds.some(dp => dp.Tecnico_ID === tId);
                 if (hasProd) return true;
-                const hasLabor = db.detalle_mano_obra.some(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto'] && dm.Tecnico_ID === tId);
+                const hasLabor = pLabor.some(dm => dm.Tecnico_ID === tId);
                 if (hasLabor) return true;
                 return false;
             } else {
@@ -778,12 +783,15 @@ export function getBudgetCommissions(p, t, db) {
     let products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
     let labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
     
-    if (tipoComision === 'detallada') {
+    const hasAnyLineAssignment = products.some(dp => dp.Tecnico_ID) || labor.some(dm => dm.Tecnico_ID);
+    
+    if (tipoComision === 'detallada' && hasAnyLineAssignment) {
         // Filter items where the assigned technician is strictly this technician
         products = products.filter(dp => dp.Tecnico_ID === t.Tecnico_ID);
         labor = labor.filter(dm => dm.Tecnico_ID === t.Tecnico_ID);
     } else {
-        // General mode: if budget header is not assigned to this technician, they get nothing
+        // General mode OR detailed mode on historical budgets with no line assignments:
+        // if budget header is not assigned to this technician, they get nothing
         if (p.Tecnico_Asignado !== t.Tecnico_ID) {
             return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
         }
