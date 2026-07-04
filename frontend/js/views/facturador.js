@@ -1109,8 +1109,6 @@ export function renderInvoicingWorkspace(container, presId) {
                 gridEl.style.gridTemplateColumns = '1fr';
             }
             
-            const wsConfig = getWorkshopConfig(db);
-            
             resultBox.style.display = 'block';
             resultBox.innerHTML = html`
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--success); padding-bottom: 1rem; margin-bottom: 1.5rem; flex-wrap:wrap; gap:1rem;">
