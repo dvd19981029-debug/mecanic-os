@@ -329,7 +329,7 @@ export function renderBudgetEditor(container, budget) {
                     <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción</div>
-                        ${isDetailed ? '<div>Técnico</div>' : ''}
+                        ${isDetailed ? safe('<div>Técnico</div>') : ''}
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
@@ -351,7 +351,7 @@ export function renderBudgetEditor(container, budget) {
                     <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción del Servicio</div>
-                        ${isDetailed ? '<div>Técnico</div>' : ''}
+                        ${isDetailed ? safe('<div>Técnico</div>') : ''}
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
