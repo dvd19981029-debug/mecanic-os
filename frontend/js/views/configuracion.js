@@ -799,6 +799,7 @@ export function renderConfiguracion(container, queryParams) {
             { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
             { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
             { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
+            { route: 'trabajos-taller', label: 'Trabajos en Progreso', icon: 'fa-solid fa-screwdriver-wrench' },
             { route: 'kanban', label: 'Control Taller', icon: 'fa-solid fa-cubes-stacked' },
             { route: 'facturador', label: 'Facturar DTE', icon: 'fa-solid fa-wallet' },
             { route: 'venta-rapida', label: 'Venta Rápida', icon: 'fa-solid fa-cart-shopping' },

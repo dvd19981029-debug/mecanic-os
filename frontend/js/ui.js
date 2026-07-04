@@ -3,7 +3,7 @@
  * Contains functions that interact with the browser DOM and view states.
  */
 
-import { getDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=21';
+import { getDatabase, saveDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=21';
 
 // Local list of dismissed notification IDs
 let dismissedNotifications = [];
@@ -55,6 +55,12 @@ export function updateUserUI() {
                 k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
             if (matchKey) {
                 allowedRoutes = db.role_permissions[matchKey];
+                // Migración dinámica: si el rol tiene acceso a presupuestos, dale acceso a trabajos-taller por defecto
+                if ((allowedRoutes.includes('presupuestos') || allowedRoutes.includes('kanban')) && !allowedRoutes.includes('trabajos-taller')) {
+                    allowedRoutes.push('trabajos-taller');
+                    db.role_permissions[matchKey] = allowedRoutes;
+                    saveDatabase(db);
+                }
                 foundPermissions = true;
             }
         }
