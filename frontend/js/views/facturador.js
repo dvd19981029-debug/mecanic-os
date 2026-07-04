@@ -501,6 +501,13 @@ export function renderIssuedTab(container) {
                 grandTotalFormatted.toLowerCase().includes(term);
         });
         
+        // Sort by billing date descending (newest first)
+        filtered.sort((a, b) => {
+            const timeA = a.Fecha_Facturacion ? new Date(a.Fecha_Facturacion).getTime() : new Date(a.Fecha).getTime();
+            const timeB = b.Fecha_Facturacion ? new Date(b.Fecha_Facturacion).getTime() : new Date(b.Fecha).getTime();
+            return timeB - timeA;
+        });
+
         if (filtered.length === 0) {
             rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay DTEs emitidos registrados en este rango de fechas</td></tr>';
             return;
