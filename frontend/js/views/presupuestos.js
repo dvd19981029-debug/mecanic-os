@@ -206,6 +206,9 @@ export function renderBudgetEditor(container, budget) {
     const isNew = (budget === null);
     const activeUser = getActiveUser();
     const isAdmin = activeUser && (activeUser.Nivel_Acceso === 'Administrador');
+    const config = getWorkshopConfig(db);
+    const tipoComision = config.tipo_comision || 'general';
+    const isDetailed = tipoComision === 'detallada';
     
     if (isNew) {
         budget = {
@@ -323,9 +326,10 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
                     </div>
                     
-                    <div class="item-row" style="background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                    <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción</div>
+                        ${isDetailed ? '<div>Técnico</div>' : ''}
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
@@ -344,9 +348,10 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
                     </div>
                     
-                    <div class="item-row" style="background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                    <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción del Servicio</div>
+                        ${isDetailed ? '<div>Técnico</div>' : ''}
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
@@ -611,9 +616,22 @@ export function renderBudgetEditor(container, budget) {
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = 'item-row';
+            
+            let techCol = '';
+            if (isDetailed) {
+                row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
+                const currentTechId = item.Tecnico_ID || budget.Tecnico_Asignado || '';
+                const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
+                const techOptions = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
+                techCol = isAdmin 
+                    ? `<div><select class="row-tech" data-type="product" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
+                    : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
+            }
+
             row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item['ID_Producto DPP'] || 'PROD')}</small></div>
                 <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
+                ${safe(techCol)}
                 <div><input type="number" class="row-qty" data-type="product" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
                 <div><input type="number" class="row-price" data-type="product" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;" disabled title="Los precios de repuestos se definen en el catálogo"></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
@@ -630,9 +648,22 @@ export function renderBudgetEditor(container, budget) {
 
             const row = document.createElement('div');
             row.className = 'item-row';
+
+            let techCol = '';
+            if (isDetailed) {
+                row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
+                const currentTechId = item.Tecnico_ID || budget.Tecnico_Asignado || '';
+                const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
+                const techOptions = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
+                techCol = isAdmin 
+                    ? `<div><select class="row-tech" data-type="labor" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
+                    : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
+            }
+
             row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item.ID_ManoObra || 'MO')}</small></div>
                 <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
+                ${safe(techCol)}
                 <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
                 <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; ${!isPriceEditable ? 'background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;' : ''}" ${priceDisabled ? 'disabled title="Este precio es fijo (no editable)"' : ''}></div>
                 <div style="text-align: right; font-weight: bold;">$ ${(parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1)).toFixed(2)}</div>
@@ -658,6 +689,22 @@ export function renderBudgetEditor(container, budget) {
                 }
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
+            });
+        });
+
+        // Wire up technician change events
+        document.querySelectorAll('.row-tech').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const type = e.target.getAttribute('data-type');
+                const idx = parseInt(e.target.getAttribute('data-idx'));
+                const val = e.target.value;
+                
+                if (type === 'product') {
+                    tempProducts[idx].Tecnico_ID = val;
+                } else {
+                    tempLabor[idx].Tecnico_ID = val;
+                }
                 autoSaveBudget();
             });
         });
@@ -779,6 +826,8 @@ export function renderBudgetEditor(container, budget) {
             `;
             
             item.querySelector('.btn-add').addEventListener('click', () => {
+                const activeUser = getActiveUser();
+                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
                 tempProducts.push({
                     DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                     'ID_Presupuesto DPP': budget['ID Presupuesto'],
@@ -787,7 +836,8 @@ export function renderBudgetEditor(container, budget) {
                     Cantidad: 1,
                     UnidadMedida: p['Unidad de Medida'] || 'Pza',
                     PrecioUnitario: parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0),
-                    ImpuestoCodigo: 'IVA13'
+                    ImpuestoCodigo: 'IVA13',
+                    Tecnico_ID: defaultTechId
                 });
                 renderTempRows();
                 calculateTotals();
@@ -828,6 +878,8 @@ export function renderBudgetEditor(container, budget) {
             `;
             
             item.querySelector('.btn-add').addEventListener('click', () => {
+                const activeUser = getActiveUser();
+                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
                 tempLabor.push({
                     ID_DetalleMO: "DETMO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                     'ID_Presupuesto MO': budget['ID Presupuesto'],
@@ -835,7 +887,8 @@ export function renderBudgetEditor(container, budget) {
                     Descripcion: mo.Descripcion,
                     Cantidad: 1,
                     PrecioUnitario: parseFloat(mo.PrecioUnitario || 0),
-                    FechaCreacion: Date.now()
+                    FechaCreacion: Date.now(),
+                    Tecnico_ID: defaultTechId
                 });
                 renderTempRows();
                 calculateTotals();

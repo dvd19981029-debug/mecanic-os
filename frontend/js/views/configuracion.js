@@ -204,6 +204,21 @@ export function renderConfiguracion(container, queryParams) {
                                     </div>
                                 </div>
                             </div>
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+                                <div class="form-group">
+                                    <label>Modelo de Comisiones del Taller</label>
+                                    <select id="cfg-taller-tipo-comision" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="general" ${ws.tipo_comision === 'general' || !ws.tipo_comision ? 'selected' : ''}>Comisión General (Por Presupuesto)</option>
+                                        <option value="detallada" ${ws.tipo_comision === 'detallada' ? 'selected' : ''}>Comisión Detallada (Por Ítem/Fila de Trabajo)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="display:flex; align-items:center; padding-top:1.2rem;">
+                                    <span style="font-size:0.8rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.35rem;">
+                                        <i class="fa-solid fa-circle-info" style="color:var(--primary);"></i>
+                                        En modo detallado, puedes asignar mecánicos por cada repuesto y servicio.
+                                    </span>
+                                </div>
+                            </div>
                             <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end; padding:0.65rem 1.25rem;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
                         </form>
                     </div>
@@ -752,7 +767,8 @@ export function renderConfiguracion(container, queryParams) {
                     municipio: document.getElementById('cfg-taller-municipio').value,
                     logo: window.saasSelectedLogoBase64 || '',
                     formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value,
-                    color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value
+                    color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value,
+                    tipo_comision: document.getElementById('cfg-taller-tipo-comision').value
                 };
 
                 // Sync with saas_state if matching active session

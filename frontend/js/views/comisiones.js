@@ -750,13 +750,34 @@ export function getBudgetCommissions(p, t, db) {
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
     
-    // Only calculate if the budget is assigned to this technician and status is 3 (Facturado)
-    if (p.Tecnico_Asignado !== t.Tecnico_ID || p.Estado != 3) {
+    // If status is not 3 (Facturado), no commissions are calculated at all
+    if (p.Estado != 3) {
         return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
     }
+
+    const config = getWorkshopConfig(db);
+    const tipoComision = config.tipo_comision || 'general';
     
-    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-    const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+    let products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+    let labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+    
+    if (tipoComision === 'detallada') {
+        // Filter items where the assigned technician is explicitly this technician
+        // If not specified on the item, fallback to the budget header technician
+        products = products.filter(dp => {
+            const itemTechId = dp.Tecnico_ID || p.Tecnico_Asignado || '';
+            return itemTechId === t.Tecnico_ID;
+        });
+        labor = labor.filter(dm => {
+            const itemTechId = dm.Tecnico_ID || p.Tecnico_Asignado || '';
+            return itemTechId === t.Tecnico_ID;
+        });
+    } else {
+        // General mode: if budget header is not assigned to this technician, they get nothing
+        if (p.Tecnico_Asignado !== t.Tecnico_ID) {
+            return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
+        }
+    }
     
     const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
     const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
