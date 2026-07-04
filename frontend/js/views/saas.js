@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=24';
+} from '../../app.js?v=25';
 import {
     showToast,
     escapeHtml,
@@ -28,8 +28,8 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=24';
-import { renderSaaSAdminLogin } from './auth.js?v=24';
+} from '../utils.js?v=25';
+import { renderSaaSAdminLogin } from './auth.js?v=25';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -2435,7 +2435,7 @@ if (window.saasViewReceiptPaymentId) {
                 </div>
             </div>
             
-            ${!isFirebaseAdmin ? `
+            ${safe(!isFirebaseAdmin ? `
                 <div style="background:rgba(231, 76, 60, 0.08); border:1px solid rgba(231, 76, 60, 0.3); color:#ff7675; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:0.75rem; font-size:0.9rem; line-height:1.5; text-align:left;">
                     <i class="fa-solid fa-triangle-exclamation" style="font-size:1.4rem; color:#e74c3c; margin-top:0.1rem;"></i>
                     <div style="flex:1;">
@@ -2450,7 +2450,7 @@ if (window.saasViewReceiptPaymentId) {
                         </ol>
                     </div>
                 </div>
-            ` : ''}
+            ` : '')}
             
             <!-- Tabs Bar -->
             <div class="saas-tabs-container">
