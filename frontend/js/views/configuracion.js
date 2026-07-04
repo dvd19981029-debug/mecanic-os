@@ -808,6 +808,7 @@ export function renderConfiguracion(container, queryParams) {
             { route: 'inventario', label: 'Inventario / Kárdex', icon: 'fa-solid fa-boxes-stacked' },
             { route: 'gastos', label: 'Gastos y Compras', icon: 'fa-solid fa-receipt' },
             { route: 'planilla', label: 'Planillas y Salarios', icon: 'fa-solid fa-calculator' },
+            { route: 'comisiones', label: 'Comisiones de Técnicos', icon: 'fa-solid fa-percent' },
             { route: 'dashboard-bi', label: 'Dashboard BI', icon: 'fa-solid fa-chart-line' },
             { route: 'configuracion', label: 'Ajustes / Catálogos', icon: 'fa-solid fa-sliders' }
         ];
