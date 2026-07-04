@@ -622,6 +622,7 @@ input:focus, select:focus, textarea:focus {
 .table-container {
     overflow-x: auto;
     margin-top: 0.75rem;
+    min-height: 180px; /* Asegura espacio suficiente para listas cortas */
 }
 
 table {
@@ -1740,6 +1741,14 @@ tr:hover td {
 .dte-dropdown-item i {
     width: 16px;
     text-align: center;
+}
+
+/* Si el dropdown de DTE está en las últimas dos filas de la tabla, se abre hacia arriba para evitar recortes por el overflow */
+tr:last-child .dte-actions-dropdown,
+tr:nth-last-child(2) .dte-actions-dropdown {
+    top: auto;
+    bottom: calc(100% + 4px);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
 }
 
 

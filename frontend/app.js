@@ -1057,6 +1057,15 @@ export {
     initDatabase,
     initFirebaseAuthListener,
     bindFirebaseEvents,
+// Prevent tab/page close during active DTE transmission
+window.addEventListener('beforeunload', (e) => {
+    if (window.isDteTransmitting) {
+        e.preventDefault();
+        e.returnValue = 'Transmisión DTE en curso. Si sale o recarga la página, podría interrumpirse la facturación. ¿Desea salir?';
+        return e.returnValue;
+    }
+});
+
     updateUserUI,
     updateSidebarBrand,
     startClock,

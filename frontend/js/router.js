@@ -66,6 +66,12 @@ const routes = {
 };
 
 export function handleRouting() {
+    if (window.isDteTransmitting) {
+        showToast("Transmisión DTE en curso. Por favor, espere a que finalice.", "warning");
+        const activeId = window.currentFacturadorPresId ? `?presId=${window.currentFacturadorPresId}` : '';
+        window.location.hash = `#facturador${activeId}`;
+        return;
+    }
     try {
         const db = window.getDatabase();
         
