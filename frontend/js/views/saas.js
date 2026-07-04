@@ -29,6 +29,7 @@ import {
     getBackendUrl,
     downloadExcelReport
 } from '../utils.js?v=21';
+import { renderSaaSAdminLogin } from './auth.js?v=21';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
