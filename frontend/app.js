@@ -924,36 +924,28 @@ function bindFirebaseEvents() {
             const msg = "¿Seguro que deseas cerrar la sesión en este dispositivo? Se desconectará por completo del taller.";
             
             if (confirm(msg)) {
-                // Clear workshop session state to prevent auto-login loops
-                localStorage.removeItem('mecanic_os_workshop_uid');
-                
-                const db = getDatabase();
-                if (db) {
-                    db.saas_state = {
-                        status: 'guest',
-                        workshopData: null,
-                        termsSigned: false,
-                        signatureName: '',
-                        signedAt: null
-                    };
-                    db.config_taller = null;
-                    db.solicitudes_registro = [];
-                    db.saas_payments = [];
-                    saveDatabase(db);
-                }
-                
                 setActiveUser(null);
-
-                firebase.auth().signOut()
-                    .then(() => {
+                
+                // Disconnect safely to prevent deleting cloud settings
+                dataService.disconnect().then(() => {
+                    if (typeof firebase !== 'undefined') {
+                        firebase.auth().signOut()
+                            .then(() => {
+                                showToast("Sesión cerrada correctamente", "success");
+                                authModal.classList.remove('active');
+                                window.location.hash = 'landing';
+                                handleRouting();
+                            })
+                            .catch(err => {
+                                console.error("Error al cerrar sesión:", err);
+                            });
+                    } else {
                         showToast("Sesión cerrada correctamente", "success");
                         authModal.classList.remove('active');
                         window.location.hash = 'landing';
                         handleRouting();
-                    })
-                    .catch(err => {
-                        console.error("Error al cerrar sesión:", err);
-                    });
+                    }
+                });
             }
         });
     }
