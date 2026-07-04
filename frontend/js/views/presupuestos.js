@@ -359,9 +359,10 @@ export function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Estado del Presupuesto</label>
-                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                         <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Creado</option>
                         <option value="2" ${budget.Estado == 2 ? 'selected' : ''} ${!isAdmin ? 'disabled' : ''}>2 - Aprobado ${!isAdmin ? '(Solo Admin)' : ''}</option>
+                        <option value="5" ${budget.Estado == 5 ? 'selected' : ''} disabled>5 - Trabajos Finalizados</option>
                         <option value="3" ${budget.Estado == 3 ? 'selected' : ''} disabled>3 - Facturado</option>
                         <option value="4" ${budget.Estado == 4 ? 'selected' : ''} disabled>4 - Anulado</option>
                     </select>
@@ -369,7 +370,7 @@ export function renderBudgetEditor(container, budget) {
 
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Aplicar Promoción</label>
-                    <select id="editor-promocion-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <select id="editor-promocion-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                         <option value="">Sin promoción / descuento</option>
                         ${safe(promoOptions)}
                     </select>
@@ -393,20 +394,35 @@ export function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
-                ${safe((budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? `
-                <div style="background: ${budget.Estado == 4 ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)'}; border: 1px solid ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: ${budget.Estado == 4 ? 'var(--danger)' : 'var(--success)'}; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
-                    <i class="fa-solid ${budget.Estado == 4 ? 'fa-ban' : 'fa-circle-check'}"></i>
-                    <span>${budget.Estado == 2 ? 'Presupuesto aprobado (Lectura).' : budget.Estado == 4 ? 'DTE Anulado / Invalidado (Lectura).' : 'Presupuesto facturado (Lectura).'}</span>
+                ${safe((budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? `
+                <div style="background: ${budget.Estado == 4 ? 'rgba(231, 76, 60, 0.1)' : budget.Estado == 5 ? 'rgba(168, 85, 247, 0.1)' : budget.Estado == 2 ? 'rgba(52, 152, 219, 0.1)' : 'rgba(46, 204, 113, 0.1)'}; border: 1px solid ${budget.Estado == 4 ? 'var(--danger)' : budget.Estado == 5 ? '#a855f7' : budget.Estado == 2 ? 'var(--primary)' : 'var(--success)'}; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: ${budget.Estado == 4 ? 'var(--danger)' : budget.Estado == 5 ? '#a855f7' : budget.Estado == 2 ? 'var(--primary)' : 'var(--success)'}; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                    <i class="fa-solid ${budget.Estado == 4 ? 'fa-ban' : budget.Estado == 5 ? 'fa-circle-check' : budget.Estado == 2 ? 'fa-screwdriver-wrench' : 'fa-circle-check'}"></i>
+                    <span>${
+                        budget.Estado == 2 ? 'Presupuesto aprobado. Reparaciones en proceso en el taller (Lectura).' : 
+                        budget.Estado == 5 ? 'Trabajos finalizados en el taller. Listo para facturación (Lectura).' : 
+                        budget.Estado == 4 ? 'DTE o Presupuesto Anulado / Rechazado (Lectura).' : 
+                        'Presupuesto facturado y entregado (Lectura).'
+                    }</span>
                 </div>
                 ` : '')}
 
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
-                    ${safe((!isNew && budget.Estado == 1 && isAdmin) ? `<button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>` : '')}
-                    <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
-                    ${safe((!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>` : '')}
+                    ${safe((!isNew && budget.Estado == 1 && isAdmin) ? `
+                        <button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>
+                        <button class="btn btn-danger" id="reject-budget-shortcut-btn" style="background: var(--danger); border: none; color: white;"><i class="fa-solid fa-ban"></i> Rechazar Cotización</button>
+                    ` : '')}
+                    <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado != 1 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
+                    ${safe((!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="finalize-work-btn" style="background: #a855f7; border: none; color: white;"><i class="fa-solid fa-circle-check"></i> Finalizar Trabajos</button>` : '')}
+                    ${safe((!isNew && budget.Estado == 5) ? `
+                        <button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>
+                        <button class="btn btn-warning" id="reopen-work-btn" style="background: #f59e0b; color: white; border: none;"><i class="fa-solid fa-wrench"></i> Reabrir Reparación</button>
+                    ` : '')}
                     ${safe((!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : '')}
                     ${safe(!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : '')}
-                    <button class="btn btn-secondary" onclick="window.location.hash='${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? '#facturador' : '#presupuestos'}'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+                    <button class="btn btn-secondary" onclick="window.location.hash='${
+                        (budget.Estado == 3 || budget.Estado == 5) ? '#facturador' : 
+                        (budget.Estado == 2) ? '#kanban' : '#presupuestos'
+                    }'"><i class="fa-solid fa-arrow-left"></i> Volver</button>
                 </div>
             </div>
         </div>
@@ -865,6 +881,36 @@ export function renderBudgetEditor(container, budget) {
         approveBtn.addEventListener('click', () => {
             document.getElementById('editor-state').value = "2";
             document.getElementById('save-budget-btn').click();
+        });
+    }
+
+    const rejectBtn = document.getElementById('reject-budget-shortcut-btn');
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', () => {
+            if (confirm("¿Estás seguro de que deseas rechazar esta cotización? El auto pasará al estado de salida/anulado.")) {
+                document.getElementById('editor-state').value = "4";
+                document.getElementById('save-budget-btn').click();
+            }
+        });
+    }
+
+    const finalizeBtn = document.getElementById('finalize-work-btn');
+    if (finalizeBtn) {
+        finalizeBtn.addEventListener('click', () => {
+            if (confirm("¿Confirmas que los trabajos físicos han sido finalizados y el presupuesto está listo para facturar?")) {
+                document.getElementById('editor-state').value = "5";
+                document.getElementById('save-budget-btn').click();
+            }
+        });
+    }
+
+    const reopenBtn = document.getElementById('reopen-work-btn');
+    if (reopenBtn) {
+        reopenBtn.addEventListener('click', () => {
+            if (confirm("¿Deseas reabrir la orden de reparación en el taller? El auto volverá al estado 'Trabajando'.")) {
+                document.getElementById('editor-state').value = "2";
+                document.getElementById('save-budget-btn').click();
+            }
         });
     }
 

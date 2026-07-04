@@ -259,7 +259,7 @@ export function renderPendingTab(container) {
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
-    const pending = db.presupuestos.filter(p => p.Estado == 2);
+    const pending = db.presupuestos.filter(p => p.Estado == 5);
     
     container.innerHTML = html`
         <div class="glass-card">
