@@ -353,19 +353,31 @@ const dataService = {
                     try {
                         const docRef = dbFirestore.collection("workshops").doc(this.activeUserUid);
 
-                        // 1. Sync metadata to root document
-                        await docRef.set({
-                            config_taller: db.config_taller || {},
-                            saas_state: db.saas_state || {},
-                            role_permissions: db.role_permissions || {},
-                            saas_payments: db.saas_payments || [],
-                            saas_config: db.saas_config || {},
-                            updatedAt: new Date().toISOString(),
-                            updatedBy: (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system'
-                        }, { merge: mergeEnabled() });
-                        this.saas.logOp('writes', 1);
+                        // 1. Sync metadata to root document differentially
+                        const updateObj = {};
+                        
+                        if (db.config_taller && Object.keys(db.config_taller).length > 0 && JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
+                            updateObj.config_taller = db.config_taller;
+                        }
+                        if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
+                            updateObj.saas_state = db.saas_state;
+                        }
+                        if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
+                            updateObj.role_permissions = db.role_permissions;
+                        }
+                        if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
+                            updateObj.saas_payments = db.saas_payments;
+                        }
+                        if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
+                            updateObj.saas_config = db.saas_config;
+                        }
 
-                        function mergeEnabled() { return true; }
+                        if (Object.keys(updateObj).length > 0) {
+                            updateObj.updatedAt = new Date().toISOString();
+                            updateObj.updatedBy = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
+                            await docRef.set(updateObj, { merge: true });
+                            this.saas.logOp('writes', 1);
+                        }
 
                         // 2. Perform automated granular diffing per subcollection
                         for (const config of collectionConfigs) {
