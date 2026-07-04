@@ -174,8 +174,26 @@ export function renderComisiones(container, queryParams) {
         let generatedFiltered = 0;
         const jobs = [];
 
-        // Loop through all budgets in state 3 (Facturado)
-        const facturados = db.presupuestos.filter(p => p.Estado == 3 && p.Tecnico_Asignado === tId);
+        if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
+        if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
+
+        const config = getWorkshopConfig(db);
+        const tipoComision = config.tipo_comision || 'general';
+
+        // Loop through all budgets in state 3 (Facturado) where technician worked
+        const facturados = db.presupuestos.filter(p => {
+            if (p.Estado != 3) return false;
+            if (tipoComision === 'detallada') {
+                if (p.Tecnico_Asignado === tId) return true;
+                const hasProd = db.detalle_productos.some(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto'] && dp.Tecnico_ID === tId);
+                if (hasProd) return true;
+                const hasLabor = db.detalle_mano_obra.some(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto'] && dm.Tecnico_ID === tId);
+                if (hasLabor) return true;
+                return false;
+            } else {
+                return p.Tecnico_Asignado === tId;
+            }
+        });
         
         facturados.forEach(p => {
             const commInfo = getBudgetCommissions(p, t, db);
