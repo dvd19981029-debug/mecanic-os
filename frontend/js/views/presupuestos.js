@@ -96,6 +96,13 @@ export function renderPresupuestos(container, queryParams) {
             (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
         );
 
+        // Sort by creation date descending (newest first)
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.Fecha).getTime() || 0;
+            const dateB = new Date(b.Fecha).getTime() || 0;
+            return dateB - dateA;
+        });
+
         if (filtered.length === 0) {
             rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
             return;
