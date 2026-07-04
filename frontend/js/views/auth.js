@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=25';
+} from '../../app.js?v=26';
 import {
     showToast,
     escapeHtml,
@@ -29,7 +29,7 @@ import {
     downloadExcelReport,
     html,
     safe
-} from '../utils.js?v=25';
+} from '../utils.js?v=26';
 
 export function renderLockScreen(container) {
     const db = getDatabase();
@@ -310,6 +310,15 @@ export function renderSaaSAdminLogin(container) {
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="padding: 0.8rem; font-size: 1rem; font-weight: 600; margin-top: 0.5rem;"><i class="fa-solid fa-right-to-bracket"></i> Ingresar a la Consola</button>
+                
+                <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.8rem; margin: 0.5rem 0;">
+                    <span style="flex: 1; height: 1px; background: var(--border-color);"></span>
+                    <span>O TAMBIÉN</span>
+                    <span style="flex: 1; height: 1px; background: var(--border-color);"></span>
+                </div>
+                
+                <button type="button" id="btn-saas-google-login" class="btn btn-secondary" style="padding: 0.8rem; font-size: 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-primary); transition: background 0.2s;"><i class="fa-brands fa-google" style="color: #4285f4;"></i> Iniciar Sesión con Google</button>
+                
                 <a href="#landing" style="color: var(--text-secondary); font-size: 0.85rem; text-decoration: none; margin-top: 0.5rem;"><i class="fa-solid fa-arrow-left"></i> Volver al Inicio</a>
             </form>
         </div>
@@ -332,6 +341,34 @@ export function renderSaaSAdminLogin(container) {
                     icon.classList.remove('fa-eye-slash');
                     icon.classList.add('fa-eye');
                 }
+            });
+        }
+
+        const googleLoginBtn = document.getElementById('btn-saas-google-login');
+        if (googleLoginBtn) {
+            googleLoginBtn.addEventListener('click', () => {
+                if (typeof firebase === 'undefined') {
+                    showToast("Firebase no inicializado", "error");
+                    return;
+                }
+                const provider = new firebase.auth.GoogleAuthProvider();
+                firebase.auth().signInWithPopup(provider)
+                    .then((result) => {
+                        const user = result.user;
+                        const authorizedAdmins = ['dvd19981029@gmail.com', 'amejia2998@gmail.com'];
+                        if (authorizedAdmins.includes(user.email.toLowerCase())) {
+                            sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
+                            showToast("Acceso concedido como Super Administrador", "success");
+                            handleRouting();
+                        } else {
+                            showToast("Acceso denegado: Usuario de Google no autorizado", "danger");
+                            firebase.auth().signOut();
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Google login error:", error);
+                        showToast("Error de autenticación con Google: " + error.message, "error");
+                    });
             });
         }
 
