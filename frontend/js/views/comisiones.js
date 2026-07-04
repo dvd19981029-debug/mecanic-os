@@ -184,7 +184,6 @@ export function renderComisiones(container, queryParams) {
         const facturados = db.presupuestos.filter(p => {
             if (p.Estado != 3) return false;
             if (tipoComision === 'detallada') {
-                if (p.Tecnico_Asignado === tId) return true;
                 const hasProd = db.detalle_productos.some(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto'] && dp.Tecnico_ID === tId);
                 if (hasProd) return true;
                 const hasLabor = db.detalle_mano_obra.some(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto'] && dm.Tecnico_ID === tId);
@@ -780,16 +779,9 @@ export function getBudgetCommissions(p, t, db) {
     let labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
     
     if (tipoComision === 'detallada') {
-        // Filter items where the assigned technician is explicitly this technician
-        // If not specified on the item, fallback to the budget header technician
-        products = products.filter(dp => {
-            const itemTechId = dp.Tecnico_ID || p.Tecnico_Asignado || '';
-            return itemTechId === t.Tecnico_ID;
-        });
-        labor = labor.filter(dm => {
-            const itemTechId = dm.Tecnico_ID || p.Tecnico_Asignado || '';
-            return itemTechId === t.Tecnico_ID;
-        });
+        // Filter items where the assigned technician is strictly this technician
+        products = products.filter(dp => dp.Tecnico_ID === t.Tecnico_ID);
+        labor = labor.filter(dm => dm.Tecnico_ID === t.Tecnico_ID);
     } else {
         // General mode: if budget header is not assigned to this technician, they get nothing
         if (p.Tecnico_Asignado !== t.Tecnico_ID) {
