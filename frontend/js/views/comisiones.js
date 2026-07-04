@@ -184,9 +184,9 @@ export function renderComisiones(container, queryParams) {
         const facturados = db.presupuestos.filter(p => {
             if (p.Estado != 3) return false;
             
-            const budgetTipoComision = p.Tipo_Comision || 'general';
+            const useDetailedModel = (tipoComision === 'detallada' && p.Tipo_Comision === 'detallada');
 
-            if (budgetTipoComision === 'detallada') {
+            if (useDetailedModel) {
                 const pProds = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
                 const pLabor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
                 
@@ -778,12 +778,14 @@ export function getBudgetCommissions(p, t, db) {
         return { laborCommission: 0, productCommission: 0, totalCommission: 0, sumLab: 0, sumProd: 0 };
     }
 
-    const budgetTipoComision = p.Tipo_Comision || 'general';
+    const config = getWorkshopConfig(db);
+    const tipoComisionTaller = config.tipo_comision || 'general';
+    const useDetailedModel = (tipoComisionTaller === 'detallada' && p.Tipo_Comision === 'detallada');
     
     let products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
     let labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
     
-    if (budgetTipoComision === 'detallada') {
+    if (useDetailedModel) {
         // Filter items where the assigned technician is strictly this technician
         products = products.filter(dp => dp.Tecnico_ID === t.Tecnico_ID);
         labor = labor.filter(dm => dm.Tecnico_ID === t.Tecnico_ID);

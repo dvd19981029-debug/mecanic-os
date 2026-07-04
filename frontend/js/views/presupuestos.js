@@ -326,10 +326,10 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
                     </div>
                     
-                    <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                    <div class="item-row" style="grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px; background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción</div>
-                        ${isDetailed ? safe('<div>Técnico</div>') : ''}
+                        <div>Técnico</div>
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
@@ -348,10 +348,10 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
                     </div>
                     
-                    <div class="item-row" style="${isDetailed ? 'grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px;' : ''} background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                    <div class="item-row" style="grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px; background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
                         <div>Código</div>
                         <div>Descripción del Servicio</div>
-                        ${isDetailed ? safe('<div>Técnico</div>') : ''}
+                        <div>Técnico</div>
                         <div>Cantidad</div>
                         <div>Precio Unit.</div>
                         <div style="text-align: right;">Total</div>
@@ -620,16 +620,13 @@ export function renderBudgetEditor(container, budget) {
             const row = document.createElement('div');
             row.className = 'item-row';
             
-            let techCol = '';
-            if (isDetailed) {
-                row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
-                const currentTechId = item.Tecnico_ID || budget.Tecnico_Asignado || '';
-                const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
-                const techOptions = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
-                techCol = isAdmin 
-                    ? `<div><select class="row-tech" data-type="product" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
-                    : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
-            }
+            row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
+            const currentTechId = item.Tecnico_ID || '';
+            const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
+            const techOptions = '<option value="">-- Seleccione Técnico --</option>' + db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
+            let techCol = isAdmin 
+                ? `<div><select class="row-tech" data-type="product" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
+                : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
 
             row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item['ID_Producto DPP'] || 'PROD')}</small></div>
@@ -652,16 +649,13 @@ export function renderBudgetEditor(container, budget) {
             const row = document.createElement('div');
             row.className = 'item-row';
 
-            let techCol = '';
-            if (isDetailed) {
-                row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
-                const currentTechId = item.Tecnico_ID || budget.Tecnico_Asignado || '';
-                const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
-                const techOptions = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
-                techCol = isAdmin 
-                    ? `<div><select class="row-tech" data-type="labor" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
-                    : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
-            }
+            row.style.gridTemplateColumns = '80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px';
+            const currentTechId = item.Tecnico_ID || '';
+            const tech = db.tecnicos.find(t => t.Tecnico_ID === currentTechId) || { Nombre_Completo: 'Sin Técnico' };
+            const techOptions = '<option value="">-- Seleccione Técnico --</option>' + db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${currentTechId === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
+            let techCol = isAdmin 
+                ? `<div><select class="row-tech" data-type="labor" data-idx="${index}" style="padding: 0.25rem 0.35rem; font-size: 0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%;" ${isLocked ? 'disabled' : ''}>${techOptions}</select></div>`
+                : `<div><span class="badge-tag badge-secondary" style="font-size: 0.75rem;">${escapeHtml(tech.Nombre_Completo)}</span></div>`;
 
             row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item.ID_ManoObra || 'MO')}</small></div>
@@ -920,6 +914,17 @@ export function renderBudgetEditor(container, budget) {
         // Save headers
         budget.Fallas_Detectadas = document.getElementById('editor-fallas').value;
         budget.Tecnico_Asignado = document.getElementById('editor-tech-select').value;
+        
+        // Validate technician assignment on every row if in Detailed Commission model (unless rejecting)
+        const config = getWorkshopConfig(db);
+        if (config.tipo_comision === 'detallada' && newState !== 4) {
+            const hasEmptyProductTech = tempProducts.some(dp => !dp.Tecnico_ID);
+            const hasEmptyLaborTech = tempLabor.some(dm => !dm.Tecnico_ID);
+            if (hasEmptyProductTech || hasEmptyLaborTech) {
+                showToast("En modo de Comisión Detallada, es obligatorio asignar un técnico a cada fila de repuestos y servicios", "danger");
+                return;
+            }
+        }
         
         // Use explicit newState if provided to bypass disabled select/option browser limits
         if (newState !== null) {
