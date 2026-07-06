@@ -1,5 +1,6 @@
 const https = require('https');
 const crypto = require('crypto');
+const { db } = require('../config/firebaseAdmin');
 
 /**
  * Prueba de conexión a la API de FacturaLlama.
@@ -356,10 +357,119 @@ async function downloadDtePdf(req, res) {
     }
 }
 
+/**
+ * Recibe un DTE entrante desde Google Apps Script (GAS) y lo registra en el taller correspondiente.
+ */
+async function receiveIncomingDte(req, res) {
+    try {
+        const webhookToken = req.headers['x-webhook-token'];
+        const expectedToken = process.env.WEBHOOK_TOKEN || 'test_webhook_secret_key_mecanicos';
+        
+        if (!webhookToken || webhookToken !== expectedToken) {
+            console.warn("Intento de webhook no autorizado.");
+            return res.status(401).json({ success: false, message: "Token de webhook no autorizado." });
+        }
+        
+        const { dteJson } = req.body;
+        if (!dteJson) {
+            return res.status(400).json({ success: false, message: "No se proporcionó el dteJson en la petición." });
+        }
+        
+        const ident = dteJson.identificacion || {};
+        const emisor = dteJson.emisor || {};
+        const receptor = dteJson.receptor || {};
+        const resumen = dteJson.resumen || {};
+        const cuerpo = dteJson.cuerpoDocumento || [];
+        
+        const selloRecepcion = ident.selloRecepcion || ident.codigoGeneracion || ("INCOMING-MOCK-" + Date.now());
+        const emisorNombre = emisor.nombre || "Proveedor Desconocido";
+        const totalPagar = resumen.totalPagar || 0.00;
+        const fechaEmision = ident.fecEmi || new Date().toISOString().split('T')[0];
+        const numeroControl = ident.numeroControl || "";
+        
+        // Obtener el número de documento del receptor para mapearlo a un taller
+        const receptorDoc = (receptor.numDocumento || receptor.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
+        
+        if (!receptorDoc) {
+            return res.status(400).json({ success: false, message: "No se pudo identificar el NIT/DUI del receptor en el DTE." });
+        }
+        
+        if (!db) {
+            console.warn("Firebase Admin DB no inicializado. Simulando recepción exitosa.");
+            return res.json({
+                success: true,
+                simulated: true,
+                message: "DTE recibido exitosamente (Entorno de desarrollo - Firebase no inicializado)",
+                selloRecepcion: selloRecepcion
+            });
+        }
+        
+        // Buscar el taller correspondiente recorriendo saas_requests
+        const snapshot = await db.collection('saas_requests').get();
+        let workshopId = null;
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const workshopDoc = (data.num_documento || data.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
+            if (workshopDoc === receptorDoc) {
+                workshopId = doc.id;
+            }
+        });
+        
+        if (!workshopId) {
+            console.warn(`No se encontró ningún taller registrado con el NIT/DUI del receptor: ${receptorDoc}`);
+            return res.status(404).json({ success: false, message: "No se encontró ningún taller con el NIT/DUI del receptor especificado." });
+        }
+        
+        // Formatear items del DTE para el frontend
+        const parsedItems = cuerpo.map(item => ({
+            numItem: item.numItem || 1,
+            cantidad: item.cantidad || 1,
+            descripcion: item.descripcion || "Item general",
+            precioUnitario: item.precioUni || 0.00,
+            ventaGravada: item.ventaGravada || 0.00
+        }));
+        
+        // Crear documento en la subcolección dte_recibidos del taller
+        const dteRecord = {
+            id_dte: selloRecepcion,
+            numeroDte: selloRecepcion,
+            numeroControl: numeroControl,
+            fecha: fechaEmision,
+            emisor: emisorNombre,
+            nitEmisor: emisor.nit || "",
+            monto: totalPagar,
+            estado: 'pendiente_aplicar',
+            items: parsedItems,
+            rawJson: JSON.stringify(dteJson),
+            createdAt: Date.now()
+        };
+        
+        await db.collection('workshops')
+            .doc(workshopId)
+            .collection('dte_recibidos')
+            .doc(selloRecepcion)
+            .set(dteRecord);
+            
+        console.log(`DTE ${selloRecepcion} registrado exitosamente para el taller ${workshopId}`);
+        return res.json({
+            success: true,
+            message: "DTE recibido y registrado exitosamente en el taller.",
+            selloRecepcion: selloRecepcion,
+            taller: workshopId
+        });
+        
+    } catch (err) {
+        console.error("Exception on receiveIncomingDte:", err);
+        return res.status(500).json({ success: false, error: "InternalError", message: err.message });
+    }
+}
+
 module.exports = {
     testConnection,
     emitDte,
     invalidateDte,
     retrieveDte,
-    downloadDtePdf
+    downloadDtePdf,
+    receiveIncomingDte
 };

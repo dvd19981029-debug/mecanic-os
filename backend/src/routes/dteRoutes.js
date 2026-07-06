@@ -7,5 +7,6 @@ router.post('/test-connection', dteController.testConnection);
 router.post('/invalidate', dteController.invalidateDte);
 router.post('/retrieve', dteController.retrieveDte);
 router.post('/pdf', dteController.downloadDtePdf);
+router.post('/incoming-webhook', dteController.receiveIncomingDte);
 
 module.exports = router;

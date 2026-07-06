@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=26';
+} from '../../app.js?v=27';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=26';
+} from '../utils.js?v=27';
 
 let activeGastosTab = 'egresos';
 
@@ -51,6 +51,7 @@ export function renderGastos(container) {
             <button class="saas-tab-btn ${activeGastosTab === 'compras' ? 'active' : ''}" data-tab="compras" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-cart-shopping"></i> Registrar Compra</button>
             <button class="saas-tab-btn ${activeGastosTab === 'cxp' ? 'active' : ''}" data-tab="cxp" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-invoice-dollar"></i> Cuentas por Pagar</button>
             <button class="saas-tab-btn ${activeGastosTab === 'proveedores' ? 'active' : ''}" data-tab="proveedores" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-truck-field"></i> Proveedores</button>
+            <button class="saas-tab-btn ${activeGastosTab === 'dtes_recibidos' ? 'active' : ''}" data-tab="dtes_recibidos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-envelope-open-text"></i> DTEs Recibidos (Gmail)</button>
         </div>
         <div id="gastos-tab-content"></div>
     `;
@@ -73,6 +74,8 @@ export function renderGastos(container) {
         renderCxpTab(contentArea);
     } else if (activeGastosTab === 'proveedores') {
         renderProveedoresTab(contentArea);
+    } else if (activeGastosTab === 'dtes_recibidos') {
+        renderDtesRecibidosTab(contentArea);
     }
 
     // --- TAB 1: OPERATIONAL EXPENSES ---
@@ -896,6 +899,360 @@ export function renderGastos(container) {
             saveDatabase(db);
             editingProveedorId = null;
             renderGastos(container);
+        });
+    }
+
+    function renderDtesRecibidosTab(parent) {
+        const user = getActiveUser();
+        if (!user || !user.uid) {
+            parent.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-muted);">Debe iniciar sesión para ver los DTEs recibidos.</div>`;
+            return;
+        }
+
+        parent.innerHTML = html`
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <div>
+                        <h3 style="margin:0;"><i class="fa-solid fa-envelope-open-text" style="color:var(--primary); margin-right:0.5rem;"></i>Bandeja de DTEs Recibidos (Gmail)</h3>
+                        <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;">Facturas de proveedores procesadas automáticamente desde tu correo.</p>
+                    </div>
+                    <button id="btn-refresh-dtes" class="btn btn-secondary" style="padding:0.5rem 1rem; font-size:0.85rem;"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="dtes-recibidos-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Proveedor / Emisor</th>
+                                <th>N° Documento (DTE)</th>
+                                <th>Monto Total</th>
+                                <th>Estado</th>
+                                <th style="text-align:right;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dtes-recibidos-tbody">
+                            <tr><td colspan="6" style="text-align:center; color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando facturas...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        const tbody = document.getElementById('dtes-recibidos-tbody');
+        const refreshBtn = document.getElementById('btn-refresh-dtes');
+
+        const dbFirestore = firebase.firestore();
+
+        const loadDtes = () => {
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando facturas...</td></tr>`;
+            dbFirestore.collection("workshops").doc(user.uid).collection("dte_recibidos")
+                .orderBy("createdAt", "desc")
+                .get()
+                .then(snapshot => {
+                    if (snapshot.empty) {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted)">No se han recibido facturas electrónicas en tu correo aún.</td></tr>`;
+                        return;
+                    }
+                    
+                    let htmlContent = '';
+                    snapshot.forEach(doc => {
+                        const dte = doc.data();
+                        const statusText = dte.estado === 'pendiente_aplicar' ? 
+                            '<span class="badge" style="background:#eab308; color:#fff; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:600;">Pendiente de aplicar</span>' : 
+                            '<span class="badge" style="background:#22c55e; color:#fff; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:600;">Aplicado</span>';
+                        
+                        const actionBtn = dte.estado === 'pendiente_aplicar' ?
+                            `<button class="btn btn-primary btn-sm btn-apply-dte" data-id="${doc.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-file-import"></i> Aplicar Gasto</button>` :
+                            `<button class="btn btn-secondary btn-sm" disabled style="padding:0.35rem 0.75rem; font-size:0.8rem;"><i class="fa-solid fa-check"></i> Importado</button>`;
+
+                        htmlContent += `
+                            <tr>
+                                <td>${escapeHtml(dte.fecha)}</td>
+                                <td><strong>${escapeHtml(dte.emisor)}</strong><br><small style="color:var(--text-muted);">${escapeHtml(dte.nitEmisor || '')}</small></td>
+                                <td><code style="background:rgba(255,255,255,0.05); padding:0.2rem 0.4rem; border-radius:4px; font-size:0.85rem;">${escapeHtml(dte.numeroDte)}</code></td>
+                                <td><strong>$${parseFloat(dte.monto || 0).toFixed(2)}</strong></td>
+                                <td>${statusText}</td>
+                                <td style="text-align:right;">${actionBtn}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = htmlContent;
+
+                    // Bind click to apply
+                    tbody.querySelectorAll('.btn-apply-dte').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const dteId = btn.getAttribute('data-id');
+                            const matchedDoc = snapshot.docs.find(d => d.id === dteId);
+                            if (matchedDoc) {
+                                openApplyDteModal(matchedDoc.data());
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading DTEs:", error);
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger)">Error al cargar facturas: ${escapeHtml(error.message)}</td></tr>`;
+                });
+        };
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', loadDtes);
+        }
+
+        loadDtes();
+    }
+
+    function openApplyDteModal(dte) {
+        const db = getDatabase();
+        const modalId = 'apply-dte-modal';
+        
+        // Remove existing modal if any
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+        
+        // Find matching supplier by name or NIT if possible
+        let matchedProvId = '';
+        if (dte.nitEmisor) {
+            const cleanNit = dte.nitEmisor.replace(/[^0-9]/g, '');
+            const found = db.proveedores.find(p => p.NIT_DUI && p.NIT_DUI.replace(/[^0-9]/g, '') === cleanNit);
+            if (found) matchedProvId = found.ID_Proveedor;
+        }
+        if (!matchedProvId && dte.emisor) {
+            const found = db.proveedores.find(p => p.Nombre.toLowerCase().includes(dte.emisor.toLowerCase()));
+            if (found) matchedProvId = found.ID_Proveedor;
+        }
+
+        const modalHtml = html`
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px);">
+                <div class="glass-card" style="width:750px; max-height:85vh; overflow-y:auto; padding:2rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-file-import"></i> Aplicar Factura de Compra DTE</h3>
+                        <button id="close-apply-dte-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:6px; border:1px solid var(--border-color); font-size:0.9rem;">
+                        <div>
+                            <span style="color:var(--text-secondary);">Proveedor DTE:</span> <strong>${escapeHtml(dte.emisor)}</strong><br>
+                            <span style="color:var(--text-secondary);">NIT Proveedor:</span> <span>${escapeHtml(dte.nitEmisor || 'N/A')}</span>
+                        </div>
+                        <div>
+                            <span style="color:var(--text-secondary);">N° DTE (Sello):</span> <code style="font-size:0.85rem;">${escapeHtml(dte.numeroDte)}</code><br>
+                            <span style="color:var(--text-secondary);">Monto Total:</span> <strong>$${parseFloat(dte.monto || 0).toFixed(2)}</strong>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+                        <div class="form-row" style="display:grid; grid-template-columns:1.5fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Asociar a Proveedor Local</label>
+                                <select id="apply-dte-prov" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
+                                    <option value="">-- Seleccionar o Crear Nuevo --</option>
+                                    ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}" ${p.ID_Proveedor === matchedProvId ? 'selected' : ''}>${escapeHtml(p.Nombre)}</option>`).join(''))}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Condición de Pago</label>
+                                <select id="apply-dte-condicion" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
+                                    <option value="CONTADO" selected>Contado (Pagado ya)</option>
+                                    <option value="CREDITO">Crédito (Cuenta x Pagar)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="border-top:1px solid var(--border-color); padding-top:1rem;">
+                            <h4 style="margin-bottom:0.75rem; color:var(--text-primary); font-size:0.95rem;">Mapeo de Productos al Inventario</h4>
+                            <div class="table-container" style="max-height:250px; overflow-y:auto;">
+                                <table style="width:100%; font-size:0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>Item de la Factura</th>
+                                            <th>Cant.</th>
+                                            <th>Costo Unit.</th>
+                                            <th>Asociar con Producto del Taller</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${safe(dte.items.map((item, idx) => {
+                                            // Try to find matching product in database by description match
+                                            const matchedProd = db.productos.find(p => p.Descripcion && p.Descripcion.toLowerCase().includes(item.descripcion.toLowerCase()));
+                                            
+                                            return `
+                                                <tr class="dte-map-row" data-idx="${idx}" data-desc="${escapeHtml(item.descripcion)}" data-cant="${item.cantidad}" data-cost="${item.precioUnitario}">
+                                                    <td>${escapeHtml(item.descripcion)}</td>
+                                                    <td>${item.cantidad}</td>
+                                                    <td>$${parseFloat(item.precioUnitario).toFixed(2)}</td>
+                                                    <td>
+                                                        <select class="dte-product-select" style="width:100%; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:30px; font-size:0.8rem;">
+                                                            <option value="create_new">+ Crear como nuevo producto</option>
+                                                            <option value="ignore">Ignorar / No inventariar</option>
+                                                            ${db.productos.map(p => `<option value="${p['ID_ Producto']}" ${matchedProd && matchedProd['ID_ Producto'] === p['ID_ Producto'] ? 'selected' : ''}>${escapeHtml(p.Descripcion)} (Stock: ${p.Minimos || 0})</option>`).join('')}
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join(''))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:1rem; border-top:1px solid var(--border-color); padding-top:1.25rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-apply-dte" style="padding:0.6rem 1.25rem;">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="btn-confirm-apply-dte" style="padding:0.6rem 1.5rem;"><i class="fa-solid fa-check"></i> Confirmar e Importar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Close buttons
+        const closeModal = () => document.getElementById(modalId).remove();
+        document.getElementById('close-apply-dte-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-apply-dte').addEventListener('click', closeModal);
+
+        // Confirm button
+        document.getElementById('btn-confirm-apply-dte').addEventListener('click', async () => {
+            let provId = document.getElementById('apply-dte-prov').value;
+            const condicion = document.getElementById('apply-dte-condicion').value;
+
+            // 1. Create supplier if it doesn't exist
+            let provName = dte.emisor;
+            if (!provId) {
+                provId = "PROV-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*100);
+                const newProv = {
+                    ID_Proveedor: provId,
+                    Nombre: dte.emisor,
+                    NIT_DUI: dte.nitEmisor || "",
+                    Contacto: "Contacto General",
+                    Telefono: "N/A",
+                    Correo: "N/A",
+                    Direccion: "N/A",
+                    Dias_Credito: 0
+                };
+                db.proveedores.unshift(newProv);
+                provName = newProv.Nombre;
+                showToast(`Se creó el nuevo proveedor "${dte.emisor}" automáticamente`, "success");
+            } else {
+                provName = db.proveedores.find(p => p.ID_Proveedor === provId)?.Nombre || dte.emisor;
+            }
+
+            // 2. Map items and update stock
+            const mappedItems = [];
+            const rows = document.querySelectorAll('.dte-map-row');
+            
+            rows.forEach(row => {
+                const desc = row.getAttribute('data-desc');
+                const cant = parseFloat(row.getAttribute('data-cant'));
+                const cost = parseFloat(row.getAttribute('data-cost'));
+                const action = row.querySelector('.dte-product-select').value;
+
+                if (action === 'ignore') {
+                    return; // skip
+                }
+
+                let productId = action;
+
+                if (action === 'create_new') {
+                    // Create new product in catalog
+                    productId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
+                    const newProduct = {
+                        "ID_ Producto": productId,
+                        Descripcion: desc,
+                        Marca: "Genérico (DTE)",
+                        Cod_Barra: "",
+                        Precio: cost * 1.35, // 35% margin markup by default
+                        Minimos: cant,      // stock
+                        "Precio Unit": cost // cost
+                    };
+                    db.productos.unshift(newProduct);
+                    showToast(`Creado producto: "${desc}"`, "success");
+                } else {
+                    // Update existing product
+                    const prod = db.productos.find(p => p['ID_ Producto'] === productId);
+                    if (prod) {
+                        prod.Minimos = (prod.Minimos || 0) + cant;
+                        prod['Precio Unit'] = cost; // update cost
+                    }
+                }
+
+                mappedItems.push({
+                    ID_Producto: productId,
+                    Cantidad: cant,
+                    Precio_Costo: cost
+                });
+
+                // Write Kardex movement
+                db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                db['29 Movs de Inventario'].unshift({
+                    id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
+                    id_producto: productId,
+                    descripcion: desc,
+                    Cant_Mov: cant,
+                    "Fecha Mov": Date.now(),
+                    Tipo: 'ENTRADA',
+                    "Valor ($)": cost,
+                    Observacion: `Entrada DTE ${dte.numeroDte} (${provName})`
+                });
+            });
+
+            // 3. Create purchase record
+            const purchaseId = "COMPRA-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
+            const newPurchase = {
+                ID_Compra: purchaseId,
+                ID_Proveedor: provId,
+                Fecha_Compra: dte.fecha,
+                Fecha_Vencimiento: dte.fecha,
+                Dias_Credito: 0,
+                Num_Factura: dte.numeroDte,
+                Monto_Neto: dte.monto / 1.13,
+                Monto_IVA: dte.monto - (dte.monto / 1.13),
+                Monto_Total: dte.monto,
+                Condicion: condicion,
+                Estado_Pago: condicion === 'CONTADO' ? 'PAGADO' : 'PENDIENTE',
+                Saldo_Pendiente: condicion === 'CONTADO' ? 0 : dte.monto,
+                Items: mappedItems
+            };
+            db.compras.unshift(newPurchase);
+
+            // 4. Create cash expense if CONTADO
+            if (condicion === 'CONTADO') {
+                db.gastos.unshift({
+                    "ID Gasto": "GASTO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
+                    "Fecha Gasto": dte.fecha,
+                    Concepto: `Compra de Repuestos - DTE ${dte.numeroDte} (${provName})`,
+                    "Monto Total": dte.monto,
+                    "Forma de Pago": "EFECTIVO",
+                    "ID Categoría Gasto": "Insumos Directos",
+                    "Estado Pago": "PAGADO",
+                    ID_Proveedor: provId
+                });
+            }
+
+            // 5. Update status of DTE in Firestore
+            const dbFirestore = firebase.firestore();
+            dbFirestore.collection("workshops")
+                .doc(user.uid)
+                .collection("dte_recibidos")
+                .doc(dte.id_dte)
+                .update({ estado: 'aplicado' })
+                .then(() => {
+                    // 6. Save database state and update UI
+                    saveDatabase(db);
+                    closeModal();
+                    showToast("Factura DTE aplicada con éxito. Kardex y existencias actualizados.", "success");
+                    
+                    // Reload tab
+                    const contentArea = document.getElementById('gastos-tab-content');
+                    if (contentArea) renderDtesRecibidosTab(contentArea);
+                })
+                .catch(err => {
+                    console.error("Error updating DTE state:", err);
+                    showToast("Error al actualizar estado del DTE en la nube.", "error");
+                });
         });
     }
 }
