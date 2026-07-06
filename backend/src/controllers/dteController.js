@@ -387,12 +387,7 @@ async function receiveIncomingDte(req, res) {
         const fechaEmision = ident.fecEmi || new Date().toISOString().split('T')[0];
         const numeroControl = ident.numeroControl || "";
         
-        // Obtener el número de documento del receptor para mapearlo a un taller
-        const receptorDoc = (receptor.numDocumento || receptor.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
-        
-        if (!receptorDoc) {
-            return res.status(400).json({ success: false, message: "No se pudo identificar el NIT/DUI del receptor en el DTE." });
-        }
+        let workshopId = req.body.workshopId || req.headers['x-workshop-id'];
         
         if (!db) {
             console.warn("Firebase Admin DB no inicializado. Simulando recepción exitosa.");
@@ -404,21 +399,28 @@ async function receiveIncomingDte(req, res) {
             });
         }
         
-        // Buscar el taller correspondiente recorriendo saas_requests
-        const snapshot = await db.collection('saas_requests').get();
-        let workshopId = null;
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const workshopDoc = (data.num_documento || data.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
-            if (workshopDoc === receptorDoc) {
-                workshopId = doc.id;
-            }
-        });
-        
         if (!workshopId) {
-            console.warn(`No se encontró ningún taller registrado con el NIT/DUI del receptor: ${receptorDoc}`);
-            return res.status(404).json({ success: false, message: "No se encontró ningún taller con el NIT/DUI del receptor especificado." });
+            // Obtener el número de documento del receptor para mapearlo a un taller
+            const receptorDoc = (receptor.numDocumento || receptor.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
+            
+            if (!receptorDoc) {
+                return res.status(400).json({ success: false, message: "No se pudo identificar el NIT/DUI del receptor en el DTE." });
+            }
+            
+            // Buscar el taller correspondiente recorriendo saas_requests
+            const snapshot = await db.collection('saas_requests').get();
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const workshopDoc = (data.num_documento || data.nit || "").trim().replace(/[^0-9A-Za-z]/g, "").toLowerCase();
+                if (workshopDoc === receptorDoc) {
+                    workshopId = doc.id;
+                }
+            });
+            
+            if (!workshopId) {
+                console.warn(`No se encontró ningún taller registrado con el NIT/DUI del receptor: ${receptorDoc}`);
+                return res.status(404).json({ success: false, message: "No se encontró ningún taller con el NIT/DUI del receptor especificado." });
+            }
         }
         
         // Formatear items del DTE para el frontend
