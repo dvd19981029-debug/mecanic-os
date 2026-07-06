@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=27';
+} from '../../app.js?v=28';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=27';
+} from '../utils.js?v=28';
 
 let activeGastosTab = 'egresos';
 
@@ -1116,6 +1116,11 @@ export function renderGastos(container) {
 
         // Confirm button
         document.getElementById('btn-confirm-apply-dte').addEventListener('click', async () => {
+            const confirmBtn = document.getElementById('btn-confirm-apply-dte');
+            if (confirmBtn.disabled) return;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...`;
+
             let provId = document.getElementById('apply-dte-prov').value;
             const condicion = document.getElementById('apply-dte-condicion').value;
 

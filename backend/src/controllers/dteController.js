@@ -465,11 +465,26 @@ async function receiveIncomingDte(req, res) {
             createdAt: Date.now()
         };
         
-        await db.collection('workshops')
-            .doc(workshopId)
-            .collection('dte_recibidos')
-            .doc(selloRecepcion)
-            .set(dteRecord);
+        try {
+            await db.collection('workshops')
+                .doc(workshopId)
+                .collection('dte_recibidos')
+                .doc(selloRecepcion)
+                .create(dteRecord);
+        } catch (err) {
+            // Código de error 6 representa ALREADY_EXISTS en gRPC / Firestore Admin
+            if (err.code === 6 || err.message.includes('already exists')) {
+                console.log(`El DTE ${selloRecepcion} ya existe (Deduplicación atómica). Saltando.`);
+                return res.json({
+                    success: true,
+                    message: "El DTE ya está registrado en el taller (Deduplicado atómico).",
+                    selloRecepcion: selloRecepcion,
+                    taller: workshopId,
+                    alreadyExists: true
+                });
+            }
+            throw err;
+        }
             
         console.log(`DTE ${selloRecepcion} registrado exitosamente para el taller ${workshopId}`);
         return res.json({
