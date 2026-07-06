@@ -423,6 +423,24 @@ async function receiveIncomingDte(req, res) {
             }
         }
         
+        // Verificar si ya existe en Firestore para evitar sobrescritura (doble envío)
+        const docRef = db.collection('workshops')
+            .doc(workshopId)
+            .collection('dte_recibidos')
+            .doc(selloRecepcion);
+            
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            console.log(`El DTE ${selloRecepcion} ya existe en el taller ${workshopId}. Saltando importación.`);
+            return res.json({
+                success: true,
+                message: "El DTE ya está registrado en el taller (Deduplicado).",
+                selloRecepcion: selloRecepcion,
+                taller: workshopId,
+                alreadyExists: true
+            });
+        }
+        
         // Formatear items del DTE para el frontend
         const parsedItems = cuerpo.map(item => ({
             numItem: item.numItem || 1,
