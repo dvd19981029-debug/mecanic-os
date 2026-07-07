@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=43';
+} from '../../app.js?v=44';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=43';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=44';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -1941,7 +1941,10 @@ function renderChecklistConfig(container, db) {
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <strong>${c.label}</strong>
                                     <span style="font-family:monospace; font-size:0.75rem; color:var(--text-secondary);">(${c.id})</span>
-                                    <span class="badge ${c.default === 'Y' ? 'badge-success' : 'badge-danger'}" style="font-size:0.7rem; padding:0.1rem 0.4rem;">Por Defecto: ${c.default === 'Y' ? 'SÍ' : 'NO'}</span>
+                                    <span class="badge" style="font-size:0.7rem; padding:0.1rem 0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary);">${c.tipo === 'bueno_detalle' ? 'Bueno / Detalle' : 'SÍ / NO'}</span>
+                                    <span class="badge ${c.default === 'Y' ? 'badge-success' : 'badge-danger'}" style="font-size:0.7rem; padding:0.1rem 0.4rem;">
+                                        Por Defecto: ${c.default === 'Y' ? (c.tipo === 'bueno_detalle' ? 'BUENO' : 'SÍ') : (c.tipo === 'bueno_detalle' ? 'DETALLES' : 'NO')}
+                                    </span>
                                 </div>
                                 <div style="display:flex; gap:0.35rem;">
                                     <button class="btn btn-secondary btn-cfg-edit-checklist" data-id="${c.id}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
@@ -2005,10 +2008,17 @@ function renderChecklistConfig(container, db) {
                         <input type="text" id="cfg-checklist-id" required placeholder="Ej: Llanta_Repuesto" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
                     </div>
                     <div class="form-group">
+                        <label>Tipo de Respuesta *</label>
+                        <select id="cfg-checklist-tipo" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                            <option value="si_no">SÍ / NO (Ej: Antena, Herramientas)</option>
+                            <option value="bueno_detalle">Bueno / Con Detalles (Ej: Tapicería, Cristales)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Estado por Defecto</label>
                         <select id="cfg-checklist-default" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
-                            <option value="Y">SÍ (Buen estado/Presente)</option>
-                            <option value="N">NO (Mal estado/Faltante)</option>
+                            <option value="Y">SÍ / BUENO (Positivo)</option>
+                            <option value="N">NO / CON DETALLES (Negativo)</option>
                         </select>
                     </div>
                     <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
@@ -2146,6 +2156,7 @@ function renderChecklistConfig(container, db) {
         document.getElementById('cfg-checklist-id').value = '';
         document.getElementById('cfg-checklist-id').readOnly = false;
         document.getElementById('cfg-checklist-label').value = '';
+        document.getElementById('cfg-checklist-tipo').value = 'si_no';
         document.getElementById('cfg-checklist-default').value = 'Y';
         cModal.classList.add('active');
     });
@@ -2158,6 +2169,7 @@ function renderChecklistConfig(container, db) {
         const origId = document.getElementById('cfg-checklist-original-id').value;
         const newId = document.getElementById('cfg-checklist-id').value.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
         const label = document.getElementById('cfg-checklist-label').value.trim();
+        const tipo = document.getElementById('cfg-checklist-tipo').value;
         const def = document.getElementById('cfg-checklist-default').value;
 
         if (!newId || !label) return;
@@ -2167,6 +2179,7 @@ function renderChecklistConfig(container, db) {
             const item = db.ingreso_config.checklist.find(x => x.id === origId);
             if (item) {
                 item.label = label;
+                item.tipo = tipo;
                 item.default = def;
             }
         } else {
@@ -2175,7 +2188,7 @@ function renderChecklistConfig(container, db) {
                 showToast("Este ID ya está en uso", "danger");
                 return;
             }
-            db.ingreso_config.checklist.push({ id: newId, label, default: def });
+            db.ingreso_config.checklist.push({ id: newId, label, tipo, default: def });
         }
 
         saveDatabase(db);
@@ -2194,6 +2207,7 @@ function renderChecklistConfig(container, db) {
                 document.getElementById('cfg-checklist-id').value = item.id;
                 document.getElementById('cfg-checklist-id').readOnly = true;
                 document.getElementById('cfg-checklist-label').value = item.label;
+                document.getElementById('cfg-checklist-tipo').value = item.tipo || 'si_no';
                 document.getElementById('cfg-checklist-default').value = item.default || 'Y';
                 cModal.classList.add('active');
             }

@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=43';
+} from '../../app.js?v=44';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=43';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=44';
 
 const DEFAULT_INGRESO_CONFIG = {
     pilotos: [
@@ -17,20 +17,20 @@ const DEFAULT_INGRESO_CONFIG = {
         { id: "Seatbelt", label: "Seatbelt", color: "#ef4444" }
     ],
     checklist: [
-        { id: "Enciende", label: "Enciende", default: "Y" },
-        { id: "Bateria", label: "Batería", default: "Y" },
-        { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y" },
-        { id: "Espejos", label: "Espejos", default: "Y" },
-        { id: "Cristales", label: "Cristales", default: "Y" },
-        { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N" },
-        { id: "Antena", label: "Antena", default: "Y" },
-        { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y" },
-        { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y" },
-        { id: "Triangulos", label: "Triángulos", default: "Y" },
-        { id: "Radio", label: "Radio", default: "Y" },
-        { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y" },
-        { id: "Emblemas", label: "Emblemas", default: "Y" },
-        { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y" }
+        { id: "Enciende", label: "Enciende", default: "Y", tipo: "si_no" },
+        { id: "Bateria", label: "Batería", default: "Y", tipo: "bueno_detalle" },
+        { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y", tipo: "bueno_detalle" },
+        { id: "Espejos", label: "Espejos", default: "Y", tipo: "bueno_detalle" },
+        { id: "Cristales", label: "Cristales", default: "Y", tipo: "bueno_detalle" },
+        { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N", tipo: "si_no" },
+        { id: "Antena", label: "Antena", default: "Y", tipo: "si_no" },
+        { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y", tipo: "si_no" },
+        { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y", tipo: "si_no" },
+        { id: "Triangulos", label: "Triángulos", default: "Y", tipo: "si_no" },
+        { id: "Radio", label: "Radio", default: "Y", tipo: "bueno_detalle" },
+        { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y", tipo: "bueno_detalle" },
+        { id: "Emblemas", label: "Emblemas", default: "Y", tipo: "bueno_detalle" },
+        { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y", tipo: "bueno_detalle" }
     ]
 };
 
@@ -273,12 +273,14 @@ function renderDetails(container, id) {
                         const isY = val === 'Y';
                         const cfgItem = config.checklist.find(c => c.id === k);
                         const label = cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
+                        const tipo = cfgItem ? cfgItem.tipo : 'si_no';
                         const badgeColor = isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
                         const textC = isY ? '#10b981' : '#ef4444';
+                        const displayText = isY ? (tipo === 'bueno_detalle' ? 'BUENO' : 'SÍ') : (tipo === 'bueno_detalle' ? 'DETALLES' : 'NO');
                         return html`
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid rgba(255,255,255,0.04);">
                                 <span>${label}</span>
-                                <span style="padding:0.15rem 0.5rem; border-radius:4px; font-weight:700; background:${badgeColor}; color:${textC};">${isY ? 'SÍ' : 'NO'}</span>
+                                <span style="padding:0.15rem 0.5rem; border-radius:4px; font-weight:700; background:${badgeColor}; color:${textC};">${displayText}</span>
                             </div>
                         `;
                     }).join(''))}
@@ -479,12 +481,14 @@ function renderEditor(container, editId) {
                         ${safe(config.checklist.map(c => {
                             const val = ing.Checklist ? (ing.Checklist[c.id] || c.default || 'Y') : (c.default || 'Y');
                             const isY = val === 'Y';
+                            const labelYes = c.tipo === 'bueno_detalle' ? 'BUENO' : 'SÍ';
+                            const labelNo = c.tipo === 'bueno_detalle' ? 'DETALLES' : 'NO';
                             return html`
                                 <div class="checklist-row" style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.75rem; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid rgba(255,255,255,0.04);">
                                     <span style="font-size:0.85rem; font-weight:500;">${c.label}</span>
                                     <div class="checklist-toggle" data-key="${c.id}" style="display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:28px;">
-                                        <button type="button" class="check-btn ${isY ? 'active' : ''}" data-val="Y" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${isY ? '#10b981' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">SÍ</button>
-                                        <button type="button" class="check-btn ${!isY ? 'active' : ''}" data-val="N" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${!isY ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${!isY ? '#ef4444' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">NO</button>
+                                        <button type="button" class="check-btn ${isY ? 'active' : ''}" data-val="Y" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${isY ? '#10b981' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">${labelYes}</button>
+                                        <button type="button" class="check-btn ${!isY ? 'active' : ''}" data-val="N" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${!isY ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${!isY ? '#ef4444' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">${labelNo}</button>
                                     </div>
                                 </div>
                             `;
@@ -769,10 +773,12 @@ function printIngresoPDF(ing) {
         const val = ing.Checklist[k];
         const cfgItem = config.checklist.find(c => c.id === k);
         const label = cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
+        const tipo = cfgItem ? cfgItem.tipo : 'si_no';
+        const displayText = val === 'Y' ? (tipo === 'bueno_detalle' ? 'BUENO' : 'SÍ') : (tipo === 'bueno_detalle' ? 'DETALLES' : 'NO');
         return `
             <tr>
                 <td style="padding: 4px; font-size: 11px; border-bottom: 1px solid #ddd;">${label}</td>
-                <td style="padding: 4px; font-size: 11px; text-align: center; border-bottom: 1px solid #ddd; font-weight: bold; color: ${val === 'Y' ? '#16a34a' : '#dc2626'};">${val === 'Y' ? 'SÍ' : 'NO'}</td>
+                <td style="padding: 4px; font-size: 11px; text-align: center; border-bottom: 1px solid #ddd; font-weight: bold; color: ${val === 'Y' ? '#16a34a' : '#dc2626'};">${displayText}</td>
             </tr>
         `;
     }).join('');
