@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=39';
+} from '../../app.js?v=40';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=39';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=40';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -748,6 +748,16 @@ function printIngresoPDF(ing) {
 
     const pilotosStr = Object.keys(ing.Pilotos || {}).filter(k => ing.Pilotos[k]).map(k => k.replace(/_/g, ' ')).join(', ') || 'Ninguno';
 
+    let logoHTML = '';
+    if (ws.logo) {
+        logoHTML = `<img src="${ws.logo}" style="max-height: 70px; max-width: 250px; object-fit: contain; border-radius: 4px;" />`;
+    } else {
+        logoHTML = `
+            <span class="logo-text">${ws.logoText || ws.nombre_comercial || ws.nombre || 'Mecanic OS'}</span><br>
+            <span style="font-size:10px; color:#6b7280;">${ws.logoTagline || 'Centro de Servicio Automotriz'}</span>
+        `;
+    }
+
     const pdfHTML = `
         <!DOCTYPE html>
         <html>
@@ -773,8 +783,7 @@ function printIngresoPDF(ing) {
             <table class="header-table">
                 <tr>
                     <td>
-                        <span class="logo-text">${ws.logoText || 'Mister Cars'}</span><br>
-                        <span style="font-size:10px; color:#6b7280;">Centro de Servicio Automotriz</span>
+                        ${logoHTML}
                     </td>
                     <td class="order-title">
                         ORDEN DE INGRESO<br>
@@ -822,7 +831,7 @@ function printIngresoPDF(ing) {
             </div>
 
             <div class="footer-text">
-                <strong>Términos y condiciones de Mister Cars:</strong> El cliente autoriza la realización de las pruebas de carretera correspondientes por parte del personal del taller. Mister Cars no se hace responsable de daños causados por desastres naturales, incendios, robos o vandalismo fortuito fuera de su control. Todo repuesto reemplazado pasará a ser propiedad del cliente, a menos que este autorice su desecho. Mister Cars no se responsabiliza por objetos personales de valor no reportados formalmente al momento de la entrega.
+                <strong>Términos y condiciones de ${ws.nombre_comercial || ws.nombre || 'Mecanic OS'}:</strong> El cliente autoriza la realización de las pruebas de carretera correspondientes por parte del personal del taller. ${(ws.nombre_comercial || ws.nombre || 'El taller')} no se hace responsable de daños causados por desastres naturales, incendios, robos o vandalismo fortuito fuera de su control. Todo repuesto reemplazado pasará a ser propiedad del cliente, a menos que este autorice su desecho. ${(ws.nombre_comercial || ws.nombre || 'El taller')} no se responsabiliza por objetos personales de valor no reportados formalmente al momento de la entrega.
             </div>
 
             <div class="signature-container">
