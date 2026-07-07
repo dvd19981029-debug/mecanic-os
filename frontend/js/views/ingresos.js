@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=40';
+} from '../../app.js?v=41';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=40';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=41';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -836,11 +836,11 @@ function printIngresoPDF(ing) {
 
             <div class="signature-container">
                 <div class="signature-box">
-                    ${ing.Firma_Asesor ? `<img src="${ing.Firma_Asesor}" style="max-height:80px; max-width:100%; margin-top:10px;">` : ''}
+                    ${ing.Firma_Asesor ? `<img src="${ing.Firma_Asesor}" style="max-height:80px; max-width:100%; margin-top:10px; filter: invert(1);">` : ''}
                     <div style="border-top:1px solid #000; margin-top:5px; font-size:10px; font-weight:bold;">Firma del Asesor</div>
                 </div>
                 <div class="signature-box">
-                    ${ing.Firma_Cliente ? `<img src="${ing.Firma_Cliente}" style="max-height:80px; max-width:100%; margin-top:10px;">` : ''}
+                    ${ing.Firma_Cliente ? `<img src="${ing.Firma_Cliente}" style="max-height:80px; max-width:100%; margin-top:10px; filter: invert(1);">` : ''}
                     <div style="border-top:1px solid #000; margin-top:5px; font-size:10px; font-weight:bold;">Firma del Cliente</div>
                 </div>
             </div>

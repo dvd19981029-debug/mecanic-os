@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=40';
+} from '../../app.js?v=41';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=40';
+} from '../utils.js?v=41';
 
 let activeCuentasCobrarTab = 'cartera';
 
