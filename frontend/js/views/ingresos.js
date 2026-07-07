@@ -4,9 +4,9 @@ import {
     getActiveUser,
     getWorkshopConfig,
     showToast
-} from '../app.js?v=32';
+} from '../app.js?v=33';
 
-import { html, safe, escapeHtml } from '../router.js?v=32';
+import { html, safe, escapeHtml } from '../utils.js?v=33';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
