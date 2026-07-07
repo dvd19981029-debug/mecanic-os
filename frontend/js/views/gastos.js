@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=46';
+} from '../../app.js?v=47';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=46';
+} from '../utils.js?v=47';
 
 let activeGastosTab = 'egresos';
 
@@ -903,8 +903,8 @@ export function renderGastos(container) {
     }
 
     function renderDtesRecibidosTab(parent) {
-        const user = getActiveUser();
-        if (!user || !user.uid) {
+        const workshopUid = localStorage.getItem('mecanic_os_workshop_uid');
+        if (!workshopUid) {
             parent.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-muted);">Debe iniciar sesión para ver los DTEs recibidos.</div>`;
             return;
         }
@@ -947,7 +947,7 @@ export function renderGastos(container) {
         const loadDtes = () => {
             if (!tbody) return;
             tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i> Cargando facturas...</td></tr>`;
-            dbFirestore.collection("workshops").doc(user.uid).collection("dte_recibidos")
+            dbFirestore.collection("workshops").doc(workshopUid).collection("dte_recibidos")
                 .orderBy("createdAt", "desc")
                 .get()
                 .then(snapshot => {
