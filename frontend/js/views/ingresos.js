@@ -2,11 +2,10 @@ import {
     getDatabase,
     saveDatabase,
     getActiveUser,
-    getWorkshopConfig,
-    showToast
-} from '../app.js?v=33';
+    getWorkshopConfig
+} from '../app.js?v=34';
 
-import { html, safe, escapeHtml } from '../utils.js?v=33';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=34';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
