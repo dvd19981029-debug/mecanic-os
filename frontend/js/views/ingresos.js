@@ -3,9 +3,36 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=41';
+} from '../../app.js?v=42';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=41';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=42';
+
+const DEFAULT_INGRESO_CONFIG = {
+    pilotos: [
+        { id: "Check_Engine", label: "Check Engine", color: "#f97316" },
+        { id: "TPMS", label: "TPMS", color: "#eab308" },
+        { id: "ABS", label: "ABS", color: "#f97316" },
+        { id: "Airbag", label: "Airbag", color: "#ef4444" },
+        { id: "Brakes", label: "Brakes", color: "#ef4444" },
+        { id: "Seatbelt", label: "Seatbelt", color: "#ef4444" }
+    ],
+    checklist: [
+        { id: "Enciende", label: "Enciende", default: "Y" },
+        { id: "Bateria", label: "Batería", default: "Y" },
+        { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y" },
+        { id: "Espejos", label: "Espejos", default: "Y" },
+        { id: "Cristales", label: "Cristales", default: "Y" },
+        { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N" },
+        { id: "Antena", label: "Antena", default: "Y" },
+        { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y" },
+        { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y" },
+        { id: "Triangulos", label: "Triángulos", default: "Y" },
+        { id: "Radio", label: "Radio", default: "Y" },
+        { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y" },
+        { id: "Emblemas", label: "Emblemas", default: "Y" },
+        { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y" }
+    ]
+};
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -195,6 +222,7 @@ function renderDetails(container, id) {
     const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === ing.ID_Vehiculo) || {};
     const client = db.clientes.find(c => c.Codigo_Cliente === ing.Codigo_Cliente) || {};
     const dateStr = new Date(ing.Fecha_Ingreso).toLocaleString('es-SV');
+    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
 
     container.innerHTML = html`
         <div class="view-header" style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
@@ -223,12 +251,13 @@ function renderDetails(container, id) {
                 <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
                     ${safe(Object.keys(ing.Pilotos || {}).map(k => {
                         const active = ing.Pilotos[k];
-                        const colors = { Check_Engine: '#f97316', TPMS: '#eab308', ABS: '#f97316', Airbag: '#ef4444', Brakes: '#ef4444', Seatbelt: '#ef4444' };
-                        const c = colors[k] || 'var(--primary)';
+                        const cfgItem = config.pilotos.find(p => p.id === k);
+                        const c = cfgItem ? cfgItem.color : 'var(--primary)';
+                        const label = cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
                         if (!active) return '';
                         return html`
                             <span style="padding:0.4rem 0.8rem; border-radius:30px; background:${c}15; border:1px solid ${c}; color:${c}; font-size:0.8rem; font-weight:700;">
-                                <i class="fa-solid fa-triangle-exclamation"></i> ${k.replace('_', ' ')}
+                                <i class="fa-solid fa-triangle-exclamation"></i> ${label}
                             </span>
                         `;
                     }).join('') || '<span style="color:var(--text-secondary); font-style:italic;">Ningún piloto encendido</span>')}
@@ -242,11 +271,13 @@ function renderDetails(container, id) {
                     ${safe(Object.keys(ing.Checklist || {}).map(k => {
                         const val = ing.Checklist[k];
                         const isY = val === 'Y';
+                        const cfgItem = config.checklist.find(c => c.id === k);
+                        const label = cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
                         const badgeColor = isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
                         const textC = isY ? '#10b981' : '#ef4444';
                         return html`
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid rgba(255,255,255,0.04);">
-                                <span>${k.replace(/_/g, ' ')}</span>
+                                <span>${label}</span>
                                 <span style="padding:0.15rem 0.5rem; border-radius:4px; font-weight:700; background:${badgeColor}; color:${textC};">${isY ? 'SÍ' : 'NO'}</span>
                             </div>
                         `;
@@ -291,6 +322,8 @@ function renderEditor(container, editId) {
     const isEdit = !!editId;
     let ing = null;
 
+    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
+
     if (isEdit) {
         ing = db.ingresos.find(i => i.ID_Ingreso === editId);
         if (!ing) {
@@ -298,8 +331,25 @@ function renderEditor(container, editId) {
             window.location.hash = '#ingresos';
             return;
         }
+        if (!ing.Pilotos) ing.Pilotos = {};
+        config.pilotos.forEach(p => {
+            if (ing.Pilotos[p.id] === undefined) ing.Pilotos[p.id] = false;
+        });
+        if (!ing.Checklist) ing.Checklist = {};
+        config.checklist.forEach(c => {
+            if (ing.Checklist[c.id] === undefined) ing.Checklist[c.id] = c.default || 'Y';
+        });
     } else {
         const nextId = "ING-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*10);
+        const initialPilotos = {};
+        config.pilotos.forEach(p => {
+            initialPilotos[p.id] = false;
+        });
+        const initialChecklist = {};
+        config.checklist.forEach(c => {
+            initialChecklist[c.id] = c.default || 'Y';
+        });
+
         ing = {
             ID_Ingreso: nextId,
             Fecha_Ingreso: new Date().toISOString(),
@@ -308,30 +358,8 @@ function renderEditor(container, editId) {
             Kilometraje: '',
             Gasolina: '1/2',
             Combustible: 'GASOLINA',
-            Pilotos: {
-                Check_Engine: false,
-                TPMS: false,
-                ABS: false,
-                Airbag: false,
-                Brakes: false,
-                Seatbelt: false
-            },
-            Checklist: {
-                Enciende: 'Y',
-                Bateria: 'Y',
-                Brazos_Escobillas: 'Y',
-                Espejos: 'Y',
-                Cristales: 'Y',
-                Vidrios_Dañados: 'N',
-                Antena: 'Y',
-                Tapon_Gas_Con_Llave: 'Y',
-                Gato_y_Herramientas: 'Y',
-                Triangulos: 'Y',
-                Radio: 'Y',
-                Aire_Acondicionado: 'Y',
-                Emblemas: 'Y',
-                Estado_Tapiceria: 'Y'
-            },
+            Pilotos: initialPilotos,
+            Checklist: initialChecklist,
             Observaciones: '',
             Firma_Asesor: '',
             Firma_Cliente: '',
@@ -427,18 +455,17 @@ function renderEditor(container, editId) {
                     <!-- Warning lights section -->
                     <h3 style="color:var(--primary); margin:1rem 0 0 0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Testigos del Tablero (Pilotos)</h3>
                     <div class="pilotos-container" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:0.5rem;">
-                        ${safe(Object.keys(ing.Pilotos || {}).map(k => {
-                            const active = ing.Pilotos[k];
-                            const colors = { Check_Engine: '#f97316', TPMS: '#eab308', ABS: '#f97316', Airbag: '#ef4444', Brakes: '#ef4444', Seatbelt: '#ef4444' };
-                            const c = colors[k] || 'var(--primary)';
+                        ${safe(config.pilotos.map(p => {
+                            const active = ing.Pilotos ? (ing.Pilotos[p.id] || false) : false;
+                            const c = p.color || 'var(--primary)';
                             const bg = active ? c + '15' : 'rgba(255,255,255,0.03)';
                             const border = active ? c : 'var(--border-color)';
                             const color = active ? c : 'var(--text-secondary)';
                             const activeClass = active ? 'active' : '';
 
                             return html`
-                                <button type="button" class="piloto-btn ${activeClass}" data-piloto="${k}" data-color="${c}" style="padding:0.5rem 1rem; border-radius:30px; border:1px solid ${border}; background:${bg}; color:${color}; font-weight:600; display:flex; align-items:center; gap:0.5rem; cursor:pointer; transition:all 0.2s;">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> ${k.replace('_', ' ')}
+                                <button type="button" class="piloto-btn ${activeClass}" data-piloto="${p.id}" data-color="${c}" style="padding:0.5rem 1rem; border-radius:30px; border:1px solid ${border}; background:${bg}; color:${color}; font-weight:600; display:flex; align-items:center; gap:0.5rem; cursor:pointer; transition:all 0.2s;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> ${p.label}
                                 </button>
                             `;
                         }).join(''))}
@@ -449,13 +476,13 @@ function renderEditor(container, editId) {
                 <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
                     <h3 style="color:var(--primary); margin:0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; margin-bottom:0.5rem;"><i class="fa-solid fa-list-check"></i> Checklist de Inventario</h3>
                     <div style="overflow-y:auto; max-height:480px; padding-right:0.5rem; display:flex; flex-direction:column; gap:0.5rem;">
-                        ${safe(Object.keys(ing.Checklist || {}).map(k => {
-                            const val = ing.Checklist[k];
+                        ${safe(config.checklist.map(c => {
+                            const val = ing.Checklist ? (ing.Checklist[c.id] || c.default || 'Y') : (c.default || 'Y');
                             const isY = val === 'Y';
                             return html`
                                 <div class="checklist-row" style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.75rem; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid rgba(255,255,255,0.04);">
-                                    <span style="font-size:0.85rem; font-weight:500;">${k.replace(/_/g, ' ')}</span>
-                                    <div class="checklist-toggle" data-key="${k}" style="display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:28px;">
+                                    <span style="font-size:0.85rem; font-weight:500;">${c.label}</span>
+                                    <div class="checklist-toggle" data-key="${c.id}" style="display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:28px;">
                                         <button type="button" class="check-btn ${isY ? 'active' : ''}" data-val="Y" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${isY ? '#10b981' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">SÍ</button>
                                         <button type="button" class="check-btn ${!isY ? 'active' : ''}" data-val="N" style="padding:0 0.75rem; border:none; font-size:0.75rem; background:${!isY ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.03)'}; color:${!isY ? '#ef4444' : 'var(--text-secondary)'}; font-weight:700; cursor:pointer;">NO</button>
                                     </div>
@@ -736,17 +763,24 @@ function printIngresoPDF(ing) {
         return;
     }
 
+    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
+
     const checklistRows = Object.keys(ing.Checklist || {}).map(k => {
         const val = ing.Checklist[k];
+        const cfgItem = config.checklist.find(c => c.id === k);
+        const label = cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
         return `
             <tr>
-                <td style="padding: 4px; font-size: 11px; border-bottom: 1px solid #ddd;">${k.replace(/_/g, ' ')}</td>
+                <td style="padding: 4px; font-size: 11px; border-bottom: 1px solid #ddd;">${label}</td>
                 <td style="padding: 4px; font-size: 11px; text-align: center; border-bottom: 1px solid #ddd; font-weight: bold; color: ${val === 'Y' ? '#16a34a' : '#dc2626'};">${val === 'Y' ? 'SÍ' : 'NO'}</td>
             </tr>
         `;
     }).join('');
 
-    const pilotosStr = Object.keys(ing.Pilotos || {}).filter(k => ing.Pilotos[k]).map(k => k.replace(/_/g, ' ')).join(', ') || 'Ninguno';
+    const pilotosStr = Object.keys(ing.Pilotos || {}).filter(k => ing.Pilotos[k]).map(k => {
+        const cfgItem = config.pilotos.find(p => p.id === k);
+        return cfgItem ? cfgItem.label : k.replace(/_/g, ' ');
+    }).join(', ') || 'Ninguno';
 
     let logoHTML = '';
     if (ws.logo) {

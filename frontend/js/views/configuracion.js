@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=41';
+} from '../../app.js?v=42';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=41';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=42';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -412,6 +412,7 @@ export function renderConfiguracion(container, queryParams) {
                 <button class="saas-tab-btn ${activeConfigTab === 'productos' ? 'active' : ''}" data-tab="productos"><i class="fa-solid fa-boxes-stacked"></i> Repuestos / Productos</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'servicios' ? 'active' : ''}" data-tab="servicios"><i class="fa-solid fa-screwdriver-wrench"></i> Servicios / Mano de Obra</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'promociones' ? 'active' : ''}" data-tab="promociones"><i class="fa-solid fa-tags"></i> Promociones</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'checklist' ? 'active' : ''}" data-tab="checklist"><i class="fa-solid fa-list-check"></i> Formulario de Ingreso</button>
             </div>
             
             <div id="config-tab-content-area">
@@ -1637,6 +1638,8 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('promocion-modal').classList.remove('active');
             renderConfiguracion(container);
         });
+    } else if (activeConfigTab === 'checklist') {
+        renderChecklistConfig(tabContentArea, db);
     }
 
     // Expediente (Vacaciones, Incapacidades, Bonos) modal logic
@@ -1864,4 +1867,320 @@ export function renderConfiguracion(container, queryParams) {
         document.getElementById('payroll-modal').classList.add('active');
     }
 }
+function renderChecklistConfig(container, db) {
+    if (!db.ingreso_config) {
+        db.ingreso_config = {
+            pilotos: [
+                { id: "Check_Engine", label: "Check Engine", color: "#f97316" },
+                { id: "TPMS", label: "TPMS", color: "#eab308" },
+                { id: "ABS", label: "ABS", color: "#f97316" },
+                { id: "Airbag", label: "Airbag", color: "#ef4444" },
+                { id: "Brakes", label: "Brakes", color: "#ef4444" },
+                { id: "Seatbelt", label: "Seatbelt", color: "#ef4444" }
+            ],
+            checklist: [
+                { id: "Enciende", label: "Enciende", default: "Y" },
+                { id: "Bateria", label: "Batería", default: "Y" },
+                { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y" },
+                { id: "Espejos", label: "Espejos", default: "Y" },
+                { id: "Cristales", label: "Cristales", default: "Y" },
+                { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N" },
+                { id: "Antena", label: "Antena", default: "Y" },
+                { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y" },
+                { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y" },
+                { id: "Triangulos", label: "Triángulos", default: "Y" },
+                { id: "Radio", label: "Radio", default: "Y" },
+                { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y" },
+                { id: "Emblemas", label: "Emblemas", default: "Y" },
+                { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y" }
+            ]
+        };
+        saveDatabase(db);
+    }
+
+    container.innerHTML = html`
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+            
+            <!-- Column Left: Warning Lights (Pilotos) -->
+            <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:0.5rem;">
+                    <h3 style="color:var(--primary); margin:0;"><i class="fa-solid fa-triangle-exclamation"></i> Testigos del Tablero (Pilotos)</h3>
+                    <button class="btn btn-primary" id="btn-cfg-add-piloto" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-plus"></i> Añadir Testigo</button>
+                </div>
+
+                <div style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:0.5rem;">
+                    ${safe(db.ingreso_config.pilotos.map(p => {
+                        return html`
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px;">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${p.color || '#fff'}; border:1px solid rgba(255,255,255,0.2);"></span>
+                                    <strong>${p.label}</strong>
+                                    <span style="font-family:monospace; font-size:0.75rem; color:var(--text-secondary);">(${p.id})</span>
+                                </div>
+                                <div style="display:flex; gap:0.35rem;">
+                                    <button class="btn btn-secondary btn-cfg-edit-piloto" data-id="${p.id}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn btn-secondary btn-cfg-delete-piloto" data-id="${p.id}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''))}
+                </div>
+            </div>
+
+            <!-- Column Right: Checklist Items -->
+            <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:0.5rem;">
+                    <h3 style="color:var(--primary); margin:0;"><i class="fa-solid fa-list-check"></i> Checklist de Inventario</h3>
+                    <button class="btn btn-primary" id="btn-cfg-add-checklist" style="padding:0.4rem 0.8rem; font-size:0.8rem;"><i class="fa-solid fa-plus"></i> Añadir Punto</button>
+                </div>
+
+                <div style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:0.5rem;">
+                    ${safe(db.ingreso_config.checklist.map(c => {
+                        return html`
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px;">
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <strong>${c.label}</strong>
+                                    <span style="font-family:monospace; font-size:0.75rem; color:var(--text-secondary);">(${c.id})</span>
+                                    <span class="badge ${c.default === 'Y' ? 'badge-success' : 'badge-danger'}" style="font-size:0.7rem; padding:0.1rem 0.4rem;">Por Defecto: ${c.default === 'Y' ? 'SÍ' : 'NO'}</span>
+                                </div>
+                                <div style="display:flex; gap:0.35rem;">
+                                    <button class="btn btn-secondary btn-cfg-edit-checklist" data-id="${c.id}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn btn-secondary btn-cfg-delete-checklist" data-id="${c.id}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''))}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Piloto Modal -->
+        <div id="cfg-piloto-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h2 id="cfg-piloto-modal-title">Añadir Testigo (Piloto)</h2>
+                    <button class="close-modal-btn" id="close-cfg-piloto-modal">&times;</button>
+                </div>
+                <form id="cfg-piloto-form" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                    <input type="hidden" id="cfg-piloto-original-id">
+                    <div class="form-group">
+                        <label>Nombre en Español *</label>
+                        <input type="text" id="cfg-piloto-label" required placeholder="Ej: Presión de Aceite" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                    </div>
+                    <div class="form-group">
+                        <label>ID Único (Sin espacios/acentos) *</label>
+                        <input type="text" id="cfg-piloto-id" required placeholder="Ej: Presion_Aceite" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                    </div>
+                    <div class="form-group">
+                        <label>Color del Testigo (Al encenderse)</label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="color" id="cfg-piloto-color" value="#ef4444" style="border:none; width:45px; height:40px; background:none; cursor:pointer;">
+                            <input type="text" id="cfg-piloto-color-text" value="#EF4444" style="flex:1; padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cfg-cancel-piloto">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Testigo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Checklist Item Modal -->
+        <div id="cfg-checklist-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h2 id="cfg-checklist-modal-title">Añadir Punto de Inspección</h2>
+                    <button class="close-modal-btn" id="close-cfg-checklist-modal">&times;</button>
+                </div>
+                <form id="cfg-checklist-form" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                    <input type="hidden" id="cfg-checklist-original-id">
+                    <div class="form-group">
+                        <label>Nombre del Elemento *</label>
+                        <input type="text" id="cfg-checklist-label" required placeholder="Ej: Llanta de Repuesto" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                    </div>
+                    <div class="form-group">
+                        <label>ID Único (Sin espacios/acentos) *</label>
+                        <input type="text" id="cfg-checklist-id" required placeholder="Ej: Llanta_Repuesto" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                    </div>
+                    <div class="form-group">
+                        <label>Estado por Defecto</label>
+                        <select id="cfg-checklist-default" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary);">
+                            <option value="Y">SÍ (Buen estado/Presente)</option>
+                            <option value="N">NO (Mal estado/Faltante)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-cfg-cancel-checklist">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Punto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    // Sync color inputs
+    const pColor = document.getElementById('cfg-piloto-color');
+    const pColorText = document.getElementById('cfg-piloto-color-text');
+    if (pColor && pColorText) {
+        pColor.addEventListener('input', (e) => pColorText.value = e.target.value.toUpperCase());
+        pColorText.addEventListener('input', (e) => {
+            if (/^#[0-9A-F]{6}$/i.test(e.target.value)) pColor.value = e.target.value;
+        });
+    }
+
+    // Modal controls for Pilotos
+    const pModal = document.getElementById('cfg-piloto-modal');
+    const pForm = document.getElementById('cfg-piloto-form');
+    document.getElementById('btn-cfg-add-piloto').addEventListener('click', () => {
+        document.getElementById('cfg-piloto-modal-title').textContent = 'Añadir Testigo (Piloto)';
+        document.getElementById('cfg-piloto-original-id').value = '';
+        document.getElementById('cfg-piloto-id').value = '';
+        document.getElementById('cfg-piloto-id').readOnly = false;
+        document.getElementById('cfg-piloto-label').value = '';
+        pColor.value = '#ef4444';
+        pColorText.value = '#EF4444';
+        pModal.classList.add('active');
+    });
+
+    document.getElementById('close-cfg-piloto-modal').addEventListener('click', () => pModal.classList.remove('active'));
+    document.getElementById('btn-cfg-cancel-piloto').addEventListener('click', () => pModal.classList.remove('active'));
+
+    pForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const origId = document.getElementById('cfg-piloto-original-id').value;
+        const newId = document.getElementById('cfg-piloto-id').value.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const label = document.getElementById('cfg-piloto-label').value.trim();
+        const color = pColorText.value.trim();
+
+        if (!newId || !label) return;
+
+        if (origId) {
+            // Edit
+            const item = db.ingreso_config.pilotos.find(x => x.id === origId);
+            if (item) {
+                item.label = label;
+                item.color = color;
+            }
+        } else {
+            // Add
+            if (db.ingreso_config.pilotos.some(x => x.id === newId)) {
+                showToast("Este ID ya está en uso", "danger");
+                return;
+            }
+            db.ingreso_config.pilotos.push({ id: newId, label, color });
+        }
+
+        saveDatabase(db);
+        pModal.classList.remove('active');
+        showToast("Configuración de testigos actualizada", "success");
+        renderChecklistConfig(container, db);
+    });
+
+    container.querySelectorAll('.btn-cfg-edit-piloto').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const item = db.ingreso_config.pilotos.find(x => x.id === id);
+            if (item) {
+                document.getElementById('cfg-piloto-modal-title').textContent = 'Editar Testigo';
+                document.getElementById('cfg-piloto-original-id').value = item.id;
+                document.getElementById('cfg-piloto-id').value = item.id;
+                document.getElementById('cfg-piloto-id').readOnly = true;
+                document.getElementById('cfg-piloto-label').value = item.label;
+                pColor.value = item.color || '#ffffff';
+                pColorText.value = (item.color || '#ffffff').toUpperCase();
+                pModal.classList.add('active');
+            }
+        });
+    });
+
+    container.querySelectorAll('.btn-cfg-delete-piloto').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            if (confirm(`¿Eliminar testigo "${id}" de la lista?`)) {
+                db.ingreso_config.pilotos = db.ingreso_config.pilotos.filter(x => x.id !== id);
+                saveDatabase(db);
+                showToast("Testigo eliminado", "success");
+                renderChecklistConfig(container, db);
+            }
+        });
+    });
+
+    // Modal controls for Checklist
+    const cModal = document.getElementById('cfg-checklist-modal');
+    const cForm = document.getElementById('cfg-checklist-form');
+    document.getElementById('btn-cfg-add-checklist').addEventListener('click', () => {
+        document.getElementById('cfg-checklist-modal-title').textContent = 'Añadir Punto de Inspección';
+        document.getElementById('cfg-checklist-original-id').value = '';
+        document.getElementById('cfg-checklist-id').value = '';
+        document.getElementById('cfg-checklist-id').readOnly = false;
+        document.getElementById('cfg-checklist-label').value = '';
+        document.getElementById('cfg-checklist-default').value = 'Y';
+        cModal.classList.add('active');
+    });
+
+    document.getElementById('close-cfg-checklist-modal').addEventListener('click', () => cModal.classList.remove('active'));
+    document.getElementById('btn-cfg-cancel-checklist').addEventListener('click', () => cModal.classList.remove('active'));
+
+    cForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const origId = document.getElementById('cfg-checklist-original-id').value;
+        const newId = document.getElementById('cfg-checklist-id').value.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const label = document.getElementById('cfg-checklist-label').value.trim();
+        const def = document.getElementById('cfg-checklist-default').value;
+
+        if (!newId || !label) return;
+
+        if (origId) {
+            // Edit
+            const item = db.ingreso_config.checklist.find(x => x.id === origId);
+            if (item) {
+                item.label = label;
+                item.default = def;
+            }
+        } else {
+            // Add
+            if (db.ingreso_config.checklist.some(x => x.id === newId)) {
+                showToast("Este ID ya está en uso", "danger");
+                return;
+            }
+            db.ingreso_config.checklist.push({ id: newId, label, default: def });
+        }
+
+        saveDatabase(db);
+        cModal.classList.remove('active');
+        showToast("Configuración de checklist actualizada", "success");
+        renderChecklistConfig(container, db);
+    });
+
+    container.querySelectorAll('.btn-cfg-edit-checklist').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const item = db.ingreso_config.checklist.find(x => x.id === id);
+            if (item) {
+                document.getElementById('cfg-checklist-modal-title').textContent = 'Editar Punto de Inspección';
+                document.getElementById('cfg-checklist-original-id').value = item.id;
+                document.getElementById('cfg-checklist-id').value = item.id;
+                document.getElementById('cfg-checklist-id').readOnly = true;
+                document.getElementById('cfg-checklist-label').value = item.label;
+                document.getElementById('cfg-checklist-default').value = item.default || 'Y';
+                cModal.classList.add('active');
+            }
+        });
+    });
+
+    container.querySelectorAll('.btn-cfg-delete-checklist').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            if (confirm(`¿Eliminar punto de inspección "${id}"?`)) {
+                db.ingreso_config.checklist = db.ingreso_config.checklist.filter(x => x.id !== id);
+                saveDatabase(db);
+                showToast("Punto de inspección eliminado", "success");
+                renderChecklistConfig(container, db);
+            }
+        });
+    });
+}
+
 export { activeConfigTab };
