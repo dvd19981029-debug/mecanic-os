@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=35';
+} from '../../app.js?v=36';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=35';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=36';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';

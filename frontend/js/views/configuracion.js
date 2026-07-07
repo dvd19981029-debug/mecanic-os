@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=35';
+} from '../../app.js?v=36';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=35';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=36';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -797,6 +797,7 @@ export function renderConfiguracion(container, queryParams) {
         const appViewsConfig = [
             { route: 'taller-dashboard', label: 'Panel Taller', icon: 'fa-solid fa-gauge-high' },
             { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
+            { route: 'ingresos', label: 'Recepción / Ingresos', icon: 'fa-solid fa-file-signature' },
             { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
             { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
             { route: 'trabajos-taller', label: 'Trabajos en Progreso', icon: 'fa-solid fa-screwdriver-wrench' },
@@ -831,9 +832,9 @@ export function renderConfiguracion(container, queryParams) {
                     if (role === "Administrador") {
                         allowed = appViewsConfig.map(v => v.route);
                     } else if (role === "Recepcionista") {
-                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"];
+                        allowed = ["taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban", "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"];
                     } else {
-                        allowed = ["taller-dashboard", "clientes-vehiculos", "revision-21", "kanban"];
+                        allowed = ["taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "kanban"];
                     }
                 }
 
