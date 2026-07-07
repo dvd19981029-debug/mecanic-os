@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=30';
+} from '../../app.js?v=31';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=30';
+} from '../utils.js?v=31';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -797,6 +797,188 @@ export function renderBudgetEditor(container, budget) {
     }
 
     // Product search modal triggers
+    function openCreateProductModal(initialDesc, onCreated) {
+        const modalId = 'create-custom-product-modal';
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const newProdId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
+
+        const modalHtml = html`
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
+                <div class="glass-card" style="width:480px; padding:2rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-plus-circle"></i> Registrar Nuevo Repuesto</h3>
+                        <button id="close-create-prod-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+
+                    <form id="create-prod-form" style="display:flex; flex-direction:column; gap:1rem; font-size:0.9rem;">
+                        <div class="form-group">
+                            <label>Código de Producto / Repuesto</label>
+                            <input type="text" id="new-prod-id" required value="${newProdId}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción / Nombre</label>
+                            <input type="text" id="new-prod-desc" required value="${escapeHtml(initialDesc)}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Marca</label>
+                                <input type="text" id="new-prod-brand" value="Genérico" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Unidad de Medida</label>
+                                <select id="new-prod-unit" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:36px; width:100%;">
+                                    <option value="Pza" selected>Pieza (Pza)</option>
+                                    <option value="Ltr">Litro (Ltr)</option>
+                                    <option value="Gal">Galón (Gal)</option>
+                                    <option value="Jgo">Juego (Jgo)</option>
+                                    <option value="Kit">Kit</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Precio Venta ($)</label>
+                                <input type="number" id="new-prod-price-sell" required value="15.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Precio Costo ($)</label>
+                                <input type="number" id="new-prod-price-cost" required value="10.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Existencia Inicial (Stock)</label>
+                            <input type="number" id="new-prod-stock" required value="0" min="0" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:1rem; border-top:1px solid var(--border-color); padding-top:1.25rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-create-prod" style="padding:0.5rem 1rem;">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" style="padding:0.5rem 1.25rem;"><i class="fa-solid fa-check"></i> Guardar y Añadir</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const closeModal = () => document.getElementById(modalId).remove();
+        document.getElementById('close-create-prod-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-create-prod').addEventListener('click', closeModal);
+
+        document.getElementById('create-prod-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('new-prod-id').value.trim();
+            const desc = document.getElementById('new-prod-desc').value.trim();
+            const brand = document.getElementById('new-prod-brand').value.trim();
+            const unit = document.getElementById('new-prod-unit').value;
+            const priceSell = parseFloat(document.getElementById('new-prod-price-sell').value) || 0;
+            const priceCost = parseFloat(document.getElementById('new-prod-price-cost').value) || 0;
+            const stock = parseFloat(document.getElementById('new-prod-stock').value) || 0;
+
+            if (db.productos.some(p => p['ID_ Producto'] === code)) {
+                showToast("Ya existe un producto con este código de repuesto", "danger");
+                return;
+            }
+
+            const newProd = {
+                'ID_ Producto': code,
+                Descripcion: desc,
+                Marca: brand,
+                'Unidad de Medida': unit,
+                'Precio Unit': priceSell,
+                'Precio Venta Unit Iva Inc': priceSell,
+                'Precio Costo': priceCost,
+                Minimos: stock
+            };
+
+            db.productos.unshift(newProd);
+            saveDatabase(db);
+            closeModal();
+
+            onCreated(newProd);
+        });
+    }
+
+    function openCreateLaborModal(initialDesc, onCreated) {
+        const modalId = 'create-custom-labor-modal';
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const newMoId = "MO-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*10);
+
+        const modalHtml = html`
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
+                <div class="glass-card" style="width:450px; padding:2rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Mano de Obra</h3>
+                        <button id="close-create-labor-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+
+                    <form id="create-labor-form" style="display:flex; flex-direction:column; gap:1rem; font-size:0.9rem;">
+                        <div class="form-group">
+                            <label>Código del Servicio</label>
+                            <input type="text" id="new-mo-id" required value="${newMoId}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción / Nombre del Servicio</label>
+                            <input type="text" id="new-mo-desc" required value="${escapeHtml(initialDesc)}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Precio Base ($)</label>
+                            <input type="number" id="new-mo-price" required value="10.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label>¿Precio Editable en Presupuestos?</label>
+                            <select id="new-mo-editable" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:36px; width:100%;">
+                                <option value="SI" selected>Sí, se puede cambiar el precio en cada cotización</option>
+                                <option value="NO">No, el precio es fijo</option>
+                            </select>
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:1rem; border-top:1px solid var(--border-color); padding-top:1.25rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-create-labor" style="padding:0.5rem 1rem;">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" style="padding:0.5rem 1.25rem;"><i class="fa-solid fa-check"></i> Guardar y Añadir</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const closeModal = () => document.getElementById(modalId).remove();
+        document.getElementById('close-create-labor-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-create-labor').addEventListener('click', closeModal);
+
+        document.getElementById('create-labor-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('new-mo-id').value.trim();
+            const desc = document.getElementById('new-mo-desc').value.trim();
+            const price = parseFloat(document.getElementById('new-mo-price').value) || 0;
+            const editable = document.getElementById('new-mo-editable').value;
+
+            if (db.mano_obra.some(m => m.ID_ManoObra === code)) {
+                showToast("Ya existe un servicio con este código", "danger");
+                return;
+            }
+
+            const newMo = {
+                ID_ManoObra: code,
+                Descripcion: desc,
+                PrecioUnitario: price,
+                PrecioEditable: editable
+            };
+
+            db.mano_obra.unshift(newMo);
+            saveDatabase(db);
+            closeModal();
+
+            onCreated(newMo);
+        });
+    }
+
     document.getElementById('add-prod-item-btn').addEventListener('click', () => {
         prodModal.classList.add('active');
         searchProdInput.value = '';
@@ -845,7 +1027,7 @@ export function renderBudgetEditor(container, budget) {
             prodResults.appendChild(item);
         });
 
-        // Fallback or Option to create a new product inline if search term is provided
+        // Fallback or Option to create a new product via modal if search term is provided
         if (filter.trim().length > 1) {
             const createItem = document.createElement('div');
             createItem.className = 'list-item';
@@ -853,55 +1035,40 @@ export function renderBudgetEditor(container, budget) {
             createItem.style.border = '1px dashed var(--primary)';
             createItem.style.marginTop = '0.75rem';
             createItem.style.borderRadius = '6px';
+            createItem.style.display = 'flex';
+            createItem.style.justifyContent = 'space-between';
+            createItem.style.alignItems = 'center';
+            createItem.style.padding = '0.75rem 1rem';
             createItem.innerHTML = html`
                 <div class="list-item-main">
-                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Crear nuevo repuesto?</span>
+                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Registrar nuevo repuesto?</span>
                     <span class="list-item-subtitle" style="font-style:italic;">"${escapeHtml(filter)}"</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span style="font-size:0.8rem; color:var(--text-secondary);">$</span>
-                    <input type="number" class="new-prod-price" value="15.00" step="1.00" style="width:70px; padding:0.25rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:right;">
-                    <button class="btn btn-primary btn-create-prod" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i> Crear</button>
-                </div>
+                <button type="button" class="btn btn-primary btn-open-create-prod" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight:600;"><i class="fa-solid fa-plus"></i> Registrar</button>
             `;
             
-            createItem.querySelector('.btn-create-prod').addEventListener('click', () => {
-                const newPrice = parseFloat(createItem.querySelector('.new-prod-price').value) || 0;
-                const newProdId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
-                
-                // Add to database productos catalog
-                const newProd = {
-                    'ID_ Producto': newProdId,
-                    Descripcion: filter.trim(),
-                    'Precio Unit': newPrice,
-                    'Precio Venta Unit Iva Inc': newPrice,
-                    'Unidad de Medida': 'Pza',
-                    Minimos: 0,
-                    Marca: "Genérico"
-                };
-                db.productos.unshift(newProd);
-                saveDatabase(db);
-                
-                // Add to temporary product rows of the budget
-                const activeUser = getActiveUser();
-                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
-                tempProducts.push({
-                    DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
-                    'ID_Presupuesto DPP': budget['ID Presupuesto'],
-                    'ID_Producto DPP': newProdId,
-                    Descripcion: newProd.Descripcion,
-                    Cantidad: 1,
-                    UnidadMedida: newProd['Unidad de Medida'],
-                    PrecioUnitario: newPrice,
-                    ImpuestoCodigo: 'IVA13',
-                    Tecnico_ID: defaultTechId
+            createItem.querySelector('.btn-open-create-prod').addEventListener('click', () => {
+                openCreateProductModal(filter.trim(), (newProd) => {
+                    const activeUser = getActiveUser();
+                    const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                    tempProducts.push({
+                        DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                        'ID_Presupuesto DPP': budget['ID Presupuesto'],
+                        'ID_Producto DPP': newProd['ID_ Producto'],
+                        Descripcion: newProd.Descripcion,
+                        Cantidad: 1,
+                        UnidadMedida: newProd['Unidad de Medida'],
+                        PrecioUnitario: parseFloat(newProd['Precio Unit'] || 0),
+                        ImpuestoCodigo: 'IVA13',
+                        Tecnico_ID: defaultTechId
+                    });
+                    
+                    renderTempRows();
+                    calculateTotals();
+                    autoSaveBudget();
+                    prodModal.classList.remove('active');
+                    showToast(`Repuesto "${newProd.Descripcion}" creado y añadido`, "success");
                 });
-                
-                renderTempRows();
-                calculateTotals();
-                autoSaveBudget();
-                prodModal.classList.remove('active');
-                showToast(`Repuesto "${filter}" creado y añadido`, "success");
             });
             prodResults.appendChild(createItem);
         }
@@ -957,7 +1124,7 @@ export function renderBudgetEditor(container, budget) {
             laborResults.appendChild(item);
         });
 
-        // Fallback or Option to create a new labor service inline if search term is provided
+        // Fallback or Option to create a new labor service via modal if search term is provided
         if (filter.trim().length > 1) {
             const createItem = document.createElement('div');
             createItem.className = 'list-item';
@@ -965,51 +1132,39 @@ export function renderBudgetEditor(container, budget) {
             createItem.style.border = '1px dashed var(--primary)';
             createItem.style.marginTop = '0.75rem';
             createItem.style.borderRadius = '6px';
+            createItem.style.display = 'flex';
+            createItem.style.justifyContent = 'space-between';
+            createItem.style.alignItems = 'center';
+            createItem.style.padding = '0.75rem 1rem';
             createItem.innerHTML = html`
                 <div class="list-item-main">
-                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Crear nuevo servicio?</span>
+                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Registrar nuevo servicio?</span>
                     <span class="list-item-subtitle" style="font-style:italic;">"${escapeHtml(filter)}"</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span style="font-size:0.8rem; color:var(--text-secondary);">$</span>
-                    <input type="number" class="new-mo-price" value="10.00" step="0.50" style="width:70px; padding:0.25rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:right;">
-                    <button class="btn btn-primary btn-create-mo" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i> Crear</button>
-                </div>
+                <button type="button" class="btn btn-primary btn-open-create-labor" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight:600;"><i class="fa-solid fa-plus"></i> Registrar</button>
             `;
             
-            createItem.querySelector('.btn-create-mo').addEventListener('click', () => {
-                const newPrice = parseFloat(createItem.querySelector('.new-mo-price').value) || 0;
-                const newMoId = "MO-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*10);
-                
-                // Add to database mano_obra catalog
-                const newMo = {
-                    ID_ManoObra: newMoId,
-                    Descripcion: filter.trim(),
-                    PrecioUnitario: newPrice,
-                    PrecioEditable: "SI"
-                };
-                db.mano_obra.unshift(newMo);
-                saveDatabase(db);
-                
-                // Add to temporary labor rows
-                const activeUser = getActiveUser();
-                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
-                tempLabor.push({
-                    ID_DetalleMO: "DETMO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
-                    'ID_Presupuesto MO': budget['ID Presupuesto'],
-                    ID_ManoObra: newMoId,
-                    Descripcion: newMo.Descripcion,
-                    Cantidad: 1,
-                    PrecioUnitario: newPrice,
-                    FechaCreacion: Date.now(),
-                    Tecnico_ID: defaultTechId
+            createItem.querySelector('.btn-open-create-labor').addEventListener('click', () => {
+                openCreateLaborModal(filter.trim(), (newMo) => {
+                    const activeUser = getActiveUser();
+                    const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                    tempLabor.push({
+                        ID_DetalleMO: "DETMO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                        'ID_Presupuesto MO': budget['ID Presupuesto'],
+                        ID_ManoObra: newMo.ID_ManoObra,
+                        Descripcion: newMo.Descripcion,
+                        Cantidad: 1,
+                        PrecioUnitario: parseFloat(newMo.PrecioUnitario || 0),
+                        FechaCreacion: Date.now(),
+                        Tecnico_ID: defaultTechId
+                    });
+                    
+                    renderTempRows();
+                    calculateTotals();
+                    autoSaveBudget();
+                    laborModal.classList.remove('active');
+                    showToast(`Servicio "${newMo.Descripcion}" creado y añadido`, "success");
                 });
-                
-                renderTempRows();
-                calculateTotals();
-                autoSaveBudget();
-                laborModal.classList.remove('active');
-                showToast(`Servicio "${filter}" creado y añadido`, "success");
             });
             laborResults.appendChild(createItem);
         }
