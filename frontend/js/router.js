@@ -2,23 +2,24 @@
  * Mecanic OS - Routing & Navigation Module
  */
 
-import { renderTallerDashboard } from './views/dashboard.js?v=31';
-import { renderConfiguracion } from './views/configuracion.js?v=31';
-import { renderLanding } from './views/landing.js?v=31';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=31';
-import { renderRevision21 } from './views/revision21.js?v=31';
-import { renderPresupuestos } from './views/presupuestos.js?v=31';
-import { renderKanban } from './views/kanban.js?v=31';
-import { renderFacturador } from './views/facturador.js?v=31';
-import { renderVentaRapida } from './views/venta_rapida.js?v=31';
-import { renderCaja } from './views/caja.js?v=31';
-import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=31';
-import { renderInventario } from './views/inventario.js?v=31';
-import { renderGastos } from './views/gastos.js?v=31';
-import { renderDashboardBI } from './views/dashboard_bi.js?v=31';
-import { renderPlanilla } from './views/planilla.js?v=31';
-import { renderComisiones } from './views/comisiones.js?v=31';
-import { renderTrabajosTaller } from './views/trabajos.js?v=31';
+import { renderTallerDashboard } from './views/dashboard.js?v=32';
+import { renderConfiguracion } from './views/configuracion.js?v=32';
+import { renderLanding } from './views/landing.js?v=32';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=32';
+import { renderRevision21 } from './views/revision21.js?v=32';
+import { renderPresupuestos } from './views/presupuestos.js?v=32';
+import { renderKanban } from './views/kanban.js?v=32';
+import { renderFacturador } from './views/facturador.js?v=32';
+import { renderVentaRapida } from './views/venta_rapida.js?v=32';
+import { renderCaja } from './views/caja.js?v=32';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=32';
+import { renderInventario } from './views/inventario.js?v=32';
+import { renderGastos } from './views/gastos.js?v=32';
+import { renderDashboardBI } from './views/dashboard_bi.js?v=32';
+import { renderPlanilla } from './views/planilla.js?v=32';
+import { renderComisiones } from './views/comisiones.js?v=32';
+import { renderTrabajosTaller } from './views/trabajos.js?v=32';
+import { renderIngresos } from './views/ingresos.js?v=32';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -26,19 +27,19 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=31';
+} from './views/saas.js?v=32';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=31';
+} from './views/auth.js?v=32';
 
 import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js?v=31';
+} from '../app.js?v=32';
 
-import { showToast } from './utils.js?v=31';
+import { showToast } from './utils.js?v=32';
 
 const routes = {
     'taller-dashboard': renderTallerDashboard,
@@ -57,6 +58,7 @@ const routes = {
     'comisiones': renderComisiones,
     'dashboard-bi': renderDashboardBI,
     'configuracion': renderConfiguracion,
+    'ingresos': renderIngresos,
     'landing': renderLanding,
     'registro': renderRegistroSaaS,
     'terminos': renderTerminosSaaS,
@@ -267,7 +269,7 @@ export function handleRouting() {
         
         // Check role permissions for application views
         const appViews = [
-            'taller-dashboard', 'clientes-vehiculos', 'revision-21', 'presupuestos', 'kanban',
+            'taller-dashboard', 'clientes-vehiculos', 'ingresos', 'revision-21', 'presupuestos', 'kanban',
             'facturador', 'venta-rapida', 'caja', 'cuentas-cobrar', 'inventario', 'gastos', 'planilla',
             'comisiones', 'dashboard-bi', 'configuracion'
         ];
@@ -295,11 +297,11 @@ export function handleRouting() {
                         allowedRoutes = appViews;
                     } else if (searchRole === "recepcionista") {
                         allowedRoutes = [
-                            "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                            "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban",
                             "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"
                         ];
                     } else {
-                        allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban", "comisiones"];
+                        allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban", "comisiones"];
                     }
                 }
  

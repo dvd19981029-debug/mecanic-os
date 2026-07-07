@@ -24,7 +24,8 @@ const collectionConfigs = [
     { name: 'pagos_comisiones', path: 'pagos_comisiones', key: 'ID_Pago_Comision' },
     { name: 'proveedores', path: 'proveedores', key: 'ID_Proveedor' },
     { name: 'compras', path: 'compras', key: 'ID_Compra' },
-    { name: 'abonos_proveedores', path: 'abonos_proveedores', key: 'ID_Abono_Prov' }
+    { name: 'abonos_proveedores', path: 'abonos_proveedores', key: 'ID_Abono_Prov' },
+    { name: 'ingresos', path: 'ingresos', key: 'ID_Ingreso' }
 ];
 
 const dataService = {

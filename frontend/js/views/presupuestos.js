@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=31';
+} from '../../app.js?v=32';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=31';
+} from '../utils.js?v=32';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -283,6 +283,13 @@ export function renderBudgetEditor(container, budget) {
             </div>
         `;
     } else {
+        const ingestLinkHTML = budget.Ingreso_ID ? `
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--primary);">
+                <i class="fa-solid fa-file-signature"></i> Recepción enlazada: 
+                <a href="#ingresos?id=${escapeHtml(budget.Ingreso_ID)}" style="color: var(--primary); font-weight: bold; text-decoration: underline;">${escapeHtml(budget.Ingreso_ID)}</a>
+            </p>
+        ` : '';
+
         headerHTML = `
             <div class="glass-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
@@ -290,6 +297,7 @@ export function renderBudgetEditor(container, budget) {
                         <span class="badge-tag badge-primary" style="font-family: var(--font-heading); font-size: 1rem;">${escapeHtml(budget['ID Presupuesto'])}</span>
                         <h2 style="margin-top: 0.5rem;">${escapeHtml(client.Nombre)}</h2>
                         <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${escapeHtml(vehicle.Placas)} (${escapeHtml(vehicle.Marca)} ${escapeHtml(vehicle.Modelo)})</strong> • Nº Equipo: <strong>${escapeHtml(vehicle.N_Equipo || 'N/A')}</strong> • Odómetro: ${escapeHtml(budget.Kilometraje || '0')}</p>
+                        ${ingestLinkHTML}
                     </div>
                     <div class="form-group" style="width: 200px;">
                         <label>Técnico Asignado</label>

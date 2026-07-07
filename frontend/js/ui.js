@@ -3,7 +3,7 @@
  * Contains functions that interact with the browser DOM and view states.
  */
 
-import { getDatabase, saveDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=31';
+import { getDatabase, saveDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=32';
 
 // Local list of dismissed notification IDs
 let dismissedNotifications = [];
@@ -80,18 +80,18 @@ export function updateUserUI() {
             const searchRole = normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             if (searchRole === "administrador") {
                 allowedRoutes = [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "trabajos-taller", "kanban",
+                    "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "trabajos-taller", "kanban",
                     "facturador", "venta-rapida", "caja", "cuentas-cobrar", "inventario", "gastos", "planilla",
                     "comisiones", "dashboard-bi", "configuracion"
                 ];
             } else if (searchRole === "recepcionista") {
                 allowedRoutes = [
-                    "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "trabajos-taller", "kanban",
+                    "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "trabajos-taller", "kanban",
                     "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"
                 ];
             } else {
                 // Default to Técnico permissions (now including presupuestos and trabajos-taller)
-                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "trabajos-taller", "kanban", "comisiones"];
+                allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "trabajos-taller", "kanban", "comisiones"];
             }
         }
 
