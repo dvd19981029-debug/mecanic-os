@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=38';
+} from '../../app.js?v=39';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=38';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=39';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -640,14 +640,15 @@ function renderEditor(container, editId) {
 function initSignatureCanvas(canvasId, clearBtnId, savedBase64) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return null;
+
+    // Resize canvas first (resets context configuration)
+    canvas.width = canvas.parentElement.offsetWidth || 400;
+    canvas.height = 180;
+
     const ctx = canvas.getContext('2d');
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#ffffff';
-
-    // Resize canvas
-    canvas.width = canvas.parentElement.offsetWidth || 400;
-    canvas.height = 180;
 
     // Prefill signature if editing
     if (savedBase64) {
