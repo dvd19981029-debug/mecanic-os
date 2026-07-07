@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=37';
+} from '../../app.js?v=38';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=37';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=38';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -349,6 +349,23 @@ function renderEditor(container, editId) {
         </div>
 
         <form id="ingreso-form" style="display:flex; flex-direction:column; gap:1.5rem;">
+            <style>
+                .toggle-btn, .fuel-btn {
+                    background: rgba(255,255,255,0.03) !important;
+                    color: var(--text-secondary) !important;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .toggle-btn:hover, .fuel-btn:hover {
+                    background: rgba(255,255,255,0.08) !important;
+                }
+                .toggle-btn.active, .fuel-btn.active {
+                    background: var(--primary) !important;
+                    color: #ffffff !important;
+                    font-weight: bold !important;
+                }
+            </style>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
                 
                 <!-- Col Left: Info -->
@@ -381,8 +398,8 @@ function renderEditor(container, editId) {
                         <div class="form-group">
                             <label>Tipo de Combustible *</label>
                             <div class="toggle-group" id="fuel-type-toggle" style="display:flex; border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:36px;">
-                                <button type="button" class="toggle-btn ${ing.Combustible === 'GASOLINA' ? 'active' : ''}" data-val="GASOLINA" style="flex:1; border:none; background:rgba(255,255,255,0.03); color:var(--text-secondary); cursor:pointer;">GASOLINA</button>
-                                <button type="button" class="toggle-btn ${ing.Combustible === 'DIESEL' ? 'active' : ''}" data-val="DIESEL" style="flex:1; border:none; background:rgba(255,255,255,0.03); color:var(--text-secondary); cursor:pointer;">DIESEL</button>
+                                <button type="button" class="toggle-btn ${ing.Combustible === 'GASOLINA' ? 'active' : ''}" data-val="GASOLINA" style="flex:1; border:none; cursor:pointer;">GASOLINA</button>
+                                <button type="button" class="toggle-btn ${ing.Combustible === 'DIESEL' ? 'active' : ''}" data-val="DIESEL" style="flex:1; border:none; cursor:pointer;">DIESEL</button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -390,7 +407,7 @@ function renderEditor(container, editId) {
                             <div class="fuel-gauge-container" style="display:grid; grid-template-columns:repeat(5, 1fr); border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:36px;">
                                 ${safe(['Vacio', '1/4', '1/2', '3/4', 'Lleno'].map(val => {
                                     const active = ing.Gasolina === val ? 'active' : '';
-                                    return html`<button type="button" class="fuel-btn ${active}" data-value="${val}" style="border:none; font-size:0.8rem; background:rgba(255,255,255,0.03); color:var(--text-secondary); cursor:pointer;">${val === 'Vacio' ? 'E' : val === 'Lleno' ? 'F' : val}</button>`;
+                                    return html`<button type="button" class="fuel-btn ${active}" data-value="${val}" style="border:none; font-size:0.8rem; cursor:pointer;">${val === 'Vacio' ? 'E' : val === 'Lleno' ? 'F' : val}</button>`;
                                 }).join(''))}
                             </div>
                         </div>
