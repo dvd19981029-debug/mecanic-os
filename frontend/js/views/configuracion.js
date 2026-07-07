@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=42';
+} from '../../app.js?v=43';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=42';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=43';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -2027,6 +2027,36 @@ function renderChecklistConfig(container, db) {
         pColor.addEventListener('input', (e) => pColorText.value = e.target.value.toUpperCase());
         pColorText.addEventListener('input', (e) => {
             if (/^#[0-9A-F]{6}$/i.test(e.target.value)) pColor.value = e.target.value;
+        });
+    }
+
+    // Auto-generate pilot ID from label
+    const pLabelInput = document.getElementById('cfg-piloto-label');
+    const pIdInput = document.getElementById('cfg-piloto-id');
+    if (pLabelInput && pIdInput) {
+        pLabelInput.addEventListener('input', (e) => {
+            if (!pIdInput.readOnly) {
+                pIdInput.value = e.target.value
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-zA-Z0-9_]/g, '');
+            }
+        });
+    }
+
+    // Auto-generate checklist ID from label
+    const cLabelInput = document.getElementById('cfg-checklist-label');
+    const cIdInput = document.getElementById('cfg-checklist-id');
+    if (cLabelInput && cIdInput) {
+        cLabelInput.addEventListener('input', (e) => {
+            if (!cIdInput.readOnly) {
+                cIdInput.value = e.target.value
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-zA-Z0-9_]/g, '');
+            }
         });
     }
 

@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=42';
+} from '../../app.js?v=43';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=42';
+} from '../utils.js?v=43';
 
 let activeInventarioTab = 'catalogo';
 
