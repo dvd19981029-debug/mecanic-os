@@ -371,6 +371,9 @@ const dataService = {
                             if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
                                 updateObj.saas_config = db.saas_config;
                             }
+                            if (db.ingreso_config && JSON.stringify(oldCache.ingreso_config) !== JSON.stringify(db.ingreso_config)) {
+                                updateObj.ingreso_config = db.ingreso_config;
+                            }
                         }
 
                         if (Object.keys(updateObj).length > 0) {
@@ -504,6 +507,10 @@ const dataService = {
                     this.cache.saas_config = data.saas_config; 
                     changed = true; 
                 }
+                if (data.ingreso_config && JSON.stringify(this.cache.ingreso_config) !== JSON.stringify(data.ingreso_config)) { 
+                    this.cache.ingreso_config = data.ingreso_config; 
+                    changed = true; 
+                }
                 
                 if (changed) {
                     await this.setStorageItem('mecanic_os_db', this.cache);
@@ -616,6 +623,7 @@ const dataService = {
             this.cache['46 Gastos'] = this.cache.gastos;
             this.cache['45 Pagos VR'] = this.cache.pagos_vr;
             this.cache.config_taller = null;
+            this.cache.ingreso_config = null;
             this.cache.saas_state = {
                 status: 'guest',
                 workshopData: null,
@@ -657,6 +665,7 @@ const dataService = {
         // 1. Upload root settings document
         await docRef.set({
             config_taller: this.cache.config_taller || {},
+            ingreso_config: this.cache.ingreso_config || {},
             saas_state: this.cache.saas_state || {},
             role_permissions: this.cache.role_permissions || {},
             saas_payments: this.cache.saas_payments || [],
