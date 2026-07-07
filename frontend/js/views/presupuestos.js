@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=29';
+} from '../../app.js?v=30';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=29';
+} from '../utils.js?v=30';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -844,6 +844,67 @@ export function renderBudgetEditor(container, budget) {
             });
             prodResults.appendChild(item);
         });
+
+        // Fallback or Option to create a new product inline if search term is provided
+        if (filter.trim().length > 1) {
+            const createItem = document.createElement('div');
+            createItem.className = 'list-item';
+            createItem.style.background = 'rgba(110, 68, 255, 0.08)';
+            createItem.style.border = '1px dashed var(--primary)';
+            createItem.style.marginTop = '0.75rem';
+            createItem.style.borderRadius = '6px';
+            createItem.innerHTML = html`
+                <div class="list-item-main">
+                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Crear nuevo repuesto?</span>
+                    <span class="list-item-subtitle" style="font-style:italic;">"${escapeHtml(filter)}"</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-size:0.8rem; color:var(--text-secondary);">$</span>
+                    <input type="number" class="new-prod-price" value="15.00" step="1.00" style="width:70px; padding:0.25rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:right;">
+                    <button class="btn btn-primary btn-create-prod" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i> Crear</button>
+                </div>
+            `;
+            
+            createItem.querySelector('.btn-create-prod').addEventListener('click', () => {
+                const newPrice = parseFloat(createItem.querySelector('.new-prod-price').value) || 0;
+                const newProdId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
+                
+                // Add to database productos catalog
+                const newProd = {
+                    'ID_ Producto': newProdId,
+                    Descripcion: filter.trim(),
+                    'Precio Unit': newPrice,
+                    'Precio Venta Unit Iva Inc': newPrice,
+                    'Unidad de Medida': 'Pza',
+                    Minimos: 0,
+                    Marca: "Genérico"
+                };
+                db.productos.unshift(newProd);
+                saveDatabase(db);
+                
+                // Add to temporary product rows of the budget
+                const activeUser = getActiveUser();
+                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                tempProducts.push({
+                    DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                    'ID_Presupuesto DPP': budget['ID Presupuesto'],
+                    'ID_Producto DPP': newProdId,
+                    Descripcion: newProd.Descripcion,
+                    Cantidad: 1,
+                    UnidadMedida: newProd['Unidad de Medida'],
+                    PrecioUnitario: newPrice,
+                    ImpuestoCodigo: 'IVA13',
+                    Tecnico_ID: defaultTechId
+                });
+                
+                renderTempRows();
+                calculateTotals();
+                autoSaveBudget();
+                prodModal.classList.remove('active');
+                showToast(`Repuesto "${filter}" creado y añadido`, "success");
+            });
+            prodResults.appendChild(createItem);
+        }
     }
 
     searchProdInput.addEventListener('input', (e) => populateProdCatalog(e.target.value));

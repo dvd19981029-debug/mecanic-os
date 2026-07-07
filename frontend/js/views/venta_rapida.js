@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=29';
+} from '../../app.js?v=30';
 import {
     showToast,
     escapeHtml,
@@ -29,7 +29,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=29';
+} from '../utils.js?v=30';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();
