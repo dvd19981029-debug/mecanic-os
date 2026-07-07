@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=28';
+} from '../../app.js?v=29';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=28';
+} from '../utils.js?v=29';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -895,6 +895,63 @@ export function renderBudgetEditor(container, budget) {
             });
             laborResults.appendChild(item);
         });
+
+        // Fallback or Option to create a new labor service inline if search term is provided
+        if (filter.trim().length > 1) {
+            const createItem = document.createElement('div');
+            createItem.className = 'list-item';
+            createItem.style.background = 'rgba(110, 68, 255, 0.08)';
+            createItem.style.border = '1px dashed var(--primary)';
+            createItem.style.marginTop = '0.75rem';
+            createItem.style.borderRadius = '6px';
+            createItem.innerHTML = html`
+                <div class="list-item-main">
+                    <span class="list-item-title" style="color:var(--primary); font-weight:700;"><i class="fa-solid fa-circle-plus"></i> ¿Crear nuevo servicio?</span>
+                    <span class="list-item-subtitle" style="font-style:italic;">"${escapeHtml(filter)}"</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-size:0.8rem; color:var(--text-secondary);">$</span>
+                    <input type="number" class="new-mo-price" value="10.00" step="0.50" style="width:70px; padding:0.25rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:right;">
+                    <button class="btn btn-primary btn-create-mo" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i> Crear</button>
+                </div>
+            `;
+            
+            createItem.querySelector('.btn-create-mo').addEventListener('click', () => {
+                const newPrice = parseFloat(createItem.querySelector('.new-mo-price').value) || 0;
+                const newMoId = "MO-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*10);
+                
+                // Add to database mano_obra catalog
+                const newMo = {
+                    ID_ManoObra: newMoId,
+                    Descripcion: filter.trim(),
+                    PrecioUnitario: newPrice,
+                    PrecioEditable: "SI"
+                };
+                db.mano_obra.unshift(newMo);
+                saveDatabase(db);
+                
+                // Add to temporary labor rows
+                const activeUser = getActiveUser();
+                const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                tempLabor.push({
+                    ID_DetalleMO: "DETMO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                    'ID_Presupuesto MO': budget['ID Presupuesto'],
+                    ID_ManoObra: newMoId,
+                    Descripcion: newMo.Descripcion,
+                    Cantidad: 1,
+                    PrecioUnitario: newPrice,
+                    FechaCreacion: Date.now(),
+                    Tecnico_ID: defaultTechId
+                });
+                
+                renderTempRows();
+                calculateTotals();
+                autoSaveBudget();
+                laborModal.classList.remove('active');
+                showToast(`Servicio "${filter}" creado y añadido`, "success");
+            });
+            laborResults.appendChild(createItem);
+        }
     }
 
     searchLaborInput.addEventListener('input', (e) => populateLaborCatalog(e.target.value));

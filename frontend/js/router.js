@@ -2,23 +2,23 @@
  * Mecanic OS - Routing & Navigation Module
  */
 
-import { renderTallerDashboard } from './views/dashboard.js?v=28';
-import { renderConfiguracion } from './views/configuracion.js?v=28';
-import { renderLanding } from './views/landing.js?v=28';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=28';
-import { renderRevision21 } from './views/revision21.js?v=28';
-import { renderPresupuestos } from './views/presupuestos.js?v=28';
-import { renderKanban } from './views/kanban.js?v=28';
-import { renderFacturador } from './views/facturador.js?v=28';
-import { renderVentaRapida } from './views/venta_rapida.js?v=28';
-import { renderCaja } from './views/caja.js?v=28';
-import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=28';
-import { renderInventario } from './views/inventario.js?v=28';
-import { renderGastos } from './views/gastos.js?v=28';
-import { renderDashboardBI } from './views/dashboard_bi.js?v=28';
-import { renderPlanilla } from './views/planilla.js?v=28';
-import { renderComisiones } from './views/comisiones.js?v=28';
-import { renderTrabajosTaller } from './views/trabajos.js?v=28';
+import { renderTallerDashboard } from './views/dashboard.js?v=29';
+import { renderConfiguracion } from './views/configuracion.js?v=29';
+import { renderLanding } from './views/landing.js?v=29';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=29';
+import { renderRevision21 } from './views/revision21.js?v=29';
+import { renderPresupuestos } from './views/presupuestos.js?v=29';
+import { renderKanban } from './views/kanban.js?v=29';
+import { renderFacturador } from './views/facturador.js?v=29';
+import { renderVentaRapida } from './views/venta_rapida.js?v=29';
+import { renderCaja } from './views/caja.js?v=29';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=29';
+import { renderInventario } from './views/inventario.js?v=29';
+import { renderGastos } from './views/gastos.js?v=29';
+import { renderDashboardBI } from './views/dashboard_bi.js?v=29';
+import { renderPlanilla } from './views/planilla.js?v=29';
+import { renderComisiones } from './views/comisiones.js?v=29';
+import { renderTrabajosTaller } from './views/trabajos.js?v=29';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -26,19 +26,19 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=28';
+} from './views/saas.js?v=29';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=28';
+} from './views/auth.js?v=29';
 
 import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js?v=28';
+} from '../app.js?v=29';
 
-import { showToast } from './utils.js?v=28';
+import { showToast } from './utils.js?v=29';
 
 const routes = {
     'taller-dashboard': renderTallerDashboard,
