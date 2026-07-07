@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=45';
+} from '../../app.js?v=46';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=45';
+} from '../utils.js?v=46';
 
 export function renderDashboardBI(container) {
     const db = getDatabase();
@@ -48,9 +48,9 @@ export function renderDashboardBI(container) {
     // Real Expenses Sum
     const expensesSum = (db.gastos || []).reduce((acc, g) => acc + parseFloat(g['Monto Total'] || 0), 0);
 
-    const isMockData = (totalSales === 0 && expensesSum === 0);
-    const totalSalesCalculated = isMockData ? 34250.75 : totalSales;
-    const totalExpensesCalculated = isMockData ? 12450.30 : expensesSum;
+    const isMockData = false;
+    const totalSalesCalculated = totalSales;
+    const totalExpensesCalculated = expensesSum;
     const netProfit = totalSalesCalculated - totalExpensesCalculated;
 
     // Calculate last 6 months list dynamically
@@ -169,10 +169,10 @@ export function renderDashboardBI(container) {
     }
 
     const totalProfitability = laborSum + partsSum + suppliesSum + externalSum;
-    const laborPct = totalProfitability > 0 ? Math.round((laborSum / totalProfitability) * 100) : 48;
-    const partsPct = totalProfitability > 0 ? Math.round((partsSum / totalProfitability) * 100) : 35;
-    const suppliesPct = totalProfitability > 0 ? Math.round((suppliesSum / totalProfitability) * 100) : 12;
-    const externalPct = totalProfitability > 0 ? Math.round((externalSum / totalProfitability) * 100) : 5;
+    const laborPct = totalProfitability > 0 ? Math.round((laborSum / totalProfitability) * 100) : 0;
+    const partsPct = totalProfitability > 0 ? Math.round((partsSum / totalProfitability) * 100) : 0;
+    const suppliesPct = totalProfitability > 0 ? Math.round((suppliesSum / totalProfitability) * 100) : 0;
+    const externalPct = totalProfitability > 0 ? Math.round((externalSum / totalProfitability) * 100) : 0;
 
     container.innerHTML = html`
         ${safe(isMockData ? `
