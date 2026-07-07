@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=36';
+} from '../../app.js?v=37';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=36';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=37';
 
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
@@ -122,11 +122,11 @@ function renderList(container) {
                 <td style="padding:0.75rem; text-align:right; display:flex; justify-content:flex-end; gap:0.5rem; align-items:center;">
                     <a href="#ingresos?id=${ing.ID_Ingreso}" class="btn btn-secondary" style="padding:0.35rem 0.6rem; font-size:0.8rem;"><i class="fa-solid fa-eye"></i> Detalle</a>
                     <button class="btn btn-secondary btn-print" data-id="${ing.ID_Ingreso}" style="padding:0.35rem 0.6rem; font-size:0.8rem;"><i class="fa-solid fa-print"></i></button>
-                    ${hasBudget ? html`
+                    ${safe(hasBudget ? `
                         <span style="font-size:0.75rem; color:var(--text-secondary); font-style:italic; padding:0 0.5rem;"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i> Cotizado</span>
-                    ` : html`
+                    ` : `
                         <button class="btn btn-primary btn-to-budget" data-id="${ing.ID_Ingreso}" style="padding:0.35rem 0.6rem; font-size:0.8rem;"><i class="fa-solid fa-file-invoice-dollar"></i> Cotizar</button>
-                    `}
+                    `)}
                 </td>
             `;
 
@@ -221,7 +221,7 @@ function renderDetails(container, id) {
                 
                 <h3 style="color:var(--primary); margin:1rem 0 0 0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Pilotos de Tablero</h3>
                 <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
-                    ${Object.keys(ing.Pilotos || {}).map(k => {
+                    ${safe(Object.keys(ing.Pilotos || {}).map(k => {
                         const active = ing.Pilotos[k];
                         const colors = { Check_Engine: '#f97316', TPMS: '#eab308', ABS: '#f97316', Airbag: '#ef4444', Brakes: '#ef4444', Seatbelt: '#ef4444' };
                         const c = colors[k] || 'var(--primary)';
@@ -231,7 +231,7 @@ function renderDetails(container, id) {
                                 <i class="fa-solid fa-triangle-exclamation"></i> ${k.replace('_', ' ')}
                             </span>
                         `;
-                    }).join('') || '<span style="color:var(--text-secondary); font-style:italic;">Ningún piloto encendido</span>'}
+                    }).join('') || '<span style="color:var(--text-secondary); font-style:italic;">Ningún piloto encendido</span>')}
                 </div>
             </div>
 
@@ -239,7 +239,7 @@ function renderDetails(container, id) {
             <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
                 <h3 style="color:var(--primary); margin:0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; margin-bottom:0.5rem;"><i class="fa-solid fa-list-check"></i> Inventario de Recepción</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; font-size:0.85rem;">
-                    ${Object.keys(ing.Checklist || {}).map(k => {
+                    ${safe(Object.keys(ing.Checklist || {}).map(k => {
                         const val = ing.Checklist[k];
                         const isY = val === 'Y';
                         const badgeColor = isY ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
@@ -250,7 +250,7 @@ function renderDetails(container, id) {
                                 <span style="padding:0.15rem 0.5rem; border-radius:4px; font-weight:700; background:${badgeColor}; color:${textC};">${isY ? 'SÍ' : 'NO'}</span>
                             </div>
                         `;
-                    }).join('')}
+                    }).join(''))}
                 </div>
             </div>
         </div>
@@ -265,13 +265,13 @@ function renderDetails(container, id) {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
                 <div style="text-align:center;">
                     <div style="border:1px dashed var(--border-color); border-radius:6px; height:180px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.02);">
-                        ${ing.Firma_Asesor ? html`<img src="${ing.Firma_Asesor}" style="max-height:100%; max-width:100%;">` : html`<span style="color:var(--text-secondary); font-style:italic;">Sin firma registrada</span>`}
+                        ${safe(ing.Firma_Asesor ? `<img src="${ing.Firma_Asesor}" style="max-height:100%; max-width:100%;">` : `<span style="color:var(--text-secondary); font-style:italic;">Sin firma registrada</span>`)}
                     </div>
                     <span style="display:block; margin-top:0.5rem; font-weight:700;">Firma del Asesor</span>
                 </div>
                 <div style="text-align:center;">
                     <div style="border:1px dashed var(--border-color); border-radius:6px; height:180px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.02);">
-                        ${ing.Firma_Cliente ? html`<img src="${ing.Firma_Cliente}" style="max-height:100%; max-width:100%;">` : html`<span style="color:var(--text-secondary); font-style:italic;">Sin firma registrada</span>`}
+                        ${safe(ing.Firma_Cliente ? `<img src="${ing.Firma_Cliente}" style="max-height:100%; max-width:100%;">` : `<span style="color:var(--text-secondary); font-style:italic;">Sin firma registrada</span>`)}
                     </div>
                     <span style="display:block; margin-top:0.5rem; font-weight:700;">Firma del Cliente</span>
                 </div>
@@ -364,11 +364,11 @@ function renderEditor(container, editId) {
                         <label>Seleccionar Vehículo / Auto *</label>
                         <select id="ing-vehicle-select" required style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; width:100%; height:38px;">
                             <option value="">-- Seleccionar --</option>
-                            ${(db.vehiculos || []).map(v => {
+                            ${safe((db.vehiculos || []).map(v => {
                                 const client = db.clientes.find(c => c.Codigo_Cliente === v.Codigo_Cliente) || {};
                                 const selected = v.ID_Vehiculo === ing.ID_Vehiculo ? 'selected' : '';
                                 return html`<option value="${v.ID_Vehiculo}" ${selected}>${v.Placa || 'S/P'} - ${v.Marca || ''} ${v.Modelo || ''} (Cliente: ${client.Nombre || 'S/N'})</option>`;
-                            }).join('')}
+                            }).join(''))}
                         </select>
                     </div>
 
@@ -388,10 +388,10 @@ function renderEditor(container, editId) {
                         <div class="form-group">
                             <label>Nivel de Combustible (Gasolina) *</label>
                             <div class="fuel-gauge-container" style="display:grid; grid-template-columns:repeat(5, 1fr); border:1px solid var(--border-color); border-radius:4px; overflow:hidden; height:36px;">
-                                ${['Vacio', '1/4', '1/2', '3/4', 'Lleno'].map(val => {
+                                ${safe(['Vacio', '1/4', '1/2', '3/4', 'Lleno'].map(val => {
                                     const active = ing.Gasolina === val ? 'active' : '';
                                     return html`<button type="button" class="fuel-btn ${active}" data-value="${val}" style="border:none; font-size:0.8rem; background:rgba(255,255,255,0.03); color:var(--text-secondary); cursor:pointer;">${val === 'Vacio' ? 'E' : val === 'Lleno' ? 'F' : val}</button>`;
-                                }).join('')}
+                                }).join(''))}
                             </div>
                         </div>
                     </div>
@@ -400,17 +400,17 @@ function renderEditor(container, editId) {
                         <label>Técnico Asignado para Inspección</label>
                         <select id="ing-tech-select" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; width:100%; height:38px;">
                             <option value="">-- Sin asignar --</option>
-                            ${(db.empleados || []).filter(e => e.Puesto === 'Mecánico' || e.Puesto === 'Mecanico').map(e => {
+                            ${safe((db.empleados || []).filter(e => e.Puesto === 'Mecánico' || e.Puesto === 'Mecanico').map(e => {
                                 const selected = e.Tecnico_ID === ing.Tecnico_ID ? 'selected' : '';
                                 return html`<option value="${e.Tecnico_ID}" ${selected}>${e.Nombre}</option>`;
-                            }).join('')}
+                            }).join(''))}
                         </select>
                     </div>
 
                     <!-- Warning lights section -->
                     <h3 style="color:var(--primary); margin:1rem 0 0 0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Testigos del Tablero (Pilotos)</h3>
                     <div class="pilotos-container" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:0.5rem;">
-                        ${Object.keys(ing.Pilotos || {}).map(k => {
+                        ${safe(Object.keys(ing.Pilotos || {}).map(k => {
                             const active = ing.Pilotos[k];
                             const colors = { Check_Engine: '#f97316', TPMS: '#eab308', ABS: '#f97316', Airbag: '#ef4444', Brakes: '#ef4444', Seatbelt: '#ef4444' };
                             const c = colors[k] || 'var(--primary)';
@@ -424,7 +424,7 @@ function renderEditor(container, editId) {
                                     <i class="fa-solid fa-triangle-exclamation"></i> ${k.replace('_', ' ')}
                                 </button>
                             `;
-                        }).join('')}
+                        }).join(''))}
                     </div>
                 </div>
 
@@ -432,7 +432,7 @@ function renderEditor(container, editId) {
                 <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
                     <h3 style="color:var(--primary); margin:0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; margin-bottom:0.5rem;"><i class="fa-solid fa-list-check"></i> Checklist de Inventario</h3>
                     <div style="overflow-y:auto; max-height:480px; padding-right:0.5rem; display:flex; flex-direction:column; gap:0.5rem;">
-                        ${Object.keys(ing.Checklist || {}).map(k => {
+                        ${safe(Object.keys(ing.Checklist || {}).map(k => {
                             const val = ing.Checklist[k];
                             const isY = val === 'Y';
                             return html`
@@ -444,7 +444,7 @@ function renderEditor(container, editId) {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+                        }).join(''))}
                     </div>
                 </div>
 
