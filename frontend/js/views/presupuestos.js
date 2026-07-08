@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=56';
+} from '../../app.js?v=57';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=56';
+} from '../utils.js?v=57';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2370,7 +2370,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             <div class="company-details">
                 <h1 class="company-title">${ws.nombre_comercial || ws.nombre}</h1>
                 <div><strong>Nombre o Razón Social:</strong> ${ws.nombre}</div>
-                <div><strong>Actividad Económica:</strong> ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}</div>
                 <div><strong>NIT:</strong> ${ws.num_documento || ws.nit || ''} &nbsp;&nbsp; <strong>NRC:</strong> ${ws.nrc || ''}</div>
                 <div><strong>Correo Electrónico:</strong> ${ws.correo}</div>
                 <div><strong>Teléfono:</strong> ${ws.telefono}</div>
@@ -2379,8 +2378,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Dirección:</strong> ${ws.direccion || ''}</div>
                 <div>MUNICIPIO DE ${ws.municipio ? ws.municipio.toUpperCase() : ''}</div>
                 <div>DEPARTAMENTO DE ${ws.departamento ? ws.departamento.toUpperCase() : ''}</div>
-                <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
-                <div><strong>Punto de Venta:</strong> P001</div>
             </div>
             <div class="logo-container">
                 ${safe(logoHTML)}
