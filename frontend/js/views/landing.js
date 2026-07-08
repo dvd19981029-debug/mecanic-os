@@ -1,5 +1,5 @@
-import { saveDatabase, setActiveUser } from '../../app.js?v=68';
-import { showToast, html, safe } from '../utils.js?v=68';
+import { saveDatabase, setActiveUser } from '../../app.js?v=69';
+import { showToast, html, safe } from '../utils.js?v=69';
 
 export function renderLanding(container) {
     const db = window.getDatabase();

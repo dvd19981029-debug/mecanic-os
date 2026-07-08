@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=68';
+} from '../../app.js?v=69';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=68';
+} from '../utils.js?v=69';
 
 export function renderClientesVehiculos(container, queryParams) {
     const db = getDatabase();
@@ -898,6 +898,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 document.getElementById('edit-client-credit-days').value = 30;
             }
         });
+    }
     const newClientType = document.getElementById('new-client-type');
     if (newClientType) {
         newClientType.addEventListener('change', () => {
