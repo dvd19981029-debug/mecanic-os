@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=64';
+} from '../../app.js?v=65';
 import {
     showToast,
     escapeHtml,
@@ -31,7 +31,7 @@ import {
     downloadExcelReport,
     safe,
     saveDteLogToFirestore
-} from '../utils.js?v=64';
+} from '../utils.js?v=65';
 
 export function renderFacturador(container, queryParams) {
     const db = getDatabase();
@@ -1219,7 +1219,7 @@ export function renderInvoicingWorkspace(container, presId) {
                 };
                 saveDteLogToFirestore(
                     "Firma y Transmisión (Simulado)",
-                    db.saas_state?.workshopId || 'desconocido',
+                    db.saas_state?.workshopData?.id || 'desconocido',
                     type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                     dtePayload,
                     200,
@@ -1239,7 +1239,7 @@ export function renderInvoicingWorkspace(container, presId) {
             apiKey: dteCfg.apiKey,
             docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
             payload: dtePayload,
-            workshopId: db.saas_state?.workshopId || 'desconocido'
+            workshopId: db.saas_state?.workshopData?.id || 'desconocido'
         });
         console.log("JSON de salida (Payload DTE) en texto plano:");
         console.log(JSON.stringify(dtePayload, null, 2));
@@ -1253,7 +1253,7 @@ export function renderInvoicingWorkspace(container, presId) {
                 apiKey: dteCfg.apiKey,
                 docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                 payload: dtePayload,
-                workshopId: db.saas_state?.workshopId || 'desconocido'
+                workshopId: db.saas_state?.workshopData?.id || 'desconocido'
             })
         })
         .then(response => {
@@ -1279,7 +1279,7 @@ export function renderInvoicingWorkspace(container, presId) {
         .then(resData => {
             saveDteLogToFirestore(
                 "Firma y Transmisión",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                 dtePayload,
                 200,
@@ -1292,7 +1292,7 @@ export function renderInvoicingWorkspace(container, presId) {
             console.error(err);
             saveDteLogToFirestore(
                 "Firma y Transmisión (Fallo)",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                 dtePayload,
                 500,
@@ -1858,7 +1858,7 @@ function queryDteStatusMH(dteId) {
             };
             saveDteLogToFirestore(
                 "Consulta DTE (Simulado)",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 "consulta",
                 { dteId },
                 200,
@@ -1899,7 +1899,7 @@ function queryDteStatusMH(dteId) {
         body: JSON.stringify({
             apiKey: dteCfg.apiKey,
             dteId: dteId,
-            workshopId: db.saas_state?.workshopId || 'desconocido'
+            workshopId: db.saas_state?.workshopData?.id || 'desconocido'
         })
     })
     .then(response => {
@@ -1925,7 +1925,7 @@ function queryDteStatusMH(dteId) {
     .then(data => {
         saveDteLogToFirestore(
             "Consulta DTE",
-            db.saas_state?.workshopId || 'desconocido',
+            db.saas_state?.workshopData?.id || 'desconocido',
             "consulta",
             { dteId },
             200,
@@ -1937,7 +1937,7 @@ function queryDteStatusMH(dteId) {
     .catch(err => {
         saveDteLogToFirestore(
             "Consulta DTE (Fallo)",
-            db.saas_state?.workshopId || 'desconocido',
+            db.saas_state?.workshopData?.id || 'desconocido',
             "consulta",
             { dteId },
             500,
@@ -2091,7 +2091,7 @@ function openInvalidateDteModal(dteId, presId) {
         if (isSimulated && !baseUrl) {
             saveDteLogToFirestore(
                 "Anulación DTE (Simulado)",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 "anulacion",
                 { dteId, reason: `${reason}: ${comment}` },
                 200,
@@ -2119,7 +2119,7 @@ function openInvalidateDteModal(dteId, presId) {
                 dteId: dteId,
                 reason: `${reason}: ${comment}`.substring(0, 250)
             },
-            workshopId: db.saas_state?.workshopId || 'desconocido'
+            workshopId: db.saas_state?.workshopData?.id || 'desconocido'
         });
 
         fetch(endpoint, {
@@ -2133,7 +2133,7 @@ function openInvalidateDteModal(dteId, presId) {
                     dteId: dteId,
                     reason: `${reason}: ${comment}`.substring(0, 250)
                 },
-                workshopId: db.saas_state?.workshopId || 'desconocido'
+                workshopId: db.saas_state?.workshopData?.id || 'desconocido'
             })
         })
         .then(response => {
@@ -2159,7 +2159,7 @@ function openInvalidateDteModal(dteId, presId) {
         .then(data => {
             saveDteLogToFirestore(
                 "Anulación DTE",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 "anulacion",
                 { dteId, reason: `${reason}: ${comment}` },
                 200,
@@ -2171,7 +2171,7 @@ function openInvalidateDteModal(dteId, presId) {
         .catch(err => {
             saveDteLogToFirestore(
                 "Anulación DTE (Fallo)",
-                db.saas_state?.workshopId || 'desconocido',
+                db.saas_state?.workshopData?.id || 'desconocido',
                 "anulacion",
                 { dteId, reason: `${reason}: ${comment}` },
                 500,

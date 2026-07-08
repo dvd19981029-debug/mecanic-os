@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=64';
+} from '../../app.js?v=65';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=64';
-import { renderSaaSAdminLogin } from './auth.js?v=64';
+} from '../utils.js?v=65';
+import { renderSaaSAdminLogin } from './auth.js?v=65';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
