@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=52';
+} from '../../app.js?v=53';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=52';
+} from '../utils.js?v=53';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -280,6 +280,10 @@ export function renderBudgetEditor(container, budget) {
                     <label>Fallas Detectadas / Diagnóstico Final</label>
                     <input type="text" id="editor-fallas" placeholder="Escriba fallas reportadas o diagnóstico inicial..." style="padding: 0.65rem;">
                 </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Observaciones Generales / Recomendaciones</label>
+                    <input type="text" id="editor-observaciones" placeholder="Escriba observaciones o recomendaciones adicionales..." style="padding: 0.65rem;">
+                </div>
             </div>
         `;
     } else {
@@ -310,6 +314,10 @@ export function renderBudgetEditor(container, budget) {
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
                     <input type="text" id="editor-fallas" value="${escapeHtml(budget.Fallas_Detectadas || 'Diagnóstico general')}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Observaciones Generales / Recomendaciones</label>
+                    <input type="text" id="editor-observaciones" value="${escapeHtml(budget.Observaciones || '')}" placeholder="Escriba observaciones o recomendaciones adicionales..." style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -504,6 +512,10 @@ export function renderBudgetEditor(container, budget) {
         const fallasEl = document.getElementById('editor-fallas');
         if (fallasEl) {
             budget.Fallas_Detectadas = fallasEl.value;
+        }
+        const obsEl = document.getElementById('editor-observaciones');
+        if (obsEl) {
+            budget.Observaciones = obsEl.value;
         }
         const techEl = document.getElementById('editor-tech-select');
         if (techEl) {
@@ -1194,6 +1206,10 @@ export function renderBudgetEditor(container, budget) {
 
         // Save headers
         budget.Fallas_Detectadas = document.getElementById('editor-fallas').value;
+        const obsEl = document.getElementById('editor-observaciones');
+        if (obsEl) {
+            budget.Observaciones = obsEl.value;
+        }
         budget.Tecnico_Asignado = document.getElementById('editor-tech-select').value;
         
         // Validate technician assignment on every row if in Detailed Commission model (unless rejecting)
@@ -1327,6 +1343,12 @@ export function renderBudgetEditor(container, budget) {
     if (fallasEl) {
         fallasEl.addEventListener('input', autoSaveBudget);
         fallasEl.addEventListener('change', autoSaveBudget);
+    }
+    
+    const obsEl = document.getElementById('editor-observaciones');
+    if (obsEl) {
+        obsEl.addEventListener('input', autoSaveBudget);
+        obsEl.addEventListener('change', autoSaveBudget);
     }
     
     const stateEl = document.getElementById('editor-state');
@@ -1841,6 +1863,11 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
         <!-- Fallas Detectadas Box -->
         <div class="section-title-bar">Fallas Detectadas</div>
         <div class="section-desc-box">${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Diagnóstico general de taller'}</div>
+
+        ${budget.Observaciones ? `
+        <div class="section-title-bar" style="margin-top: 10px;">Observaciones / Recomendaciones</div>
+        <div class="section-desc-box">${budget.Observaciones}</div>
+        ` : ''}
 
         <!-- Products Table -->
         <table class="data-table">
@@ -2410,6 +2437,12 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                     <strong>Fallas Detectadas / Diagnóstico:</strong><br>
                     <span style="font-style: italic; color:#475569;">${budget.Fallas_Detectadas || 'Ninguna falla reportada.'}</span>
                 </div>
+                ${budget.Observaciones ? `
+                <div style="grid-column: span 2; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
+                    <strong>Observaciones / Recomendaciones:</strong><br>
+                    <span style="font-style: italic; color:#475569;">${budget.Observaciones}</span>
+                </div>
+                ` : ''}
             </div>
         </div>
 
@@ -2433,6 +2466,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Nº Equipo:</strong> ${vehicle.N_Equipo || 'N/A'}</div>
                 <div><strong>Odómetro / Recorrido:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
                 <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
+                ${budget.Observaciones ? `<div><strong>Observaciones:</strong> ${budget.Observaciones}</div>` : ''}
             </div>
         </div>
 
@@ -2461,7 +2495,10 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Total en Letras:</strong> <span style="font-weight: 700;">${totalLetras}</span></div>
                 <div><strong>Condición de la Operación:</strong> ${conditionStr.toUpperCase()}</div>
                 <div><strong>Observaciones:</strong></div>
-                <div class="notes-box">${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Servicio y mantenimiento técnico automotriz.'}</div>
+                <div class="notes-box">
+                    ${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Servicio y mantenimiento técnico automotriz.'}
+                    ${budget.Observaciones ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;"><strong>Notas Adicionales:</strong> ${budget.Observaciones}</div>` : ''}
+                </div>
                 
                 <!-- Extensión Firmas -->
                 <div class="extension-box">
@@ -2884,6 +2921,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                     <div><strong>Nº Equipo:</strong> ${vehicle.N_Equipo || 'N/A'}</div>
                     <div><strong>Kilometraje / Odómetro:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
                     <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
+                    ${budget.Observaciones ? `<div><strong>Observaciones:</strong> ${budget.Observaciones}</div>` : ''}
                 </div>
             </div>
         </div>
