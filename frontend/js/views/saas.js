@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=63';
+} from '../../app.js?v=64';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=63';
-import { renderSaaSAdminLogin } from './auth.js?v=63';
+} from '../utils.js?v=64';
+import { renderSaaSAdminLogin } from './auth.js?v=64';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -3825,6 +3825,29 @@ if (window.saasViewReceiptPaymentId) {
         `;
     }
 
+    function syntaxHighlightJson(json) {
+        if (!json) return '';
+        if (typeof json !== 'string') {
+            json = JSON.stringify(json, null, 2);
+        }
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
+            let cls = 'number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'key';
+                } else {
+                    cls = 'string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'boolean';
+            } else if (/null/.test(match)) {
+                cls = 'null';
+            }
+            return '<span class="json-' + cls + '">' + match + '</span>';
+        });
+    }
+
     window.viewDteJsonLog = function(logId) {
         console.log("=== viewDteJsonLog invoked ===");
         console.log("logId:", logId);
@@ -3852,23 +3875,30 @@ if (window.saasViewReceiptPaymentId) {
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
             
-            let reqJson = '';
+            let reqJsonHtml = '';
             try {
-                reqJson = log.requestPayload ? JSON.stringify(log.requestPayload, null, 2) : 'No payload';
+                reqJsonHtml = log.requestPayload ? syntaxHighlightJson(log.requestPayload) : 'No payload';
             } catch (e) {
-                reqJson = 'Error al parsear requestPayload: ' + e.message;
+                reqJsonHtml = 'Error al resaltar requestPayload: ' + escapeHtml(e.message);
             }
             
-            let resJson = '';
+            let resJsonHtml = '';
             try {
-                resJson = typeof log.responseBody === 'object' 
-                    ? JSON.stringify(log.responseBody, null, 2) 
-                    : String(log.responseBody || 'No response body');
+                resJsonHtml = typeof log.responseBody === 'object' 
+                    ? syntaxHighlightJson(log.responseBody) 
+                    : syntaxHighlightJson(String(log.responseBody || 'No response body'));
             } catch (e) {
-                resJson = 'Error al parsear responseBody: ' + e.message;
+                resJsonHtml = 'Error al resaltar responseBody: ' + escapeHtml(e.message);
             }
                 
             modal.innerHTML = `
+                <style>
+                    .json-key { color: #9cdcfe; font-weight: bold; }
+                    .json-string { color: #ce9178; }
+                    .json-number { color: #b5cea8; }
+                    .json-boolean { color: #569cd6; font-weight: bold; }
+                    .json-null { color: #569cd6; font-weight: bold; }
+                </style>
                 <div class="modal-wrapper" style="max-width: 90%; width: 1200px; height: 85vh; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
                         <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
@@ -3881,13 +3911,13 @@ if (window.saasViewReceiptPaymentId) {
                             <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
                                 <i class="fa-solid fa-arrow-up" style="color: #3498db;"></i> JSON Enviado (Petición)
                             </h4>
-                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(reqJson)}</pre>
+                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${reqJsonHtml}</pre>
                         </div>
                         <div style="display: flex; flex-direction: column; height: 100%;">
                             <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
                                 <i class="fa-solid fa-arrow-down" style="color: #2ecc71;"></i> JSON Recibido (Respuesta - HTTP ${log.responseStatus || 0})
                             </h4>
-                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(resJson)}</pre>
+                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${resJsonHtml}</pre>
                         </div>
                     </div>
                     <div class="modal-footer" style="padding: 1.25rem; border-top: 1px solid var(--border-color); text-align: right; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
