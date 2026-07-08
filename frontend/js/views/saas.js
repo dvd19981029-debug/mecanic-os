@@ -1770,7 +1770,7 @@ export async function renderAdminSolicitudes(container) {
                         fetch(`${backendUrl}/api/dte/test-connection`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ apiKey })
+                            body: JSON.stringify({ apiKey, workshopId: workshopId })
                         })
                         .then(res => res.json())
                         .then(data => {
@@ -2790,7 +2790,7 @@ if (window.saasViewReceiptPaymentId) {
                 fetch(`${backendUrl}/api/dte/test-connection`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKey: apiKey })
+                    body: JSON.stringify({ apiKey: apiKey, workshopId: 'admin_test' })
                 })
                 .then(res => res.json())
                 .then(data => {
