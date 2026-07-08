@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=54';
+} from '../../app.js?v=55';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=54';
+} from '../utils.js?v=55';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2048,9 +2048,9 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <td style="text-align: center; width: 6%;">${item.cant}</td>
                 <td style="text-align: center; width: 8%;">${item.unidad}</td>
                 <td style="width: 52%;">${item.desc}</td>
-                <td style="text-align: right; width: 10%;">$ ${item.precio.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; width: 10%;">$ ${item.descItem.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; width: 10%;">$ ${item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: center; width: 10%;">$ ${item.precio.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: center; width: 10%;">$ ${item.descItem.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: center; width: 10%;">$ ${item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
         `).join('');
 
