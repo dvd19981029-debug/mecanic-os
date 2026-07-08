@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=57';
+} from '../../app.js?v=58';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=57';
+} from '../utils.js?v=58';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2437,7 +2437,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         <div class="section-header-bar">Receptor / Cliente y Vehículo</div>
         <div class="box-container receptor-grid">
             <div>
-                <h3 style="margin: 0 0 5px 0; font-size:0.75rem; color:var(--primary-color);">Datos del Cliente</h3>
                 <div><strong>Nombre o Razón Social:</strong> ${client.Nombre}</div>
                 <div><strong>Tipo de Documento:</strong> ${client['Tipo Doc'] || client.Tipo_Documento || 'DUI'}</div>
                 <div><strong>N° Documento:</strong> ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
@@ -2446,14 +2445,11 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Teléfono:</strong> ${budget['Telefono 1 '] || client['Telefono 1 '] || 'N/A'}</div>
             </div>
             <div>
-                <h3 style="margin: 0 0 5px 0; font-size:0.75rem; color:var(--primary-color);">Detalles del Vehículo</h3>
                 <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
                 <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
                 <div><strong>VIN / Motor:</strong> ${vehicle.Nª_VIN || 'N/A'} / ${vehicle.Nª_Motor || 'N/A'}</div>
                 <div><strong>Nº Equipo:</strong> ${vehicle.N_Equipo || 'N/A'}</div>
                 <div><strong>Odómetro / Recorrido:</strong> ${budget.Kilometraje || vehicle.Odometro || '0'} km</div>
-                <div><strong>Fallas Reportadas:</strong> ${budget.Fallas_Detectadas || 'Diagnóstico de taller'}</div>
-                ${budget.Observaciones ? `<div><strong>Observaciones:</strong> ${budget.Observaciones}</div>` : ''}
             </div>
         </div>
 
