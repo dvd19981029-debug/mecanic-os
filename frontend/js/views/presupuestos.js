@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=59';
+} from '../../app.js?v=60';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=59';
+} from '../utils.js?v=60';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2255,11 +2255,12 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             color: #ffffff;
             font-weight: 700;
             text-align: center;
-            padding: 5px;
+            padding: 4px 5px;
             font-size: 0.7rem;
         }
         td {
-            padding: 5px 6px;
+            padding: 2.5px 6px;
+            line-height: 1.15;
         }
 
         .bottom-grid {

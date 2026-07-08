@@ -2,7 +2,7 @@
  * Mecanic OS - Dashboard View Module
  */
 
-import { saveDatabase } from '../../app.js?v=59';
+import { saveDatabase } from '../../app.js?v=60';
 
 export function renderTallerDashboard(container) {
     const db = window.getDatabase();
