@@ -1089,7 +1089,8 @@ export function renderVentaRapida(container) {
                 body: JSON.stringify({
                     apiKey: dteCfg.apiKey,
                     docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
-                    payload: dtePayload
+                    payload: dtePayload,
+                    workshopId: db.saas_state?.workshopId || 'desconocido'
                 })
             })
             .then(response => {

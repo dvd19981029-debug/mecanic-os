@@ -1231,7 +1231,8 @@ export function renderInvoicingWorkspace(container, presId) {
             body: JSON.stringify({
                 apiKey: dteCfg.apiKey,
                 docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
-                payload: dtePayload
+                payload: dtePayload,
+                workshopId: db.saas_state?.workshopId || 'desconocido'
             })
         })
         .then(response => {
@@ -1848,7 +1849,8 @@ function queryDteStatusMH(dteId) {
         },
         body: JSON.stringify({
             apiKey: dteCfg.apiKey,
-            dteId: dteId
+            dteId: dteId,
+            workshopId: db.saas_state?.workshopId || 'desconocido'
         })
     })
     .then(response => {
@@ -2043,7 +2045,8 @@ function openInvalidateDteModal(dteId, presId) {
                 payload: {
                     dteId: dteId,
                     reason: `${reason}: ${comment}`.substring(0, 250)
-                }
+                },
+                workshopId: db.saas_state?.workshopId || 'desconocido'
             })
         })
         .then(response => {

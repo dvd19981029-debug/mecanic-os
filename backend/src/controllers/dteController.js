@@ -2,6 +2,47 @@ const https = require('https');
 const crypto = require('crypto');
 const { db } = require('../config/firebaseAdmin');
 
+async function saveDteLog(action, workshopId, docType, requestPayload, responseStatus, responseBody, endpoint) {
+    if (!db) return;
+    try {
+        let resolvedWorkshopId = workshopId || 'desconocido';
+        
+        // Si no se proveyó el id de taller, intentar extraerlo del payload del emisor o del NIT
+        if (resolvedWorkshopId === 'desconocido' && requestPayload) {
+            const emisor = requestPayload.emisor || {};
+            if (emisor.nit) {
+                resolvedWorkshopId = emisor.nit;
+            } else if (emisor.nombre) {
+                resolvedWorkshopId = emisor.nombre;
+            }
+        }
+
+        // Parsear cuerpo de respuesta para no guardar strings si es JSON
+        let parsedResBody = responseBody;
+        if (typeof responseBody === 'string') {
+            try {
+                parsedResBody = JSON.parse(responseBody);
+            } catch (e) {
+                // Mantener como string
+            }
+        }
+
+        await db.collection('dte_api_logs').add({
+            action,
+            workshopId: resolvedWorkshopId,
+            docType: docType || 'desconocido',
+            endpoint: endpoint || '',
+            requestPayload: requestPayload || null,
+            responseStatus: responseStatus || 0,
+            responseBody: parsedResBody || null,
+            timestamp: new Date().toISOString()
+        });
+        console.log(`DTE Log saved successfully for action: ${action}`);
+    } catch (err) {
+        console.error("Error saving DTE API Log:", err);
+    }
+}
+
 /**
  * Prueba de conexión a la API de FacturaLlama.
  */
@@ -18,11 +59,13 @@ async function testConnection(req, res) {
         }
         
         if (resolvedApiKey.startsWith('simulado_')) {
-            return res.json({
+            const mockRes = {
                 success: true,
                 simulated: true,
                 message: "¡Conexión de prueba simulada exitosamente! (Modo Simulación activo)"
-            });
+            };
+            saveDteLog("Prueba Conexión (Simulado)", req.body.workshopId, "prueba", null, 200, mockRes, "MOCK / SIMULADO");
+            return res.json(mockRes);
         }
         
         console.log(`FacturaLlama Test: Verifying API Key ${resolvedApiKey.substring(0,8)}...`);
@@ -47,6 +90,10 @@ async function testConnection(req, res) {
                 let message = '';
                 
                 if (proxyRes.statusCode === 404) {
+            proxyRes.on('end', () => {
+                let success = false;
+                let message = '';
+                if (proxyRes.statusCode === 200 || proxyRes.statusCode === 404) {
                     success = true;
                     message = "¡Conexión establecida con éxito! Tu API Key de FacturaLlama es válida y activa.";
                 } else if (proxyRes.statusCode === 403) {
@@ -60,12 +107,16 @@ async function testConnection(req, res) {
                     message = `Conexión con el servidor establecida (Código de estado HTTP: ${proxyRes.statusCode})`;
                 }
                 
-                return res.json({
+                const responseData = {
                     success: success,
                     statusCode: proxyRes.statusCode,
                     message: message,
                     details: proxyBody
-                });
+                };
+
+                saveDteLog("Prueba Conexión", req.body.workshopId, "prueba", null, proxyRes.statusCode, responseData, targetUrl);
+
+                return res.json(responseData);
             });
         });
         
@@ -103,7 +154,7 @@ async function emitDte(req, res) {
             const ctrlNum = "DTE-" + (docType === 'ccf' ? '03' : '01') + "-M001P001-" + Math.floor(Math.random()*90000 + 10000);
             const seal = Math.floor(Math.random()*9000000).toString() + "-APPROVED-" + Math.floor(Math.random()*9000);
             
-            return res.json({
+            const mockRes = {
                 success: true,
                 simulated: true,
                 code: "00",
@@ -112,7 +163,9 @@ async function emitDte(req, res) {
                 controlNumber: ctrlNum,
                 receptionSeal: seal,
                 mhDteUrl: `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${new Date().toISOString().split('T')[0]}`
-            });
+            };
+            saveDteLog("Emisión DTE (Simulado)", req.body.workshopId, llamaDocType, payload, 200, mockRes, "MOCK / SIMULADO");
+            return res.json(mockRes);
         }
         
         let llamaDocType = (docType || 'fc').toLowerCase();
@@ -145,6 +198,7 @@ async function emitDte(req, res) {
                 console.log(`FacturaLlama: Received response code ${proxyRes.statusCode}`);
                 res.status(proxyRes.statusCode);
                 res.setHeader('Content-Type', 'application/json');
+                saveDteLog("Emisión DTE", req.body.workshopId, llamaDocType, payload, proxyRes.statusCode, proxyBody, targetUrl);
                 return res.send(proxyBody);
             });
         });
@@ -181,13 +235,15 @@ async function invalidateDte(req, res) {
                                 
         if (!resolvedApiKey || resolvedApiKey.trim() === '') {
             console.log("FacturaLlama Invalidate: Simulated invalidation.");
-            return res.json({
+            const mockRes = {
                 success: true,
                 simulated: true,
                 id: crypto.randomUUID ? crypto.randomUUID() : 'simulated-invalidate-uuid-998877',
                 status: "APPROVED",
                 message: "DTE Anulado Simulado Exitosamente"
-            });
+            };
+            saveDteLog("Anulación DTE (Simulado)", req.body.workshopId, "anulacion", payload, 200, mockRes, "MOCK / SIMULADO");
+            return res.json(mockRes);
         }
         
         const targetUrl = 'https://api.facturallama.com/dte/invalidate';
@@ -209,6 +265,7 @@ async function invalidateDte(req, res) {
             proxyRes.on('end', () => {
                 res.status(proxyRes.statusCode);
                 res.setHeader('Content-Type', 'application/json');
+                saveDteLog("Anulación DTE", req.body.workshopId, "anulacion", payload, proxyRes.statusCode, proxyBody, targetUrl);
                 return res.send(proxyBody);
             });
         });
@@ -243,7 +300,7 @@ async function retrieveDte(req, res) {
                                 
         if (!resolvedApiKey || resolvedApiKey.trim() === '') {
             console.log("FacturaLlama Retrieve: Returning simulated DTE details.");
-            return res.json({
+            const mockRes = {
                 success: true,
                 simulated: true,
                 id: dteId,
@@ -252,7 +309,9 @@ async function retrieveDte(req, res) {
                 type: "FC",
                 controlNumber: "DTE-01-M001P001-99887",
                 message: "Consulta de DTE simulada con éxito"
-            });
+            };
+            saveDteLog("Consulta DTE (Simulado)", req.body.workshopId, "consulta", { dteId }, 200, mockRes, "MOCK / SIMULADO");
+            return res.json(mockRes);
         }
         
         const targetUrl = `https://api.facturallama.com/dte/${dteId}`;
@@ -272,6 +331,7 @@ async function retrieveDte(req, res) {
             proxyRes.on('end', () => {
                 res.status(proxyRes.statusCode);
                 res.setHeader('Content-Type', 'application/json');
+                saveDteLog("Consulta DTE", req.body.workshopId, "consulta", { dteId }, proxyRes.statusCode, proxyBody, targetUrl);
                 return res.send(proxyBody);
             });
         });

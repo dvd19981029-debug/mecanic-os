@@ -2459,6 +2459,7 @@ if (window.saasViewReceiptPaymentId) {
                 <button class="saas-tab-btn ${activeTab === 'pay' ? 'active' : ''}" onclick="window.switchSaaSTab('pay')"><i class="fa-solid fa-receipt"></i> Historial de Cobros</button>
                 <button class="saas-tab-btn ${activeTab === 'plans-coupons' ? 'active' : ''}" onclick="window.switchSaaSTab('plans-coupons')"><i class="fa-solid fa-gears"></i> Configuración, Planes & Cupones</button>
                 <button class="saas-tab-btn ${activeTab === 'metrics' ? 'active' : ''}" onclick="window.switchSaaSTab('metrics')"><i class="fa-solid fa-chart-line"></i> Métricas SaaS</button>
+                <button class="saas-tab-btn ${activeTab === 'dte-logs' ? 'active' : ''}" onclick="window.switchSaaSTab('dte-logs')"><i class="fa-solid fa-server"></i> Logs Servidor (DTE)</button>
             </div>
             
             <!-- Tab Body -->
@@ -2468,6 +2469,7 @@ if (window.saasViewReceiptPaymentId) {
                 ${safe(activeTab === 'pay' ? renderPaymentsTab() : '')}
                 ${safe(activeTab === 'plans-coupons' ? renderPlansCouponsTab() : '')}
                 ${safe(activeTab === 'metrics' ? renderMetricsTab() : '')}
+                ${safe(activeTab === 'dte-logs' ? renderDteLogsTab() : '')}
             </div>
         </div>
     `;
@@ -3667,6 +3669,172 @@ if (window.saasViewReceiptPaymentId) {
             </div>
         `;
     }
+
+    function renderDteLogsTab() {
+        // Ejecutar carga asíncrona de logs
+        setTimeout(async () => {
+            const logsContainer = document.getElementById('saas-dte-logs-container');
+            if (!logsContainer) return;
+            
+            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+                logsContainer.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; color: var(--warning); margin-bottom: 1rem;"></i>
+                        <div>Firebase Firestore no está inicializado en este entorno de desarrollo.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const logsSnap = await dbFirestore.collection('dte_api_logs')
+                    .orderBy('timestamp', 'desc')
+                    .limit(100)
+                    .get();
+                
+                if (logsSnap.empty) {
+                    logsContainer.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+                            <div>No se han registrado peticiones al servidor todavía.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div class="table-responsive">
+                        <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--border-color); padding: 0.5rem;">
+                                    <th style="padding: 0.75rem;">Fecha / Hora</th>
+                                    <th style="padding: 0.75rem;">Taller / Emisor</th>
+                                    <th style="padding: 0.75rem;">Acción</th>
+                                    <th style="padding: 0.75rem;">Tipo DTE</th>
+                                    <th style="padding: 0.75rem;">Estado HTTP</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                window.saasDteLogsData = window.saasDteLogsData || {};
+
+                logsSnap.forEach(doc => {
+                    const log = doc.data();
+                    const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A';
+                    const isSuccess = log.responseStatus >= 200 && log.responseStatus < 300;
+                    const statusColor = isSuccess ? '#2ecc71' : '#e74c3c';
+                    const docTypeLabel = (log.docType || '').toUpperCase();
+                    
+                    const logId = doc.id;
+                    window.saasDteLogsData[logId] = log;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.75rem;">${dateStr}</td>
+                            <td style="padding: 0.75rem;"><strong>${escapeHtml(log.workshopId || 'desconocido')}</strong></td>
+                            <td style="padding: 0.75rem;"><span class="badge" style="background: rgba(52, 152, 219, 0.15); color: #3498db; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">${escapeHtml(log.action || 'DTE')}</span></td>
+                            <td style="padding: 0.75rem;">${escapeHtml(docTypeLabel)}</td>
+                            <td style="padding: 0.75rem;">
+                                <span style="color: ${statusColor}; font-weight: bold; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                    <i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-xmark'}"></i>
+                                    ${log.responseStatus || 'N/A'}
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center;">
+                                <button class="btn btn-primary" onclick="window.viewDteJsonLog('${logId}')" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 4px;">
+                                    <i class="fa-solid fa-code"></i> Ver JSONs
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                logsContainer.innerHTML = html;
+            } catch (err) {
+                console.error("Error fetching DTE logs:", err);
+                logsContainer.innerHTML = `
+                    <div style="text-align: center; color: var(--danger); padding: 3rem;">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+                        <div>Error al cargar logs: ${escapeHtml(err.message)}</div>
+                    </div>
+                `;
+            }
+        }, 50);
+
+        return `
+            <div class="saas-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                    <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.25rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-server" style="color: var(--primary);"></i> Historial de Peticiones del Servidor (Logs DTE)
+                    </h3>
+                    <button class="btn btn-secondary" onclick="window.switchSaaSTab('dte-logs')" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 4px;">
+                        <i class="fa-solid fa-sync"></i> Refrescar
+                    </button>
+                </div>
+                <div id="saas-dte-logs-container">
+                    <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <div>Cargando logs del servidor...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    window.viewDteJsonLog = function(logId) {
+        const log = (window.saasDteLogsData || {})[logId];
+        if (!log) return;
+        
+        const modal = document.createElement('div');
+        modal.className = 'custom-modal active';
+        modal.id = 'dte-log-modal';
+        modal.style.zIndex = '9999';
+        
+        const reqJson = JSON.stringify(log.requestPayload, null, 2);
+        const resJson = typeof log.responseBody === 'object' 
+            ? JSON.stringify(log.responseBody, null, 2) 
+            : String(log.responseBody || 'No response body');
+            
+        modal.innerHTML = `
+            <div class="modal-wrapper" style="max-width: 90%; width: 1200px; height: 85vh; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-code" style="color: var(--primary);"></i> Petición DTE - ${escapeHtml(log.action || 'Detalle')} (${new Date(log.timestamp).toLocaleString()})
+                    </h3>
+                    <button class="modal-close" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-muted); hover { color: var(--text-primary); }">&times;</button>
+                </div>
+                <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; background: var(--bg-body);">
+                    <div style="display: flex; flex-direction: column; height: 100%;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
+                            <i class="fa-solid fa-arrow-up" style="color: #3498db;"></i> JSON Enviado (Petición)
+                        </h4>
+                        <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(reqJson || 'No payload')}</pre>
+                    </div>
+                    <div style="display: flex; flex-direction: column; height: 100%;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
+                            <i class="fa-solid fa-arrow-down" style="color: #2ecc71;"></i> JSON Recibido (Respuesta - HTTP ${log.responseStatus})
+                        </h4>
+                        <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(resJson || 'No response body')}</pre>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1.25rem; border-top: 1px solid var(--border-color); text-align: right; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                    <button class="btn btn-secondary close-btn" style="padding: 0.5rem 1.25rem; border-radius: 4px;">Cerrar Visor</button>
+                </div>
+            </div>
+        `;
+        
+        const close = () => { modal.remove(); };
+        modal.querySelector('.modal-close').addEventListener('click', close);
+        modal.querySelector('.close-btn').addEventListener('click', close);
+        document.body.appendChild(modal);
+    };
 }
 
 
