@@ -860,11 +860,11 @@ export function renderBudgetEditor(container, budget) {
                         <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                             <div class="form-group">
                                 <label>Precio Venta ($)</label>
-                                <input type="number" id="new-prod-price-sell" required value="15.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                                <input type="number" id="new-prod-price-sell" required value="15.00" step="0.01" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                             </div>
                             <div class="form-group">
                                 <label>Precio Costo ($)</label>
-                                <input type="number" id="new-prod-price-cost" required value="10.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                                <input type="number" id="new-prod-price-cost" required value="10.00" step="0.01" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                             </div>
                         </div>
                         <div class="form-group">
@@ -947,7 +947,7 @@ export function renderBudgetEditor(container, budget) {
                         </div>
                         <div class="form-group">
                             <label>Precio Base ($)</label>
-                            <input type="number" id="new-mo-price" required value="10.00" step="0.50" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            <input type="number" id="new-mo-price" required value="10.00" step="0.01" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group">
                             <label>¿Precio Editable en Presupuestos?</label>
