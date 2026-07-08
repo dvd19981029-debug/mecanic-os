@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=66';
+} from '../../app.js?v=67';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=66';
-import { renderSaaSAdminLogin } from './auth.js?v=66';
+} from '../utils.js?v=67';
+import { renderSaaSAdminLogin } from './auth.js?v=67';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -2723,11 +2723,11 @@ if (window.saasViewReceiptPaymentId) {
                     backendUrl: document.getElementById('global-backend-url').value.trim(),
                     wompi: {
                         clientId: document.getElementById('global-wompi-client-id').value.trim(),
-                        clientSecret: '', // Centralized in server environment variables
+                        clientSecret: document.getElementById('global-wompi-client-secret').value.trim(),
                         appId: document.getElementById('global-wompi-app-id').value.trim()
                     },
                     dte: {
-                        apiKey: '' // Centralized in server environment variables
+                        apiKey: document.getElementById('global-dte-api-key').value.trim()
                     }
                 };
                 saveDatabase(currentDb).then(async () => {
@@ -3624,7 +3624,7 @@ if (window.saasViewReceiptPaymentId) {
                             </div>
                             <div class="form-group">
                                 <label>Client Secret</label>
-                                <input type="text" id="global-wompi-client-secret" value="" disabled placeholder="Configurado en servidor (WOMPI_CLIENT_SECRET)" style="padding:0.6rem; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-muted); border-radius:4px; cursor:not-allowed;">
+                                <input type="text" id="global-wompi-client-secret" value="${(db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientSecret) || ''}" placeholder="Ej: client_secret_... (u opcional si está en variables de entorno del servidor)" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                             </div>
                             <div class="form-group">
                                 <label>ID Aplicativo (Opcional - Auto-recuperar si vacío)</label>
@@ -3637,7 +3637,7 @@ if (window.saasViewReceiptPaymentId) {
                             <h4 style="font-family:'Outfit', sans-serif; font-size:1.05rem; border-left:3px solid var(--success); padding-left:0.5rem; color:var(--text-primary); margin:0;">Facturación Electrónica (DTE) de la Plataforma</h4>
                             <div class="form-group">
                                 <label>API Key de FacturaLlama</label>
-                                <input type="text" id="global-dte-api-key" value="" disabled placeholder="Configurada en servidor (FACTURALLAMA_API_KEY)" style="padding:0.6rem; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-muted); border-radius:4px; cursor:not-allowed;">
+                                <input type="text" id="global-dte-api-key" value="${(db.saas_config && db.saas_config.dte && db.saas_config.dte.apiKey) || ''}" placeholder="Ej: api_key_... (u opcional si está en variables de entorno del servidor)" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
                             </div>
                             <div class="form-group">
                                 <label>URL de Producción del Servidor Backend (Render/Railway)</label>
