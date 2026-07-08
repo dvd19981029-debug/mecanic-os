@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=51';
+} from '../../app.js?v=52';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=51';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=52';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -212,11 +212,9 @@ export function renderConfiguracion(container, queryParams) {
                                         <option value="detallada" ${ws.tipo_comision === 'detallada' ? 'selected' : ''}>Comisión Detallada (Por Ítem/Fila de Trabajo)</option>
                                     </select>
                                 </div>
-                                <div class="form-group" style="display:flex; align-items:center; padding-top:1.2rem;">
-                                    <span style="font-size:0.8rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.35rem;">
-                                        <i class="fa-solid fa-circle-info" style="color:var(--primary);"></i>
-                                        En modo detallado, puedes asignar mecánicos por cada repuesto y servicio.
-                                    </span>
+                                <div class="form-group">
+                                    <label>Teléfono para QR de WhatsApp (Cotizaciones)</label>
+                                    <input type="text" id="cfg-taller-qr-whatsapp" value="${ws.qr_whatsapp || ''}" placeholder="Ej: 78121302" style="padding:0.6rem;">
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary" style="width:fit-content; align-self:flex-end; padding:0.65rem 1.25rem;"><i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller</button>
@@ -778,7 +776,8 @@ export function renderConfiguracion(container, queryParams) {
                     logo: window.saasSelectedLogoBase64 || '',
                     formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value,
                     color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value,
-                    tipo_comision: document.getElementById('cfg-taller-tipo-comision').value
+                    tipo_comision: document.getElementById('cfg-taller-tipo-comision').value,
+                    qr_whatsapp: document.getElementById('cfg-taller-qr-whatsapp').value.trim()
                 };
 
                 // Sync with saas_state if matching active session

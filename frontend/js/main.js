@@ -2,7 +2,7 @@
  * Mecanic OS - Main Application Entry Point
  */
 
-import { initRouter } from './router.js?v=51';
+import { initRouter } from './router.js?v=52';
 import {
     initFirebase,
     initDatabase,
@@ -11,8 +11,8 @@ import {
     updateUserUI,
     updateSidebarBrand,
     startClock
-} from '../app.js?v=51';
-import { initUserSwitcher } from './views/saas.js?v=51';
+} from '../app.js?v=52';
+import { initUserSwitcher } from './views/saas.js?v=52';
 
 async function startApp() {
     try {

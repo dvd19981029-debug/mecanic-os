@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=51';
+} from '../../app.js?v=52';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=51';
+} from '../utils.js?v=52';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -1946,6 +1946,19 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         }
     }
 
+    // Generate WhatsApp QR Code dynamically
+    const phoneInput = ws.qr_whatsapp || ws.telefono || '';
+    const cleanNumber = phoneInput.replace(/\D/g, '');
+    let waNumber = cleanNumber;
+    if (waNumber && waNumber.length === 8) {
+        waNumber = '503' + waNumber;
+    }
+    const plate = vehicle.Placas || 'N/A';
+    const quoteId = budget['ID Presupuesto'];
+    const waText = `Hola, me gustaría consultar/aceptar la cotización ${quoteId} del vehículo con placas ${plate}.`;
+    const waUrl = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}` : '';
+    const qrImgUrl = waUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(waUrl)}` : '';
+
     const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
 
     let prodDiscountPercent = 0;
@@ -2350,33 +2363,40 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         <!-- DTE Box -->
         <div class="section-header-bar">Detalles del Presupuesto / Cotización</div>
         <div class="box-container dte-grid">
-            <div>
-                <!-- Mock QR Code -->
-                <svg width="80" height="80" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="100" height="100" fill="#f8fafc" rx="4" stroke="#b0b8c0" stroke-width="1"/>
-                    <rect x="10" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
-                    <rect x="15" y="15" width="15" height="15" fill="#f8fafc"/>
-                    <rect x="17" y="17" width="11" height="11" fill="#5a626a"/>
-                    
-                    <rect x="65" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
-                    <rect x="70" y="15" width="15" height="15" fill="#f8fafc"/>
-                    <rect x="72" y="17" width="11" height="11" fill="#5a626a"/>
-                    
-                    <rect x="10" y="65" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
-                    <rect x="15" y="70" width="15" height="15" fill="#f8fafc"/>
-                    <rect x="17" y="72" width="11" height="11" fill="#5a626a"/>
-                    
-                    <rect x="65" y="65" width="10" height="10" fill="#5a626a"/>
-                    <rect x="42" y="12" width="6" height="6" fill="#5a626a"/>
-                    <rect x="48" y="18" width="6" height="12" fill="#5a626a"/>
-                    <rect x="12" y="42" width="12" height="6" fill="#5a626a"/>
-                    <rect x="24" y="48" width="6" height="6" fill="#5a626a"/>
-                    <rect x="42" y="42" width="18" height="18" fill="#5a626a"/>
-                    <rect x="72" y="42" width="12" height="12" fill="#5a626a"/>
-                    <rect x="42" y="72" width="12" height="6" fill="#5a626a"/>
-                    <rect x="78" y="78" width="10" height="10" fill="#5a626a"/>
-                    <rect x="54" y="60" width="6" height="18" fill="#5a626a"/>
-                </svg>
+            <div style="display:flex; justify-content:center; align-items:center;">
+                ${qrImgUrl ? `
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;">
+                        <img src="${qrImgUrl}" width="80" height="80" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 2px;" alt="QR WhatsApp" />
+                        <span style="font-size:0.5rem; font-weight:700; color:var(--primary-color); text-transform:uppercase; letter-spacing:0.02em;">Escanear WA</span>
+                    </div>
+                ` : `
+                    <!-- Mock QR Code -->
+                    <svg width="80" height="80" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="100" height="100" fill="#f8fafc" rx="4" stroke="#b0b8c0" stroke-width="1"/>
+                        <rect x="10" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                        <rect x="15" y="15" width="15" height="15" fill="#f8fafc"/>
+                        <rect x="17" y="17" width="11" height="11" fill="#5a626a"/>
+                        
+                        <rect x="65" y="10" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                        <rect x="70" y="15" width="15" height="15" fill="#f8fafc"/>
+                        <rect x="72" y="17" width="11" height="11" fill="#5a626a"/>
+                        
+                        <rect x="10" y="65" width="25" height="25" fill="none" stroke="#5a626a" stroke-width="6"/>
+                        <rect x="15" y="70" width="15" height="15" fill="#f8fafc"/>
+                        <rect x="17" y="72" width="11" height="11" fill="#5a626a"/>
+                        
+                        <rect x="65" y="65" width="10" height="10" fill="#5a626a"/>
+                        <rect x="42" y="12" width="6" height="6" fill="#5a626a"/>
+                        <rect x="48" y="18" width="6" height="12" fill="#5a626a"/>
+                        <rect x="12" y="42" width="12" height="6" fill="#5a626a"/>
+                        <rect x="24" y="48" width="6" height="6" fill="#5a626a"/>
+                        <rect x="42" y="42" width="18" height="18" fill="#5a626a"/>
+                        <rect x="72" y="42" width="12" height="12" fill="#5a626a"/>
+                        <rect x="42" y="72" width="12" height="6" fill="#5a626a"/>
+                        <rect x="78" y="78" width="10" height="10" fill="#5a626a"/>
+                        <rect x="54" y="60" width="6" height="18" fill="#5a626a"/>
+                    </svg>
+                `}
             </div>
             <div class="dte-details">
                 <div><strong>N° de Cotización:</strong><br><span style="font-family:monospace; font-weight:700; font-size:0.75rem; color:var(--primary-color);">${budget['ID Presupuesto'].toUpperCase()}</span></div>

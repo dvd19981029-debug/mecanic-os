@@ -3,11 +3,11 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=51';
+} from '../../app.js?v=52';
 import {
     showToast,
     escapeHtml
-} from '../utils.js?v=51';
+} from '../utils.js?v=52';
 
 export function renderTrabajosTaller(container) {
     const db = getDatabase();
