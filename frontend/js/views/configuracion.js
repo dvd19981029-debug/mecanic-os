@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=55';
+} from '../../app.js?v=56';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=55';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=56';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
