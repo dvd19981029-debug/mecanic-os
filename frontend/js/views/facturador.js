@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=61';
+} from '../../app.js?v=62';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,9 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport,
-    safe
-} from '../utils.js?v=61';
+    safe,
+    saveDteLogToFirestore
+} from '../utils.js?v=62';
 
 export function renderFacturador(container, queryParams) {
     const db = getDatabase();
@@ -1216,6 +1217,15 @@ export function renderInvoicingWorkspace(container, presId) {
                     receptionSeal: Math.floor(Math.random()*9000000).toString() + "-APPROVED-" + Math.floor(Math.random()*9000),
                     mhDteUrl: `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=MOCK&fechaEmi=${new Date().toISOString().split('T')[0]}`
                 };
+                saveDteLogToFirestore(
+                    "Firma y Transmisión (Simulado)",
+                    db.saas_state?.workshopId || 'desconocido',
+                    type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
+                    dtePayload,
+                    200,
+                    simulatedRes,
+                    "MOCK / FRONTEND SIMULADO"
+                );
                 processSuccess(simulatedRes);
             }, 1200);
             return;
@@ -1267,10 +1277,28 @@ export function renderInvoicingWorkspace(container, presId) {
             return response.json();
         })
         .then(resData => {
+            saveDteLogToFirestore(
+                "Firma y Transmisión",
+                db.saas_state?.workshopId || 'desconocido',
+                type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
+                dtePayload,
+                200,
+                resData,
+                endpoint
+            );
             processSuccess(resData);
         })
         .catch(err => {
             console.error(err);
+            saveDteLogToFirestore(
+                "Firma y Transmisión (Fallo)",
+                db.saas_state?.workshopId || 'desconocido',
+                type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
+                dtePayload,
+                500,
+                { error: err.message },
+                endpoint
+            );
             showToast(err.message, "danger");
         })
         .finally(() => {
@@ -1821,13 +1849,23 @@ function queryDteStatusMH(dteId) {
 
     if (isSimulated && !baseUrl) {
         setTimeout(() => {
-            renderQueryResult({
+            const simulatedData = {
                 id: dteId,
                 status: "APPROVED",
                 environment: "01",
                 controlNumber: "DTE-01-M001P001-99887",
                 message: "Consulta de DTE simulada con éxito (Modo Demo)"
-            });
+            };
+            saveDteLogToFirestore(
+                "Consulta DTE (Simulado)",
+                db.saas_state?.workshopId || 'desconocido',
+                "consulta",
+                { dteId },
+                200,
+                simulatedData,
+                "MOCK / FRONTEND SIMULADO"
+            );
+            renderQueryResult(simulatedData);
         }, 1000);
         return;
     }
@@ -1885,9 +1923,27 @@ function queryDteStatusMH(dteId) {
         return response.json();
     })
     .then(data => {
+        saveDteLogToFirestore(
+            "Consulta DTE",
+            db.saas_state?.workshopId || 'desconocido',
+            "consulta",
+            { dteId },
+            200,
+            data,
+            endpoint
+        );
         renderQueryResult(data);
     })
     .catch(err => {
+        saveDteLogToFirestore(
+            "Consulta DTE (Fallo)",
+            db.saas_state?.workshopId || 'desconocido',
+            "consulta",
+            { dteId },
+            500,
+            { error: err.message },
+            endpoint
+        );
         modal.innerHTML = html`
             <div class="modal-content glass-card" style="max-width: 500px; padding: 1.5rem;">
                 <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
@@ -2033,6 +2089,15 @@ function openInvalidateDteModal(dteId, presId) {
         }
 
         if (isSimulated && !baseUrl) {
+            saveDteLogToFirestore(
+                "Anulación DTE (Simulado)",
+                db.saas_state?.workshopId || 'desconocido',
+                "anulacion",
+                { dteId, reason: `${reason}: ${comment}` },
+                200,
+                { success: true, message: "DTE Anulado localmente (Modo Simulación)" },
+                "MOCK / FRONTEND SIMULADO"
+            );
             setTimeout(processLocalInvalidation, 1000);
             return;
         }
@@ -2092,9 +2157,27 @@ function openInvalidateDteModal(dteId, presId) {
             return response.json();
         })
         .then(data => {
+            saveDteLogToFirestore(
+                "Anulación DTE",
+                db.saas_state?.workshopId || 'desconocido',
+                "anulacion",
+                { dteId, reason: `${reason}: ${comment}` },
+                200,
+                data,
+                endpoint
+            );
             processLocalInvalidation();
         })
         .catch(err => {
+            saveDteLogToFirestore(
+                "Anulación DTE (Fallo)",
+                db.saas_state?.workshopId || 'desconocido',
+                "anulacion",
+                { dteId, reason: `${reason}: ${comment}` },
+                500,
+                { error: err.message },
+                endpoint
+            );
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fa-solid fa-ban"></i> Confirmar Anulación';
             showToast(err.message, "danger");

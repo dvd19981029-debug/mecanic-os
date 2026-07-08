@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=61';
+} from '../../app.js?v=62';
 import {
     showToast,
     escapeHtml,
@@ -27,9 +27,10 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
-} from '../utils.js?v=61';
-import { renderSaaSAdminLogin } from './auth.js?v=61';
+    downloadExcelReport,
+    saveDteLogToFirestore
+} from '../utils.js?v=62';
+import { renderSaaSAdminLogin } from './auth.js?v=62';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -1776,6 +1777,15 @@ export async function renderAdminSolicitudes(container) {
                         .then(data => {
                             testDteBtn.disabled = false;
                             testDteBtn.innerHTML = origText;
+                            saveDteLogToFirestore(
+                                "Prueba Conexión",
+                                workshopId || 'desconocido',
+                                "prueba",
+                                { apiKey },
+                                data.success ? 200 : 400,
+                                data,
+                                `${backendUrl}/api/dte/test-connection`
+                            );
                             if (data.success) {
                                 showToast(data.message, "success");
                             } else {
@@ -1786,6 +1796,15 @@ export async function renderAdminSolicitudes(container) {
                             testDteBtn.disabled = false;
                             testDteBtn.innerHTML = origText;
                             console.error(err);
+                            saveDteLogToFirestore(
+                                "Prueba Conexión (Fallo)",
+                                workshopId || 'desconocido',
+                                "prueba",
+                                { apiKey },
+                                500,
+                                { error: err.message },
+                                `${backendUrl}/api/dte/test-connection`
+                            );
                             showToast("Error de conexión al probar API.", "error");
                         });
                     });
@@ -2796,6 +2815,15 @@ if (window.saasViewReceiptPaymentId) {
                 .then(data => {
                     testDteBtn.disabled = false;
                     testDteBtn.innerHTML = originalText;
+                    saveDteLogToFirestore(
+                        "Prueba Conexión Global",
+                        "admin_test",
+                        "prueba",
+                        { apiKey: apiKey },
+                        data.success ? 200 : 400,
+                        data,
+                        `${backendUrl}/api/dte/test-connection`
+                    );
                     if (data.success) {
                         showToast(data.message, "success");
                     } else {
@@ -2809,6 +2837,15 @@ if (window.saasViewReceiptPaymentId) {
                     testDteBtn.disabled = false;
                     testDteBtn.innerHTML = originalText;
                     console.error("Error testing FacturaLlama connection:", err);
+                    saveDteLogToFirestore(
+                        "Prueba Conexión Global (Fallo)",
+                        "admin_test",
+                        "prueba",
+                        { apiKey: apiKey },
+                        500,
+                        { error: err.message },
+                        `${backendUrl}/api/dte/test-connection`
+                    );
                     showToast("Error de comunicación con el servidor: " + err.message, "error");
                 });
             });

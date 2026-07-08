@@ -239,3 +239,32 @@ export function html(strings, ...values) {
     }
     return result;
 }
+
+export function saveDteLogToFirestore(action, workshopId, docType, requestPayload, responseStatus, responseBody, endpoint) {
+    if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+        console.warn("Firestore is not initialized on the frontend. Log not saved.");
+        return;
+    }
+    
+    let parsedResBody = responseBody;
+    if (typeof responseBody === 'string') {
+        try {
+            parsedResBody = JSON.parse(responseBody);
+        } catch (e) {
+            // keep as string
+        }
+    }
+    
+    dbFirestore.collection('dte_api_logs').add({
+        action: action || 'DTE',
+        workshopId: workshopId || 'desconocido',
+        docType: docType || 'desconocido',
+        endpoint: endpoint || '',
+        requestPayload: requestPayload || null,
+        responseStatus: responseStatus || 0,
+        responseBody: parsedResBody || null,
+        timestamp: new Date().toISOString()
+    })
+    .then(() => console.log("DTE log written to Firestore successfully from frontend"))
+    .catch(err => console.error("Error writing DTE log to Firestore:", err));
+}
