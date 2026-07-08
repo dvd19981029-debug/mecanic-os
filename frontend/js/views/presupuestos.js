@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=49';
+} from '../../app.js?v=50';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=49';
+} from '../utils.js?v=50';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -1928,6 +1928,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 
 function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
+    const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
 
     let prodDiscountPercent = 0;
@@ -2330,7 +2331,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         </div>
 
         <!-- DTE Box -->
-        <div class="section-header-bar">Documento Tributario Electrónico - Presupuesto / Cotización</div>
+        <div class="section-header-bar">Detalles del Presupuesto / Cotización</div>
         <div class="box-container dte-grid">
             <div>
                 <!-- Mock QR Code -->
@@ -2361,13 +2362,17 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 </svg>
             </div>
             <div class="dte-details">
-                <div><strong>Modelo de Facturación:</strong> MODELO FACTURACIÓN PREVIO</div>
-                <div><strong>Tipo de Transmisión:</strong> TRANSMISIÓN NORMAL</div>
-                <div><strong>Código de Generación:</strong><br><span style="font-family:monospace; font-size:0.65rem;">${budget['ID Presupuesto'].toUpperCase()}-PREV-DTE</span></div>
-                <div><strong>Versión de JSON:</strong> 1</div>
-                <div><strong>Número de Control:</strong> DTE-01-M001P001-${budget['ID Presupuesto'].substring(0,8)}</div>
-                <div><strong>Fecha y Hora de Generación:</strong><br>${new Date(budget.Fecha).toLocaleDateString('es-SV')} ${budget.Hora || '12:00:00'}</div>
-                <div style="grid-column: span 2;"><strong>Sello de Recepción:</strong> COTIZACION-NO-TRIBUTARIA-VALIDA-PARA-TALLER</div>
+                <div><strong>N° de Cotización:</strong><br><span style="font-family:monospace; font-weight:700; font-size:0.75rem; color:var(--primary-color);">${budget['ID Presupuesto'].toUpperCase()}</span></div>
+                <div><strong>Vigencia / Validez:</strong><br>15 días calendario</div>
+                
+                <div><strong>Fecha de Generación:</strong><br>${new Date(budget.Fecha).toLocaleDateString('es-SV')}</div>
+                <div><strong>Hora de Generación:</strong><br>${budget.Hora || '12:00:00'}</div>
+                
+                <div style="grid-column: span 2;"><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
+                <div style="grid-column: span 2; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
+                    <strong>Fallas Detectadas / Diagnóstico:</strong><br>
+                    <span style="font-style: italic; color:#475569;">${budget.Fallas_Detectadas || 'Ninguna falla reportada.'}</span>
+                </div>
             </div>
         </div>
 
