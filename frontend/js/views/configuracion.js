@@ -12,9 +12,9 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=48';
+} from '../../app.js?v=49';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=48';
+import { showToast, html, safe, hashPassword } from '../utils.js?v=49';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -243,9 +243,20 @@ export function renderConfiguracion(container, queryParams) {
                             <!-- Checkboxes populated dynamically -->
                         </div>
 
-                        <button type="button" class="btn btn-primary" id="btn-save-role-permissions" style="width:100%; justify-content:center;">
+                        <button type="button" class="btn btn-primary" id="btn-save-role-permissions" style="width:100%; justify-content:center; margin-bottom:1.5rem;">
                             <i class="fa-solid fa-circle-check"></i> Guardar Permisos del Rol
                         </button>
+
+                        <div style="margin-top:1.5rem; border-top:1px solid var(--border-color); padding-top:1.25rem;">
+                            <h4 style="margin:0 0 0.5rem 0; font-family:'Outfit', sans-serif; font-size:1rem; color:var(--text-primary);"><i class="fa-solid fa-user-gear"></i> Crear Rol Personalizado</h4>
+                            <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                                <input type="text" id="new-custom-role-name" placeholder="Ej: Cajero" style="padding:0.5rem 0.6rem; flex:1; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:34px;">
+                                <button type="button" class="btn btn-primary" id="btn-add-custom-role" style="padding:0.25rem 0.75rem; font-size:0.8rem; height:34px; justify-content:center; width:fit-content; min-width:80px;"><i class="fa-solid fa-plus"></i> Añadir</button>
+                            </div>
+                            <div id="custom-roles-list-tags" style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.5rem;">
+                                <!-- Tags creados se inyectan dinámicamente aquí -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -476,10 +487,8 @@ export function renderConfiguracion(container, queryParams) {
                         </div>
                         <div class="form-group">
                             <label>Nivel de Acceso</label>
-                            <select id="tecnico-acceso">
-                                <option value="Técnico">Técnico</option>
-                                <option value="Recepcionista">Recepcionista</option>
-                                <option value="Administrador">Administrador</option>
+                            <select id="tecnico-acceso" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                <!-- Poblado dinámicamente -->
                             </select>
                         </div>
                     </div>
@@ -820,10 +829,96 @@ export function renderConfiguracion(container, queryParams) {
                 'Administrador',
                 'Técnico',
                 'Recepcionista',
+                ...(db.custom_roles || []),
                 ...(db.tecnicos || []).map(t => t.Nivel_Acceso).filter(Boolean)
             ]));
 
             rolSelector.innerHTML = uniqueRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+
+            // Render custom roles tags (pills)
+            const renderCustomRolesTags = () => {
+                const tagsContainer = document.getElementById('custom-roles-list-tags');
+                if (!tagsContainer) return;
+                const customRoles = db.custom_roles || [];
+                if (customRoles.length === 0) {
+                    tagsContainer.innerHTML = '<span style="font-size:0.75rem; color:var(--text-muted);">No hay roles personalizados creados todavía.</span>';
+                    return;
+                }
+                tagsContainer.innerHTML = customRoles.map(role => `
+                    <span class="badge" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.3rem 0.55rem; font-size:0.75rem; background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.25); color:var(--primary); border-radius:4px; font-weight:500;">
+                        ${role}
+                        <button type="button" class="btn-role-delete-tag" data-role="${role}" style="background:none; border:none; padding:0; cursor:pointer; color:var(--text-muted); font-size:0.85rem; line-height:1; display:flex; align-items:center; justify-content:center; margin-left:0.15rem; width:12px; height:12px; font-weight:bold;">
+                            &times;
+                        </button>
+                    </span>
+                `).join('');
+
+                // Bind delete event listeners
+                tagsContainer.querySelectorAll('.btn-role-delete-tag').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const roleToDelete = btn.getAttribute('data-role');
+                        if (confirm(`¿Estás seguro de que deseas eliminar el rol "${roleToDelete}"? Cualquier empleado asignado a este rol pasará a tener el rol "Técnico".`)) {
+                            const currentDb = window.getDatabase();
+                            currentDb.custom_roles = (currentDb.custom_roles || []).filter(r => r !== roleToDelete);
+                            
+                            // Remove permissions config if any
+                            if (currentDb.role_permissions && currentDb.role_permissions[roleToDelete]) {
+                                delete currentDb.role_permissions[roleToDelete];
+                            }
+                            
+                            // Fallback employees to Técnico
+                            let affectedEmployees = 0;
+                            (currentDb.tecnicos || []).forEach(t => {
+                                if (t.Nivel_Acceso === roleToDelete) {
+                                    t.Nivel_Acceso = 'Técnico';
+                                    affectedEmployees++;
+                                }
+                            });
+                            
+                            saveDatabase(currentDb).then(() => {
+                                showToast(`Rol "${roleToDelete}" eliminado.${affectedEmployees > 0 ? ` Se reasignaron ${affectedEmployees} empleado(s) al rol "Técnico".` : ''}`, "success");
+                                renderConfiguracion(container);
+                            });
+                        }
+                    });
+                });
+            };
+
+            renderCustomRolesTags();
+
+            // Bind Add Custom Role button click
+            const addCustomRoleBtn = document.getElementById('btn-add-custom-role');
+            if (addCustomRoleBtn) {
+                addCustomRoleBtn.addEventListener('click', () => {
+                    const inputField = document.getElementById('new-custom-role-name');
+                    const newRole = inputField ? inputField.value.trim() : '';
+                    if (!newRole) {
+                        showToast("Por favor, escribe el nombre del nuevo rol.", "danger");
+                        return;
+                    }
+                    
+                    const systemRoles = ['Administrador', 'Técnico', 'Recepcionista'];
+                    if (systemRoles.some(r => r.toLowerCase() === newRole.toLowerCase())) {
+                        showToast("Este es un rol del sistema predeterminado.", "danger");
+                        return;
+                    }
+
+                    const currentDb = window.getDatabase();
+                    currentDb.custom_roles = currentDb.custom_roles || [];
+                    
+                    if (currentDb.custom_roles.some(r => r.toLowerCase() === newRole.toLowerCase())) {
+                        showToast("Este rol ya existe.", "danger");
+                        return;
+                    }
+
+                    currentDb.custom_roles.push(newRole);
+                    saveDatabase(currentDb).then(() => {
+                        showToast(`Rol "${newRole}" creado con éxito.`, "success");
+                        renderConfiguracion(container);
+                    });
+                });
+            }
 
             const renderCheckboxes = (role) => {
                 let allowed = [];
@@ -904,6 +999,15 @@ export function renderConfiguracion(container, queryParams) {
     } else if (activeConfigTab === 'empleados') {
         tabContentArea.innerHTML = getEmpleadosHtml();
 
+        const populateEmployeeRolesDropdown = (selectedRoleValue = 'Técnico') => {
+            const accesoSelector = document.getElementById('tecnico-acceso');
+            if (accesoSelector) {
+                const allRoles = ['Administrador', 'Técnico', 'Recepcionista', ...(db.custom_roles || [])];
+                accesoSelector.innerHTML = allRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+                accesoSelector.value = selectedRoleValue;
+            }
+        };
+
         // Bind Payroll & Expediente buttons
         document.querySelectorAll('.btn-payroll').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -934,7 +1038,7 @@ export function renderConfiguracion(container, queryParams) {
                     document.getElementById('tecnico-email').value = t.Email || '';
                     document.getElementById('tecnico-telefono').value = t.Telefono || '';
                     document.getElementById('tecnico-especialidad').value = t.Especialidad || 'Mecánico General';
-                    document.getElementById('tecnico-acceso').value = t.Nivel_Acceso || 'Técnico';
+                    populateEmployeeRolesDropdown(t.Nivel_Acceso || 'Técnico');
                     document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
                     document.getElementById('tecnico-pass').value = '********'; // Mask password to hide hash
                     document.getElementById('tecnico-comision-servicios').value = t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10;
@@ -971,7 +1075,7 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('tecnico-email').value = '';
             document.getElementById('tecnico-telefono').value = '';
             document.getElementById('tecnico-especialidad').value = 'Mecánico General';
-            document.getElementById('tecnico-acceso').value = 'Técnico';
+            populateEmployeeRolesDropdown('Técnico');
             document.getElementById('tecnico-salario').value = '365';
             document.getElementById('tecnico-pass').value = '1234';
             document.getElementById('tecnico-comision-servicios').value = '10';
