@@ -88,11 +88,6 @@ async function testConnection(req, res) {
                 
                 let success = false;
                 let message = '';
-                
-                if (proxyRes.statusCode === 404) {
-            proxyRes.on('end', () => {
-                let success = false;
-                let message = '';
                 if (proxyRes.statusCode === 200 || proxyRes.statusCode === 404) {
                     success = true;
                     message = "¡Conexión establecida con éxito! Tu API Key de FacturaLlama es válida y activa.";
