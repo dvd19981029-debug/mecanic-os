@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=58';
+} from '../../app.js?v=59';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=58';
+} from '../utils.js?v=59';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2372,12 +2372,12 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Nombre o Razón Social:</strong> ${ws.nombre}</div>
                 <div><strong>NIT:</strong> ${ws.num_documento || ws.nit || ''} &nbsp;&nbsp; <strong>NRC:</strong> ${ws.nrc || ''}</div>
                 <div><strong>Correo Electrónico:</strong> ${ws.correo}</div>
-                <div><strong>Teléfono:</strong> ${ws.telefono}</div>
             </div>
             <div class="company-details">
                 <div><strong>Dirección:</strong> ${ws.direccion || ''}</div>
                 <div>MUNICIPIO DE ${ws.municipio ? ws.municipio.toUpperCase() : ''}</div>
                 <div>DEPARTAMENTO DE ${ws.departamento ? ws.departamento.toUpperCase() : ''}</div>
+                <div><strong>Teléfono:</strong> ${ws.telefono}</div>
             </div>
             <div class="logo-container">
                 ${safe(logoHTML)}

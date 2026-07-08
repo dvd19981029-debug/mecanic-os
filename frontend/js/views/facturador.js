@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=58';
+} from '../../app.js?v=59';
 import {
     showToast,
     escapeHtml,
@@ -30,7 +30,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     safe
-} from '../utils.js?v=58';
+} from '../utils.js?v=59';
 
 export function renderFacturador(container, queryParams) {
     const db = getDatabase();
