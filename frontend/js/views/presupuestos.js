@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=50';
+} from '../../app.js?v=51';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=50';
+} from '../utils.js?v=51';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -1929,6 +1929,23 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+    
+    // Extract formatted time of generation from budget.Hora or budget.Fecha timestamp
+    let horaStr = '12:00:00';
+    if (budget.Hora) {
+        horaStr = budget.Hora;
+    } else if (budget.Fecha) {
+        const dateObj = new Date(budget.Fecha);
+        if (!isNaN(dateObj.getTime())) {
+            const h = dateObj.getHours().toString().padStart(2, '0');
+            const m = dateObj.getMinutes().toString().padStart(2, '0');
+            const s = dateObj.getSeconds().toString().padStart(2, '0');
+            if (!(dateObj.getHours() === 0 && dateObj.getMinutes() === 0 && dateObj.getSeconds() === 0)) {
+                horaStr = `${h}:${m}:${s}`;
+            }
+        }
+    }
+
     const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
 
     let prodDiscountPercent = 0;
@@ -2366,7 +2383,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Vigencia / Validez:</strong><br>15 días calendario</div>
                 
                 <div><strong>Fecha de Generación:</strong><br>${new Date(budget.Fecha).toLocaleDateString('es-SV')}</div>
-                <div><strong>Hora de Generación:</strong><br>${budget.Hora || '12:00:00'}</div>
+                <div><strong>Hora de Generación:</strong><br>${horaStr}</div>
                 
                 <div style="grid-column: span 2;"><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
                 <div style="grid-column: span 2; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
