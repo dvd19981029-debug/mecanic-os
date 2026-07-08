@@ -27,7 +27,7 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=69';
+} from './views/saas.js?v=70';
 import {
     renderLockScreen,
     renderSaaSAdminLogin

@@ -1771,7 +1771,7 @@ export async function renderAdminSolicitudes(container) {
                         fetch(`${backendUrl}/api/dte/test-connection`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ apiKey, workshopId: workshopId })
+                            body: JSON.stringify({ apiKey, workshopId: id })
                         })
                         .then(res => res.json())
                         .then(data => {
@@ -1779,7 +1779,7 @@ export async function renderAdminSolicitudes(container) {
                             testDteBtn.innerHTML = origText;
                             saveDteLogToFirestore(
                                 "Prueba Conexión",
-                                workshopId || 'desconocido',
+                                id || 'desconocido',
                                 "prueba",
                                 { apiKey },
                                 data.success ? 200 : 400,
@@ -1798,7 +1798,7 @@ export async function renderAdminSolicitudes(container) {
                             console.error(err);
                             saveDteLogToFirestore(
                                 "Prueba Conexión (Fallo)",
-                                workshopId || 'desconocido',
+                                id || 'desconocido',
                                 "prueba",
                                 { apiKey },
                                 500,
