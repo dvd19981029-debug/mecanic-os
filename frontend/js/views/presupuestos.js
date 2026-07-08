@@ -907,10 +907,14 @@ export function renderBudgetEditor(container, budget) {
                 Descripcion: desc,
                 Marca: brand,
                 'Unidad de Medida': unit,
-                'Precio Unit': priceSell,
-                'Precio Venta Unit Iva Inc': priceSell,
+                'Precio Compra': priceCost,
                 'Precio Costo': priceCost,
-                Minimos: stock
+                'Precio Venta': parseFloat((priceSell / 1.13).toFixed(4)),
+                'Precio Unit': parseFloat((priceSell / 1.13).toFixed(4)),
+                'Precio Venta Unit Iva Inc': priceSell,
+                'Precio Unit Iva Inc': priceSell,
+                Minimos: stock,
+                Presentacion: unit === 'Pza' ? 'Unidad' : unit
             };
 
             db.productos.unshift(newProd);
