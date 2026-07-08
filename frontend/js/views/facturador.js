@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=60';
+} from '../../app.js?v=61';
 import {
     showToast,
     escapeHtml,
@@ -30,7 +30,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     safe
-} from '../utils.js?v=60';
+} from '../utils.js?v=61';
 
 export function renderFacturador(container, queryParams) {
     const db = getDatabase();
@@ -1223,6 +1223,17 @@ export function renderInvoicingWorkspace(container, presId) {
 
         const endpoint = `${baseUrl}/api/dte`;
 
+        console.log("=== ENVIANDO PETICIÓN DTE ===");
+        console.log("URL:", endpoint);
+        console.log("Datos de la petición:", {
+            apiKey: dteCfg.apiKey,
+            docType: type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
+            payload: dtePayload,
+            workshopId: db.saas_state?.workshopId || 'desconocido'
+        });
+        console.log("JSON de salida (Payload DTE) en texto plano:");
+        console.log(JSON.stringify(dtePayload, null, 2));
+
         fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -2035,6 +2046,17 @@ function openInvalidateDteModal(dteId, presId) {
 
         const endpoint = `${baseUrl}/api/dte/invalidate`;
         
+        console.log("=== ENVIANDO ANULACIÓN DTE ===");
+        console.log("URL:", endpoint);
+        console.log("Datos de la anulación:", {
+            apiKey: dteCfg.apiKey,
+            payload: {
+                dteId: dteId,
+                reason: `${reason}: ${comment}`.substring(0, 250)
+            },
+            workshopId: db.saas_state?.workshopId || 'desconocido'
+        });
+
         fetch(endpoint, {
             method: 'POST',
             headers: {
