@@ -3,9 +3,9 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=65';
+} from '../../app.js?v=66';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=65';
+import { html, safe, escapeHtml, showToast } from '../utils.js?v=66';
 
 const DEFAULT_INGRESO_CONFIG = {
     pilotos: [

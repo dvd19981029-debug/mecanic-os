@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=65';
+} from '../../app.js?v=66';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=65';
-import { renderSaaSAdminLogin } from './auth.js?v=65';
+} from '../utils.js?v=66';
+import { renderSaaSAdminLogin } from './auth.js?v=66';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -2760,7 +2760,15 @@ if (window.saasViewReceiptPaymentId) {
                 testWompiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
                 
                 const currentDb = getDatabase();
-                const backendUrl = getBackendUrl(currentDb);
+                const backendUrlInput = document.getElementById('global-backend-url');
+                const backendUrl = backendUrlInput ? sanitizeBackendUrl(backendUrlInput.value.trim()) : getBackendUrl(currentDb);
+                
+                if (!backendUrl) {
+                    showToast("Por favor, ingresa o guarda la URL de producción del servidor backend antes de realizar la prueba.", "warning");
+                    testWompiBtn.disabled = false;
+                    testWompiBtn.innerHTML = originalText;
+                    return;
+                }
                 
                 fetch(`${backendUrl}/api/wompi/test-connection`, {
                     method: 'POST',
@@ -2772,14 +2780,28 @@ if (window.saasViewReceiptPaymentId) {
                         }
                     })
                 })
-                .then(res => res.json())
+                .then(async res => {
+                    const contentType = res.headers.get("content-type");
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(`Servidor respondió con estado HTTP ${res.status}. Detalle: ${text.substring(0, 100)}`);
+                    }
+                    if (!contentType || !contentType.includes("application/json")) {
+                        const text = await res.text();
+                        if (text.includes("<!DOCTYPE html>") || text.includes("<html")) {
+                            throw new Error("El servidor retornó una página HTML en lugar de JSON. Es probable que el servidor backend de Render esté iniciando (cold start). Espera un minuto y vuelve a intentar.");
+                        }
+                        throw new Error(`Respuesta no es JSON. Detalle: ${text.substring(0, 100)}`);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     testWompiBtn.disabled = false;
                     testWompiBtn.innerHTML = originalText;
                     if (data.success) {
                         showToast(data.message, "success");
                     } else {
-                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con Wompi SV.'}`, "error");
+                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con Wompi SV.'}`, "danger");
                         if (data.details) {
                             console.error("Wompi Test Details:", data.details);
                         }
@@ -2789,7 +2811,7 @@ if (window.saasViewReceiptPaymentId) {
                     testWompiBtn.disabled = false;
                     testWompiBtn.innerHTML = originalText;
                     console.error("Error testing Wompi connection:", err);
-                    showToast("Error de comunicación con el servidor: " + err.message, "error");
+                    showToast("Error de comunicación con el servidor: " + err.message, "danger");
                 });
             });
         }
@@ -2804,14 +2826,36 @@ if (window.saasViewReceiptPaymentId) {
                 testDteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Probando Conexión...';
                 
                 const currentDb = getDatabase();
-                const backendUrl = getBackendUrl(currentDb);
+                const backendUrlInput = document.getElementById('global-backend-url');
+                const backendUrl = backendUrlInput ? sanitizeBackendUrl(backendUrlInput.value.trim()) : getBackendUrl(currentDb);
+                
+                if (!backendUrl) {
+                    showToast("Por favor, ingresa o guarda la URL de producción del servidor backend antes de realizar la prueba.", "warning");
+                    testDteBtn.disabled = false;
+                    testDteBtn.innerHTML = originalText;
+                    return;
+                }
                 
                 fetch(`${backendUrl}/api/dte/test-connection`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ apiKey: apiKey, workshopId: 'admin_test' })
                 })
-                .then(res => res.json())
+                .then(async res => {
+                    const contentType = res.headers.get("content-type");
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(`Servidor respondió con estado HTTP ${res.status}. Detalle: ${text.substring(0, 100)}`);
+                    }
+                    if (!contentType || !contentType.includes("application/json")) {
+                        const text = await res.text();
+                        if (text.includes("<!DOCTYPE html>") || text.includes("<html")) {
+                            throw new Error("El servidor retornó una página HTML en lugar de JSON. Es probable que el servidor backend de Render esté iniciando (cold start). Espera un minuto y vuelve a intentar.");
+                        }
+                        throw new Error(`Respuesta no es JSON. Detalle: ${text.substring(0, 100)}`);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     testDteBtn.disabled = false;
                     testDteBtn.innerHTML = originalText;
@@ -2827,7 +2871,7 @@ if (window.saasViewReceiptPaymentId) {
                     if (data.success) {
                         showToast(data.message, "success");
                     } else {
-                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con FacturaLlama.'}`, "error");
+                        showToast(`Error de Conexión: ${data.message || 'No se pudo conectar con FacturaLlama.'}`, "danger");
                         if (data.details) {
                             console.error("FacturaLlama Test Details:", data.details);
                         }
@@ -2846,7 +2890,7 @@ if (window.saasViewReceiptPaymentId) {
                         { error: err.message },
                         `${backendUrl}/api/dte/test-connection`
                     );
-                    showToast("Error de comunicación con el servidor: " + err.message, "error");
+                    showToast("Error de comunicación con el servidor: " + err.message, "danger");
                 });
             });
         }

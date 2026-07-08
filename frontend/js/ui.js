@@ -3,7 +3,7 @@
  * Contains functions that interact with the browser DOM and view states.
  */
 
-import { getDatabase, saveDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=65';
+import { getDatabase, saveDatabase, getActiveUser, getWorkshopConfig } from '../app.js?v=66';
 
 // Local list of dismissed notification IDs
 let dismissedNotifications = [];
