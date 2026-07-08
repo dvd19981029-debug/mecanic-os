@@ -924,20 +924,21 @@ export function renderInvoicingWorkspace(container, presId) {
                        getSecureDteConfig();
 
         const isCCF = type === 'CCF';
-        const deptName = client.Depto || 'San Salvador';
-        const muniName = client.Municipio || 'San Salvador Centro';
-        
-        let deptCode = DEPARTAMENTOS_CODES[deptName] || deptName;
-        if (isNaN(deptCode)) {
-            deptCode = DEPARTAMENTOS_CODES[Object.keys(DEPARTAMENTOS_CODES).find(k => k.toLowerCase() === deptName.trim().toLowerCase())] || '06';
+        const rawDept = client.Departamento || client.Depto || '06';
+        let deptCode = rawDept;
+        if (isNaN(rawDept)) {
+            deptCode = DEPARTAMENTOS_CODES[rawDept] || 
+                       DEPARTAMENTOS_CODES[Object.keys(DEPARTAMENTOS_CODES).find(k => k.toLowerCase() === rawDept.trim().toLowerCase())] || 
+                       '06';
         }
         
-        let muniCode = muniName;
-        if (muniName && isNaN(muniName)) {
-            const matchedMuniKey = Object.keys(MUNICIPIOS_CODES).find(k => k.toUpperCase() === muniName.trim().toUpperCase());
+        const rawMuni = client.Municipio || '23';
+        let muniCode = rawMuni;
+        if (isNaN(rawMuni)) {
+            const matchedMuniKey = Object.keys(MUNICIPIOS_CODES).find(k => k.toUpperCase() === rawMuni.trim().toUpperCase());
             muniCode = matchedMuniKey ? MUNICIPIOS_CODES[matchedMuniKey] : '23';
-        } else if (muniName && muniName.length >= 4) {
-            muniCode = muniName.substring(muniName.length - 2);
+        } else if (rawMuni && rawMuni.length >= 4) {
+            muniCode = rawMuni.substring(rawMuni.length - 2);
         }
 
         const phoneClean = (client['Telefono 1 '] || client.Telefono || '').replace(/\D/g, '').slice(0, 8);
