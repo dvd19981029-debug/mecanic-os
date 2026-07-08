@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=67';
+} from '../../app.js?v=68';
 import {
     showToast,
     escapeHtml,
@@ -27,10 +27,27 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=67';
+} from '../utils.js?v=68';
 
 export function renderClientesVehiculos(container, queryParams) {
     const db = getDatabase();
+
+    // Toggle Client Document fields dynamically based on Client Type (Natural vs Juridica)
+    function toggleClientDocSection(typeSelectId, docSectionId, docNumInputId) {
+        const typeSelect = document.getElementById(typeSelectId);
+        const docSection = document.getElementById(docSectionId);
+        const docNumInput = document.getElementById(docNumInputId);
+        if (!typeSelect || !docSection || !docNumInput) return;
+        
+        const isJuridica = typeSelect.value === 'JURIDICA';
+        if (isJuridica) {
+            docSection.style.display = 'none';
+            docNumInput.removeAttribute('required');
+        } else {
+            docSection.style.display = 'flex';
+            docNumInput.setAttribute('required', 'required');
+        }
+    }
     
     // Render framework
     container.innerHTML = html`
@@ -95,7 +112,7 @@ export function renderClientesVehiculos(container, queryParams) {
                             </select>
                         </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" id="new-client-doc-section">
                         <div class="form-group">
                             <label>Tipo de Documento</label>
                             <select id="new-client-doc-type">
@@ -237,7 +254,7 @@ export function renderClientesVehiculos(container, queryParams) {
                             </select>
                         </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" id="edit-client-doc-section">
                         <div class="form-group">
                             <label>Tipo de Documento</label>
                             <select id="edit-client-doc-type">
@@ -595,6 +612,8 @@ export function renderClientesVehiculos(container, queryParams) {
             const hasCredit = client['Credito?'] === 'SI';
             document.getElementById('edit-credit-fields-row').style.display = hasCredit ? 'flex' : 'none';
 
+            toggleClientDocSection('edit-client-type', 'edit-client-doc-section', 'edit-client-doc-num');
+
             document.getElementById('edit-client-modal').classList.add('active');
         });
 
@@ -639,6 +658,9 @@ export function renderClientesVehiculos(container, queryParams) {
     
     // Open/Close Add Client Modal
     document.getElementById('add-client-btn').addEventListener('click', () => {
+        document.getElementById('new-client-type').value = 'NATURAL';
+        toggleClientDocSection('new-client-type', 'new-client-doc-section', 'new-client-doc-num');
+        
         document.getElementById('add-client-modal').classList.add('active');
         document.getElementById('new-client-contrib-section').style.display = 'none'; // reset to default
         document.getElementById('new-client-has-credit').value = 'NO';
@@ -693,8 +715,8 @@ export function renderClientesVehiculos(container, queryParams) {
             Nombre: name.toUpperCase(),
             "Tipo Cliente": type,
             "Contribuyente?": contrib,
-            "Tipo Doc": docType,
-            "Num Doc": docNum,
+            "Tipo Doc": type === 'JURIDICA' ? '' : docType,
+            "Num Doc": type === 'JURIDICA' ? '' : docNum,
             NIT: nit,
             NRC: nrc,
             Giro: giro,
@@ -743,8 +765,8 @@ export function renderClientesVehiculos(container, queryParams) {
                 client.Nombre = document.getElementById('edit-client-name').value.toUpperCase();
                 client['Tipo Cliente'] = document.getElementById('edit-client-type').value;
                 client['Contribuyente?'] = document.getElementById('edit-client-contrib').value;
-                client['Tipo Doc'] = document.getElementById('edit-client-doc-type').value;
-                client['Num Doc'] = document.getElementById('edit-client-doc-num').value;
+                client['Tipo Doc'] = client['Tipo Cliente'] === 'JURIDICA' ? '' : document.getElementById('edit-client-doc-type').value;
+                client['Num Doc'] = client['Tipo Cliente'] === 'JURIDICA' ? '' : document.getElementById('edit-client-doc-num').value;
                 client.NIT = document.getElementById('edit-client-nit').value;
                 client.NRC = document.getElementById('edit-client-nrc').value;
                 client.Giro = document.getElementById('edit-client-giro').value;
@@ -875,6 +897,18 @@ export function renderClientesVehiculos(container, queryParams) {
                 document.getElementById('edit-client-credit-limit').value = 500;
                 document.getElementById('edit-client-credit-days').value = 30;
             }
+        });
+    const newClientType = document.getElementById('new-client-type');
+    if (newClientType) {
+        newClientType.addEventListener('change', () => {
+            toggleClientDocSection('new-client-type', 'new-client-doc-section', 'new-client-doc-num');
+        });
+    }
+
+    const editClientType = document.getElementById('edit-client-type');
+    if (editClientType) {
+        editClientType.addEventListener('change', () => {
+            toggleClientDocSection('edit-client-type', 'edit-client-doc-section', 'edit-client-doc-num');
         });
     }
     
