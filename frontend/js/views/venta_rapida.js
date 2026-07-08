@@ -1062,7 +1062,7 @@ export function renderVentaRapida(container) {
                 });
             }
             
-            if (isSimulated) {
+            if (isSimulated && !baseUrl) {
                 setTimeout(() => {
                     const simulatedRes = {
                         success: true,

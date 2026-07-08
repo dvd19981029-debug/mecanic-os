@@ -1203,7 +1203,7 @@ export function renderInvoicingWorkspace(container, presId) {
             emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
         }
 
-        if (isSimulated) {
+        if (isSimulated && !baseUrl) {
             // Frontend Simulation Fallback
             setTimeout(() => {
                 const simulatedRes = {
