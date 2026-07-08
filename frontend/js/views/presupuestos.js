@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=53';
+} from '../../app.js?v=54';
 import {
     showToast,
     escapeHtml,
@@ -27,7 +27,7 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport
-} from '../utils.js?v=53';
+} from '../utils.js?v=54';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -2433,16 +2433,6 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Hora de Generación:</strong><br>${horaStr}</div>
                 
                 <div style="grid-column: span 2;"><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
-                <div style="grid-column: span 2; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
-                    <strong>Fallas Detectadas / Diagnóstico:</strong><br>
-                    <span style="font-style: italic; color:#475569;">${budget.Fallas_Detectadas || 'Ninguna falla reportada.'}</span>
-                </div>
-                ${budget.Observaciones ? `
-                <div style="grid-column: span 2; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
-                    <strong>Observaciones / Recomendaciones:</strong><br>
-                    <span style="font-style: italic; color:#475569;">${budget.Observaciones}</span>
-                </div>
-                ` : ''}
             </div>
         </div>
 
@@ -2494,10 +2484,21 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
             <div class="left-notes">
                 <div><strong>Total en Letras:</strong> <span style="font-weight: 700;">${totalLetras}</span></div>
                 <div><strong>Condición de la Operación:</strong> ${conditionStr.toUpperCase()}</div>
-                <div><strong>Observaciones:</strong></div>
+                <div><strong>Observaciones / Diagnóstico:</strong></div>
                 <div class="notes-box">
-                    ${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Servicio y mantenimiento técnico automotriz.'}
-                    ${budget.Observaciones ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;"><strong>Notas Adicionales:</strong> ${budget.Observaciones}</div>` : ''}
+                    <div><strong>Fallas Detectadas / Diagnóstico Final:</strong></div>
+                    <div style="color: #475569; margin-bottom: 8px; font-style: italic; font-size: 0.75rem;">
+                        ${budget.Fallas_Detectadas || budget['Fallas Detectadas'] || 'Servicio y mantenimiento técnico automotriz.'}
+                    </div>
+                    
+                    ${budget.Observaciones ? `
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                            <strong>Observaciones / Recomendaciones adicionales:</strong>
+                        </div>
+                        <div style="color: #475569; font-style: italic; font-size: 0.75rem; margin-top: 2px;">
+                            ${budget.Observaciones}
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <!-- Extensión Firmas -->

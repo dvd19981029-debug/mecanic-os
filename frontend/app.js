@@ -14,13 +14,13 @@ import {
     downloadExcelReport,
     html,
     safe
-} from './js/utils.js?v=53';
+} from './js/utils.js?v=54';
 
 import {
     calculateElSalvadorPeriodPayroll,
     getBudgetGrandTotal,
     getClientPendingBalance
-} from './js/businessLogic.js?v=53';
+} from './js/businessLogic.js?v=54';
 
 import {
     updateUserUI,
@@ -32,7 +32,7 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode
-} from './js/ui.js?v=53';
+} from './js/ui.js?v=54';
 
 // Expose critical functions globally to window for legacy compatibility
 window.showToast = showToast;
