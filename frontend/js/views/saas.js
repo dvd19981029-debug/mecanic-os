@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=62';
+} from '../../app.js?v=63';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=62';
-import { renderSaaSAdminLogin } from './auth.js?v=62';
+} from '../utils.js?v=63';
+import { renderSaaSAdminLogin } from './auth.js?v=63';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -3826,51 +3826,85 @@ if (window.saasViewReceiptPaymentId) {
     }
 
     window.viewDteJsonLog = function(logId) {
-        const log = (window.saasDteLogsData || {})[logId];
-        if (!log) return;
+        console.log("=== viewDteJsonLog invoked ===");
+        console.log("logId:", logId);
         
-        const modal = document.createElement('div');
-        modal.className = 'custom-modal active';
-        modal.id = 'dte-log-modal';
-        modal.style.zIndex = '9999';
-        
-        const reqJson = JSON.stringify(log.requestPayload, null, 2);
-        const resJson = typeof log.responseBody === 'object' 
-            ? JSON.stringify(log.responseBody, null, 2) 
-            : String(log.responseBody || 'No response body');
+        try {
+            const dataMap = window.saasDteLogsData || {};
+            const log = dataMap[logId];
+            if (!log) {
+                console.warn("Log not found in window.saasDteLogsData for key:", logId);
+                showToast("No se encontró el detalle de la petición para ID: " + logId, "warning");
+                return;
+            }
             
-        modal.innerHTML = `
-            <div class="modal-wrapper" style="max-width: 90%; width: 1200px; height: 85vh; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
-                    <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fa-solid fa-code" style="color: var(--primary);"></i> Petición DTE - ${escapeHtml(log.action || 'Detalle')} (${new Date(log.timestamp).toLocaleString()})
-                    </h3>
-                    <button class="modal-close" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-muted); hover { color: var(--text-primary); }">&times;</button>
-                </div>
-                <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; background: var(--bg-body);">
-                    <div style="display: flex; flex-direction: column; height: 100%;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
-                            <i class="fa-solid fa-arrow-up" style="color: #3498db;"></i> JSON Enviado (Petición)
-                        </h4>
-                        <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(reqJson || 'No payload')}</pre>
+            const modal = document.createElement('div');
+            modal.className = 'custom-modal active';
+            modal.id = 'dte-log-modal';
+            modal.style.zIndex = '9999';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            
+            let reqJson = '';
+            try {
+                reqJson = log.requestPayload ? JSON.stringify(log.requestPayload, null, 2) : 'No payload';
+            } catch (e) {
+                reqJson = 'Error al parsear requestPayload: ' + e.message;
+            }
+            
+            let resJson = '';
+            try {
+                resJson = typeof log.responseBody === 'object' 
+                    ? JSON.stringify(log.responseBody, null, 2) 
+                    : String(log.responseBody || 'No response body');
+            } catch (e) {
+                resJson = 'Error al parsear responseBody: ' + e.message;
+            }
+                
+            modal.innerHTML = `
+                <div class="modal-wrapper" style="max-width: 90%; width: 1200px; height: 85vh; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
+                        <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-code" style="color: var(--primary);"></i> Petición DTE - ${escapeHtml(log.action || 'Detalle')} (${log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'})
+                        </h3>
+                        <button class="modal-close" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-muted);">&times;</button>
                     </div>
-                    <div style="display: flex; flex-direction: column; height: 100%;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
-                            <i class="fa-solid fa-arrow-down" style="color: #2ecc71;"></i> JSON Recibido (Respuesta - HTTP ${log.responseStatus})
-                        </h4>
-                        <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(resJson || 'No response body')}</pre>
+                    <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; background: var(--bg-body);">
+                        <div style="display: flex; flex-direction: column; height: 100%;">
+                            <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
+                                <i class="fa-solid fa-arrow-up" style="color: #3498db;"></i> JSON Enviado (Petición)
+                            </h4>
+                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(reqJson)}</pre>
+                        </div>
+                        <div style="display: flex; flex-direction: column; height: 100%;">
+                            <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; color: var(--text-secondary); display: flex; align-items: center; gap: 0.25rem; font-size: 0.95rem;">
+                                <i class="fa-solid fa-arrow-down" style="color: #2ecc71;"></i> JSON Recibido (Respuesta - HTTP ${log.responseStatus || 0})
+                            </h4>
+                            <pre style="flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow: auto; border: 1px solid var(--border-color); margin: 0; line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${escapeHtml(resJson)}</pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="padding: 1.25rem; border-top: 1px solid var(--border-color); text-align: right; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                        <button class="btn btn-secondary close-btn" style="padding: 0.5rem 1.25rem; border-radius: 4px;">Cerrar Visor</button>
                     </div>
                 </div>
-                <div class="modal-footer" style="padding: 1.25rem; border-top: 1px solid var(--border-color); text-align: right; background: var(--bg-card); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-                    <button class="btn btn-secondary close-btn" style="padding: 0.5rem 1.25rem; border-radius: 4px;">Cerrar Visor</button>
-                </div>
-            </div>
-        `;
-        
-        const close = () => { modal.remove(); };
-        modal.querySelector('.modal-close').addEventListener('click', close);
-        modal.querySelector('.close-btn').addEventListener('click', close);
-        document.body.appendChild(modal);
+            `;
+            
+            const close = () => { modal.remove(); };
+            modal.querySelector('.modal-close').addEventListener('click', close);
+            modal.querySelector('.close-btn').addEventListener('click', close);
+            document.body.appendChild(modal);
+            console.log("Modal DTE appended to body successfully.");
+        } catch (err) {
+            console.error("Error in viewDteJsonLog:", err);
+            showToast("Error al abrir visor: " + err.message, "danger");
+        }
     };
 }
 
