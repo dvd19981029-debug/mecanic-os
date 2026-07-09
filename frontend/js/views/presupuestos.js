@@ -2584,27 +2584,38 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
 
 
 function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
+    const ivaMultiplier = 1 + taxRate;
+
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin repuestos ni lubricantes cotizados</td></tr>'
-        : products.map(p => `
-            <tr>
-                <td style="text-align: center; font-weight: 500;">${p.Cantidad}</td>
-                <td>${p.Descripcion}</td>
-                <td style="text-align: right;">$ ${parseFloat(p.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; font-weight: 600;">$ ${(parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-        `).join('');
+        : products.map(p => {
+            const unitPriceWithIva = parseFloat(p.PrecioUnitario || 0) * ivaMultiplier;
+            const totalWithIva = unitPriceWithIva * parseInt(p.Cantidad || 1);
+            return `
+                <tr>
+                    <td style="text-align: center; font-weight: 500;">${p.Cantidad}</td>
+                    <td>${p.Descripcion}</td>
+                    <td style="text-align: right;">$ ${unitPriceWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${totalWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        }).join('');
 
     const laborHTML = labor.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin mano de obra cotizada</td></tr>'
-        : labor.map(l => `
-            <tr>
-                <td style="text-align: center; font-weight: 500;">${l.Cantidad}</td>
-                <td>${l.Descripcion}</td>
-                <td style="text-align: right;">$ ${parseFloat(l.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; font-weight: 600;">$ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-        `).join('');
+        : labor.map(l => {
+            const unitPriceWithIva = parseFloat(l.PrecioUnitario || 0) * ivaMultiplier;
+            const totalWithIva = unitPriceWithIva * parseInt(l.Cantidad || 1);
+            return `
+                <tr>
+                    <td style="text-align: center; font-weight: 500;">${l.Cantidad}</td>
+                    <td>${l.Descripcion}</td>
+                    <td style="text-align: right;">$ ${unitPriceWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${totalWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        }).join('');
 
     let percRow = '';
     if (percVal > 0) {
@@ -2929,7 +2940,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         <!-- Receptor Details -->
         <div class="grid-cards">
             <div class="info-card">
-                <div class="card-title">Cliente / Receptor</div>
+                <div class="card-title" style="text-align: center;">Cliente</div>
                 <div class="card-body">
                     <div><strong>Nombre:</strong> ${client.Nombre}</div>
                     <div><strong>Documento:</strong> ${client['Tipo Doc'] || client.Tipo_Documento || 'DUI'}: ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
@@ -2939,7 +2950,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                 </div>
             </div>
             <div class="info-card">
-                <div class="card-title">Vehículo Asociado</div>
+                <div class="card-title" style="text-align: center;">Vehículo</div>
                 <div class="card-body">
                     <div><strong>Placa:</strong> ${vehicle.Placas || 'N/A'} &nbsp;&nbsp;&nbsp; <strong>Año:</strong> ${vehicle.Año || 'N/A'}</div>
                     <div><strong>Marca / Modelo:</strong> ${vehicle.Marca || 'N/A'} ${vehicle.Modelo || 'N/A'}</div>
@@ -2988,22 +2999,18 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             <table class="totals-subtable">
                 <tr>
                     <td class="total-label">Sumatoria Repuestos y Servicios</td>
-                    <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="total-val">$ ${(subtotal * ivaMultiplier).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
                 ${safe(discount > 0 ? `
                 <tr>
                     <td class="total-label">(-) Descuento</td>
-                    <td class="total-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="total-val" style="color: #b91c1c;">- $ ${(discount * ivaMultiplier).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
                 ` : '')}
-                <tr>
-                    <td class="total-label">IVA (13%)</td>
-                    <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                </tr>
                 ${percRow}
                 ${retRow}
                 <tr class="grand-total-row">
-                    <td class="total-label">Total Neto a Pagar</td>
+                    <td class="total-label">Total a Pagar</td>
                     <td class="total-val">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             </table>
