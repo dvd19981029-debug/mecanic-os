@@ -310,7 +310,8 @@ export function renderPendingTab(container) {
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             let retVal = 0;
             let percVal = 0;
-            if (client.AplicaRetencion > 0) retVal = subtotal * parseFloat(client.AplicaRetencion);
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            if (isGranContrib && subtotal >= 100.00) retVal = subtotal * 0.01;
             if (client.AplicaPercepcion > 0) percVal = subtotal * parseFloat(client.AplicaPercepcion);
             const grandTotal = subtotal + iva + percVal - retVal;
             const grandTotalString = grandTotal.toFixed(2);
@@ -344,8 +345,9 @@ export function renderPendingTab(container) {
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             let retVal = 0;
             let percVal = 0;
-            if (client.AplicaRetencion > 0) {
-                retVal = subtotal * parseFloat(client.AplicaRetencion);
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            if (isGranContrib && subtotal >= 100.00) {
+                retVal = subtotal * 0.01;
             }
             if (client.AplicaPercepcion > 0) {
                 percVal = subtotal * parseFloat(client.AplicaPercepcion);
@@ -485,7 +487,8 @@ export function renderIssuedTab(container) {
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             let retVal = 0;
             let percVal = 0;
-            if (client.AplicaRetencion > 0) retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            if (isGranContrib && subtotalConDescuento >= 100.00) retVal = subtotalConDescuento * 0.01;
             if (client.AplicaPercepcion > 0) percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
             const grandTotal = subtotalConDescuento + iva + percVal - retVal;
             const grandTotalString = grandTotal.toFixed(2);
@@ -531,8 +534,9 @@ export function renderIssuedTab(container) {
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             let retVal = 0;
             let percVal = 0;
-            if (client.AplicaRetencion > 0) {
-                retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            if (isGranContrib && subtotalConDescuento >= 100.00) {
+                retVal = subtotalConDescuento * 0.01;
             }
             if (client.AplicaPercepcion > 0) {
                 percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
@@ -832,8 +836,9 @@ export function renderInvoicingWorkspace(container, presId) {
         perception = subtotal * parseFloat(client.AplicaPercepcion);
         grandTotal += perception;
     }
-    if (client.AplicaRetencion > 0) {
-        retention = subtotal * parseFloat(client.AplicaRetencion);
+    const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+    if (isGranContrib && subtotal >= 100.00) {
+        retention = subtotal * 0.01;
         grandTotal -= retention;
     }
 
@@ -969,6 +974,7 @@ export function renderInvoicingWorkspace(container, presId) {
 
         if (isCCF) {
             recipientPayload.contributorType = client['Tipo Cliente'] === 'JURIDICA' ? 'JURIDICA' : 'NATURAL';
+            recipientPayload.contributorSize = client['Categoría Contribuyente'] || 'OTROS';
             let giroCode = '45201';
             if (client.Giro) {
                 const match = client.Giro.match(/^\d{5}/);
@@ -1013,10 +1019,14 @@ export function renderInvoicingWorkspace(container, presId) {
         const vehicleInfo = `${vehicle.Placas || 'n/a'} ${vehicle.Marca || ''} ${vehicle.Modelo || ''} ${vehicle.Año || vehicle.Anio || ''}`;
         const ws = (db.saas_state && db.saas_state.workshopData) || {};
 
+        const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+        const dteRetention = (isGranContribValue && subtotal >= 100.00) ? parseFloat((subtotal * 0.01).toFixed(4)) : 0;
+
         const dtePayload = {
             id: generateUUID(),
             recipient: recipientPayload,
-            items: formattedItems
+            items: formattedItems,
+            retentionIva: dteRetention
         };
 
         if (payCond === 'CREDITO') {
@@ -1393,8 +1403,9 @@ export function printDteTicket(presId) {
         if (client.AplicaPercepcion > 0) {
             perception = subtotal * parseFloat(client.AplicaPercepcion);
         }
-        if (client.AplicaRetencion > 0) {
-            retention = subtotal * parseFloat(client.AplicaRetencion);
+        const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+        if (isGranContrib && subtotal >= 100.00) {
+            retention = subtotal * 0.01;
         }
         const grandTotal = subtotal + iva + perception - retention;
 

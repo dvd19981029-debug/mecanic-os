@@ -628,8 +628,9 @@ export function renderVentaRapida(container) {
             grandTotal += perception;
             retPerSection.innerHTML += `<div class="summary-row" style="display:flex; justify-content:space-between;"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perception.toFixed(2)}</span></div>`;
         }
-        if (client.AplicaRetencion > 0) {
-            retention = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+        const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+        if (isGranContrib && subtotalConDescuento >= 100.00) {
+            retention = subtotalConDescuento * 0.01;
             grandTotal -= retention;
             retPerSection.innerHTML += `<div class="summary-row" style="display:flex; justify-content:space-between;"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${retention.toFixed(2)}</span></div>`;
         }
@@ -900,6 +901,7 @@ export function renderVentaRapida(container) {
             
             if (isCCF) {
                 recipientPayload.contributorType = client['Tipo Cliente'] === 'JURIDICA' ? 'JURIDICA' : 'NATURAL';
+                recipientPayload.contributorSize = client['Categoría Contribuyente'] || 'OTROS';
                 let giroCode = '45201';
                 if (client.Giro) {
                     const match = client.Giro.match(/^\d{5}/);
@@ -961,11 +963,15 @@ export function renderVentaRapida(container) {
                 })
             ];
             
+            const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            const dteRetention = (isGranContribValue && lastCalculatedSubtotal >= 100.00) ? parseFloat((lastCalculatedSubtotal * 0.01).toFixed(4)) : 0;
+            
             const dtePayload = {
                 id: generateUUID(),
                 recipient: recipientPayload,
                 items: formattedItems,
-                paymentType: 'CONTADO'
+                paymentType: 'CONTADO',
+                retentionIva: dteRetention
             };
             
             submitBtn.disabled = true;

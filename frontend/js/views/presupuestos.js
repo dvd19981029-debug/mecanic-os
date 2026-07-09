@@ -138,8 +138,9 @@ export function renderPresupuestos(container, queryParams) {
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             let retVal = 0;
             let percVal = 0;
-            if (client.AplicaRetencion > 0) {
-                retVal = subtotal * parseFloat(client.AplicaRetencion);
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
+            if (isGranContrib && subtotal >= 100.00) {
+                retVal = subtotal * 0.01;
             }
             if (client.AplicaPercepcion > 0) {
                 percVal = subtotal * parseFloat(client.AplicaPercepcion);
@@ -807,8 +808,9 @@ export function renderBudgetEditor(container, budget) {
             grandTotal += perc;
             retPerEl.innerHTML += `<div class="summary-row"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perc.toFixed(2)}</span></div>`;
         }
-        if (selectedClient.AplicaRetencion > 0) {
-            const ret = subtotalConDescuento * parseFloat(selectedClient.AplicaRetencion);
+        const isGranContrib = selectedClient['Categoría Contribuyente'] === 'GRANDE' || (selectedClient.AplicaRetencion > 0);
+        if (isGranContrib && subtotalConDescuento >= 100.00) {
+            const ret = subtotalConDescuento * 0.01;
             grandTotal -= ret;
             retPerEl.innerHTML += `<div class="summary-row"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${ret.toFixed(2)}</span></div>`;
         }
@@ -3050,8 +3052,9 @@ export function exportBudgetPDF(budgetId) {
 
     let retVal = 0;
     let percVal = 0;
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+    const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
+    if (isGranContrib && subtotalConDescuento >= 100.00) {
+        retVal = subtotalConDescuento * 0.01;
     }
     if (client.AplicaPercepcion > 0) {
         percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
