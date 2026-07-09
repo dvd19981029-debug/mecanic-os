@@ -2814,28 +2814,28 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
-            margin-bottom: 25px;
+            font-size: 0.72rem;
+            margin-bottom: 20px;
         }
         th {
             border-bottom: 2px solid var(--primary-color);
             color: var(--primary-color);
             font-weight: 700;
             text-align: left;
-            padding: 8px;
-            font-size: 0.75rem;
+            padding: 6px 8px;
+            font-size: 0.68rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         td {
             border-bottom: 1px solid var(--border-color);
-            padding: 10px 8px;
+            padding: 6px 8px;
         }
         
         .totals-block {
             display: flex;
             justify-content: flex-end;
-            margin-top: 20px;
+            margin-top: 15px;
             page-break-inside: avoid;
         }
         .totals-subtable {
@@ -2843,8 +2843,8 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         }
         .totals-subtable td {
             border-bottom: 1px solid var(--border-color);
-            padding: 8px 10px;
-            font-size: 0.8rem;
+            padding: 5px 8px;
+            font-size: 0.72rem;
         }
         .total-label {
             font-weight: 600;
@@ -2857,7 +2857,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             border-top: 2px solid var(--accent-color);
             border-bottom: 2px solid var(--accent-color);
             background-color: var(--bg-light);
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             font-weight: 800;
             color: var(--primary-color);
         }
