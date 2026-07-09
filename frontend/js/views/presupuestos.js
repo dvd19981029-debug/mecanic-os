@@ -2724,36 +2724,31 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             border-radius: 8px;
         }
 
-        .centered-header {
-            text-align: center;
-            margin-bottom: 30px;
+        .pdf-header {
+            display: grid;
+            grid-template-columns: 1.3fr 1.1fr 0.8fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: start;
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 25px;
+            padding-bottom: 15px;
         }
-        .header-logo {
-            margin-bottom: 10px;
+        .company-details {
+            font-size: 0.72rem;
+            line-height: 1.4;
         }
-        .header-title {
+        .company-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.8rem;
             font-weight: 800;
+            font-size: 1.25rem;
+            margin: 0 0 4px 0;
             color: var(--primary-color);
-            margin: 0;
-            letter-spacing: -0.03em;
         }
-        .header-tagline {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--accent-color);
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            margin-top: 2px;
-            margin-bottom: 10px;
-        }
-        .header-meta {
-            font-size: 0.75rem;
-            color: #64748b;
-            line-height: 1.5;
+        .logo-container {
+            text-align: center;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
         }
 
         .doc-meta-row {
@@ -2902,18 +2897,21 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
     </div>
 
     <div class="page-container">
-        <!-- Centered Header -->
-        <div class="centered-header">
-            <div class="header-logo">
-                ${safe(logoHTML)}
+        <!-- Header -->
+        <div class="pdf-header">
+            <div class="company-details">
+                <h1 class="company-title">${ws.nombre_comercial || ws.nombre}</h1>
+                ${ws.nombre_comercial && ws.nombre_comercial !== ws.nombre ? `<div><strong>Razón Social:</strong> ${ws.nombre}</div>` : ''}
+                <div><strong>NIT:</strong> ${ws.num_documento || ws.nit || ''} ${ws.nrc ? `&nbsp;&nbsp; <strong>NRC:</strong> ${ws.nrc}` : ''}</div>
+                <div><strong>Giro:</strong> ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}</div>
             </div>
-            <div class="header-title" style="display:${ws.logo ? 'block' : 'none'}; font-size:1.4rem; font-weight:600; margin-top:5px;">${ws.nombre_comercial || ws.nombre}</div>
-            <div class="header-tagline">${ws.logoTagline || 'Mantenimiento de Flotas y Vehículos'}</div>
-            <div class="header-meta">
-                ${ws.nombre_comercial && ws.nombre_comercial !== ws.nombre ? `${ws.nombre} &bull; ` : ''}
-                Dirección: ${ws.direccion || ''}${ws.municipio || ws.departamento || ws.pais ? `, ${[ws.municipio, ws.departamento, ws.pais].filter(Boolean).join(', ')}` : ''}<br>
-                Tel: ${ws.telefono} &bull; Correo: ${ws.correo}<br>
-                ${ws.tipo_documento || 'NIT'}: ${ws.num_documento || ws.nit || ''} ${ws.nrc ? ` &bull; NRC: ${ws.nrc}` : ''} &bull; Giro: ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}
+            <div class="company-details">
+                <div><strong>Dirección:</strong> ${ws.direccion || ''}${ws.municipio || ws.departamento || ws.pais ? `, ${[ws.municipio, ws.departamento, ws.pais].filter(Boolean).join(', ')}` : ''}</div>
+                <div><strong>Teléfono:</strong> ${ws.telefono}</div>
+                <div><strong>Correo:</strong> ${ws.correo}</div>
+            </div>
+            <div class="logo-container">
+                ${safe(logoHTML)}
             </div>
         </div>
 
