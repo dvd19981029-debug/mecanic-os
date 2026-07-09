@@ -1940,10 +1940,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 </tr>
                 ${percRow}
                 ${retRow}
-                <tr>
-                    <td class="totals-label">(-) Retención Renta</td>
-                    <td class="totals-val">$ 0.00</td>
-                </tr>
+
                 <tr class="grand-total-row">
                     <td class="totals-label" style="background-color: var(--primary-color); color: #fff;">Total a Pagar</td>
                     <td class="totals-val" style="font-weight: bold; font-size: 1.05rem;">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -2538,10 +2535,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                     </tr>
                     ${percRow}
                     ${retRow}
-                    <tr>
-                        <td class="totals-label">(-) Retención Renta</td>
-                        <td class="totals-val">$ 0.00</td>
-                    </tr>
+
                     <tr class="grand-total-row">
                         <td class="totals-label">Total a Pagar</td>
                         <td class="totals-val">$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
