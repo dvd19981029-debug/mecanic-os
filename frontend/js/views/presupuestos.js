@@ -2796,9 +2796,9 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             letter-spacing: 0.05em;
         }
         .card-body div {
-            margin-bottom: 6px;
-            font-size: 0.78rem;
-            line-height: 1.4;
+            margin-bottom: 4px;
+            font-size: 0.72rem;
+            line-height: 1.25;
         }
 
         .section-title {
