@@ -921,16 +921,17 @@ export async function renderAdminSolicitudes(container) {
     }
     
     // Load and sync central SaaS config from /saas_metrics/config
-    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+    const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
+    if (adminDb) {
         try {
-            const configDoc = await dbFirestore.collection("saas_metrics").doc("config").get();
+            const configDoc = await adminDb.collection("saas_metrics").doc("config").get();
             if (configDoc.exists) {
                 const saasConfigGlobal = configDoc.data();
                 db.saas_config = saasConfigGlobal;
                 localStorage.setItem('mecanic_os_db', JSON.stringify(db));
             } else if (db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientId) {
                 // Migrate local config of logged-in user to central cloud doc
-                await dbFirestore.collection("saas_metrics").doc("config").set(db.saas_config);
+                await adminDb.collection("saas_metrics").doc("config").set(db.saas_config);
                 console.log("Migrated local SaaS config to central cloud config.");
             }
         } catch (e) {
@@ -2732,9 +2733,10 @@ if (window.saasViewReceiptPaymentId) {
                 };
                 saveDatabase(currentDb).then(async () => {
                     // Save to central cloud document /saas_metrics/config
-                    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                    const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
+                    if (adminDb) {
                         try {
-                            await dbFirestore.collection("saas_metrics").doc("config").set(currentDb.saas_config);
+                            await adminDb.collection("saas_metrics").doc("config").set(currentDb.saas_config);
                             console.log("Central SaaS config successfully saved to cloud.");
                         } catch (err) {
                             console.error("Error saving global SaaS config to Firestore:", err);
@@ -3056,9 +3058,10 @@ if (window.saasViewReceiptPaymentId) {
             }
 
             // 2. Real-time quota listener
-            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+            const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
+            if (adminDb) {
                 const dateStr = new Date().toISOString().split('T')[0];
-                window.saasQuotaUnsubscribe = dbFirestore.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).onSnapshot((doc) => {
+                window.saasQuotaUnsubscribe = adminDb.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).onSnapshot((doc) => {
                     if (!progressContainer) return;
                     
                     const data = doc.exists ? doc.data() : { reads: 0, writes: 0, deletes: 0 };
@@ -3757,7 +3760,8 @@ if (window.saasViewReceiptPaymentId) {
             const logsContainer = document.getElementById('saas-dte-logs-container');
             if (!logsContainer) return;
             
-            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+            const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
+            if (!adminDb) {
                 logsContainer.innerHTML = `
                     <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; color: var(--warning); margin-bottom: 1rem;"></i>
@@ -3768,7 +3772,7 @@ if (window.saasViewReceiptPaymentId) {
             }
 
             try {
-                const logsSnap = await dbFirestore.collection('dte_api_logs')
+                const logsSnap = await adminDb.collection('dte_api_logs')
                     .orderBy('timestamp', 'desc')
                     .limit(100)
                     .get();
