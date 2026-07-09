@@ -225,6 +225,7 @@ export function renderBudgetEditor(container, budget) {
             AplicaPercepcion: 0,
             AplicaRetencion: 0,
             Tecnico_Asignado: db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
+            Asesor_Asignado: '',
             Fallas_Detectadas: '',
             "Pagado?": "NO"
         };
@@ -241,6 +242,7 @@ export function renderBudgetEditor(container, budget) {
     const client = isNew ? null : (db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { Nombre: budget.Nombre });
     const vehicle = isNew ? null : (db.vehiculos.find(v => v.ID_Vehiculo === budget.ID_Vehiculo) || { Placas: budget.Placas || 'N/A', Marca: 'N/A', Modelo: 'N/A' });
     const techsHTML = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${budget.Tecnico_Asignado === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
+    const advisorsHTML = db.tecnicos.map(t => `<option value="${t.Tecnico_ID}" ${budget.Asesor_Asignado === t.Tecnico_ID ? 'selected' : ''}>${t.Nombre_Completo}</option>`).join('');
 
     // Generate header HTML
     let headerHTML = '';
@@ -275,6 +277,13 @@ export function renderBudgetEditor(container, budget) {
                             ${safe(techsHTML)}
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Asesor Comercial</label>
+                        <select id="editor-advisor-select" style="padding: 0.6rem;">
+                            <option value="">-- Sin Asignar --</option>
+                            ${safe(advisorsHTML)}
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -304,11 +313,20 @@ export function renderBudgetEditor(container, budget) {
                         <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${escapeHtml(vehicle.Placas)} (${escapeHtml(vehicle.Marca)} ${escapeHtml(vehicle.Modelo)})</strong> • Nº Equipo: <strong>${escapeHtml(vehicle.N_Equipo || 'N/A')}</strong> • Odómetro: ${escapeHtml(budget.Kilometraje || '0')}</p>
                         ${ingestLinkHTML}
                     </div>
-                    <div class="form-group" style="width: 200px;">
-                        <label>Técnico Asignado</label>
-                        <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
-                            ${safe(techsHTML)}
-                        </select>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <div class="form-group" style="width: 160px;">
+                            <label>Asesor</label>
+                            <select id="editor-advisor-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                                <option value="">-- Sin Asignar --</option>
+                                ${safe(advisorsHTML)}
+                            </select>
+                        </div>
+                        <div class="form-group" style="width: 160px;">
+                            <label>Técnico Asignado</label>
+                            <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                                ${safe(techsHTML)}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
@@ -521,6 +539,10 @@ export function renderBudgetEditor(container, budget) {
         const techEl = document.getElementById('editor-tech-select');
         if (techEl) {
             budget.Tecnico_Asignado = techEl.value;
+        }
+        const advisorEl = document.getElementById('editor-advisor-select');
+        if (advisorEl) {
+            budget.Asesor_Asignado = advisorEl.value;
         }
         const stateEl = document.getElementById('editor-state');
         if (stateEl) {
@@ -1217,6 +1239,10 @@ export function renderBudgetEditor(container, budget) {
             budget.Observaciones = obsEl.value;
         }
         budget.Tecnico_Asignado = document.getElementById('editor-tech-select').value;
+        const advisorSelect = document.getElementById('editor-advisor-select');
+        if (advisorSelect) {
+            budget.Asesor_Asignado = advisorSelect.value;
+        }
         
         // Validate technician assignment on every row if in Detailed Commission model (unless rejecting)
         const config = getWorkshopConfig(db);
@@ -1344,6 +1370,9 @@ export function renderBudgetEditor(container, budget) {
     
     const techEl = document.getElementById('editor-tech-select');
     if (techEl) techEl.addEventListener('change', autoSaveBudget);
+
+    const advisorEl = document.getElementById('editor-advisor-select');
+    if (advisorEl) advisorEl.addEventListener('change', autoSaveBudget);
     
     const fallasEl = document.getElementById('editor-fallas');
     if (fallasEl) {
@@ -1959,6 +1988,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
     const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+    const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     
     // Extract formatted time of generation from budget.Hora or budget.Fecha timestamp
     let horaStr = '12:00:00';
@@ -2433,7 +2463,8 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <div><strong>Fecha de Generación:</strong><br>${new Date(budget.Fecha).toLocaleDateString('es-SV')}</div>
                 <div><strong>Hora de Generación:</strong><br>${horaStr}</div>
                 
-                <div style="grid-column: span 2;"><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
+                <div><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
+                <div><strong>Asesor:</strong><br>${advisor.Nombre_Completo}</div>
             </div>
         </div>
 

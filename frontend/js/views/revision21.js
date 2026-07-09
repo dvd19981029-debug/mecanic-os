@@ -167,7 +167,8 @@ export function renderRevision21(container, queryParams) {
                 AplicaPercepcion: client.AplicaPercepcion || 0,
                 AplicaRetencion: client.AplicaRetencion || 0,
                 "Revision 21 puntos": revId,
-                "Tecnico Asignado": db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
+                Tecnico_Asignado: db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
+                Asesor_Asignado: '',
                 Fallas_Detectadas: fallas,
                 "Pagado?": "NO"
             };
@@ -445,7 +446,8 @@ window.createBudgetFromInspection = function(revId) {
         AplicaPercepcion: client.AplicaPercepcion || 0,
         AplicaRetencion: client.AplicaRetencion || 0,
         "Revision 21 puntos": revId,
-        "Tecnico Asignado": db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
+        Tecnico_Asignado: db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
+        Asesor_Asignado: '',
         Fallas_Detectadas: revision.Fallas_Reportadas,
         "Pagado?": "NO"
     };
