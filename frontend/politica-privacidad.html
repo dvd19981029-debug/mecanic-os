@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Mecanic OS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 4rem auto;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+        }
+
+        p, li {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        ul {
+            padding-left: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: var(--primary);
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+            margin-top: 1.5rem;
+        }
+
+        .btn-back:hover {
+            background-color: var(--primary-hover);
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                margin: 2rem auto;
+                padding: 1rem;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div style="font-size: 3.5rem; color: var(--primary); margin-bottom: 1rem;">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h1>Política de Privacidad</h1>
+            <p>Mecanic OS &bull; Sistema de Gestión de Talleres Mecánicos</p>
+        </div>
+
+        <div class="card">
+            <h2>1. Introducción</h2>
+            <p>
+                En <strong>Mecanic OS</strong>, valoramos y respetamos la privacidad de nuestros usuarios. Esta Política de Privacidad describe cómo recopilamos, utilizamos, almacenamos y protegemos la información personal y los datos operativos que usted ingresa en nuestro sistema a través de nuestro sitio web y nuestra aplicación móvil oficial.
+            </p>
+
+            <h2>2. Información que Recopilamos</h2>
+            <p>Para proveer las funcionalidades de gestión de talleres y facturación electrónica, recopilamos la siguiente información:</p>
+            <ul>
+                <li><strong>Datos de Autenticación:</strong> Correo electrónico y contraseña maestra encriptada mediante servicios de Google Firebase Auth para asegurar su cuenta.</li>
+                <li><strong>Información del Taller:</strong> Nombre comercial, razón social, NIT, NRC, actividad económica (giro), dirección, teléfono y correo electrónico de contacto.</li>
+                <li><strong>Datos Operativos:</strong> Información sobre sus clientes, vehículos (placa, marca, modelo, año, VIN, motor), presupuestos, servicios realizados e inventario de repuestos.</li>
+                <li><strong>Documentos Tributarios (DTE):</strong> Logs de peticiones de firma y transmisión de documentos tributarios enviados al Ministerio de Hacienda de El Salvador.</li>
+            </ul>
+
+            <h2>3. Uso de la Información</h2>
+            <p>La información recopilada se utiliza exclusivamente para los siguientes propósitos:</p>
+            <ul>
+                <li>Permitir el correcto funcionamiento del sistema, incluyendo la creación de presupuestos, órdenes de trabajo e historial de mantenimientos.</li>
+                <li>Facilitar la emisión y transmisión de Facturas de Consumo Final (FC) y Comprobantes de Crédito Fiscal (CCF) autorizados por el Ministerio de Hacienda.</li>
+                <li>Procesar sus pagos recurrentes de suscripción de manera segura mediante la pasarela de pagos integrada de Wompi.</li>
+                <li>Analizar estadísticas de uso anónimas para optimizar el rendimiento de la aplicación y solucionar posibles fallos.</li>
+            </ul>
+
+            <h2>4. Almacenamiento y Seguridad de los Datos</h2>
+            <p>
+                Sus datos son almacenados en las bases de datos en la nube de Google Firebase (Firestore) en servidores de alta seguridad. Adicionalmente, el sistema implementa una caché local segura mediante IndexedDB en su navegador o dispositivo para posibilitar el trabajo sin conexión a internet.
+            </p>
+            <p>
+                Implementamos medidas de seguridad técnicas y organizativas para proteger su información contra accesos no autorizados, pérdidas, alteraciones o divulgación.
+            </p>
+
+            <h2>5. Control de Datos de Firebase Personalizado</h2>
+            <p>
+                Mecanic OS permite a los talleres configurar sus propias credenciales de base de datos de Firebase. Si decide utilizar su propia base de datos, el almacenamiento y la seguridad de sus datos operativos quedarán regidos por las políticas y la configuración de seguridad del proyecto de Firebase de su propiedad.
+            </p>
+
+            <h2>6. Sus Derechos</h2>
+            <p>
+                Usted tiene derecho a acceder, rectificar o eliminar su información personal y los datos de su taller en cualquier momento ingresando al panel de Ajustes del sistema o contactando a nuestro equipo de soporte técnico.
+            </p>
+
+            <h2>7. Contacto</h2>
+            <p>
+                Si tiene preguntas, inquietudes o sugerencias acerca de esta política de privacidad, puede ponerse en contacto con nosotros escribiendo al correo electrónico oficial de la plataforma:
+            </p>
+            <p style="text-align: center; font-weight: 600; color: var(--text-primary);">
+                <i class="fa-solid fa-envelope" style="color: var(--primary); margin-right: 0.5rem;"></i> soporte@mecanicos.com
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2026 Mecanic OS. Todos los derechos reservados.</p>
+            <a href="#taller-dashboard" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Volver a la Aplicación</a>
+        </div>
+    </div>
+
+</body>
+</html>
