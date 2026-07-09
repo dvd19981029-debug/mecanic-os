@@ -245,18 +245,11 @@ async function saveDatabase(db) {
 
 let isFirebaseConnected = false;
 let dbFirestore = null;
-let saasAdminFirestore = null;
 let currentFirebaseUser = null;
 
 Object.defineProperty(window, 'dbFirestore', {
     get() { return dbFirestore; },
     set(val) { dbFirestore = val; },
-    configurable: true
-});
-
-Object.defineProperty(window, 'saasAdminFirestore', {
-    get() { return saasAdminFirestore; },
-    set(val) { saasAdminFirestore = val; },
     configurable: true
 });
 
@@ -307,19 +300,6 @@ function initFirebase() {
             firebase.initializeApp(config);
         }
         dbFirestore = firebase.firestore();
-        
-        // Inicializar app secundaria para el Admin de SaaS (siempre conectada al proyecto por defecto de la plataforma)
-        try {
-            if (!firebase.apps.find(app => app.name === 'saasAdminApp')) {
-                firebase.initializeApp(DEFAULT_FIREBASE_CONFIG, 'saasAdminApp');
-            }
-            const saasAppInstance = firebase.app('saasAdminApp');
-            saasAdminFirestore = firebase.firestore(saasAppInstance);
-            console.log("Firestore SaaS Admin inicializado correctamente.");
-        } catch (e) {
-            console.error("Error al inicializar Firebase SaaS Admin App:", e);
-        }
-
         isFirebaseConnected = true;
     } catch (err) {
         console.error("Error al inicializar Firebase:", err);

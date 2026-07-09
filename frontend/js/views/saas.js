@@ -906,6 +906,7 @@ export async function renderAdminSolicitudes(container) {
     const db = getDatabase();
     const currentUser = (typeof firebase !== 'undefined' && firebase.apps.length > 0) ? firebase.auth().currentUser : null;
     const isFirebaseAdmin = currentUser && ['dvd19981029@gmail.com', 'amejia2998@gmail.com'].includes((currentUser.email || '').toLowerCase());
+    const hasCustomFirebaseConfig = localStorage.getItem('mecanic_os_firebase_config') !== null;
     
     // Wire up central requests listener
     if (typeof dbFirestore !== 'undefined' && dbFirestore && !window.saasRequestsListenerWired) {
@@ -921,17 +922,16 @@ export async function renderAdminSolicitudes(container) {
     }
     
     // Load and sync central SaaS config from /saas_metrics/config
-    const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
-    if (adminDb) {
+    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
         try {
-            const configDoc = await adminDb.collection("saas_metrics").doc("config").get();
+            const configDoc = await dbFirestore.collection("saas_metrics").doc("config").get();
             if (configDoc.exists) {
                 const saasConfigGlobal = configDoc.data();
                 db.saas_config = saasConfigGlobal;
                 localStorage.setItem('mecanic_os_db', JSON.stringify(db));
             } else if (db.saas_config && db.saas_config.wompi && db.saas_config.wompi.clientId) {
                 // Migrate local config of logged-in user to central cloud doc
-                await adminDb.collection("saas_metrics").doc("config").set(db.saas_config);
+                await dbFirestore.collection("saas_metrics").doc("config").set(db.saas_config);
                 console.log("Migrated local SaaS config to central cloud config.");
             }
         } catch (e) {
@@ -2455,6 +2455,19 @@ if (window.saasViewReceiptPaymentId) {
                 </div>
             </div>
             
+            ${safe(hasCustomFirebaseConfig ? `
+                <div style="background:rgba(243, 156, 18, 0.08); border:1px solid rgba(243, 156, 18, 0.3); color:#f39c12; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:0.75rem; font-size:0.9rem; line-height:1.5; text-align:left;">
+                    <i class="fa-solid fa-database" style="font-size:1.4rem; color:#f39c12; margin-top:0.1rem;"></i>
+                    <div style="flex:1;">
+                        <strong style="color:#fff; font-family:'Outfit', sans-serif; font-size:1rem; display:block; margin-bottom:0.4rem;">⚠️ Conectado a Base de Datos Personalizada</strong>
+                        Tu navegador está configurado para conectarse a un proyecto de Firebase personalizado en tu almacenamiento local. Por lo tanto, estás viendo únicamente los logs y métricas de ese proyecto.
+                        <br><br>
+                        <strong>Para ver las métricas globales del servidor de producción central (GCP):</strong>
+                        Limpia tu configuración de base de datos personalizada en la sección de Ajustes del taller (limpiar configuración de Firebase).
+                    </div>
+                </div>
+            ` : '')}
+            
             ${safe(!isFirebaseAdmin ? `
                 <div style="background:rgba(231, 76, 60, 0.08); border:1px solid rgba(231, 76, 60, 0.3); color:#ff7675; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:0.75rem; font-size:0.9rem; line-height:1.5; text-align:left;">
                     <i class="fa-solid fa-triangle-exclamation" style="font-size:1.4rem; color:#e74c3c; margin-top:0.1rem;"></i>
@@ -2733,10 +2746,9 @@ if (window.saasViewReceiptPaymentId) {
                 };
                 saveDatabase(currentDb).then(async () => {
                     // Save to central cloud document /saas_metrics/config
-                    const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
-                    if (adminDb) {
+                    if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                         try {
-                            await adminDb.collection("saas_metrics").doc("config").set(currentDb.saas_config);
+                            await dbFirestore.collection("saas_metrics").doc("config").set(currentDb.saas_config);
                             console.log("Central SaaS config successfully saved to cloud.");
                         } catch (err) {
                             console.error("Error saving global SaaS config to Firestore:", err);
@@ -3058,10 +3070,9 @@ if (window.saasViewReceiptPaymentId) {
             }
 
             // 2. Real-time quota listener
-            const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
-            if (adminDb) {
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 const dateStr = new Date().toISOString().split('T')[0];
-                window.saasQuotaUnsubscribe = adminDb.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).onSnapshot((doc) => {
+                window.saasQuotaUnsubscribe = dbFirestore.collection("saas_metrics").doc("quotas").collection("days").doc(dateStr).onSnapshot((doc) => {
                     if (!progressContainer) return;
                     
                     const data = doc.exists ? doc.data() : { reads: 0, writes: 0, deletes: 0 };
@@ -3760,8 +3771,7 @@ if (window.saasViewReceiptPaymentId) {
             const logsContainer = document.getElementById('saas-dte-logs-container');
             if (!logsContainer) return;
             
-            const adminDb = (typeof saasAdminFirestore !== 'undefined' && saasAdminFirestore) ? saasAdminFirestore : dbFirestore;
-            if (!adminDb) {
+            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
                 logsContainer.innerHTML = `
                     <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; color: var(--warning); margin-bottom: 1rem;"></i>
@@ -3772,7 +3782,7 @@ if (window.saasViewReceiptPaymentId) {
             }
 
             try {
-                const logsSnap = await adminDb.collection('dte_api_logs')
+                const logsSnap = await dbFirestore.collection('dte_api_logs')
                     .orderBy('timestamp', 'desc')
                     .limit(100)
                     .get();
