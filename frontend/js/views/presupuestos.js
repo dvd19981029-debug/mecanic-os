@@ -90,7 +90,7 @@ export function renderPresupuestos(container, queryParams) {
 
         rowsContainer.innerHTML = '';
         const filtered = db.presupuestos.filter(p => 
-            p.Estado != 2 && p.Estado != 3 && p.Estado != 4 &&
+            p.Estado != 2 && p.Estado != 3 && p.Estado != 4 && p.Estado != 5 &&
             ((p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
             (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
             (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
