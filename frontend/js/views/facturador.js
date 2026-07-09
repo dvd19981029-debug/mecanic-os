@@ -943,8 +943,11 @@ export function renderInvoicingWorkspace(container, presId) {
         }
 
         const phoneClean = (client['Telefono 1 '] || client.Telefono || '').replace(/\D/g, '').slice(0, 8);
-        const docTypeVal = client['Tipo Doc'] === 'NIT' ? 'NIT' : 'DUI';
-        const docNumClean = (client['Num Doc'] || client.NIT || '').replace(/\D/g, '');
+        let docTypeVal = 'DUI';
+        if (client['Tipo Cliente'] === 'JURIDICA' || client['Tipo Doc'] === 'NIT' || (client.NIT && !client['Num Doc'])) {
+            docTypeVal = 'NIT';
+        }
+        const docNumClean = (docTypeVal === 'NIT' ? (client.NIT || client['Num Doc'] || '') : (client['Num Doc'] || client.NIT || '')).replace(/\D/g, '');
 
         let recipientPayload = {
             name: client.Nombre || 'Consumidor Final',
