@@ -985,7 +985,7 @@ export function renderInvoicingWorkspace(container, presId) {
         const formattedItems = [
             ...prodItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, false);
-                const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                const unitPrice = rawPrice;
                 return {
                     type: 'BIENES',
                     internalCode: String(item['ID_Producto DPP'] || '').trim(),
@@ -997,7 +997,7 @@ export function renderInvoicingWorkspace(container, presId) {
             }),
             ...laborItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, true);
-                const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                const unitPrice = rawPrice;
                 return {
                     type: 'SERVICIOS',
                     internalCode: String(item['ID_ManoObra'] || '').trim(),

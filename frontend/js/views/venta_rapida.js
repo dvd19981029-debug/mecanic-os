@@ -937,7 +937,7 @@ export function renderVentaRapida(container) {
             const formattedItems = [
                 ...(vr.productos || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, false);
-                    const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                    const unitPrice = rawPrice;
                     return {
                         type: 'BIENES',
                         internalCode: String(item.id || '').trim(),
@@ -949,7 +949,7 @@ export function renderVentaRapida(container) {
                 }),
                 ...(vr.mano_obra || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, true);
-                    const unitPrice = isCCF ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                    const unitPrice = rawPrice;
                     return {
                         type: 'SERVICIOS',
                         internalCode: String(item.id || '').trim(),
