@@ -50,7 +50,7 @@ export function renderComisiones(container, queryParams) {
         }
     } else {
         // If not admin, lock to current user's technician ID
-        const matchedTech = db.tecnicos.find(t => t.Tecnico_ID === currentUser.Tecnico_ID || (t.Email && t.Email.toLowerCase() === (currentUser.Email || '').toLowerCase()));
+        const matchedTech = db.tecnicos.find(t => t.Tecnico_ID === currentUser.Tecnico_ID || (t.Email && String(t.Email).toLowerCase() === String(currentUser.Email || '').toLowerCase()));
         if (matchedTech) {
             activeTechId = matchedTech.Tecnico_ID;
         } else if (db.tecnicos && db.tecnicos.length > 0) {
@@ -277,7 +277,7 @@ export function renderComisiones(container, queryParams) {
         techListContainer.innerHTML = '';
 
         const filtered = db.tecnicos.filter(t => 
-            t.Nombre_Completo.toLowerCase().includes(filter.toLowerCase())
+            String(t.Nombre_Completo || '').toLowerCase().includes(filter.toLowerCase())
         );
 
         if (filtered.length === 0) {

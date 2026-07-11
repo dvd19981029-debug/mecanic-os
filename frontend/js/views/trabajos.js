@@ -50,12 +50,12 @@ export function renderTrabajosTaller(container) {
             const tech = db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || {};
             
             const term = filter.toLowerCase().trim();
-            return (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
-                   (p.Nombre || '').toLowerCase().includes(term) ||
-                   (p.Placas || '').toLowerCase().includes(term) ||
-                   (vehicle.Marca || '').toLowerCase().includes(term) ||
-                   (vehicle.Modelo || '').toLowerCase().includes(term) ||
-                   (tech.Nombre_Completo || '').toLowerCase().includes(term);
+            return String(p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
+                   String(p.Nombre || '').toLowerCase().includes(term) ||
+                   String(p.Placas || '').toLowerCase().includes(term) ||
+                   String(vehicle.Marca || '').toLowerCase().includes(term) ||
+                   String(vehicle.Modelo || '').toLowerCase().includes(term) ||
+                   String(tech.Nombre_Completo || '').toLowerCase().includes(term);
         });
 
         // Sort by date descending (newest first)

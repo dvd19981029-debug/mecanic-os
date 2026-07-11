@@ -499,9 +499,9 @@ export function renderClientesVehiculos(container, queryParams) {
     function populateClientsList(filter = '') {
         clientsListContainer.innerHTML = '';
         const filtered = db.clientes.filter(c => 
-            (c.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (c.Codigo_Cliente || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (c.Num_Doc || '').toLowerCase().includes(filter.toLowerCase())
+            String(c.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(c.Codigo_Cliente || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(c.Num_Doc || '').toLowerCase().includes(filter.toLowerCase())
         );
         
         if (filtered.length === 0) {

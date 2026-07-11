@@ -91,9 +91,9 @@ export function renderPresupuestos(container, queryParams) {
         rowsContainer.innerHTML = '';
         const filtered = db.presupuestos.filter(p => 
             p.Estado != 2 && p.Estado != 3 && p.Estado != 4 && p.Estado != 5 &&
-            ((p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
+            (String(p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
         );
 
         // Sort by creation date descending (newest first)
@@ -1037,8 +1037,8 @@ export function renderBudgetEditor(container, budget) {
     function populateProdCatalog(filter = '') {
         prodResults.innerHTML = '';
         const filtered = db.productos.filter(p => 
-            (p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+            String(p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
         );
 
         filtered.slice(0, 10).forEach(p => {
@@ -1135,8 +1135,8 @@ export function renderBudgetEditor(container, budget) {
     function populateLaborCatalog(filter = '') {
         laborResults.innerHTML = '';
         const filtered = db.mano_obra.filter(mo => 
-            (mo.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (mo.ID_ManoObra || '').toString().includes(filter)
+            String(mo.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
+            String(mo.ID_ManoObra || '').toString().includes(filter)
         );
 
         filtered.slice(0, 10).forEach(mo => {

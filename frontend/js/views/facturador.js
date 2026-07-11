@@ -319,12 +319,12 @@ export function renderPendingTab(container) {
             
             const term = filter.toLowerCase().trim();
             const termWithDot = term.replace(',', '.');
-            return (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
-                (p.Nombre || '').toLowerCase().includes(term) ||
-                (p.Placas || '').toLowerCase().includes(term) ||
+            return String(p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
+                String(p.Nombre || '').toLowerCase().includes(term) ||
+                String(p.Placas || '').toLowerCase().includes(term) ||
                 grandTotalString.includes(term) ||
                 grandTotalString.includes(termWithDot) ||
-                grandTotalFormatted.toLowerCase().includes(term);
+                String(grandTotalFormatted).toLowerCase().includes(term);
         });
         
         if (filtered.length === 0) {
@@ -496,13 +496,13 @@ export function renderIssuedTab(container) {
             
             const term = filter.toLowerCase().trim();
             const termWithDot = term.replace(',', '.');
-            return (p.controlNumber || '').toLowerCase().includes(term) ||
-                (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
-                (p.Nombre || '').toLowerCase().includes(term) ||
-                (p.Placas || '').toLowerCase().includes(term) ||
+            return String(p.controlNumber || '').toLowerCase().includes(term) ||
+                String(p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
+                String(p.Nombre || '').toLowerCase().includes(term) ||
+                String(p.Placas || '').toLowerCase().includes(term) ||
                 grandTotalString.includes(term) ||
                 grandTotalString.includes(termWithDot) ||
-                grandTotalFormatted.toLowerCase().includes(term);
+                String(grandTotalFormatted).toLowerCase().includes(term);
         });
         
         // Sort by billing date descending (newest first)
