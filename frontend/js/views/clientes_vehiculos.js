@@ -423,6 +423,72 @@ export function renderClientesVehiculos(container, queryParams) {
                 </form>
             </div>
         </div>
+
+        <!-- Edit Vehicle Modal -->
+        <div id="edit-vehicle-modal" class="modal">
+            <div class="modal-content glass-card" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Editar Vehículo</h2>
+                    <button class="close-modal-btn" id="close-edit-vehicle-modal">&times;</button>
+                </div>
+                <form id="edit-vehicle-form">
+                    <input type="hidden" id="edit-veh-id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número de Placas</label>
+                            <input type="text" id="edit-veh-placa" required placeholder="P 000000, C 00000">
+                        </div>
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="edit-veh-marca" required placeholder="Toyota, Freightliner, Hino">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="edit-veh-modelo" required placeholder="Hilux, Cascadia, M3">
+                        </div>
+                        <div class="form-group">
+                            <label>Año</label>
+                            <input type="number" id="edit-veh-year" required placeholder="2018">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Color</label>
+                            <input type="text" id="edit-veh-color" placeholder="Blanco, Gris, Rojo">
+                        </div>
+                        <div class="form-group">
+                            <label>Odómetro (Kilometraje/Millas)</label>
+                            <input type="text" id="edit-veh-odo" placeholder="125,000 Km">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número de Motor</label>
+                            <input type="text" id="edit-veh-motor" placeholder="Código de Motor">
+                        </div>
+                        <div class="form-group">
+                            <label>Nº de Chasis / VIN</label>
+                            <input type="text" id="edit-veh-vin" placeholder="17 dígitos">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nº de Equipo</label>
+                            <input type="text" id="edit-veh-equipo" placeholder="Ej. E-114">
+                        </div>
+                        <div class="form-group">
+                            <!-- Placeholder to keep grid layout -->
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                        <button type="button" class="btn btn-secondary" id="cancel-edit-vehicle">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
     
     const clientsListContainer = document.getElementById('clients-list-container');
@@ -532,6 +598,10 @@ export function renderClientesVehiculos(container, queryParams) {
                     ? '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">No se han registrado vehículos para este cliente.</div>' 
                     : clientVehicles.map(v => `
                         <div class="vehicle-card">
+                            <div class="vehicle-actions" style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 0.25rem; z-index: 10;">
+                                <button class="vehicle-action-btn edit" onclick="window.editVehicle('${v.ID_Vehiculo || v.Placas}')" title="Editar Vehículo"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button class="vehicle-action-btn delete" onclick="window.deleteVehicle('${v.ID_Vehiculo || v.Placas}')" title="Eliminar Vehículo"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
                             <i class="fa-solid fa-car-side vehicle-card-bg-icon"></i>
                             <div class="vehicle-placa">${escapeHtml(v.Placas)}</div>
                             <div class="vehicle-detail-row"><span>Marca/Modelo:</span><span><strong>${escapeHtml(v.Marca)} ${escapeHtml(v.Modelo)}</strong></span></div>
@@ -683,6 +753,14 @@ export function renderClientesVehiculos(container, queryParams) {
     });
     document.getElementById('cancel-add-vehicle').addEventListener('click', () => {
         document.getElementById('add-vehicle-modal').classList.remove('active');
+    });
+    
+    // Open/Close Edit Vehicle Modal
+    document.getElementById('close-edit-vehicle-modal').addEventListener('click', () => {
+        document.getElementById('edit-vehicle-modal').classList.remove('active');
+    });
+    document.getElementById('cancel-edit-vehicle').addEventListener('click', () => {
+        document.getElementById('edit-vehicle-modal').classList.remove('active');
     });
     // Handle Add Client Submit
     document.getElementById('add-client-form').addEventListener('submit', (e) => {
@@ -913,6 +991,92 @@ export function renderClientesVehiculos(container, queryParams) {
         });
     }
     
+    // Handle Edit Vehicle Submit
+    document.getElementById('edit-vehicle-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const vehicleId = document.getElementById('edit-veh-id').value;
+        const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === vehicleId || v.Placas === vehicleId);
+        if (!vehicle) {
+            showToast("Error: Vehículo no encontrado al guardar", "error");
+            return;
+        }
+        
+        const oldPlaca = vehicle.Placas;
+        const newPlaca = document.getElementById('edit-veh-placa').value.toUpperCase().trim();
+        
+        vehicle.Placas = newPlaca;
+        vehicle.Marca = document.getElementById('edit-veh-marca').value.toUpperCase().trim();
+        vehicle.Modelo = document.getElementById('edit-veh-modelo').value.toUpperCase().trim();
+        vehicle.Año = document.getElementById('edit-veh-year').value;
+        vehicle.Color = document.getElementById('edit-veh-color').value.toUpperCase().trim();
+        vehicle.Odometro = document.getElementById('edit-veh-odo').value.trim();
+        vehicle.Nª_Motor = document.getElementById('edit-veh-motor').value.toUpperCase().trim();
+        vehicle.Nª_VIN = document.getElementById('edit-veh-vin').value.toUpperCase().trim();
+        if (document.getElementById('edit-veh-equipo')) {
+            vehicle.N_Equipo = document.getElementById('edit-veh-equipo').value.trim().toUpperCase();
+        }
+        
+        // Update all budgets referencing this vehicle's old plate number
+        if (oldPlaca !== newPlaca) {
+            (db.presupuestos || []).forEach(p => {
+                if (p.Placas === oldPlaca) {
+                    p.Placas = newPlaca;
+                }
+            });
+        }
+        
+        saveDatabase(db);
+        showToast("Vehículo actualizado con éxito", "success");
+        document.getElementById('edit-vehicle-modal').classList.remove('active');
+        
+        const client = db.clientes.find(c => c.Codigo_Cliente === vehicle.Codigo_Cliente);
+        if (client) {
+            showClientDetail(client);
+        }
+    });
+
+    window.editVehicle = function(vehicleIdOrPlaca) {
+        const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === vehicleIdOrPlaca || v.Placas === vehicleIdOrPlaca);
+        if (!vehicle) {
+            showToast("Vehículo no encontrado", "error");
+            return;
+        }
+        
+        document.getElementById('edit-veh-id').value = vehicle.ID_Vehiculo || vehicle.Placas;
+        document.getElementById('edit-veh-placa').value = vehicle.Placas || '';
+        document.getElementById('edit-veh-marca').value = vehicle.Marca || '';
+        document.getElementById('edit-veh-modelo').value = vehicle.Modelo || '';
+        document.getElementById('edit-veh-year').value = vehicle.Año || '';
+        document.getElementById('edit-veh-color').value = vehicle.Color || '';
+        document.getElementById('edit-veh-odo').value = vehicle.Odometro || '';
+        document.getElementById('edit-veh-motor').value = vehicle.Nª_Motor || '';
+        document.getElementById('edit-veh-vin').value = vehicle.Nª_VIN || '';
+        if (document.getElementById('edit-veh-equipo')) {
+            document.getElementById('edit-veh-equipo').value = vehicle.N_Equipo || '';
+        }
+        
+        document.getElementById('edit-vehicle-modal').classList.add('active');
+    };
+
+    window.deleteVehicle = function(vehicleIdOrPlaca) {
+        const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === vehicleIdOrPlaca || v.Placas === vehicleIdOrPlaca);
+        if (!vehicle) {
+            showToast("Vehículo no encontrado", "error");
+            return;
+        }
+        
+        if (confirm(`¿Estás seguro de que deseas eliminar el vehículo con placas ${vehicle.Placas}? Esta acción no se puede deshacer.`)) {
+            db.vehiculos = db.vehiculos.filter(v => v.ID_Vehiculo !== vehicle.ID_Vehiculo && v.Placas !== vehicle.Placas);
+            saveDatabase(db);
+            showToast("Vehículo eliminado de la flota", "success");
+            
+            const client = db.clientes.find(c => c.Codigo_Cliente === vehicle.Codigo_Cliente);
+            if (client) {
+                showClientDetail(client);
+            }
+        }
+    };
+
     // Auto select client if parameter was passed
     if (queryParams.id) {
         const client = db.clientes.find(c => c.Codigo_Cliente === queryParams.id);

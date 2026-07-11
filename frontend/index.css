@@ -869,6 +869,29 @@ tr:hover td {
     overflow: hidden;
 }
 
+.vehicle-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.3rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.vehicle-action-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.vehicle-action-btn.edit:hover {
+    color: var(--primary);
+}
+.vehicle-action-btn.delete:hover {
+    color: var(--danger);
+}
+
 .vehicle-card-bg-icon {
     position: absolute;
     right: -10px;
