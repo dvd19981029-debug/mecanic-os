@@ -396,7 +396,7 @@ function renderEditor(container, editId) {
                     font-weight: bold !important;
                 }
             </style>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+            <div class="reception-grid">
                 
                 <!-- Col Left: Info -->
                 <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1.2rem;">
@@ -507,7 +507,7 @@ function renderEditor(container, editId) {
                     <textarea id="ing-obs" rows="3" placeholder="Detalles de golpes, rayones, fallas reportadas por el cliente..." style="padding:0.6rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; width:100%; resize:vertical;">${ing.Observaciones || ''}</textarea>
                 </div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+                <div class="signatures-grid">
                     <!-- Advisor Signature -->
                     <div style="text-align:center;">
                         <span style="display:block; margin-bottom:0.5rem; font-weight:700;"><i class="fa-solid fa-user-tie"></i> Firma del Asesor</span>
