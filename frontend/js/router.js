@@ -3,23 +3,23 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=84';
+import { renderConfiguracion } from './views/configuracion.js?v=69';
 import { renderLanding } from './views/landing.js?v=69';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=84';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=83';
 import { renderRevision21 } from './views/revision21.js?v=77';
-import { renderPresupuestos } from './views/presupuestos.js?v=84';
+import { renderPresupuestos } from './views/presupuestos.js?v=81';
 import { renderKanban } from './views/kanban.js?v=69';
-import { renderFacturador } from './views/facturador.js?v=84';
+import { renderFacturador } from './views/facturador.js?v=75';
 import { renderVentaRapida } from './views/venta_rapida.js?v=75';
 import { renderCaja } from './views/caja.js?v=69';
-import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=84';
-import { renderInventario } from './views/inventario.js?v=84';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
+import { renderInventario } from './views/inventario.js?v=83';
 import { renderGastos } from './views/gastos.js?v=69';
-import { renderDashboardBI } from './views/dashboard_bi.js?v=84';
+import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
-import { renderComisiones } from './views/comisiones.js?v=84';
-import { renderTrabajosTaller } from './views/trabajos.js?v=84';
-import { renderIngresos } from './views/ingresos.js?v=84';
+import { renderComisiones } from './views/comisiones.js?v=69';
+import { renderTrabajosTaller } from './views/trabajos.js?v=69';
+import { renderIngresos } from './views/ingresos.js?v=83';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,

@@ -393,7 +393,7 @@ export function renderCuentasCobrar(container) {
             const filtered = allDbClients.filter(c => {
                 const hasCreditSetting = c['Credito?'] === 'SI';
                 const balance = getClientPendingBalance(c.Codigo_Cliente, db);
-                const matchesFilter = String(c.Nombre || '').toLowerCase().includes(filter.toLowerCase()) || String(c.Codigo_Cliente || '').toLowerCase().includes(filter.toLowerCase());
+                const matchesFilter = c.Nombre.toLowerCase().includes(filter.toLowerCase()) || c.Codigo_Cliente.toLowerCase().includes(filter.toLowerCase());
                 return matchesFilter && (hasCreditSetting || balance > 0);
             });
 

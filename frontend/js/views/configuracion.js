@@ -1182,8 +1182,8 @@ export function renderConfiguracion(container, queryParams) {
         function populateProductos(filterText = '') {
             tableBody.innerHTML = '';
             const filtered = db.productos.filter(p => 
-                String(p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
-                String(p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
+                (p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
             );
 
             // Display top 50 matches for performance
@@ -1429,8 +1429,8 @@ export function renderConfiguracion(container, queryParams) {
         function populateServicios(filterText = '') {
             tableBody.innerHTML = '';
             const filtered = db.mano_obra.filter(mo => 
-                String(mo.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
-                String(mo.ID_ManoObra || '').toString().includes(filterText)
+                (mo.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (mo.ID_ManoObra || '').toString().includes(filterText)
             );
 
             if (filtered.length === 0) {
@@ -1592,8 +1592,8 @@ export function renderConfiguracion(container, queryParams) {
         function populatePromociones(filterText = '') {
             tableBody.innerHTML = '';
             const filtered = (db.promociones || []).filter(p => 
-                String(p.Nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
-                String(p.ID_Promocion || '').toLowerCase().includes(filterText.toLowerCase())
+                (p.Nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p.ID_Promocion || '').toLowerCase().includes(filterText.toLowerCase())
             );
 
             if (filtered.length === 0) {

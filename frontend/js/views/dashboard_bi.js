@@ -133,7 +133,7 @@ export function renderDashboardBI(container) {
                 const products = (db.detalle_productos || []).filter(dp => dp['ID_Presupuesto DPP'] === budgetId);
                 products.forEach(item => {
                     const val = parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1);
-                    const desc = String(item.Descripcion || '').toLowerCase();
+                    const desc = (item.Descripcion || '').toLowerCase();
                     if (desc.includes('aceite') || desc.includes('filtro') || desc.includes('coolant') || desc.includes('lubricante') || desc.includes('liquido') || desc.includes('grasa')) {
                         suppliesSum += val;
                     } else {
@@ -145,7 +145,7 @@ export function renderDashboardBI(container) {
                 const labor = (db.detalle_mano_obra || []).filter(dm => dm['ID_Presupuesto MO'] === budgetId);
                 labor.forEach(item => {
                     const val = parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1);
-                    const desc = String(item.Descripcion || '').toLowerCase();
+                    const desc = (item.Descripcion || '').toLowerCase();
                     if (desc.includes('torno') || desc.includes('alineacion') || desc.includes('tercerizado') || desc.includes('externo') || item.Categoria === 'MO004') {
                         externalSum += val;
                     } else {
@@ -158,7 +158,7 @@ export function renderDashboardBI(container) {
         (db['29 Movs de Inventario'] || []).forEach(mov => {
             if (mov.Tipo === 'SALIDA' && mov.Observacion && mov.Observacion.startsWith('Venta POS')) {
                 const val = parseFloat(mov.Cant_Mov || 1) * parseFloat(mov['Valor ($)'] || 0);
-                const desc = String(mov.descripcion || '').toLowerCase();
+                const desc = (mov.descripcion || '').toLowerCase();
                 if (desc.includes('aceite') || desc.includes('filtro') || desc.includes('coolant') || desc.includes('lubricante') || desc.includes('liquido') || desc.includes('grasa')) {
                     suppliesSum += val;
                 } else {

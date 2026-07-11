@@ -106,11 +106,11 @@ function renderList(container) {
             const client = db.clientes.find(c => c.Codigo_Cliente === ing.Codigo_Cliente) || {};
             const query = filter.toLowerCase();
             return (
-                String(ing.ID_Ingreso || '').toLowerCase().includes(query) ||
-                String(vehicle.Placa || vehicle.Placas || '').toLowerCase().includes(query) ||
-                String(client.Nombre || '').toLowerCase().includes(query) ||
-                String(vehicle.Marca || '').toLowerCase().includes(query) ||
-                String(vehicle.Modelo || '').toLowerCase().includes(query)
+                (ing.ID_Ingreso || '').toLowerCase().includes(query) ||
+                (vehicle.Placa || '').toLowerCase().includes(query) ||
+                (client.Nombre || '').toLowerCase().includes(query) ||
+                (vehicle.Marca || '').toLowerCase().includes(query) ||
+                (vehicle.Modelo || '').toLowerCase().includes(query)
             );
         });
 
