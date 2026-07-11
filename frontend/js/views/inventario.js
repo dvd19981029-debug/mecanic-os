@@ -144,8 +144,8 @@ export function renderInventario(container) {
         function populateInventoryList(filter = '') {
             rowsEl.innerHTML = '';
             const filtered = db.productos.filter(p => 
-                (p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+                String(p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
+                String(p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
             );
 
             filtered.forEach(p => {
@@ -209,8 +209,8 @@ export function renderInventario(container) {
         exportBtn.addEventListener('click', () => {
             const filter = searchInput.value;
             const filtered = db.productos.filter(p => 
-                (p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                (p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+                String(p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
+                String(p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
             );
 
             if (filtered.length === 0) {
@@ -368,10 +368,10 @@ export function renderInventario(container) {
                 const obsVal = mov.Observacion || '';
                 const dteVal = mov.DTE || 'N/A';
                 const filterLower = filter.toLowerCase();
-                return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
-                       (mov.descripcion || '').toLowerCase().includes(filterLower) ||
-                       obsVal.toLowerCase().includes(filterLower) ||
-                       dteVal.toLowerCase().includes(filterLower);
+                return String(mov.id_producto || '').toLowerCase().includes(filterLower) ||
+                       String(mov.descripcion || '').toLowerCase().includes(filterLower) ||
+                       String(obsVal).toLowerCase().includes(filterLower) ||
+                       String(dteVal).toLowerCase().includes(filterLower);
             });
 
             filtered.forEach(mov => {
@@ -418,10 +418,10 @@ export function renderInventario(container) {
                 const obsVal = mov.Observacion || '';
                 const dteVal = mov.DTE || 'N/A';
                 const filterLower = filter.toLowerCase();
-                return (mov.id_producto || '').toLowerCase().includes(filterLower) ||
-                       (mov.descripcion || '').toLowerCase().includes(filterLower) ||
-                       obsVal.toLowerCase().includes(filterLower) ||
-                       dteVal.toLowerCase().includes(filterLower);
+                return String(mov.id_producto || '').toLowerCase().includes(filterLower) ||
+                       String(mov.descripcion || '').toLowerCase().includes(filterLower) ||
+                       String(obsVal).toLowerCase().includes(filterLower) ||
+                       String(dteVal).toLowerCase().includes(filterLower);
             });
 
             if (filtered.length === 0) {
