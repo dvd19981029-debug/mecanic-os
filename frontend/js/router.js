@@ -19,7 +19,7 @@ import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
 import { renderTrabajosTaller } from './views/trabajos.js?v=69';
-import { renderIngresos } from './views/ingresos.js?v=83';
+import { renderIngresos } from './views/ingresos.js?v=85';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,

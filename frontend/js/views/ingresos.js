@@ -414,7 +414,7 @@ function renderEditor(container, editId) {
                             ${safe((db.vehiculos || []).map(v => {
                                 const client = db.clientes.find(c => c.Codigo_Cliente === v.Codigo_Cliente) || {};
                                 const selected = v.ID_Vehiculo === ing.ID_Vehiculo ? 'selected' : '';
-                                return html`<option value="${v.ID_Vehiculo}" ${selected}>${v.Placa || 'S/P'} - ${v.Marca || ''} ${v.Modelo || ''} (Cliente: ${client.Nombre || 'S/N'})</option>`;
+                                return html`<option value="${v.ID_Vehiculo}" ${selected}>${v.Placas || 'S/P'} - ${v.Marca || ''} ${v.Modelo || ''} (Cliente: ${client.Nombre || 'S/N'})</option>`;
                             }).join(''))}
                         </select>
                     </div>
@@ -447,9 +447,9 @@ function renderEditor(container, editId) {
                         <label>Técnico Asignado para Inspección</label>
                         <select id="ing-tech-select" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; width:100%; height:38px;">
                             <option value="">-- Sin asignar --</option>
-                            ${safe((db.empleados || []).filter(e => e.Puesto === 'Mecánico' || e.Puesto === 'Mecanico').map(e => {
-                                const selected = e.Tecnico_ID === ing.Tecnico_ID ? 'selected' : '';
-                                return html`<option value="${e.Tecnico_ID}" ${selected}>${e.Nombre}</option>`;
+                            ${safe((db.tecnicos || []).map(t => {
+                                const selected = t.Tecnico_ID === ing.Tecnico_ID ? 'selected' : '';
+                                return html`<option value="${t.Tecnico_ID}" ${selected}>${t.Nombre_Completo}</option>`;
                             }).join(''))}
                         </select>
                     </div>
