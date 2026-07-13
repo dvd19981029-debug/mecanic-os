@@ -534,10 +534,21 @@ export function renderClientesVehiculos(container, queryParams) {
         });
     }
     
-    // Function to show client detail
     function showClientDetail(client) {
         const clientVehicles = db.vehiculos.filter(v => v.Codigo_Cliente === client.Codigo_Cliente);
         const clientBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === client.Codigo_Cliente);
+        
+        // Sort by date descending (newest first), secondary by ID Presupuesto descending
+        clientBudgets.sort((a, b) => {
+            const dateA = new Date(a.Fecha).getTime() || 0;
+            const dateB = new Date(b.Fecha).getTime() || 0;
+            if (dateB !== dateA) {
+                return dateB - dateA;
+            }
+            const idA = a['ID Presupuesto'] || '';
+            const idB = b['ID Presupuesto'] || '';
+            return idB.localeCompare(idA);
+        });
         
         clientDetailContainer.innerHTML = html`
             <button class="btn btn-secondary mobile-only-btn" id="client-detail-back-btn" style="margin-bottom: 1.25rem; display: none; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver a la Lista</button>
@@ -634,6 +645,9 @@ export function renderClientesVehiculos(container, queryParams) {
                                 if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
                                 else if (p.Estado == 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
                                 else if (p.Estado == 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
+                                else if (p.Estado == 4) statusBadge = '<span class="badge-tag badge-danger">Anulado</span>';
+                                else if (p.Estado == 5) statusBadge = '<span class="badge-tag" style="background:rgba(168,85,247,0.1); color:#a855f7;">Finalizado</span>';
+                                else statusBadge = `<span class="badge-tag badge-secondary">Estado ${p.Estado || 'N/A'}</span>`;
                                 return `
                                     <tr>
                                         <td><strong>${p['ID Presupuesto']}</strong></td>

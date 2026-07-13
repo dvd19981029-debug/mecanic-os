@@ -129,16 +129,16 @@ const dataService = {
         }
         const defaultRolePermissions = {
             "Administrador": [
-                "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
+                "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban",
                 "facturador", "venta-rapida", "cuentas-cobrar", "inventario", "gastos", "planilla",
                 "dashboard-bi", "configuracion", "comisiones"
             ],
             "Técnico": [
-                "taller-dashboard", "clientes-vehiculos", "revision-21", "kanban", "comisiones"
+                "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "kanban", "comisiones"
             ],
             "Recepcionista": [
-                "taller-dashboard", "clientes-vehiculos", "revision-21", "presupuestos", "kanban",
-                "facturador", "venta-rapida", "cuentas-cobrar", "comisiones"
+                "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban",
+                "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"
             ]
         };
 
@@ -515,6 +515,8 @@ const dataService = {
                 if (changed) {
                     await this.setStorageItem('mecanic_os_db', this.cache);
                     if (typeof handleRouting === 'function') handleRouting();
+                    if (typeof window.updateUserUI === 'function') window.updateUserUI();
+                    if (typeof window.updateSidebarBrand === 'function') window.updateSidebarBrand();
                 }
                 this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
             }

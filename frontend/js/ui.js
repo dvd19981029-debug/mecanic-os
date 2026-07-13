@@ -56,20 +56,13 @@ export function updateUserUI() {
             if (matchKey) {
                 allowedRoutes = db.role_permissions[matchKey];
                 // Migración dinámica: si el rol tiene acceso a presupuestos, dale acceso a trabajos-taller por defecto
-                let migrated = false;
                 if ((allowedRoutes.includes('presupuestos') || allowedRoutes.includes('kanban')) && !allowedRoutes.includes('trabajos-taller')) {
                     allowedRoutes.push('trabajos-taller');
-                    migrated = true;
                 }
                 // Si el rol tiene acceso a planillas/gastos o es administrador/tecnico, dale acceso a comisiones por defecto
                 const searchRole = normalizedRole.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 if ((allowedRoutes.includes('planilla') || allowedRoutes.includes('gastos') || searchRole === "administrador" || searchRole === "tecnico") && !allowedRoutes.includes('comisiones')) {
                     allowedRoutes.push('comisiones');
-                    migrated = true;
-                }
-                if (migrated) {
-                    db.role_permissions[matchKey] = allowedRoutes;
-                    saveDatabase(db);
                 }
                 foundPermissions = true;
             }

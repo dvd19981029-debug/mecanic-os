@@ -32,7 +32,7 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode
-} from './js/ui.js?v=69';
+} from './js/ui.js?v=85';
 
 // Expose critical functions globally to window for legacy compatibility
 window.showToast = showToast;
