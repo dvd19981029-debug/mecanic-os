@@ -459,7 +459,10 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-danger" id="reject-budget-shortcut-btn" style="background: var(--danger); border: none; color: white;"><i class="fa-solid fa-ban"></i> Rechazar Cotización</button>
                     ` : '')}
                     <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado != 1 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
-                    ${safe((!isNew && budget.Estado == 2) ? `<button class="btn btn-success" id="finalize-work-btn" style="background: #a855f7; border: none; color: white;"><i class="fa-solid fa-circle-check"></i> Finalizar Trabajos</button>` : '')}
+                    ${safe((!isNew && budget.Estado == 2) ? `
+                        <button class="btn btn-success" id="finalize-work-btn" style="background: #a855f7; border: none; color: white;"><i class="fa-solid fa-circle-check"></i> Finalizar Trabajos</button>
+                        <button class="btn btn-warning" id="revert-to-draft-btn" style="background: #f59e0b; color: white; border: none;"><i class="fa-solid fa-rotate-left"></i> Devolver a Borrador</button>
+                    ` : '')}
                     ${safe((!isNew && budget.Estado == 5) ? `
                         <button class="btn btn-success" id="facturar-budget-shortcut-btn"><i class="fa-solid fa-wallet"></i> Facturar DTE</button>
                         <button class="btn btn-warning" id="reopen-work-btn" style="background: #f59e0b; color: white; border: none;"><i class="fa-solid fa-wrench"></i> Reabrir Reparación</button>
@@ -1316,6 +1319,15 @@ export function renderBudgetEditor(container, budget) {
         finalizeBtn.addEventListener('click', () => {
             if (confirm("¿Confirmas que los trabajos físicos han sido finalizados y el presupuesto está listo para facturar?")) {
                 saveBudget(5);
+            }
+        });
+    }
+
+    const revertDraftBtn = document.getElementById('revert-to-draft-btn');
+    if (revertDraftBtn) {
+        revertDraftBtn.addEventListener('click', () => {
+            if (confirm("¿Deseas devolver este presupuesto al estado inicial (Borrador)? Se desbloqueará el presupuesto para que puedas realizar modificaciones o anularlo.")) {
+                saveBudget(1);
             }
         });
     }
