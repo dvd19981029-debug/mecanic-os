@@ -635,11 +635,12 @@ export function renderClientesVehiculos(container, queryParams) {
                             <th>Trabajo Diagnóstico</th>
                             <th>Total</th>
                             <th>Estado</th>
+                            <th style="text-align: right; min-width: 150px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${safe(clientBudgets.length === 0 
-                            ? '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Sin presupuestos previos</td></tr>'
+                            ? '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin presupuestos previos</td></tr>'
                             : clientBudgets.map(p => {
                                 let statusBadge = '';
                                 if (p.Estado == 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
@@ -648,6 +649,21 @@ export function renderClientesVehiculos(container, queryParams) {
                                 else if (p.Estado == 4) statusBadge = '<span class="badge-tag badge-danger">Anulado</span>';
                                 else if (p.Estado == 5) statusBadge = '<span class="badge-tag" style="background:rgba(168,85,247,0.1); color:#a855f7;">Finalizado</span>';
                                 else statusBadge = `<span class="badge-tag badge-secondary">Estado ${p.Estado || 'N/A'}</span>`;
+
+                                let actionsHtml = `<a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px;" title="Ver Detalle / Editar Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>`;
+                                
+                                if (p.Estado == 5) {
+                                    actionsHtml += `
+                                        <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border-radius: 4px; margin-left: 0.25rem; background: var(--success); color: white;" title="Facturar Trabajo"><i class="fa-solid fa-file-signature"></i> Facturar</a>
+                                    `;
+                                } else if (p.Estado == 3) {
+                                    const genCode = p.DTE_Codigo_Generacion || p.Codigo_Generacion || p.DteCodigoGeneracion || '';
+                                    actionsHtml += `
+                                        <button class="btn btn-primary btn-client-dte-pdf" data-id="${genCode}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border-radius: 4px; margin-left: 0.25rem;" title="Ver Representación Gráfica PDF DTE"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                        <button class="btn btn-secondary btn-client-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; margin-left: 0.25rem;" title="Imprimir Ticket DTE"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                                    `;
+                                }
+
                                 return `
                                     <tr>
                                         <td><strong>${p['ID Presupuesto']}</strong></td>
@@ -656,6 +672,7 @@ export function renderClientesVehiculos(container, queryParams) {
                                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.Fallas_Detectadas || p['Fallas Detectadas'] || 'Diagnóstico de taller'}</td>
                                         <td style="font-weight: 600;">$ ${getBudgetGrandTotal(p, db).toFixed(2)}</td>
                                         <td>${statusBadge}</td>
+                                        <td style="text-align: right; white-space: nowrap;">${actionsHtml}</td>
                                     </tr>
                                 `;
                             }).join(''))}
@@ -664,6 +681,29 @@ export function renderClientesVehiculos(container, queryParams) {
             </div>
         `;
         
+        // Bind DTE PDF & Ticket actions
+        clientDetailContainer.querySelectorAll('.btn-client-dte-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof window.viewDtePdf === 'function') {
+                    window.viewDtePdf(btn.getAttribute('data-id'));
+                } else {
+                    showToast("El visualizador de DTE no se ha inicializado todavía.", "warning");
+                }
+            });
+        });
+
+        clientDetailContainer.querySelectorAll('.btn-client-dte-ticket').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof window.printDteTicket === 'function') {
+                    window.printDteTicket(btn.getAttribute('data-id'));
+                } else {
+                    showToast("La función de impresión de ticket no se ha inicializado todavía.", "warning");
+                }
+            });
+        });
+
         // Wire up triggers inside detail panel
         document.getElementById('edit-client-trigger-btn').addEventListener('click', () => {
             document.getElementById('edit-client-code').value = client.Codigo_Cliente;

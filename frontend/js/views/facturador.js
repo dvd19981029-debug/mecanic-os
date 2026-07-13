@@ -33,6 +33,10 @@ import {
     saveDteLogToFirestore
 } from '../utils.js?v=69';
 
+// Expose functions globally for other views (like clientes_vehiculos)
+window.viewDtePdf = viewDtePdf;
+window.printDteTicket = printDteTicket;
+
 export function renderFacturador(container, queryParams) {
     const db = getDatabase();
     
