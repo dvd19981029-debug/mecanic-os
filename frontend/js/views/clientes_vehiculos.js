@@ -657,7 +657,7 @@ export function renderClientesVehiculos(container, queryParams) {
                                         <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border-radius: 4px; margin-left: 0.25rem; background: var(--success); color: white;" title="Facturar Trabajo"><i class="fa-solid fa-file-signature"></i> Facturar</a>
                                     `;
                                 } else if (p.Estado == 3) {
-                                    const genCode = p.DTE_Codigo_Generacion || p.Codigo_Generacion || p.DteCodigoGeneracion || '';
+                                    const genCode = p.controlNumber || p.DTE_Codigo_Generacion || p.Codigo_Generacion || '';
                                     actionsHtml += `
                                         <button class="btn btn-primary btn-client-dte-pdf" data-id="${genCode}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border-radius: 4px; margin-left: 0.25rem;" title="Ver Representación Gráfica PDF DTE"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                                         <button class="btn btn-secondary btn-client-dte-ticket" data-id="${p['ID Presupuesto']}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; margin-left: 0.25rem;" title="Imprimir Ticket DTE"><i class="fa-solid fa-receipt"></i> Ticket</button>
