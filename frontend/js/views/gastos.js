@@ -1728,11 +1728,11 @@ export function renderGastos(container) {
             return `
                 <tr>
                     <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; white-space:nowrap; font-size:11px;">${formattedDate}</td>
-                    <td style="padding:6px 8px; border:1px solid #ddd; font-size:11px;">${escapeHtml(t.tipo)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; font-size:11px;">${escapeHtml(t.tipo)}</td>
                     <td style="padding:6px 8px; border:1px solid #ddd; font-family:monospace; text-align:center; font-weight:bold; font-size:11px;">${escapeHtml(t.dte || t.ref || '-')}</td>
-                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; color:${displayCargo > 0 ? '#ef4444' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayCargo.toFixed(2)}</td>
-                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; color:${displayAbono > 0 ? '#10b981' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayAbono.toFixed(2)}</td>
-                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; font-weight:bold; white-space:nowrap; font-size:11px;">$ ${displayBalance.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; color:${displayCargo > 0 ? '#ef4444' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayCargo.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; color:${displayAbono > 0 ? '#10b981' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayAbono.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; font-weight:bold; white-space:nowrap; font-size:11px;">$ ${displayBalance.toFixed(2)}</td>
                 </tr>
             `;
         }).join('');
@@ -1761,7 +1761,7 @@ export function renderGastos(container) {
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; font-size: 11px; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; font-weight: bold; border: 1px solid ${brandColor} !important; font-size: 11px; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                     .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -1826,11 +1826,11 @@ export function renderGastos(container) {
                     <thead>
                         <tr>
                             <th style="width:12%; text-align:center; padding:8px;">Fecha</th>
-                            <th style="padding:8px;">Concepto / Detalle</th>
+                            <th style="padding:8px; text-align:center;">Concepto / Detalle</th>
                             <th style="width:20%; text-align:center; padding:8px;">N° DTE / Control</th>
-                            <th style="width:15%; text-align:right; padding:8px;">Compras (+)</th>
-                            <th style="width:15%; text-align:right; padding:8px;">Abonos (-)</th>
-                            <th style="width:15%; text-align:right; padding:8px;">Saldo Deuda</th>
+                            <th style="width:15%; text-align:center; padding:8px;">Compras (+)</th>
+                            <th style="width:15%; text-align:center; padding:8px;">Abonos (-)</th>
+                            <th style="width:15%; text-align:center; padding:8px;">Saldo Deuda</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1838,8 +1838,8 @@ export function renderGastos(container) {
                     </tbody>
                     <tfoot>
                         <tr style="background:#f9f9f9; font-weight:bold;">
-                            <td colspan="5" style="padding:10px; border-top:2px solid #333; text-align:right; font-size:11px;">SALDO PENDIENTE ACTUAL:</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:12px; white-space:nowrap;">$ ${finalBalanceDisplay.toFixed(2)}</td>
+                            <td colspan="5" style="padding:10px; border-top:2px solid #333; text-align:center; font-size:11px;">SALDO PENDIENTE ACTUAL:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:center; color:#ef4444; font-size:12px; white-space:nowrap;">$ ${finalBalanceDisplay.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
