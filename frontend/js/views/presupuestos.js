@@ -626,14 +626,14 @@ export function renderBudgetEditor(container, budget) {
                     <div style="display: flex; gap: 0.75rem;">
                         <div class="form-group" style="width: 160px;">
                             <label>Asesor</label>
-                            <select id="editor-advisor-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                            <select id="editor-advisor-select" style="padding: 0.5rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                                 <option value="">-- Sin Asignar --</option>
                                 ${safe(advisorsHTML)}
                             </select>
                         </div>
                         <div class="form-group" style="width: 160px;">
                             <label>Técnico Asignado</label>
-                            <select id="editor-tech-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                            <select id="editor-tech-select" style="padding: 0.5rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                                 ${safe(techsHTML)}
                             </select>
                         </div>
@@ -642,11 +642,11 @@ export function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Fallas Detectadas / Diagnóstico Final</label>
-                    <input type="text" id="editor-fallas" value="${escapeHtml(budget.Fallas_Detectadas || 'Diagnóstico general')}" style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <input type="text" id="editor-fallas" value="${escapeHtml(budget.Fallas_Detectadas || 'Diagnóstico general')}" style="padding: 0.6rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                 </div>
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Observaciones Generales / Recomendaciones</label>
-                    <input type="text" id="editor-observaciones" value="${escapeHtml(budget.Observaciones || '')}" placeholder="Escriba observaciones o recomendaciones adicionales..." style="padding: 0.6rem;" ${(budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <input type="text" id="editor-observaciones" value="${escapeHtml(budget.Observaciones || '')}" placeholder="Escriba observaciones o recomendaciones adicionales..." style="padding: 0.6rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                 </div>
             </div>
         `;
@@ -668,7 +668,7 @@ export function renderBudgetEditor(container, budget) {
                 <div class="glass-card" id="editor-products-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Repuestos y Refacciones</h3>
-                        <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
+                        <button class="btn btn-primary" id="add-prod-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado != 1 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Repuesto</button>
                     </div>
                     
                     <div class="item-row" style="grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px; background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
@@ -690,7 +690,7 @@ export function renderBudgetEditor(container, budget) {
                 <div class="glass-card" id="editor-labor-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3>Mano de Obra y Servicios</h3>
-                        <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado == 3 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
+                        <button class="btn btn-primary" id="add-labor-item-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${isNew || budget.Estado != 1 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Servicio</button>
                     </div>
                     
                     <div class="item-row" style="grid-template-columns: 80px 2.2fr 1.3fr 0.8fr 1fr 1fr 50px; background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
@@ -716,7 +716,7 @@ export function renderBudgetEditor(container, budget) {
                 
                 <div class="form-group">
                     <label>Estado del Presupuesto</label>
-                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${(budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <select id="editor-state" style="padding: 0.5rem; font-weight: 600;" ${budget.Estado != 1 ? 'disabled' : ''}>
                         <option value="1" ${budget.Estado == 1 ? 'selected' : ''}>1 - Creado</option>
                         <option value="2" ${budget.Estado == 2 ? 'selected' : ''} ${!isAdmin ? 'disabled' : ''}>2 - Aprobado ${!isAdmin ? '(Solo Admin)' : ''}</option>
                         <option value="5" ${budget.Estado == 5 ? 'selected' : ''} disabled>5 - Trabajos Finalizados</option>
@@ -727,7 +727,7 @@ export function renderBudgetEditor(container, budget) {
 
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Aplicar Promoción</label>
-                    <select id="editor-promocion-select" style="padding: 0.5rem;" ${(budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
+                    <select id="editor-promocion-select" style="padding: 0.5rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                         <option value="">Sin promoción / descuento</option>
                         ${safe(promoOptions)}
                     </select>
@@ -751,7 +751,7 @@ export function renderBudgetEditor(container, budget) {
                     <div class="summary-total">Total: <span id="grand-total">$0.00</span></div>
                 </div>
 
-                ${safe((budget.Estado == 2 || budget.Estado == 5 || budget.Estado == 3 || budget.Estado == 4) ? `
+                ${safe((budget.Estado != 1) ? `
                 <div style="background: ${budget.Estado == 4 ? 'rgba(231, 76, 60, 0.1)' : budget.Estado == 5 ? 'rgba(168, 85, 247, 0.1)' : budget.Estado == 2 ? 'rgba(52, 152, 219, 0.1)' : 'rgba(46, 204, 113, 0.1)'}; border: 1px solid ${budget.Estado == 4 ? 'var(--danger)' : budget.Estado == 5 ? '#a855f7' : budget.Estado == 2 ? 'var(--primary)' : 'var(--success)'}; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: ${budget.Estado == 4 ? 'var(--danger)' : budget.Estado == 5 ? '#a855f7' : budget.Estado == 2 ? 'var(--primary)' : 'var(--success)'}; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
                     <i class="fa-solid ${budget.Estado == 4 ? 'fa-ban' : budget.Estado == 5 ? 'fa-circle-check' : budget.Estado == 2 ? 'fa-screwdriver-wrench' : 'fa-circle-check'}"></i>
                     <span>${
@@ -970,7 +970,7 @@ export function renderBudgetEditor(container, budget) {
     }
 
     function renderTempRows() {
-        const isLocked = budget.Estado == 2 || budget.Estado == 3 || budget.Estado == 4;
+        const isLocked = budget.Estado != 1;
         productsContainer.innerHTML = '';
         tempProducts.forEach((item, index) => {
             const row = document.createElement('div');
