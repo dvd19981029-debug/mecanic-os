@@ -1841,6 +1841,7 @@ export function renderGastos(container) {
         `);
         printWindow.document.close();
     }
+}
 
 // 11. DASHBOARD BI VIEW
 
