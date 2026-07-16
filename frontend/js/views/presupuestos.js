@@ -57,7 +57,10 @@ export function renderPresupuestos(container, queryParams) {
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="budget-search" placeholder="Buscar por número o cliente...">
                 </div>
-                <button class="btn btn-primary" id="new-budget-direct-btn"><i class="fa-solid fa-file-circle-plus"></i> Nueva Cotización</button>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="history-budget-btn" style="background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-clock-rotate-left"></i> Historial Completo</button>
+                    <button class="btn btn-primary" id="new-budget-direct-btn"><i class="fa-solid fa-file-circle-plus"></i> Nueva Cotización</button>
+                </div>
             </div>
             
             <div class="table-container">
@@ -77,6 +80,84 @@ export function renderPresupuestos(container, queryParams) {
                         <!-- Loaded dynamically -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Budget History Modal -->
+        <div id="budget-history-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+            <div class="modal-content glass-card" style="margin: 2% auto; width: 90%; max-width: 1200px; padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-sidebar); max-height: 90vh; display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                    <h2 style="margin: 0; font-family: 'Outfit', sans-serif; color: var(--primary);"><i class="fa-solid fa-clock-rotate-left"></i> Historial Completo de Presupuestos</h2>
+                    <span class="close-modal" id="close-history-modal" style="font-size: 1.8rem; cursor: pointer; color: var(--text-secondary);">&times;</span>
+                </div>
+                
+                <!-- Filters Section -->
+                <div class="glass-card" style="padding: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Cliente / Código / Placas</label>
+                        <input type="text" id="hist-filter-search" placeholder="Buscar..." style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Nº Equipo</label>
+                        <input type="text" id="hist-filter-equipo" placeholder="Buscar Nº Equipo..." style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Estado</label>
+                        <select id="hist-filter-state" style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                            <option value="">-- Todos los Estados --</option>
+                            <option value="1">1 - Creado (Borrador)</option>
+                            <option value="2">2 - Aprobado</option>
+                            <option value="5">5 - Trabajo Finalizado</option>
+                            <option value="3">3 - Facturado / Entregado</option>
+                            <option value="4">4 - Anulado / Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Desde</label>
+                        <input type="date" id="hist-filter-from-date" style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Hasta</label>
+                        <input type="date" id="hist-filter-to-date" style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block; font-weight: 600;">Monto Mínimo</label>
+                        <input type="number" id="hist-filter-min-amount" placeholder="Min $" style="padding: 0.45rem 0.6rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; font-size: 0.85rem; box-sizing: border-box; height: 35px;">
+                    </div>
+                </div>
+                
+                <!-- Table Area -->
+                <div style="flex: 1; overflow-y: auto; min-height: 250px; border: 1px solid var(--border-color); border-radius: 8px;" class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Placas</th>
+                                <th>Nº Equipo</th>
+                                <th>Total (Con IVA)</th>
+                                <th>Estado</th>
+                                <th style="text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist-table-body">
+                            <!-- Loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 1rem;">
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);" id="hist-pagination-info">
+                        Mostrando 0-0 de 0 registros
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button class="btn btn-secondary" id="hist-prev-page-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;"><i class="fa-solid fa-chevron-left"></i> Anterior</button>
+                        <span style="font-size: 0.85rem; font-weight: bold; padding: 0 0.5rem; color: var(--primary);" id="hist-current-page-num">1</span>
+                        <button class="btn btn-secondary" id="hist-next-page-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Siguiente <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -196,6 +277,235 @@ export function renderPresupuestos(container, queryParams) {
 
     document.getElementById('new-budget-direct-btn').addEventListener('click', () => {
         window.location.hash = '#presupuestos?action=new';
+    });
+
+    // Budget History Modal Logic
+    let histCurrentPage = 1;
+    const histPageSize = 20;
+    let histFilteredBudgets = [];
+
+    function populateHistoryList() {
+        const histTableBody = document.getElementById('hist-table-body');
+        if (!histTableBody) return;
+
+        const term = document.getElementById('hist-filter-search').value.toLowerCase().trim();
+        const equipo = document.getElementById('hist-filter-equipo').value.toLowerCase().trim();
+        const stateFilter = document.getElementById('hist-filter-state').value;
+        const fromDateStr = document.getElementById('hist-filter-from-date').value;
+        const toDateStr = document.getElementById('hist-filter-to-date').value;
+        const minAmountStr = document.getElementById('hist-filter-min-amount').value;
+
+        // Perform memory-efficient filtering across all budgets
+        histFilteredBudgets = db.presupuestos.filter(p => {
+            // 1. Search term (Client name, budget ID, or plate number)
+            if (term) {
+                const idMatch = (p['ID Presupuesto'] || '').toLowerCase().includes(term);
+                const nameMatch = (p.Nombre || '').toLowerCase().includes(term);
+                const platesMatch = (p.Placas || '').toLowerCase().includes(term);
+                if (!idMatch && !nameMatch && !platesMatch) return false;
+            }
+
+            // 2. Status filter
+            if (stateFilter) {
+                if (parseInt(p.Estado || 1) !== parseInt(stateFilter)) return false;
+            }
+
+            // 3. Date range filter
+            if (fromDateStr) {
+                const fromTime = new Date(fromDateStr + 'T00:00:00').getTime();
+                const bTime = new Date(p.Fecha).getTime();
+                if (isNaN(bTime) || bTime < fromTime) return false;
+            }
+            if (toDateStr) {
+                const toTime = new Date(toDateStr + 'T23:59:59').getTime();
+                const bTime = new Date(p.Fecha).getTime();
+                if (isNaN(bTime) || bTime > toTime) return false;
+            }
+
+            // Look up vehicle for equipment number or total calculations if needed
+            const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
+
+            // 4. Equipment Number filter
+            if (equipo) {
+                const eqMatch = (vehicle.N_Equipo || '').toLowerCase().includes(equipo);
+                if (!eqMatch) return false;
+            }
+
+            // Calculate budget grand total to apply minimum amount filter
+            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
+            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
+            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
+            const subtotal = sumProd + sumLab;
+            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+            const iva = subtotal * taxRate;
+
+            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            let retVal = 0;
+            let percVal = 0;
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
+            if (isGranContrib && subtotal >= 100.00) {
+                retVal = subtotal * 0.01;
+            }
+            if (client.AplicaPercepcion > 0) {
+                percVal = subtotal * parseFloat(client.AplicaPercepcion);
+            }
+            const grandTotal = subtotal + iva + percVal - retVal;
+
+            p._cachedTotal = grandTotal;
+            p._cachedEquipo = vehicle.N_Equipo || 'N/A';
+
+            // 5. Min amount filter
+            if (minAmountStr) {
+                const minVal = parseFloat(minAmountStr);
+                if (isNaN(minVal) || grandTotal < minVal) return false;
+            }
+
+            return true;
+        });
+
+        // Sort filtered budgets by date descending
+        histFilteredBudgets.sort((a, b) => {
+            const dateA = new Date(a.Fecha).getTime() || 0;
+            const dateB = new Date(b.Fecha).getTime() || 0;
+            return dateB - dateA;
+        });
+
+        // Pagination calculations
+        const totalRecords = histFilteredBudgets.length;
+        const totalPages = Math.max(1, Math.ceil(totalRecords / histPageSize));
+        
+        if (histCurrentPage > totalPages) {
+            histCurrentPage = totalPages;
+        }
+
+        const startIndex = (histCurrentPage - 1) * histPageSize;
+        const endIndex = Math.min(startIndex + histPageSize, totalRecords);
+        const pageBudgets = histFilteredBudgets.slice(startIndex, endIndex);
+
+        // Update pagination labels
+        document.getElementById('hist-current-page-num').textContent = histCurrentPage.toString();
+        document.getElementById('hist-pagination-info').textContent = totalRecords === 0
+            ? 'Mostrando 0-0 de 0 registros'
+            : `Mostrando ${startIndex + 1}-${endIndex} de ${totalRecords} registros`;
+
+        // Enable/Disable pagination buttons
+        document.getElementById('hist-prev-page-btn').disabled = (histCurrentPage === 1);
+        document.getElementById('hist-next-page-btn').disabled = (histCurrentPage === totalPages);
+
+        histTableBody.innerHTML = '';
+
+        if (pageBudgets.length === 0) {
+            histTableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">Sin registros coincidentes</td></tr>';
+            return;
+        }
+
+        pageBudgets.forEach(p => {
+            let statusBadge = '';
+            const st = parseInt(p.Estado || 1);
+            if (st === 1) statusBadge = '<span class="badge-tag badge-warning">Creado</span>';
+            else if (st === 2) statusBadge = '<span class="badge-tag badge-primary">Aprobado</span>';
+            else if (st === 3) statusBadge = '<span class="badge-tag badge-success">Facturado</span>';
+            else if (st === 4) statusBadge = '<span class="badge-tag badge-danger">Anulado</span>';
+            else if (st === 5) statusBadge = '<span class="badge-tag" style="background:rgba(168,85,247,0.1); color:#a855f7;">Finalizado</span>';
+            else statusBadge = `<span class="badge-tag badge-secondary">Estado ${st}</span>`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = html`
+                <td><strong>${escapeHtml(p['ID Presupuesto'])}</strong></td>
+                <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td>${escapeHtml(p.Nombre)}</td>
+                <td><span class="badge-tag badge-primary">${escapeHtml(p.Placas || 'N/A')}</span></td>
+                <td><strong style="color:var(--cyan); font-family:monospace;">${escapeHtml(p._cachedEquipo)}</strong></td>
+                <td><strong>$ ${p._cachedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                <td>${safe(statusBadge)}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary btn-hist-view" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-eye"></i> Ver/Editar</a>
+                    </div>
+                </td>
+            `;
+            histTableBody.appendChild(tr);
+        });
+
+        // Close modal on detail view navigation clicks
+        histTableBody.querySelectorAll('.btn-hist-view').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('budget-history-modal').style.display = 'none';
+            });
+        });
+    }
+
+    // Modal toggle
+    const historyBtn = document.getElementById('history-budget-btn');
+    const historyModal = document.getElementById('budget-history-modal');
+    
+    if (historyBtn && historyModal) {
+        historyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            historyModal.style.display = 'block';
+            histCurrentPage = 1;
+            populateHistoryList();
+        });
+    }
+
+    const closeHistoryBtn = document.getElementById('close-history-modal');
+    if (closeHistoryBtn && historyModal) {
+        closeHistoryBtn.addEventListener('click', () => {
+            historyModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (e) => {
+        if (e.target === historyModal) {
+            historyModal.style.display = 'none';
+        }
+    });
+
+    // Pagination events
+    const prevBtn = document.getElementById('hist-prev-page-btn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (histCurrentPage > 1) {
+                histCurrentPage--;
+                populateHistoryList();
+            }
+        });
+    }
+
+    const nextBtn = document.getElementById('hist-next-page-btn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const totalRecords = histFilteredBudgets.length;
+            const totalPages = Math.ceil(totalRecords / histPageSize);
+            if (histCurrentPage < totalPages) {
+                histCurrentPage++;
+                populateHistoryList();
+            }
+        });
+    }
+
+    // Filter change/input events
+    const filterInputs = [
+        'hist-filter-search',
+        'hist-filter-equipo',
+        'hist-filter-state',
+        'hist-filter-from-date',
+        'hist-filter-to-date',
+        'hist-filter-min-amount'
+    ];
+
+    filterInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const evType = el.tagName === 'SELECT' || el.type === 'date' ? 'change' : 'input';
+            el.addEventListener(evType, () => {
+                histCurrentPage = 1;
+                populateHistoryList();
+            });
+        }
     });
 
     populateBudgetsList();
