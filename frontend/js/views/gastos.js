@@ -1693,6 +1693,9 @@ export function renderGastos(container) {
 
         ledger.forEach(t => {
             runningBalance += t.cargo - t.abono;
+            if (Math.abs(runningBalance) < 0.009) {
+                runningBalance = 0;
+            }
             // Only include in print list if within range
             if (t.fecha >= fromDate && t.fecha <= toDate) {
                 processedLedger.push({
@@ -1718,18 +1721,26 @@ export function renderGastos(container) {
 
         const rowsHtml = processedLedger.map(t => {
             const formattedDate = t.fecha ? new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A';
+            const displayCargo = Math.abs(t.cargo) < 0.009 ? 0 : t.cargo;
+            const displayAbono = Math.abs(t.abono) < 0.009 ? 0 : t.abono;
+            const displayBalance = Math.abs(t.balance) < 0.009 ? 0 : t.balance;
+
             return `
                 <tr>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:center; white-space:nowrap;">${formattedDate}</td>
-                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${escapeHtml(t.ref)}</td>
-                    <td style="padding:8px; border:1px solid #ddd;">${escapeHtml(t.tipo)}</td>
-                    <td style="padding:8px; border:1px solid #ddd; font-family:monospace; text-align:center;">${escapeHtml(t.dte || '-')}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:right; color:${t.cargo > 0 ? '#ef4444' : '#333'};">$ ${t.cargo > 0 ? t.cargo.toFixed(2) : '0.00'}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:right; color:${t.abono > 0 ? '#10b981' : '#333'};">$ ${t.abono > 0 ? t.abono.toFixed(2) : '0.00'}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:right; font-weight:bold;">$ ${t.balance.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:center; white-space:nowrap; font-size:11px;">${formattedDate}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; font-size:11px;">${escapeHtml(t.tipo)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; font-family:monospace; text-align:center; font-weight:bold; font-size:11px;">${escapeHtml(t.dte || t.ref || '-')}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; color:${displayCargo > 0 ? '#ef4444' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayCargo.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; color:${displayAbono > 0 ? '#10b981' : '#333'}; white-space:nowrap; font-size:11px;">$ ${displayAbono.toFixed(2)}</td>
+                    <td style="padding:6px 8px; border:1px solid #ddd; text-align:right; font-weight:bold; white-space:nowrap; font-size:11px;">$ ${displayBalance.toFixed(2)}</td>
                 </tr>
             `;
         }).join('');
+
+        let finalBalanceDisplay = runningBalance;
+        if (Math.abs(finalBalanceDisplay) < 0.009) {
+            finalBalanceDisplay = 0;
+        }
 
         printWindow.document.write(`
             <html>
@@ -1750,7 +1761,7 @@ export function renderGastos(container) {
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; font-size: 11px; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                     .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -1807,29 +1818,28 @@ export function renderGastos(container) {
                     </div>
                     <div style="text-align:right;">
                         <strong>Período de Reporte:</strong> ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}<br>
-                        <strong>Saldo Final al corte:</strong> $ ${runningBalance.toFixed(2)}
+                        <strong>Saldo Final al corte:</strong> $ ${finalBalanceDisplay.toFixed(2)}
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:12%; text-align:center;">Fecha</th>
-                            <th style="width:15%;">Documento / Ref</th>
-                            <th>Concepto / Detalle</th>
-                            <th style="width:15%; text-align:center;">N° DTE / Control</th>
-                            <th style="width:12%; text-align:right;">Compras (+)</th>
-                            <th style="width:12%; text-align:right;">Abonos (-)</th>
-                            <th style="width:14%; text-align:right;">Saldo Deuda</th>
+                            <th style="width:12%; text-align:center; padding:8px;">Fecha</th>
+                            <th style="padding:8px;">Concepto / Detalle</th>
+                            <th style="width:20%; text-align:center; padding:8px;">N° DTE / Control</th>
+                            <th style="width:15%; text-align:right; padding:8px;">Compras (+)</th>
+                            <th style="width:15%; text-align:right; padding:8px;">Abonos (-)</th>
+                            <th style="width:15%; text-align:right; padding:8px;">Saldo Deuda</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml || '<tr><td colspan="7" style="text-align:center; padding:15px; color:#999;">Sin registros en este período</td></tr>'}
+                        ${rowsHtml || '<tr><td colspan="6" style="text-align:center; padding:15px; color:#999;">Sin registros en este período</td></tr>'}
                     </tbody>
                     <tfoot>
                         <tr style="background:#f9f9f9; font-weight:bold;">
-                            <td colspan="6" style="padding:10px; border-top:2px solid #333; text-align:right;">SALDO PENDIENTE ACTUAL:</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:13px;">$ ${runningBalance.toFixed(2)}</td>
+                            <td colspan="5" style="padding:10px; border-top:2px solid #333; text-align:right; font-size:11px;">SALDO PENDIENTE ACTUAL:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:12px; white-space:nowrap;">$ ${finalBalanceDisplay.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
