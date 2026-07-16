@@ -1443,9 +1443,21 @@ export function renderGastos(container) {
 
         const brandColor = ws.color_presupuesto || '#4361ee';
 
+        let logoHTML = '';
+        if (ws.logo) {
+            logoHTML = `<img src="${ws.logo}" style="max-height: 85px; max-width: 200px; object-fit: contain; border-radius: 4px;" />`;
+        } else {
+            logoHTML = `
+                <div style="border:1.2px solid #cbd5e1; padding: 6px; border-radius:6px; background:#f8fafc; font-family:'Outfit',sans-serif; text-align:center; font-weight:800; color:${brandColor}; width:100%;">
+                    <div style="font-size:1.15rem;">${escapeHtml(ws.logoText || 'TALLER')}</div>
+                    <div style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">${escapeHtml((ws.logoTagline || '').substring(0,35))}</div>
+                </div>
+            `;
+        }
+
         const rowsHtml = filtered.map(g => `
             <tr>
-                <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${g['Fecha Gasto'] ? new Date(g['Fecha Gasto'] + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap; text-align:center;">${g['Fecha Gasto'] ? new Date(g['Fecha Gasto'] + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(g['ID Categoría Gasto'] || 'General')}</td>
                 <td style="padding:8px; border-bottom:1px solid #ddd;">${escapeHtml(g.Concepto)}</td>
                 <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">${escapeHtml(g['Forma de Pago'] || 'EFECTIVO')}</td>
@@ -1457,9 +1469,10 @@ export function renderGastos(container) {
             <html>
             <head>
                 <title>Reporte de Gastos Operativos - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
                 <style>
                     body {
-                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
                         color:#333;
                         padding:30px;
                         font-size:12px;
@@ -1470,15 +1483,12 @@ export function renderGastos(container) {
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
-                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
-                    .subtitle { font-size: 11px; color: #666; }
                     .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
                     .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
                     .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
                     .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                     .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -1488,28 +1498,61 @@ export function renderGastos(container) {
                         body {
                             padding: 1.5cm !important;
                             margin: 0 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page {
+                            size: portrait;
+                            margin: 0;
                         }
                     }
                 </style>
             </head>
             <body>
-                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                <button class="btn-print" onclick="window.print()">Imprimir o Guardar PDF</button>
                 
-                <div class="header">
-                    <div>
-                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
-                        <div class="subtitle">${escapeHtml(ws.direccion || 'Taller Automotriz')}</div>
+                <!-- Styled DTE Header -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px; font-size:11px; line-height:1.4;">
+                    <div style="flex:1.3;">
+                        <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.nombre_comercial || ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad_economica || ws.giro || 'Servicios Automotrices')}</div>
+                        <div><strong>NIT:</strong> ${escapeHtml(ws.num_documento || ws.nit || '')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '')}</div>
+                        <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.correo || 'N/A')}</div>
+                        <div><strong>Teléfono:</strong> ${escapeHtml(ws.telefono || 'N/A')}</div>
                     </div>
-                    <div class="text-right">
-                        <div style="font-weight:bold; font-size:14px;">REPORTE DE GASTOS OPERATIVOS</div>
-                        <div style="color:#666; margin-top:5px;">Rango: ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}</div>
+                    <div style="width:250px; padding-left:15px; margin-left:15px; border-left:1px solid #ddd;">
+                        <div><strong>Dirección:</strong> ${escapeHtml(ws.direccion || '')}</div>
+                        <div>MUNICIPIO DE ${escapeHtml((ws.municipio || '').toUpperCase())}</div>
+                        <div>DEPARTAMENTO DE ${escapeHtml((ws.departamento || '').toUpperCase())}</div>
+                        <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
+                        <div><strong>Punto de Venta:</strong> P001</div>
+                    </div>
+                    <div style="width:180px; text-align:right; margin-left:15px; border-right:3px solid #ddd; padding-right:15px;">
+                        ${safe(logoHTML)}
+                    </div>
+                </div>
+
+                <!-- Title Banner -->
+                <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                    REPORTE DE GASTOS OPERATIVOS (EGRESOS)
+                </div>
+
+                <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
+                    <div>
+                        <strong>Tipo de Consulta:</strong> Gastos Detallados por Período<br>
+                        <strong>Rango de Fechas:</strong> ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>Generado el:</strong> ${new Date().toLocaleDateString('es-SV')} ${new Date().toLocaleTimeString('es-SV')}<br>
+                        <strong>Estado de Consulta:</strong> PROCESADO
                     </div>
                 </div>
 
                 <div class="kpis">
                     <div class="kpi-card">
                         <div class="kpi-label">Total Egresado</div>
-                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalSpent.toFixed(2)}</div>
+                        <div class="kpi-val" style="color:#ef4444;">$ ${totalSpent.toFixed(2)}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Número de Transacciones</div>
@@ -1524,10 +1567,10 @@ export function renderGastos(container) {
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:12%;">Fecha</th>
+                            <th style="width:12%; text-align:center;">Fecha</th>
                             <th style="width:20%;">Categoría</th>
                             <th>Concepto / Detalle</th>
-                            <th style="width:15%;">Pago</th>
+                            <th style="width:15%; text-align:center;">Pago</th>
                             <th style="width:15%; text-align:right;">Monto Total</th>
                         </tr>
                     </thead>
@@ -1537,7 +1580,7 @@ export function renderGastos(container) {
                     <tfoot>
                         <tr style="background:#f9f9f9; font-weight:bold;">
                             <td colspan="4" style="padding:10px; border-top:2px solid #333; text-align:right;">TOTAL ACUMULADO:</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#e74c3c; font-size:14px;">$ ${totalSpent.toFixed(2)}</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:14px;">$ ${totalSpent.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1576,11 +1619,23 @@ export function renderGastos(container) {
 
         const brandColor = ws.color_presupuesto || '#4361ee';
 
+        let logoHTML = '';
+        if (ws.logo) {
+            logoHTML = `<img src="${ws.logo}" style="max-height: 85px; max-width: 200px; object-fit: contain; border-radius: 4px;" />`;
+        } else {
+            logoHTML = `
+                <div style="border:1.2px solid #cbd5e1; padding: 6px; border-radius:6px; background:#f8fafc; font-family:'Outfit',sans-serif; text-align:center; font-weight:800; color:${brandColor}; width:100%;">
+                    <div style="font-size:1.15rem;">${escapeHtml(ws.logoText || 'TALLER')}</div>
+                    <div style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">${escapeHtml((ws.logoTagline || '').substring(0,35))}</div>
+                </div>
+            `;
+        }
+
         const rowsHtml = filtered.map(c => {
             const pObj = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Desconocido' };
             return `
                 <tr>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap; text-align:center;">${c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
                     <td style="padding:8px; border-bottom:1px solid #ddd; font-family:monospace; text-align:center;">${escapeHtml(c.Num_Factura || 'N/A')}</td>
                     <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(pObj.Nombre)}</td>
                     <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">${escapeHtml(c.Condicion || 'CONTADO')}</td>
@@ -1600,9 +1655,10 @@ export function renderGastos(container) {
             <html>
             <head>
                 <title>Reporte de Compras por Proveedor - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
                 <style>
                     body {
-                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
                         color:#333;
                         padding:30px;
                         font-size:12px;
@@ -1613,15 +1669,12 @@ export function renderGastos(container) {
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
-                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
-                    .subtitle { font-size: 11px; color: #666; }
                     .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
                     .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
                     .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
                     .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                     .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -1631,21 +1684,54 @@ export function renderGastos(container) {
                         body {
                             padding: 1.5cm !important;
                             margin: 0 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page {
+                            size: portrait;
+                            margin: 0;
                         }
                     }
                 </style>
             </head>
             <body>
-                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                <button class="btn-print" onclick="window.print()">Imprimir o Guardar PDF</button>
                 
-                <div class="header">
-                    <div>
-                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
-                        <div class="subtitle">Proveedor: ${escapeHtml(provName)}</div>
+                <!-- Styled DTE Header -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px; font-size:11px; line-height:1.4;">
+                    <div style="flex:1.3;">
+                        <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.nombre_comercial || ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad_economica || ws.giro || 'Servicios Automotrices')}</div>
+                        <div><strong>NIT:</strong> ${escapeHtml(ws.num_documento || ws.nit || '')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '')}</div>
+                        <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.correo || 'N/A')}</div>
+                        <div><strong>Teléfono:</strong> ${escapeHtml(ws.telefono || 'N/A')}</div>
                     </div>
-                    <div class="text-right">
-                        <div style="font-weight:bold; font-size:14px;">REPORTE DE COMPRAS Y ADQUISICIONES</div>
-                        <div style="color:#666; margin-top:5px;">Rango: ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}</div>
+                    <div style="width:250px; padding-left:15px; margin-left:15px; border-left:1px solid #ddd;">
+                        <div><strong>Dirección:</strong> ${escapeHtml(ws.direccion || '')}</div>
+                        <div>MUNICIPIO DE ${escapeHtml((ws.municipio || '').toUpperCase())}</div>
+                        <div>DEPARTAMENTO DE ${escapeHtml((ws.departamento || '').toUpperCase())}</div>
+                        <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
+                        <div><strong>Punto de Venta:</strong> P001</div>
+                    </div>
+                    <div style="width:180px; text-align:right; margin-left:15px; border-right:3px solid #ddd; padding-right:15px;">
+                        ${safe(logoHTML)}
+                    </div>
+                </div>
+
+                <!-- Title Banner -->
+                <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                    REPORTE DE COMPRAS Y ADQUISICIONES
+                </div>
+
+                <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
+                    <div>
+                        <strong>Proveedor Seleccionado:</strong> ${escapeHtml(provName)}<br>
+                        <strong>Rango de Fechas:</strong> ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>Generado el:</strong> ${new Date().toLocaleDateString('es-SV')} ${new Date().toLocaleTimeString('es-SV')}<br>
+                        <strong>Estado de Consulta:</strong> PROCESADO
                     </div>
                 </div>
 
@@ -1660,18 +1746,18 @@ export function renderGastos(container) {
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Saldo Pendiente Creditos</div>
-                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalPending.toFixed(2)}</div>
+                        <div class="kpi-val" style="color:#ef4444;">$ ${totalPending.toFixed(2)}</div>
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:10%;">Fecha</th>
-                            <th style="width:12%;">N° Factura</th>
+                            <th style="width:10%; text-align:center;">Fecha</th>
+                            <th style="width:12%; text-align:center;">N° Factura</th>
                             <th>Proveedor</th>
-                            <th style="width:10%;">Condición</th>
-                            <th style="width:10%;">Pago</th>
+                            <th style="width:10%; text-align:center;">Condición</th>
+                            <th style="width:10%; text-align:center;">Pago</th>
                             <th style="width:12%; text-align:right;">Monto Neto</th>
                             <th style="width:10%; text-align:right;">IVA (13%)</th>
                             <th style="width:12%; text-align:right;">Total</th>
@@ -1733,6 +1819,18 @@ export function renderGastos(container) {
 
         const brandColor = ws.color_presupuesto || '#4361ee';
 
+        let logoHTML = '';
+        if (ws.logo) {
+            logoHTML = `<img src="${ws.logo}" style="max-height: 85px; max-width: 200px; object-fit: contain; border-radius: 4px;" />`;
+        } else {
+            logoHTML = `
+                <div style="border:1.2px solid #cbd5e1; padding: 6px; border-radius:6px; background:#f8fafc; font-family:'Outfit',sans-serif; text-align:center; font-weight:800; color:${brandColor}; width:100%;">
+                    <div style="font-size:1.15rem;">${escapeHtml(ws.logoText || 'TALLER')}</div>
+                    <div style="font-size:0.6rem; color:#64748b; font-weight:600; text-transform:uppercase;">${escapeHtml((ws.logoTagline || '').substring(0,35))}</div>
+                </div>
+            `;
+        }
+
         const rowsHtml = list.map(d => `
             <tr>
                 <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(d.nombre)}</td>
@@ -1747,9 +1845,10 @@ export function renderGastos(container) {
             <html>
             <head>
                 <title>Reporte de Cuentas por Pagar - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
                 <style>
                     body {
-                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
                         color:#333;
                         padding:30px;
                         font-size:12px;
@@ -1760,15 +1859,12 @@ export function renderGastos(container) {
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
-                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
-                    .subtitle { font-size: 11px; color: #666; }
                     .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
                     .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
                     .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
                     .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
                     .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
                     .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
@@ -1778,28 +1874,61 @@ export function renderGastos(container) {
                         body {
                             padding: 1.5cm !important;
                             margin: 0 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page {
+                            size: portrait;
+                            margin: 0;
                         }
                     }
                 </style>
             </head>
             <body>
-                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                <button class="btn-print" onclick="window.print()">Imprimir o Guardar PDF</button>
                 
-                <div class="header">
-                    <div>
-                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
-                        <div class="subtitle">${escapeHtml(ws.direccion || 'Taller Automotriz')}</div>
+                <!-- Styled DTE Header -->
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px; font-size:11px; line-height:1.4;">
+                    <div style="flex:1.3;">
+                        <div style="font-size:22px; font-weight:bold; color:${brandColor}; font-family:'Outfit',sans-serif; margin-bottom:10px;">${escapeHtml(ws.nombre_comercial || ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Nombre o Razón Social:</strong> ${escapeHtml(ws.nombre || 'Grupo Gema')}</div>
+                        <div><strong>Actividad Económica:</strong> ${escapeHtml(ws.actividad_economica || ws.giro || 'Servicios Automotrices')}</div>
+                        <div><strong>NIT:</strong> ${escapeHtml(ws.num_documento || ws.nit || '')} &nbsp;&nbsp; <strong>NRC:</strong> ${escapeHtml(ws.nrc || '')}</div>
+                        <div><strong>Correo Electrónico:</strong> ${escapeHtml(ws.correo || 'N/A')}</div>
+                        <div><strong>Teléfono:</strong> ${escapeHtml(ws.telefono || 'N/A')}</div>
                     </div>
-                    <div class="text-right">
-                        <div style="font-weight:bold; font-size:14px;">REPORTE DE CUENTAS POR PAGAR</div>
-                        <div style="color:#666; margin-top:5px;">Emitido el: ${new Date().toLocaleDateString('es-SV')}</div>
+                    <div style="width:250px; padding-left:15px; margin-left:15px; border-left:1px solid #ddd;">
+                        <div><strong>Dirección:</strong> ${escapeHtml(ws.direccion || '')}</div>
+                        <div>MUNICIPIO DE ${escapeHtml((ws.municipio || '').toUpperCase())}</div>
+                        <div>DEPARTAMENTO DE ${escapeHtml((ws.departamento || '').toUpperCase())}</div>
+                        <div style="margin-top: 5px;"><strong>Casa Matriz/Sucursal:</strong> M001</div>
+                        <div><strong>Punto de Venta:</strong> P001</div>
+                    </div>
+                    <div style="width:180px; text-align:right; margin-left:15px; border-right:3px solid #ddd; padding-right:15px;">
+                        ${safe(logoHTML)}
+                    </div>
+                </div>
+
+                <!-- Title Banner -->
+                <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                    REPORTE GENERAL DE CUENTAS POR PAGAR (SALDOS)
+                </div>
+
+                <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
+                    <div>
+                        <strong>Tipo de Consulta:</strong> Consolidated Outstanding Debts<br>
+                        <strong>Estado de Cuentas:</strong> CON SALDO PENDIENTE
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>Generado el:</strong> ${new Date().toLocaleDateString('es-SV')} ${new Date().toLocaleTimeString('es-SV')}<br>
+                        <strong>Estado de Consulta:</strong> PROCESADO
                     </div>
                 </div>
 
                 <div class="kpis">
                     <div class="kpi-card">
                         <div class="kpi-label">Deuda Total Pendiente</div>
-                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalOwed.toFixed(2)}</div>
+                        <div class="kpi-val" style="color:#ef4444;">$ ${totalOwed.toFixed(2)}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Proveedores Acreedores</div>
@@ -1815,7 +1944,7 @@ export function renderGastos(container) {
                     <thead>
                         <tr>
                             <th>Proveedor</th>
-                            <th style="width:20%;">NIT / Documento</th>
+                            <th style="width:20%; text-align:center;">NIT / Documento</th>
                             <th style="width:18%; text-align:right;">Compras a Crédito</th>
                             <th style="width:18%; text-align:right;">Total Abonado</th>
                             <th style="width:18%; text-align:right;">Saldo Pendiente</th>
@@ -1827,7 +1956,7 @@ export function renderGastos(container) {
                     <tfoot>
                         <tr style="background:#f9f9f9; font-weight:bold;">
                             <td colspan="4" style="padding:10px; border-top:2px solid #333; text-align:right;">DEUDA TOTAL ACUMULADA:</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#e74c3c; font-size:13px;">$ ${totalOwed.toFixed(2)}</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:13px;">$ ${totalOwed.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
