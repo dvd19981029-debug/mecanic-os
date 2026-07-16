@@ -58,7 +58,7 @@ export function renderPresupuestos(container, queryParams) {
                     <input type="text" id="budget-search" placeholder="Buscar por número o cliente...">
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <button class="btn btn-secondary" id="history-budget-btn" style="background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-clock-rotate-left"></i> Historial Completo</button>
+                    <button class="btn btn-secondary" id="history-budget-btn" style="background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-clock-rotate-left"></i> Historial</button>
                     <button class="btn btn-primary" id="new-budget-direct-btn"><i class="fa-solid fa-file-circle-plus"></i> Nueva Cotización</button>
                 </div>
             </div>
@@ -87,7 +87,7 @@ export function renderPresupuestos(container, queryParams) {
         <div id="budget-history-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
             <div class="modal-content glass-card" style="margin: 2% auto; width: 90%; max-width: 1200px; padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-sidebar); max-height: 90vh; display: flex; flex-direction: column; gap: 1.5rem;">
                 <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-                    <h2 style="margin: 0; font-family: 'Outfit', sans-serif; color: var(--primary);"><i class="fa-solid fa-clock-rotate-left"></i> Historial Completo de Presupuestos</h2>
+                    <h2 style="margin: 0; font-family: 'Outfit', sans-serif; color: var(--primary);"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Presupuestos</h2>
                     <span class="close-modal" id="close-history-modal" style="font-size: 1.8rem; cursor: pointer; color: var(--text-secondary);">&times;</span>
                 </div>
                 
