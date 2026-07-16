@@ -1275,7 +1275,7 @@ export function renderGastos(container) {
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Seleccionar Tipo de Reporte</label>
                     <select id="rep-gastos-tipo" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; height: 38px;">
                         <option value="gastos_mensuales">1. Reporte de Gastos Operativos (Egresos)</option>
-                        <option value="compras_proveedor">2. Reporte de Compras por Proveedor</option>
+                        <option value="compras_proveedor">2. Estado de Cuenta de Proveedor (Compras y Abonos)</option>
                         <option value="cuentas_por_pagar">3. Reporte de Cuentas por Pagar (Saldos a Proveedores)</option>
                     </select>
                 </div>
@@ -1284,7 +1284,7 @@ export function renderGastos(container) {
                 <div class="form-group" id="rep-prov-selector-group" style="margin-bottom: 1.5rem; display: none;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Seleccionar Proveedor</label>
                     <select id="rep-prov-id" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; height: 38px;">
-                        <option value="ALL">-- Todos los Proveedores --</option>
+                        <option value="">-- Seleccione un Proveedor --</option>
                         ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join(''))}
                     </select>
                 </div>
@@ -1351,7 +1351,11 @@ export function renderGastos(container) {
                 printGastosPDF(db, ws, fromDate, toDate);
             } else if (val === 'compras_proveedor') {
                 const provId = document.getElementById('rep-prov-id').value;
-                printComprasProveedorPDF(db, ws, provId, fromDate, toDate);
+                if (!provId) {
+                    showToast("Por favor seleccione un proveedor específico para generar su estado de cuenta.", "danger");
+                    return;
+                }
+                printProveedorStatementPDF(db, ws, provId, fromDate, toDate);
             } else if (val === 'cuentas_por_pagar') {
                 printCxpPDF(db, ws);
             }
@@ -1377,27 +1381,65 @@ export function renderGastos(container) {
                 downloadExcelReport(`Reporte_Gastos_${fromDate}_a_${toDate}.xlsx`, excelData);
             } else if (val === 'compras_proveedor') {
                 const provId = document.getElementById('rep-prov-id').value;
-                const filtered = db.compras.filter(c => {
-                    const cDate = c.Fecha_Compra || '';
-                    const dateMatch = cDate >= fromDate && cDate <= toDate;
-                    const provMatch = provId === 'ALL' || c.ID_Proveedor === provId;
-                    return dateMatch && provMatch;
-                });
-                const excelData = filtered.map(c => {
-                    const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Desconocido' };
+                if (!provId) {
+                    showToast("Por favor seleccione un proveedor específico para exportar su estado de cuenta.", "danger");
+                    return;
+                }
+                const prov = db.proveedores.find(p => p.ID_Proveedor === provId);
+                if (!prov) return;
+
+                const creditPurchases = db.compras.filter(c => 
+                    c.ID_Proveedor === provId && 
+                    c.Condicion === 'CREDITO'
+                );
+
+                const charges = creditPurchases.map(c => ({
+                    timestamp: c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').getTime() : Date.now(),
+                    fecha: c.Fecha_Compra || 'N/A',
+                    ref: c.Num_Factura || 'Factura Crédito',
+                    tipo: 'Compra a Crédito',
+                    cargo: parseFloat(c.Monto_Total || 0),
+                    abono: 0,
+                    dte: c.mhControlNumber || c.controlNumber || ''
+                }));
+
+                const purchaseIds = creditPurchases.map(c => c.ID_Compra);
+                const abonosList = (db.abonos_proveedores || []).filter(a => purchaseIds.includes(a.ID_Compra));
+
+                const payments = abonosList.map(a => {
+                    const comp = creditPurchases.find(c => c.ID_Compra === a.ID_Compra) || { Num_Factura: '' };
                     return {
-                        "Fecha": c.Fecha_Compra,
-                        "N° Factura": c.Num_Factura || 'N/A',
-                        "Proveedor": prov.Nombre,
-                        "Condición": c.Condicion || 'CONTADO',
-                        "Estado Pago": c.Estado_Pago || 'PAGADO',
-                        "Monto Neto ($)": parseFloat(c.Monto_Neto || 0),
-                        "Monto IVA ($)": parseFloat(c.Monto_IVA || 0),
-                        "Monto Total ($)": parseFloat(c.Monto_Total || 0),
-                        "Saldo Pendiente ($)": parseFloat(c.Saldo_Pendiente || 0)
+                        timestamp: a.Fecha_Abono ? new Date(a.Fecha_Abono + 'T00:00:00').getTime() : Date.now(),
+                        fecha: a.Fecha_Abono || 'N/A',
+                        ref: `Abono a Fact. ${comp.Num_Factura || ''}`,
+                        tipo: `Abono (${a.Forma_Pago || 'EFECTIVO'})`,
+                        cargo: 0,
+                        abono: parseFloat(a.Monto_Abono || 0),
+                        dte: ''
                     };
                 });
-                downloadExcelReport(`Reporte_Compras_${fromDate}_a_${toDate}.xlsx`, excelData);
+
+                const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
+
+                let runningBalance = 0;
+                const excelData = [];
+                ledger.forEach(t => {
+                    runningBalance += t.cargo - t.abono;
+                    if (t.fecha >= fromDate && t.fecha <= toDate) {
+                        excelData.push({
+                            "Fecha": t.fecha,
+                            "Referencia / Factura": t.ref,
+                            "Tipo Transacción": t.tipo,
+                            "N° DTE / Control": t.dte || "-",
+                            "Compras (+) ($)": t.cargo || 0,
+                            "Abonos (-) ($)": t.abono || 0,
+                            "Saldo Deuda ($)": runningBalance
+                        });
+                    }
+                });
+
+                const cleanName = prov.Nombre.replace(/[^a-zA-Z0-9]/g, '_');
+                downloadExcelReport(`Estado_Cuenta_Proveedor_${cleanName}_${Date.now()}.xlsx`, excelData);
             } else if (val === 'cuentas_por_pagar') {
                 const debtors = {};
                 db.compras.forEach(c => {
@@ -1595,27 +1637,70 @@ export function renderGastos(container) {
         printWindow.document.close();
     }
 
-    function printComprasProveedorPDF(db, ws, provId, fromDate, toDate) {
+    function printProveedorStatementPDF(db, ws, provId, fromDate, toDate) {
+        if (provId === 'ALL' || !provId) {
+            showToast("Por favor seleccione un proveedor específico para generar su estado de cuenta.", "danger");
+            return;
+        }
+
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const filtered = db.compras.filter(c => {
-            const cDate = c.Fecha_Compra || '';
-            const dateMatch = cDate >= fromDate && cDate <= toDate;
-            const provMatch = provId === 'ALL' || c.ID_Proveedor === provId;
-            return dateMatch && provMatch;
+        const prov = db.proveedores.find(p => p.ID_Proveedor === provId);
+        if (!prov) return;
+
+        // 1. Gather all credit purchases for this supplier
+        const creditPurchases = db.compras.filter(c => 
+            c.ID_Proveedor === provId && 
+            c.Condicion === 'CREDITO'
+        );
+
+        // Map purchases to charges
+        const charges = creditPurchases.map(c => ({
+            timestamp: c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').getTime() : Date.now(),
+            fecha: c.Fecha_Compra || 'N/A',
+            ref: c.Num_Factura || 'Factura Crédito',
+            tipo: 'Compra a Crédito',
+            cargo: parseFloat(c.Monto_Total || 0),
+            abono: 0,
+            dte: c.mhControlNumber || c.controlNumber || ''
+        }));
+
+        // 2. Gather all abonos for these purchases
+        const purchaseIds = creditPurchases.map(c => c.ID_Compra);
+        const abonosList = (db.abonos_proveedores || []).filter(a => purchaseIds.includes(a.ID_Compra));
+
+        // Map abonos to payments
+        const payments = abonosList.map(a => {
+            const comp = creditPurchases.find(c => c.ID_Compra === a.ID_Compra) || { Num_Factura: '' };
+            return {
+                timestamp: a.Fecha_Abono ? new Date(a.Fecha_Abono + 'T00:00:00').getTime() : Date.now(),
+                fecha: a.Fecha_Abono || 'N/A',
+                ref: `Abono a Fact. ${comp.Num_Factura || ''}`,
+                tipo: `Abono (${a.Forma_Pago || 'EFECTIVO'})`,
+                cargo: 0,
+                abono: parseFloat(a.Monto_Abono || 0),
+                dte: ''
+            };
         });
 
-        filtered.sort((a, b) => (a.Fecha_Compra || '').localeCompare(b.Fecha_Compra || ''));
+        // 3. Merge and sort
+        const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
 
-        const total = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_Total || 0), 0);
-        const net = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_Neto || 0), 0);
-        const iva = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_IVA || 0), 0);
-        const count = filtered.length;
-        const totalPending = filtered.reduce((sum, c) => sum + parseFloat(c.Saldo_Pendiente || 0), 0);
+        // 4. Calculate running balance and filter by date range
+        let runningBalance = 0;
+        const processedLedger = [];
 
-        const provObj = provId !== 'ALL' ? db.proveedores.find(p => p.ID_Proveedor === provId) : null;
-        const provName = provObj ? provObj.Nombre : 'TODOS LOS PROVEEDORES';
+        ledger.forEach(t => {
+            runningBalance += t.cargo - t.abono;
+            // Only include in print list if within range
+            if (t.fecha >= fromDate && t.fecha <= toDate) {
+                processedLedger.push({
+                    ...t,
+                    balance: runningBalance
+                });
+            }
+        });
 
         const brandColor = ws.color_presupuesto || '#4361ee';
 
@@ -1631,22 +1716,17 @@ export function renderGastos(container) {
             `;
         }
 
-        const rowsHtml = filtered.map(c => {
-            const pObj = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Desconocido' };
+        const rowsHtml = processedLedger.map(t => {
+            const formattedDate = t.fecha ? new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A';
             return `
                 <tr>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap; text-align:center;">${c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; font-family:monospace; text-align:center;">${escapeHtml(c.Num_Factura || 'N/A')}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(pObj.Nombre)}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">${escapeHtml(c.Condicion || 'CONTADO')}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">
-                        <span style="padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold; background:${c.Estado_Pago === 'PAGADO' ? '#e2fbe8' : '#ffebeb'}; color:${c.Estado_Pago === 'PAGADO' ? '#1e7e34' : '#bd2130'};">
-                            ${escapeHtml(c.Estado_Pago || 'PAGADO')}
-                        </span>
-                    </td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${parseFloat(c.Monto_Neto || 0).toFixed(2)}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${parseFloat(c.Monto_IVA || 0).toFixed(2)}</td>
-                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold;">$ ${parseFloat(c.Monto_Total || 0).toFixed(2)}</td>
+                    <td style="padding:8px; border:1px solid #ddd; text-align:center; white-space:nowrap;">${formattedDate}</td>
+                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${escapeHtml(t.ref)}</td>
+                    <td style="padding:8px; border:1px solid #ddd;">${escapeHtml(t.tipo)}</td>
+                    <td style="padding:8px; border:1px solid #ddd; font-family:monospace; text-align:center;">${escapeHtml(t.dte || '-')}</td>
+                    <td style="padding:8px; border:1px solid #ddd; text-align:right; color:${t.cargo > 0 ? '#ef4444' : '#333'};">$ ${t.cargo > 0 ? t.cargo.toFixed(2) : '0.00'}</td>
+                    <td style="padding:8px; border:1px solid #ddd; text-align:right; color:${t.abono > 0 ? '#10b981' : '#333'};">$ ${t.abono > 0 ? t.abono.toFixed(2) : '0.00'}</td>
+                    <td style="padding:8px; border:1px solid #ddd; text-align:right; font-weight:bold;">$ ${t.balance.toFixed(2)}</td>
                 </tr>
             `;
         }).join('');
@@ -1654,7 +1734,7 @@ export function renderGastos(container) {
         printWindow.document.write(`
             <html>
             <head>
-                <title>Reporte de Compras por Proveedor - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <title>Estado de Cuenta - ${escapeHtml(prov.Nombre)}</title>
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
                 <style>
                     body {
@@ -1669,10 +1749,6 @@ export function renderGastos(container) {
                     }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
-                    .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
-                    .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
-                    .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
                     th { background: ${brandColor} !important; color: white !important; padding: 10px 8px; text-align: left; font-weight: bold; border: 1px solid ${brandColor} !important; }
                     .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
@@ -1721,64 +1797,46 @@ export function renderGastos(container) {
 
                 <!-- Title Banner -->
                 <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                    REPORTE DE COMPRAS Y ADQUISICIONES
+                    ESTADO DE CUENTA DE PROVEEDOR (CUENTAS POR PAGAR)
                 </div>
 
                 <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
                     <div>
-                        <strong>Proveedor Seleccionado:</strong> ${escapeHtml(provName)}<br>
-                        <strong>Rango de Fechas:</strong> ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}
+                        <strong>Proveedor:</strong> ${escapeHtml(prov.Nombre)}<br>
+                        <strong>NIT / DUI:</strong> ${escapeHtml(prov.NIT_DUI || 'N/A')}
                     </div>
                     <div style="text-align:right;">
-                        <strong>Generado el:</strong> ${new Date().toLocaleDateString('es-SV')} ${new Date().toLocaleTimeString('es-SV')}<br>
-                        <strong>Estado de Consulta:</strong> PROCESADO
-                    </div>
-                </div>
-
-                <div class="kpis">
-                    <div class="kpi-card">
-                        <div class="kpi-label">Total Adquirido</div>
-                        <div class="kpi-val" style="color:${brandColor};">$ ${total.toFixed(2)}</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-label">Compras en Rango</div>
-                        <div class="kpi-val">${count}</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-label">Saldo Pendiente Creditos</div>
-                        <div class="kpi-val" style="color:#ef4444;">$ ${totalPending.toFixed(2)}</div>
+                        <strong>Período de Reporte:</strong> ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}<br>
+                        <strong>Saldo Final al corte:</strong> $ ${runningBalance.toFixed(2)}
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:10%; text-align:center;">Fecha</th>
-                            <th style="width:12%; text-align:center;">N° Factura</th>
-                            <th>Proveedor</th>
-                            <th style="width:10%; text-align:center;">Condición</th>
-                            <th style="width:10%; text-align:center;">Pago</th>
-                            <th style="width:12%; text-align:right;">Monto Neto</th>
-                            <th style="width:10%; text-align:right;">IVA (13%)</th>
-                            <th style="width:12%; text-align:right;">Total</th>
+                            <th style="width:12%; text-align:center;">Fecha</th>
+                            <th style="width:15%;">Documento / Ref</th>
+                            <th>Concepto / Detalle</th>
+                            <th style="width:15%; text-align:center;">N° DTE / Control</th>
+                            <th style="width:12%; text-align:right;">Compras (+)</th>
+                            <th style="width:12%; text-align:right;">Abonos (-)</th>
+                            <th style="width:14%; text-align:right;">Saldo Deuda</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml || '<tr><td colspan="8" style="text-align:center; padding:15px; color:#999;">Sin facturas registradas para estos criterios</td></tr>'}
+                        ${rowsHtml || '<tr><td colspan="7" style="text-align:center; padding:15px; color:#999;">Sin registros en este período</td></tr>'}
                     </tbody>
                     <tfoot>
                         <tr style="background:#f9f9f9; font-weight:bold;">
-                            <td colspan="5" style="padding:10px; border-top:2px solid #333; text-align:right;">TOTALES GENERALES:</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right;">$ ${net.toFixed(2)}</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right;">$ ${iva.toFixed(2)}</td>
-                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:${brandColor}; font-size:13px;">$ ${total.toFixed(2)}</td>
+                            <td colspan="6" style="padding:10px; border-top:2px solid #333; text-align:right;">SALDO PENDIENTE ACTUAL:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#ef4444; font-size:13px;">$ ${runningBalance.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
 
                 <div class="sign-box">
-                    <div class="sign-line">Generado por Contabilidad</div>
-                    <div class="sign-line">V°B° Administración</div>
+                    <div class="sign-line">Revisado por Finanzas</div>
+                    <div class="sign-line">V°B° Proveedor</div>
                 </div>
             </body>
             </html>
