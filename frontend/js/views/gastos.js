@@ -52,6 +52,7 @@ export function renderGastos(container) {
             <button class="saas-tab-btn ${activeGastosTab === 'cxp' ? 'active' : ''}" data-tab="cxp" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-invoice-dollar"></i> Cuentas por Pagar</button>
             <button class="saas-tab-btn ${activeGastosTab === 'proveedores' ? 'active' : ''}" data-tab="proveedores" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-truck-field"></i> Proveedores</button>
             <button class="saas-tab-btn ${activeGastosTab === 'dtes_recibidos' ? 'active' : ''}" data-tab="dtes_recibidos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-envelope-open-text"></i> DTEs Recibidos (Gmail)</button>
+            <button class="saas-tab-btn ${activeGastosTab === 'reporteria' ? 'active' : ''}" data-tab="reporteria" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-chart-line"></i> Reportería</button>
         </div>
         <div id="gastos-tab-content"></div>
     `;
@@ -76,6 +77,8 @@ export function renderGastos(container) {
         renderProveedoresTab(contentArea);
     } else if (activeGastosTab === 'dtes_recibidos') {
         renderDtesRecibidosTab(contentArea);
+    } else if (activeGastosTab === 'reporteria') {
+        renderReporteriaTab(contentArea);
     }
 
     // --- TAB 1: OPERATIONAL EXPENSES ---
@@ -1260,7 +1263,584 @@ export function renderGastos(container) {
                 });
         });
     }
-}
+
+    function renderReporteriaTab(parent) {
+        parent.innerHTML = html`
+            <div class="glass-card" style="max-width: 600px; margin: 2rem auto; padding: 2rem; border: 1px solid var(--border-color); border-radius: 12px; background: rgba(255,255,255,0.01);">
+                <h3 style="margin-bottom: 1.5rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                    <i class="fa-solid fa-chart-line" style="color: var(--primary);"></i> Generación de Reportes de Gastos y Compras
+                </h3>
+                
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Seleccionar Tipo de Reporte</label>
+                    <select id="rep-gastos-tipo" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; height: 38px;">
+                        <option value="gastos_mensuales">1. Reporte de Gastos Operativos (Egresos)</option>
+                        <option value="compras_proveedor">2. Reporte de Compras por Proveedor</option>
+                        <option value="cuentas_por_pagar">3. Reporte de Cuentas por Pagar (Saldos a Proveedores)</option>
+                    </select>
+                </div>
+                
+                <!-- Provider Selector (hidden by default) -->
+                <div class="form-group" id="rep-prov-selector-group" style="margin-bottom: 1.5rem; display: none;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Seleccionar Proveedor</label>
+                    <select id="rep-prov-id" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; height: 38px;">
+                        <option value="ALL">-- Todos los Proveedores --</option>
+                        ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join(''))}
+                    </select>
+                </div>
+
+                <!-- Date Range (shown for 1 and 2) -->
+                <div id="rep-date-range-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="form-group">
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Fecha Desde</label>
+                        <input type="date" id="rep-date-from" style="padding: 0.5rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; height: 38px;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 600; display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Fecha Hasta</label>
+                        <input type="date" id="rep-date-to" style="padding: 0.5rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; width: 100%; box-sizing: border-box; height: 38px;">
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                    <button class="btn btn-primary" id="btn-generate-gastos-pdf" style="flex:1; padding: 0.75rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-file-pdf"></i> Generar PDF
+                    </button>
+                    <button class="btn btn-secondary" id="btn-generate-gastos-excel" style="flex:1; padding: 0.75rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-color:#2ecc71; color:#2ecc71;">
+                        <i class="fa-solid fa-file-excel"></i> Exportar Excel
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const repTipo = document.getElementById('rep-gastos-tipo');
+        const provGroup = document.getElementById('rep-prov-selector-group');
+        const dateGroup = document.getElementById('rep-date-range-group');
+        const pdfBtn = document.getElementById('btn-generate-gastos-pdf');
+        const excelBtn = document.getElementById('btn-generate-gastos-excel');
+
+        // Initialize date inputs to current month
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const firstDay = new Date(y, m, 1).toISOString().split('T')[0];
+        const lastDay = new Date(y, m + 1, 0).toISOString().split('T')[0];
+        document.getElementById('rep-date-from').value = firstDay;
+        document.getElementById('rep-date-to').value = lastDay;
+
+        repTipo.addEventListener('change', () => {
+            const val = repTipo.value;
+            if (val === 'gastos_mensuales') {
+                provGroup.style.display = 'none';
+                dateGroup.style.display = 'grid';
+            } else if (val === 'compras_proveedor') {
+                provGroup.style.display = 'block';
+                dateGroup.style.display = 'grid';
+            } else if (val === 'cuentas_por_pagar') {
+                provGroup.style.display = 'none';
+                dateGroup.style.display = 'none';
+            }
+        });
+
+        pdfBtn.addEventListener('click', () => {
+            const val = repTipo.value;
+            const ws = getWorkshopConfig(db);
+            const fromDate = document.getElementById('rep-date-from').value;
+            const toDate = document.getElementById('rep-date-to').value;
+
+            if (val === 'gastos_mensuales') {
+                printGastosPDF(db, ws, fromDate, toDate);
+            } else if (val === 'compras_proveedor') {
+                const provId = document.getElementById('rep-prov-id').value;
+                printComprasProveedorPDF(db, ws, provId, fromDate, toDate);
+            } else if (val === 'cuentas_por_pagar') {
+                printCxpPDF(db, ws);
+            }
+        });
+
+        excelBtn.addEventListener('click', () => {
+            const val = repTipo.value;
+            const fromDate = document.getElementById('rep-date-from').value;
+            const toDate = document.getElementById('rep-date-to').value;
+
+            if (val === 'gastos_mensuales') {
+                const filtered = db.gastos.filter(g => {
+                    const gDate = g['Fecha Gasto'] || '';
+                    return gDate >= fromDate && gDate <= toDate;
+                });
+                const excelData = filtered.map(g => ({
+                    "Fecha": g['Fecha Gasto'],
+                    "Categoría": g['ID Categoría Gasto'] || 'General',
+                    "Concepto": g.Concepto,
+                    "Forma de Pago": g['Forma de Pago'] || 'EFECTIVO',
+                    "Monto Total ($)": parseFloat(g['Monto Total'] || 0)
+                }));
+                downloadExcelReport(`Reporte_Gastos_${fromDate}_a_${toDate}.xlsx`, excelData);
+            } else if (val === 'compras_proveedor') {
+                const provId = document.getElementById('rep-prov-id').value;
+                const filtered = db.compras.filter(c => {
+                    const cDate = c.Fecha_Compra || '';
+                    const dateMatch = cDate >= fromDate && cDate <= toDate;
+                    const provMatch = provId === 'ALL' || c.ID_Proveedor === provId;
+                    return dateMatch && provMatch;
+                });
+                const excelData = filtered.map(c => {
+                    const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Desconocido' };
+                    return {
+                        "Fecha": c.Fecha_Compra,
+                        "N° Factura": c.Num_Factura || 'N/A',
+                        "Proveedor": prov.Nombre,
+                        "Condición": c.Condicion || 'CONTADO',
+                        "Estado Pago": c.Estado_Pago || 'PAGADO',
+                        "Monto Neto ($)": parseFloat(c.Monto_Neto || 0),
+                        "Monto IVA ($)": parseFloat(c.Monto_IVA || 0),
+                        "Monto Total ($)": parseFloat(c.Monto_Total || 0),
+                        "Saldo Pendiente ($)": parseFloat(c.Saldo_Pendiente || 0)
+                    };
+                });
+                downloadExcelReport(`Reporte_Compras_${fromDate}_a_${toDate}.xlsx`, excelData);
+            } else if (val === 'cuentas_por_pagar') {
+                const debtors = {};
+                db.compras.forEach(c => {
+                    const balance = parseFloat(c.Saldo_Pendiente || 0);
+                    if (balance > 0) {
+                        const provId = c.ID_Proveedor;
+                        if (!debtors[provId]) {
+                            const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor Desconocido', NIT_DUI: '' };
+                            debtors[provId] = {
+                                "Proveedor": prov.Nombre,
+                                "NIT / Documento": prov.NIT_DUI || 'N/A',
+                                "Compras a Crédito ($)": 0,
+                                "Total Abonado ($)": 0,
+                                "Saldo Pendiente ($)": 0
+                            };
+                        }
+                        const total = parseFloat(c.Monto_Total || 0);
+                        debtors[provId]["Compras a Crédito ($)"] += total;
+                        debtors[provId]["Saldo Pendiente ($)"] += balance;
+                        debtors[provId]["Total Abonado ($)"] += (total - balance);
+                    }
+                });
+                const excelData = Object.values(debtors);
+                downloadExcelReport(`Reporte_Cuentas_por_Pagar_${Date.now()}.xlsx`, excelData);
+            }
+        });
+    }
+
+    function printGastosPDF(db, ws, fromDate, toDate) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const filtered = db.gastos.filter(g => {
+            const gDate = g['Fecha Gasto'] || '';
+            return gDate >= fromDate && gDate <= toDate;
+        });
+
+        filtered.sort((a, b) => (a['Fecha Gasto'] || '').localeCompare(b['Fecha Gasto'] || ''));
+
+        const totalSpent = filtered.reduce((sum, g) => sum + parseFloat(g['Monto Total'] || 0), 0);
+        const count = filtered.length;
+        const avg = count > 0 ? totalSpent / count : 0;
+
+        const brandColor = ws.color_presupuesto || '#4361ee';
+
+        const rowsHtml = filtered.map(g => `
+            <tr>
+                <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${g['Fecha Gasto'] ? new Date(g['Fecha Gasto'] + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(g['ID Categoría Gasto'] || 'General')}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd;">${escapeHtml(g.Concepto)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">${escapeHtml(g['Forma de Pago'] || 'EFECTIVO')}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold;">$ ${parseFloat(g['Monto Total'] || 0).toFixed(2)}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Reporte de Gastos Operativos - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <style>
+                    body {
+                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        color:#333;
+                        padding:30px;
+                        font-size:12px;
+                        line-height:1.4;
+                        background-color:#fff;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
+                    .subtitle { font-size: 11px; color: #666; }
+                    .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
+                    .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
+                    .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
+                    .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
+                    .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
+                    .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
+                    
+                    @media print {
+                        .btn-print { display:none !important; }
+                        body {
+                            padding: 1.5cm !important;
+                            margin: 0 !important;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                
+                <div class="header">
+                    <div>
+                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
+                        <div class="subtitle">${escapeHtml(ws.direccion || 'Taller Automotriz')}</div>
+                    </div>
+                    <div class="text-right">
+                        <div style="font-weight:bold; font-size:14px;">REPORTE DE GASTOS OPERATIVOS</div>
+                        <div style="color:#666; margin-top:5px;">Rango: ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}</div>
+                    </div>
+                </div>
+
+                <div class="kpis">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Egresado</div>
+                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalSpent.toFixed(2)}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Número de Transacciones</div>
+                        <div class="kpi-val">${count}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Gasto Promedio</div>
+                        <div class="kpi-val">$ ${avg.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:12%;">Fecha</th>
+                            <th style="width:20%;">Categoría</th>
+                            <th>Concepto / Detalle</th>
+                            <th style="width:15%;">Pago</th>
+                            <th style="width:15%; text-align:right;">Monto Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Sin registros en este período</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f9f9f9; font-weight:bold;">
+                            <td colspan="4" style="padding:10px; border-top:2px solid #333; text-align:right;">TOTAL ACUMULADO:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#e74c3c; font-size:14px;">$ ${totalSpent.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="sign-box">
+                    <div class="sign-line">Generado por Administración</div>
+                    <div class="sign-line">Firma Autorizada</div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
+
+    function printComprasProveedorPDF(db, ws, provId, fromDate, toDate) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const filtered = db.compras.filter(c => {
+            const cDate = c.Fecha_Compra || '';
+            const dateMatch = cDate >= fromDate && cDate <= toDate;
+            const provMatch = provId === 'ALL' || c.ID_Proveedor === provId;
+            return dateMatch && provMatch;
+        });
+
+        filtered.sort((a, b) => (a.Fecha_Compra || '').localeCompare(b.Fecha_Compra || ''));
+
+        const total = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_Total || 0), 0);
+        const net = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_Neto || 0), 0);
+        const iva = filtered.reduce((sum, c) => sum + parseFloat(c.Monto_IVA || 0), 0);
+        const count = filtered.length;
+        const totalPending = filtered.reduce((sum, c) => sum + parseFloat(c.Saldo_Pendiente || 0), 0);
+
+        const provObj = provId !== 'ALL' ? db.proveedores.find(p => p.ID_Proveedor === provId) : null;
+        const provName = provObj ? provObj.Nombre : 'TODOS LOS PROVEEDORES';
+
+        const brandColor = ws.color_presupuesto || '#4361ee';
+
+        const rowsHtml = filtered.map(c => {
+            const pObj = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Desconocido' };
+            return `
+                <tr>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${c.Fecha_Compra ? new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV') : 'N/A'}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; font-family:monospace; text-align:center;">${escapeHtml(c.Num_Factura || 'N/A')}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(pObj.Nombre)}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">${escapeHtml(c.Condicion || 'CONTADO')}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center;">
+                        <span style="padding:2px 6px; border-radius:4px; font-size:9px; font-weight:bold; background:${c.Estado_Pago === 'PAGADO' ? '#e2fbe8' : '#ffebeb'}; color:${c.Estado_Pago === 'PAGADO' ? '#1e7e34' : '#bd2130'};">
+                            ${escapeHtml(c.Estado_Pago || 'PAGADO')}
+                        </span>
+                    </td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${parseFloat(c.Monto_Neto || 0).toFixed(2)}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${parseFloat(c.Monto_IVA || 0).toFixed(2)}</td>
+                    <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold;">$ ${parseFloat(c.Monto_Total || 0).toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Reporte de Compras por Proveedor - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <style>
+                    body {
+                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        color:#333;
+                        padding:30px;
+                        font-size:12px;
+                        line-height:1.4;
+                        background-color:#fff;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
+                    .subtitle { font-size: 11px; color: #666; }
+                    .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
+                    .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
+                    .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
+                    .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
+                    .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
+                    .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
+                    
+                    @media print {
+                        .btn-print { display:none !important; }
+                        body {
+                            padding: 1.5cm !important;
+                            margin: 0 !important;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                
+                <div class="header">
+                    <div>
+                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
+                        <div class="subtitle">Proveedor: ${escapeHtml(provName)}</div>
+                    </div>
+                    <div class="text-right">
+                        <div style="font-weight:bold; font-size:14px;">REPORTE DE COMPRAS Y ADQUISICIONES</div>
+                        <div style="color:#666; margin-top:5px;">Rango: ${new Date(fromDate + 'T00:00:00').toLocaleDateString('es-SV')} al ${new Date(toDate + 'T00:00:00').toLocaleDateString('es-SV')}</div>
+                    </div>
+                </div>
+
+                <div class="kpis">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Adquirido</div>
+                        <div class="kpi-val" style="color:${brandColor};">$ ${total.toFixed(2)}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Compras en Rango</div>
+                        <div class="kpi-val">${count}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Saldo Pendiente Creditos</div>
+                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalPending.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:10%;">Fecha</th>
+                            <th style="width:12%;">N° Factura</th>
+                            <th>Proveedor</th>
+                            <th style="width:10%;">Condición</th>
+                            <th style="width:10%;">Pago</th>
+                            <th style="width:12%; text-align:right;">Monto Neto</th>
+                            <th style="width:10%; text-align:right;">IVA (13%)</th>
+                            <th style="width:12%; text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="8" style="text-align:center; padding:15px; color:#999;">Sin facturas registradas para estos criterios</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f9f9f9; font-weight:bold;">
+                            <td colspan="5" style="padding:10px; border-top:2px solid #333; text-align:right;">TOTALES GENERALES:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right;">$ ${net.toFixed(2)}</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right;">$ ${iva.toFixed(2)}</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:${brandColor}; font-size:13px;">$ ${total.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="sign-box">
+                    <div class="sign-line">Generado por Contabilidad</div>
+                    <div class="sign-line">V°B° Administración</div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
+
+    function printCxpPDF(db, ws) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const debtors = {};
+        db.compras.forEach(c => {
+            const balance = parseFloat(c.Saldo_Pendiente || 0);
+            if (balance > 0) {
+                const provId = c.ID_Proveedor;
+                if (!debtors[provId]) {
+                    const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor Desconocido', NIT_DUI: '' };
+                    debtors[provId] = {
+                        nombre: prov.Nombre,
+                        nit: prov.NIT_DUI || 'N/A',
+                        totalCredito: 0,
+                        saldoPendiente: 0
+                    };
+                }
+                const total = parseFloat(c.Monto_Total || 0);
+                debtors[provId].totalCredito += total;
+                debtors[provId].saldoPendiente += balance;
+            }
+        });
+
+        const list = Object.values(debtors);
+        list.sort((a, b) => b.saldoPendiente - a.saldoPendiente); // highest debt first
+
+        const totalOwed = list.reduce((sum, d) => sum + d.saldoPendiente, 0);
+        const count = list.length;
+        const avg = count > 0 ? totalOwed / count : 0;
+
+        const brandColor = ws.color_presupuesto || '#4361ee';
+
+        const rowsHtml = list.map(d => `
+            <tr>
+                <td style="padding:8px; border-bottom:1px solid #ddd; font-weight:bold;">${escapeHtml(d.nombre)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:center; font-family:monospace;">${escapeHtml(d.nit)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${d.totalCredito.toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">$ ${(d.totalCredito - d.saldoPendiente).toFixed(2)}</td>
+                <td style="padding:8px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; color:#ef4444;">$ ${d.saldoPendiente.toFixed(2)}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Reporte de Cuentas por Pagar - ${escapeHtml(ws.name || 'Mecanic-OS')}</title>
+                <style>
+                    body {
+                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                        color:#333;
+                        padding:30px;
+                        font-size:12px;
+                        line-height:1.4;
+                        background-color:#fff;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${brandColor} !important; padding-bottom: 15px; margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: bold; color: ${brandColor} !important; text-transform: uppercase; margin-bottom:5px; }
+                    .subtitle { font-size: 11px; color: #666; }
+                    .kpis { display: flex; gap: 15px; margin-bottom: 25px; }
+                    .kpi-card { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; }
+                    .kpi-label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; }
+                    .kpi-val { font-size: 16px; font-weight: bold; margin-top: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { background: ${brandColor} !important; color: white !important; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; border: 1px solid ${brandColor} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .sign-box { margin-top: 60px; display: flex; justify-content: space-between; }
+                    .sign-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 5px; font-size: 10px; }
+                    .btn-print { background: ${brandColor}; color:white; border:none; padding:10px 20px; font-weight:bold; border-radius:4px; cursor:pointer; margin-bottom:20px; }
+                    
+                    @media print {
+                        .btn-print { display:none !important; }
+                        body {
+                            padding: 1.5cm !important;
+                            margin: 0 !important;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <button class="btn-print" onclick="window.print()">Imprimir Reporte</button>
+                
+                <div class="header">
+                    <div>
+                        <div class="title">${escapeHtml(ws.name || 'Mecanic-OS')}</div>
+                        <div class="subtitle">${escapeHtml(ws.direccion || 'Taller Automotriz')}</div>
+                    </div>
+                    <div class="text-right">
+                        <div style="font-weight:bold; font-size:14px;">REPORTE DE CUENTAS POR PAGAR</div>
+                        <div style="color:#666; margin-top:5px;">Emitido el: ${new Date().toLocaleDateString('es-SV')}</div>
+                    </div>
+                </div>
+
+                <div class="kpis">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Deuda Total Pendiente</div>
+                        <div class="kpi-val" style="color:#e74c3c;">$ ${totalOwed.toFixed(2)}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Proveedores Acreedores</div>
+                        <div class="kpi-val">${count}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Deuda Promedio por Acreedor</div>
+                        <div class="kpi-val">$ ${avg.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th style="width:20%;">NIT / Documento</th>
+                            <th style="width:18%; text-align:right;">Compras a Crédito</th>
+                            <th style="width:18%; text-align:right;">Total Abonado</th>
+                            <th style="width:18%; text-align:right;">Saldo Pendiente</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Al día. Sin deudas a proveedores</td></tr>'}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f9f9f9; font-weight:bold;">
+                            <td colspan="4" style="padding:10px; border-top:2px solid #333; text-align:right;">DEUDA TOTAL ACUMULADA:</td>
+                            <td style="padding:10px; border-top:2px solid #333; text-align:right; color:#e74c3c; font-size:13px;">$ ${totalOwed.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="sign-box">
+                    <div class="sign-line">Generado por Finanzas</div>
+                    <div class="sign-line">V°B° Gerencia General</div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
 
 // 11. DASHBOARD BI VIEW
 
