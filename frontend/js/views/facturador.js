@@ -1274,6 +1274,61 @@ export function renderInvoicingWorkspace(container, presId) {
         console.log("JSON de salida (Payload DTE) en texto plano:");
         console.log(JSON.stringify(dtePayload, null, 2));
 
+        const extractErrorDetails = (errData) => {
+            let parts = [];
+            if (!errData) return '';
+            if (errData.observaciones) {
+                if (Array.isArray(errData.observaciones)) {
+                    errData.observaciones.forEach(obs => {
+                        if (typeof obs === 'string') parts.push(obs);
+                        else if (typeof obs === 'object' && obs !== null) {
+                            parts.push(obs.descripcion || obs.mensaje || obs.message || JSON.stringify(obs));
+                        }
+                    });
+                } else if (typeof errData.observaciones === 'string') {
+                    parts.push(errData.observaciones);
+                }
+            }
+            const details = errData.detalles || errData.details;
+            if (details) {
+                if (Array.isArray(details)) {
+                    details.forEach(d => {
+                        if (typeof d === 'string') parts.push(d);
+                        else if (typeof d === 'object' && d !== null) {
+                            parts.push(d.descripcion || d.mensaje || d.message || JSON.stringify(d));
+                        }
+                    });
+                } else if (typeof details === 'string') {
+                    parts.push(details);
+                }
+            }
+            if (errData.message) {
+                if (Array.isArray(errData.message)) {
+                    errData.message.forEach(m => {
+                        if (typeof m === 'string') parts.push(m);
+                        else if (typeof m === 'object' && m !== null) parts.push(m.message || JSON.stringify(m));
+                    });
+                } else if (typeof errData.message === 'string') {
+                    parts.push(errData.message);
+                } else if (typeof errData.message === 'object') {
+                    parts.push(errData.message.message || JSON.stringify(errData.message));
+                }
+            }
+            if (errData.error) {
+                if (typeof errData.error === 'string') parts.push(errData.error);
+                else if (typeof errData.error === 'object' && errData.error !== null) {
+                    parts.push(errData.error.message || JSON.stringify(errData.error));
+                }
+            }
+            const nestedRes = errData.mhResponse || errData.respuestaMH || errData.mh || errData.response;
+            if (nestedRes && typeof nestedRes === 'object') {
+                const nestedParts = extractErrorDetails(nestedRes);
+                if (nestedParts) parts.push(nestedParts);
+            }
+            const uniqueParts = [...new Set(parts.map(p => p.trim()).filter(Boolean))];
+            return uniqueParts.join(' | ');
+        };
+
         fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -1293,12 +1348,7 @@ export function renderInvoicingWorkspace(container, presId) {
             }
             if (!response.ok) {
                 return response.json().then(errData => {
-                    let errMsg = '';
-                    if (Array.isArray(errData.message)) {
-                        errMsg = errData.message.join(', ');
-                    } else {
-                        errMsg = errData.message || errData.error || 'Error al emitir DTE';
-                    }
+                    const errMsg = extractErrorDetails(errData) || 'Error al emitir DTE';
                     return Promise.reject(new Error(errMsg));
                 }, () => {
                     return Promise.reject(new Error(`Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.`));

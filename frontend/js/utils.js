@@ -3,7 +3,7 @@
  */
 
 // Show Toast Alert
-export function showToast(message, type = 'primary') {
+export function showToast(message, type = 'primary', duration = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
@@ -14,13 +14,15 @@ export function showToast(message, type = 'primary') {
     if (type === 'warning') iconClass = 'fa-triangle-exclamation';
     if (type === 'danger') iconClass = 'fa-circle-exclamation';
     
+    const finalDuration = duration || (type === 'danger' ? 15000 : 4000);
+    
     toast.innerHTML = `<i class="fa-solid ${iconClass}"></i><span>${message}</span>`;
     container.appendChild(toast);
     
     setTimeout(() => {
         toast.style.animation = 'toast-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) reverse';
         setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    }, finalDuration);
 }
 
 // Escape HTML for security
