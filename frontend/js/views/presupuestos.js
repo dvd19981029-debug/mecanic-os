@@ -240,6 +240,7 @@ export function renderPresupuestos(container, queryParams) {
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${safe(actionText)}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
                         ${safe(deleteBtnHtml)}
                     </div>
                 </td>
@@ -256,6 +257,23 @@ export function renderPresupuestos(container, queryParams) {
             });
         });
 
+        // Bind approve buttons
+        rowsContainer.querySelectorAll('.btn-approve-budget-shortcut').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = btn.getAttribute('data-id');
+                const budgetObj = db.presupuestos.find(b => b['ID Presupuesto'] === id);
+                if (!budgetObj) return;
+
+                if (confirm(`¿Estás seguro de que deseas aprobar el presupuesto ${id}? El vehículo pasará al estado de reparación activa en el taller (Kanban).`)) {
+                    budgetObj.Estado = 2;
+                    saveDatabase(db);
+                    showToast(`Presupuesto ${id} aprobado con éxito.`, "success");
+                    populateBudgetsList(searchInput.value || '');
+                }
+            });
+        });
+
         // Bind delete buttons
         rowsContainer.querySelectorAll('.btn-delete-budget').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -265,7 +283,7 @@ export function renderPresupuestos(container, queryParams) {
                     db.presupuestos = db.presupuestos.filter(b => b['ID Presupuesto'] !== id);
                     saveDatabase(db);
                     showToast("Presupuesto eliminado correctamente", "success");
-                    populateBudgetsList(searchInput.value);
+                    populateBudgetsList(searchInput.value || '');
                 }
             });
         });
