@@ -32,6 +32,7 @@ import {
     safe,
     saveDteLogToFirestore
 } from '../utils.js?v=69';
+import { exportBudgetPDF } from './presupuestos.js?v=88';
 
 // Expose functions globally for other views (like clientes_vehiculos)
 window.viewDtePdf = viewDtePdf;
@@ -370,10 +371,22 @@ export function renderPendingTab(container) {
                     <div style="display: flex; gap: 0.35rem;">
                         <a href="#facturador?presId=${p['ID Presupuesto']}" class="btn btn-success" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-signature"></i> Facturar DTE</a>
                         <a href="#presupuestos?id=${p['ID Presupuesto']}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-eye"></i> Ver Detalle</a>
+                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(231, 76, 60, 0.12); border: 1px solid rgba(231, 76, 60, 0.35); color: #e74c3c; cursor: pointer;" title="Imprimir PDF del Presupuesto">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </button>
                     </div>
                 </td>
             `;
             rowsContainer.appendChild(tr);
+        });
+
+        // Bind print PDF buttons
+        rowsContainer.querySelectorAll('.btn-print-budget-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = btn.getAttribute('data-id');
+                exportBudgetPDF(id);
+            });
         });
     }
     
