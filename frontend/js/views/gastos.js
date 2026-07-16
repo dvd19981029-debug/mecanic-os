@@ -319,10 +319,10 @@ export function renderGastos(container) {
                         <input type="number" class="pur-row-cant" required min="1" value="${item.cant}" style="width:100%; padding:0.4rem; text-align:center;">
                     </td>
                     <td>
-                        <input type="number" class="pur-row-cost" required min="0.01" step="0.01" value="${item.precio_costo}" style="width:100%; padding:0.4rem; text-align:right;">
+                        <input type="number" class="pur-row-cost" required min="0" step="0.0001" value="${item.precio_costo}" style="width:100%; padding:0.4rem; text-align:right;">
                     </td>
                     <td style="text-align:right; font-weight:600; padding:0.4rem;" class="pur-row-subtotal">
-                        $ ${(item.cant * item.precio_costo).toFixed(2)}
+                        $ ${(item.cant * item.precio_costo).toFixed(4)}
                     </td>
                     <td style="text-align:center;">
                         ${safe(purchaseItems.length > 1 ? `<button type="button" class="pur-row-delete-btn" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;">&times;</button>` : '')}
@@ -345,21 +345,22 @@ export function renderGastos(container) {
                         const dbProd = db.productos.find(p => p['ID_ Producto'] === e.target.value);
                         if (dbProd) {
                             purchaseItems[idx].precio_costo = parseFloat(dbProd['Precio Unit'] || 0);
-                            costInput.value = purchaseItems[idx].precio_costo.toFixed(2);
+                            costInput.value = purchaseItems[idx].precio_costo.toFixed(4);
                         }
                     }
+                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
                     updateTotals();
                 });
 
                 cantInput.addEventListener('input', (e) => {
                     purchaseItems[idx].cant = parseInt(e.target.value) || 0;
-                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(2)}`;
+                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
                     updateTotals();
                 });
 
                 costInput.addEventListener('input', (e) => {
                     purchaseItems[idx].precio_costo = parseFloat(e.target.value) || 0;
-                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(2)}`;
+                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
                     updateTotals();
                 });
 
