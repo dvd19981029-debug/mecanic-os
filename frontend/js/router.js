@@ -18,7 +18,7 @@ import { renderGastos } from './views/gastos.js?v=87';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
-import { renderTrabajosTaller } from './views/trabajos.js?v=69';
+import { renderTrabajosTaller } from './views/trabajos.js?v=70';
 import { renderIngresos } from './views/ingresos.js?v=85';
 import {
     renderRegistroSaaS,

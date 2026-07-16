@@ -8,6 +8,7 @@ import {
     showToast,
     escapeHtml
 } from '../utils.js?v=69';
+import { exportBudgetPDF } from './presupuestos.js?v=88';
 
 export function renderTrabajosTaller(container) {
     const db = getDatabase();
@@ -142,6 +143,9 @@ export function renderTrabajosTaller(container) {
                     <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; text-decoration: none; padding: 0.45rem; font-size: 0.8rem;">
                         <i class="fa-solid fa-eye"></i> Ver Ficha
                     </a>
+                    <button class="btn btn-secondary btn-print-job-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="width: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0.45rem; font-size: 0.95rem; background: rgba(231, 76, 60, 0.12); border: 1px solid rgba(231, 76, 60, 0.35); color: #e74c3c; cursor: pointer;" title="Imprimir PDF del Presupuesto">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </button>
                     <button class="btn btn-primary btn-finalize-job" data-id="${p['ID Presupuesto']}" style="flex: 1.5; background: #a855f7; border: none; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem; font-size: 0.8rem;">
                         <i class="fa-solid fa-circle-check"></i> Finalizar Trabajo
                     </button>
@@ -160,6 +164,13 @@ export function renderTrabajosTaller(container) {
                         populateJobsList(searchInput.value);
                     }
                 }
+            });
+
+            // Add click listener for PDF button
+            card.querySelector('.btn-print-job-pdf').addEventListener('click', (e) => {
+                e.preventDefault();
+                const budgetId = e.currentTarget.getAttribute('data-id');
+                exportBudgetPDF(budgetId);
             });
 
             gridContainer.appendChild(card);
