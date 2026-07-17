@@ -64,11 +64,11 @@ export function renderClientesVehiculos(container, queryParams) {
                         <input type="text" id="client-search" placeholder="Buscar cliente por nombre o doc...">
                     </div>
                     <div style="display: flex; gap: 0.35rem; align-items: center;">
-                        ${isAdmin ? html`
+                        ${isAdmin ? safe(html`
                         <button class="btn btn-secondary" id="btn-template-clientes" title="Descargar Plantilla Excel" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-excel" style="color:var(--success);"></i></button>
                         <button class="btn btn-secondary" id="btn-import-clientes" title="Importar desde Excel" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-import" style="color:var(--cyan);"></i></button>
                         <input type="file" id="import-clientes-file" accept=".xlsx, .xls" style="display:none;">
-                        ` : ''}
+                        `) : ''}
                         <button class="btn btn-primary" id="add-client-btn" style="padding: 0.6rem 0.8rem;"><i class="fa-solid fa-user-plus"></i></button>
                     </div>
                 </div>
