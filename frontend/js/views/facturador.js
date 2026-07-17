@@ -252,8 +252,10 @@ function openInvalidatedBudgetsModal() {
         });
         
         const closeModal = () => { modal.remove(); };
-        document.getElementById('close-anulados-modal').addEventListener('click', closeModal);
-        document.getElementById('close-anulados-btn').addEventListener('click', closeModal);
+        const closeIcon = modal.querySelector('#close-anulados-modal');
+        if (closeIcon) closeIcon.addEventListener('click', closeModal);
+        const closeBtn = modal.querySelector('#close-anulados-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
     }
     
     renderModalContent();
