@@ -349,7 +349,10 @@ export function renderConfiguracion(container, queryParams) {
                         <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Define los servicios técnicos base y sus tarifas por defecto.</p>
                     </div>
                     <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
-                        <input type="text" id="search-servicios-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:280px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        <input type="text" id="search-servicios-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:220px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        <button class="btn btn-secondary" id="btn-template-servicios" style="padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-excel" style="color:var(--success);"></i> Plantilla</button>
+                        <button class="btn btn-secondary" id="btn-import-servicios" style="padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-import" style="color:var(--cyan);"></i> Importar Excel</button>
+                        <input type="file" id="import-servicios-file" accept=".xlsx, .xls" style="display:none;">
                         <button class="btn btn-primary" id="btn-add-servicio"><i class="fa-solid fa-plus"></i> Nuevo Servicio</button>
                     </div>
                 </div>
@@ -1501,6 +1504,199 @@ export function renderConfiguracion(container, queryParams) {
         // Search listener
         searchInput.addEventListener('input', (e) => {
             populateServicios(e.target.value);
+        });
+
+        // Template button listener
+        document.getElementById('btn-template-servicios').addEventListener('click', () => {
+            if (typeof XLSX === 'undefined') {
+                showToast("Error: La librería de Excel no está cargada. Intente de nuevo.", "danger");
+                return;
+            }
+            try {
+                // Header rows
+                const headers = ['Descripción', 'Precio Base', 'Unidad de Medida', 'Categoría', 'Precio Editable (SI/NO)', 'Aplica IVA (SI/NO)', 'Estado (Activo/Inactivo)'];
+                
+                // Sample rows to guide the user
+                const samples = [
+                    ['CAMBIO DE ACEITE Y FILTRO', 15.00, 'Servicio', 'MO001', 'SI', 'SI', 'Activo'],
+                    ['REPARACION DE ALTERNADOR', 45.50, 'Servicio', 'MO001', 'SI', 'SI', 'Activo'],
+                    ['DIAGNOSTICO COMPUTARIZADO', 20.00, 'Servicio', 'MO002', 'NO', 'SI', 'Activo']
+                ];
+                
+                const data = [headers, ...samples];
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // Adjust column widths for professional display
+                ws['!cols'] = [
+                    { wch: 35 }, // Descripción
+                    { wch: 12 }, // Precio Base
+                    { wch: 18 }, // Unidad de Medida
+                    { wch: 12 }, // Categoría
+                    { wch: 22 }, // Precio Editable
+                    { wch: 18 }, // Aplica IVA
+                    { wch: 22 }  // Estado
+                ];
+                
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Servicios");
+                XLSX.writeFile(wb, "Plantilla_Mano_de_Obra.xlsx");
+                showToast("Plantilla descargada correctamente", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Error al generar la plantilla: " + err.message, "danger");
+            }
+        });
+
+        // Trigger file input click when Import button is clicked
+        const fileInput = document.getElementById('import-servicios-file');
+        document.getElementById('btn-import-servicios').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Parse file input
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (typeof XLSX === 'undefined') {
+                showToast("Error: La librería de Excel no está cargada. Intente de nuevo.", "danger");
+                fileInput.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const data = new Uint8Array(arrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (rows.length <= 1) {
+                        showToast("El archivo está vacío o no contiene filas de datos.", "warning");
+                        fileInput.value = '';
+                        return;
+                    }
+                    
+                    const importedList = [];
+                    let errors = [];
+                    
+                    // Loop starting from row 1 (skipping headers at row 0)
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        // If the whole row is empty, skip it
+                        if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+                        
+                        const desc = row[0] ? String(row[0]).trim() : '';
+                        const priceBase = row[1];
+                        const unit = row[2] ? String(row[2]).trim() : 'Servicio';
+                        const cat = row[3] ? String(row[3]).trim() : 'MO001';
+                        const editable = row[4] ? String(row[4]).trim().toUpperCase() : 'SI';
+                        const iva = row[5] ? String(row[5]).trim().toUpperCase() : 'SI';
+                        const estado = row[6] ? String(row[6]).trim() : 'Activo';
+                        
+                        // Validate required values
+                        if (!desc) {
+                            errors.push(`Fila ${i + 1}: La descripción está vacía.`);
+                            continue;
+                        }
+                        
+                        const parsedPrice = parseFloat(priceBase);
+                        if (isNaN(parsedPrice) || parsedPrice < 0) {
+                            errors.push(`Fila ${i + 1} ("${desc.substring(0, 15)}..."): Precio base inválido o menor a 0.`);
+                            continue;
+                        }
+                        
+                        importedList.push({
+                            descripcion: desc,
+                            precioUnitario: parsedPrice,
+                            unidadMedida: unit,
+                            categoria: cat,
+                            precioEditable: editable === 'NO' ? 'NO' : 'SI',
+                            aplicaIva: iva === 'NO' ? 'NO' : 'SI',
+                            estado: (estado === 'Inactivo' || estado === 'INACTIVO') ? 'Inactivo' : 'Activo'
+                        });
+                    }
+                    
+                    if (errors.length > 0) {
+                        const errorMsg = errors.slice(0, 3).join(' | ');
+                        showToast(`Errores en archivo: ${errorMsg}. Se abortó la importación.`, "danger");
+                        fileInput.value = '';
+                        return;
+                    }
+                    
+                    if (importedList.length === 0) {
+                        showToast("No se encontraron registros válidos para importar.", "warning");
+                        fileInput.value = '';
+                        return;
+                    }
+                    
+                    const currentDb = window.getDatabase();
+                    let newCount = 0;
+                    let updateCount = 0;
+                    
+                    importedList.forEach(item => {
+                        const existing = currentDb.mano_obra.find(mo => 
+                            String(mo.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase()
+                        );
+                        if (existing) {
+                            updateCount++;
+                        } else {
+                            newCount++;
+                        }
+                    });
+                    
+                    const confirmMsg = `¿Deseas proceder con la importación?\n\n` + 
+                                       `- Servicios Nuevos a registrar: ${newCount}\n` +
+                                       `- Servicios Existentes a actualizar (precios/datos): ${updateCount}\n\n` +
+                                       `Esta acción modificará la base de datos y se sincronizará con la nube.`;
+                                       
+                    if (confirm(confirmMsg)) {
+                        let nextId = currentDb.mano_obra.length > 0 ? Math.max(...currentDb.mano_obra.map(x => parseInt(x.ID_ManoObra) || 0)) + 1 : 320001;
+                        
+                        importedList.forEach(item => {
+                            const existing = currentDb.mano_obra.find(mo => 
+                                String(mo.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase()
+                            );
+                            if (existing) {
+                                existing.PrecioUnitario = item.precioUnitario;
+                                existing.UnidadMedida = item.unidadMedida;
+                                existing.Categoria = item.categoria;
+                                existing.PrecioEditable = item.precioEditable;
+                                existing.AplicaIVA = item.aplicaIva;
+                                existing.Estado = item.estado;
+                            } else {
+                                currentDb.mano_obra.push({
+                                    "ID_ManoObra": nextId++,
+                                    "Descripcion": item.descripcion,
+                                    "PrecioUnitario": item.precioUnitario,
+                                    "UnidadMedida": item.unidadMedida,
+                                    "Categoria": item.categoria,
+                                    "PrecioEditable": item.precioEditable,
+                                    "AplicaIVA": item.aplicaIva,
+                                    "Estado": item.estado,
+                                    "FechaCreacion": Date.now() / (1000 * 60 * 60 * 24) + 25569
+                                });
+                            }
+                        });
+                        
+                        saveDatabase(currentDb);
+                        showToast(`Importación completada con éxito: ${newCount} agregados, ${updateCount} actualizados`, "success");
+                        renderConfiguracion(container);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error al procesar el archivo Excel: " + err.message, "danger");
+                } finally {
+                    fileInput.value = '';
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
         });
 
         // Add Servicio Trigger
