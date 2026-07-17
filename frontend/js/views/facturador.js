@@ -1275,57 +1275,47 @@ export function renderInvoicingWorkspace(container, presId) {
         console.log(JSON.stringify(dtePayload, null, 2));
 
         const extractErrorDetails = (errData) => {
-            let parts = [];
             if (!errData) return '';
-            if (errData.observaciones) {
-                if (Array.isArray(errData.observaciones)) {
-                    errData.observaciones.forEach(obs => {
-                        if (typeof obs === 'string') parts.push(obs);
-                        else if (typeof obs === 'object' && obs !== null) {
-                            parts.push(obs.descripcion || obs.mensaje || obs.message || JSON.stringify(obs));
+            if (typeof errData === 'string') return errData;
+            
+            let parts = [];
+            
+            const extractDeep = (obj) => {
+                if (!obj) return;
+                if (typeof obj === 'string') {
+                    parts.push(obj);
+                    return;
+                }
+                if (Array.isArray(obj)) {
+                    obj.forEach(item => extractDeep(item));
+                    return;
+                }
+                if (typeof obj === 'object') {
+                    const keysToExtract = ['descripcion', 'mensaje', 'message', 'error', 'details', 'detalles', 'observaciones', 'detail', 'codigo', 'code', 'errors'];
+                    let foundSomething = false;
+                    for (const key of keysToExtract) {
+                        if (obj[key] !== undefined && obj[key] !== null) {
+                            extractDeep(obj[key]);
+                            foundSomething = true;
                         }
-                    });
-                } else if (typeof errData.observaciones === 'string') {
-                    parts.push(errData.observaciones);
+                    }
+                    if (!foundSomething) {
+                        Object.keys(obj).forEach(k => {
+                            if (typeof obj[k] === 'object' || typeof obj[k] === 'string') {
+                                extractDeep(obj[k]);
+                            }
+                        });
+                    }
                 }
-            }
-            const details = errData.detalles || errData.details;
-            if (details) {
-                if (Array.isArray(details)) {
-                    details.forEach(d => {
-                        if (typeof d === 'string') parts.push(d);
-                        else if (typeof d === 'object' && d !== null) {
-                            parts.push(d.descripcion || d.mensaje || d.message || JSON.stringify(d));
-                        }
-                    });
-                } else if (typeof details === 'string') {
-                    parts.push(details);
-                }
-            }
-            if (errData.message) {
-                if (Array.isArray(errData.message)) {
-                    errData.message.forEach(m => {
-                        if (typeof m === 'string') parts.push(m);
-                        else if (typeof m === 'object' && m !== null) parts.push(m.message || JSON.stringify(m));
-                    });
-                } else if (typeof errData.message === 'string') {
-                    parts.push(errData.message);
-                } else if (typeof errData.message === 'object') {
-                    parts.push(errData.message.message || JSON.stringify(errData.message));
-                }
-            }
-            if (errData.error) {
-                if (typeof errData.error === 'string') parts.push(errData.error);
-                else if (typeof errData.error === 'object' && errData.error !== null) {
-                    parts.push(errData.error.message || JSON.stringify(errData.error));
-                }
-            }
-            const nestedRes = errData.mhResponse || errData.respuestaMH || errData.mh || errData.response;
-            if (nestedRes && typeof nestedRes === 'object') {
-                const nestedParts = extractErrorDetails(nestedRes);
-                if (nestedParts) parts.push(nestedParts);
-            }
-            const uniqueParts = [...new Set(parts.map(p => p.trim()).filter(Boolean))];
+            };
+            
+            extractDeep(errData);
+            
+            const cleanParts = parts
+                .map(p => typeof p === 'string' ? p.trim() : JSON.stringify(p))
+                .filter(p => p && p !== 'null' && p !== 'undefined');
+                
+            const uniqueParts = [...new Set(cleanParts)];
             return uniqueParts.join(' | ');
         };
 
