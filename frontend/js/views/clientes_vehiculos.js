@@ -792,7 +792,9 @@ export function renderClientesVehiculos(container, queryParams) {
             return;
         }
         try {
-            const headers = [
+            // Sheet 1: Clientes
+            const headersClientes = [
+                'Código de Cliente',
                 'Nombre Completo / Razón Social',
                 'Tipo de Cliente (NATURAL/JURIDICA)',
                 '¿Es Contribuyente? (SI/NO)',
@@ -809,20 +811,12 @@ export function renderClientesVehiculos(container, queryParams) {
                 'Municipio',
                 '¿Tiene Crédito? (SI/NO)',
                 'Límite de Crédito ($)',
-                'Plazo de Crédito (Días)',
-                'Placas Vehículo',
-                'Marca Vehículo',
-                'Modelo Vehículo',
-                'Año Vehículo',
-                'Color Vehículo',
-                'Odómetro Vehículo',
-                'Nº Motor Vehículo',
-                'Nº VIN Vehículo',
-                'Nº Equipo Vehículo'
+                'Plazo de Crédito (Días)'
             ];
             
-            const samples = [
+            const samplesClientes = [
                 [
+                    'CLI-01',
                     'JUAN ANTONIO PEREZ MEJIA',
                     'NATURAL',
                     'NO',
@@ -839,18 +833,10 @@ export function renderClientesVehiculos(container, queryParams) {
                     'San Salvador',
                     'NO',
                     0,
-                    0,
-                    'P342765',
-                    'TOYOTA',
-                    'COROLLA',
-                    '2015',
-                    'GRIS',
-                    '125000',
-                    '1ZZ-123456',
-                    'VIN12345678901234',
-                    ''
+                    0
                 ],
                 [
+                    'CLI-02',
                     'DISTRIBUIDORA GEMA S.A. DE C.V.',
                     'JURIDICA',
                     'SI',
@@ -867,7 +853,42 @@ export function renderClientesVehiculos(container, queryParams) {
                     'San Salvador',
                     'SI',
                     500.00,
-                    30,
+                    30
+                ]
+            ];
+            
+            // Sheet 2: Vehículos
+            const headersVehiculos = [
+                'Código de Cliente',
+                'Nombre de Cliente (Opcional)',
+                'Placas',
+                'Marca',
+                'Modelo',
+                'Año',
+                'Color',
+                'Odómetro',
+                'Nº Motor',
+                'Nº VIN',
+                'Nº Equipo'
+            ];
+            
+            const samplesVehiculos = [
+                [
+                    'CLI-01',
+                    'JUAN ANTONIO PEREZ MEJIA',
+                    'P342765',
+                    'TOYOTA',
+                    'COROLLA',
+                    '2015',
+                    'GRIS',
+                    '125000',
+                    '1ZZ-123456',
+                    'VIN12345678901234',
+                    ''
+                ],
+                [
+                    'CLI-02',
+                    'DISTRIBUIDORA GEMA S.A. DE C.V.',
                     'P852963',
                     'NISSAN',
                     'FRONTIER',
@@ -880,10 +901,9 @@ export function renderClientesVehiculos(container, queryParams) {
                 ]
             ];
             
-            const data = [headers, ...samples];
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            
-            ws['!cols'] = [
+            const wsClientes = XLSX.utils.aoa_to_sheet([headersClientes, ...samplesClientes]);
+            wsClientes['!cols'] = [
+                { wch: 18 }, // Código de Cliente
                 { wch: 35 }, // Nombre
                 { wch: 32 }, // Tipo de Cliente
                 { wch: 25 }, // ¿Es Contribuyente?
@@ -900,21 +920,28 @@ export function renderClientesVehiculos(container, queryParams) {
                 { wch: 20 }, // Municipio
                 { wch: 22 }, // ¿Tiene Crédito?
                 { wch: 22 }, // Límite de Crédito
-                { wch: 22 }, // Plazo de Crédito
-                { wch: 18 }, // Placas
-                { wch: 18 }, // Marca
+                { wch: 22 }  // Plazo de Crédito
+            ];
+            
+            const wsVehiculos = XLSX.utils.aoa_to_sheet([headersVehiculos, ...samplesVehiculos]);
+            wsVehiculos['!cols'] = [
+                { wch: 18 }, // Código de Cliente
+                { wch: 35 }, // Nombre de Cliente
+                { wch: 15 }, // Placas
+                { wch: 15 }, // Marca
                 { wch: 18 }, // Modelo
-                { wch: 15 }, // Año
-                { wch: 15 }, // Color
-                { wch: 20 }, // Odómetro
-                { wch: 20 }, // Nº Motor
+                { wch: 12 }, // Año
+                { wch: 12 }, // Color
+                { wch: 15 }, // Odómetro
+                { wch: 18 }, // Nº Motor
                 { wch: 22 }, // Nº VIN
-                { wch: 20 }  // Nº Equipo
+                { wch: 15 }  // Nº Equipo
             ];
             
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Clientes y Flota");
-            XLSX.writeFile(wb, "Plantilla_Clientes.xlsx");
+            XLSX.utils.book_append_sheet(wb, wsClientes, "Clientes");
+            XLSX.utils.book_append_sheet(wb, wsVehiculos, "Vehículos");
+            XLSX.writeFile(wb, "Plantilla_Clientes_y_Vehiculos.xlsx");
             showToast("Plantilla de clientes y flota descargada correctamente", "success");
         } catch (err) {
             console.error(err);
@@ -945,26 +972,35 @@ export function renderClientesVehiculos(container, queryParams) {
                 const arrayBuffer = e.target.result;
                 const data = new Uint8Array(arrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                 
-                if (rows.length <= 1) {
-                    showToast("El archivo está vacío o no contiene filas de datos.", "warning");
+                const sheetNames = workbook.SheetNames;
+                if (sheetNames.length === 0) {
+                    showToast("El archivo de Excel no contiene hojas de cálculo.", "warning");
                     fileInput.value = '';
                     return;
                 }
                 
-                const importedList = [];
-                let errors = [];
+                const clientSheetName = sheetNames.find(n => n.toLowerCase().includes('client')) || sheetNames[0];
+                const vehicleSheetName = sheetNames.find(n => n.toLowerCase().includes('vehic') || n.toLowerCase().includes('auto') || n.toLowerCase().includes('carro')) || (sheetNames.length > 1 ? sheetNames[1] : null);
+                
+                const clientsRows = XLSX.utils.sheet_to_json(workbook.Sheets[clientSheetName], { header: 1 });
+                
+                if (clientsRows.length <= 1) {
+                    showToast("La hoja de clientes está vacía.", "warning");
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const importedClients = [];
+                let clientErrors = [];
                 
                 const findDeptId = (name) => {
                     if (!name) return '06';
                     if (typeof DEPARTAMENTOS_CATALOG === 'undefined') return '06';
                     const cleaned = String(name).trim().toLowerCase()
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
                     const match = DEPARTAMENTOS_CATALOG.find(d => 
-                        d.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
+                        d.nombre.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "") === cleaned
                     );
                     return match ? match.id : '06';
                 };
@@ -973,63 +1009,54 @@ export function renderClientesVehiculos(container, queryParams) {
                     if (!name) return '14';
                     if (typeof MUNICIPIOS_CATALOG === 'undefined') return '14';
                     const cleaned = String(name).trim().toLowerCase()
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
                     const match = MUNICIPIOS_CATALOG.find(m => 
                         m.departamentoId === deptId &&
-                        m.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
+                        m.nombre.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "") === cleaned
                     );
                     return match ? match.id : '14';
                 };
                 
-                for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i];
+                // Parse Clients Sheet
+                for (let i = 1; i < clientsRows.length; i++) {
+                    const row = clientsRows[i];
                     if (!row || row.length === 0) continue;
-                    
                     if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
                     
-                    const name = row[0] ? String(row[0]).trim() : '';
-                    const type = row[1] ? String(row[1]).trim().toUpperCase() : 'NATURAL';
-                    const contrib = row[2] ? String(row[2]).trim().toUpperCase() : 'NO';
-                    const docType = row[3] ? String(row[3]).trim().toUpperCase() : 'DUI';
-                    const docNum = row[4] ? String(row[4]).trim() : '';
-                    const nit = row[5] ? String(row[5]).trim() : '';
-                    const nrc = row[6] ? String(row[6]).trim() : '';
-                    const giro = row[7] ? String(row[7]).trim() : '';
-                    const cat = row[8] ? String(row[8]).trim().toUpperCase() : 'OTROS';
-                    const email = row[9] ? String(row[9]).trim() : '';
-                    const phone = row[10] ? String(row[10]).trim() : '';
-                    const address = row[11] ? String(row[11]).trim() : '';
-                    const deptName = row[12] ? String(row[12]).trim() : 'San Salvador';
-                    const munName = row[13] ? String(row[13]).trim() : 'San Salvador';
-                    const hasCredit = row[14] ? String(row[14]).trim().toUpperCase() : 'NO';
-                    const creditLimit = parseFloat(row[15] || 0);
-                    const creditDays = parseInt(row[16] || 30);
-                    
-                    // Vehicle fields
-                    const vPlacas = row[17] ? String(row[17]).trim().toUpperCase() : '';
-                    const vMarca = row[18] ? String(row[18]).trim().toUpperCase() : '';
-                    const vModelo = row[19] ? String(row[19]).trim().toUpperCase() : '';
-                    const vYear = row[20] ? String(row[20]).trim() : '';
-                    const vColor = row[21] ? String(row[21]).trim().toUpperCase() : '';
-                    const vOdo = row[22] ? parseInt(row[22]) : 0;
-                    const vMotor = row[23] ? String(row[23]).trim().toUpperCase() : '';
-                    const vVin = row[24] ? String(row[24]).trim().toUpperCase() : '';
-                    const vEquipo = row[25] ? String(row[25]).trim().toUpperCase() : '';
+                    const customCode = row[0] ? String(row[0]).trim() : '';
+                    const name = row[1] ? String(row[1]).trim() : '';
+                    const type = row[2] ? String(row[2]).trim().toUpperCase() : 'NATURAL';
+                    const contrib = row[3] ? String(row[3]).trim().toUpperCase() : 'NO';
+                    const docType = row[4] ? String(row[4]).trim().toUpperCase() : 'DUI';
+                    const docNum = row[5] ? String(row[5]).trim() : '';
+                    const nit = row[6] ? String(row[6]).trim() : '';
+                    const nrc = row[7] ? String(row[7]).trim() : '';
+                    const giro = row[8] ? String(row[8]).trim() : '';
+                    const cat = row[9] ? String(row[9]).trim().toUpperCase() : 'OTROS';
+                    const email = row[10] ? String(row[10]).trim() : '';
+                    const phone = row[11] ? String(row[11]).trim() : '';
+                    const address = row[12] ? String(row[12]).trim() : '';
+                    const deptName = row[13] ? String(row[13]).trim() : 'San Salvador';
+                    const munName = row[14] ? String(row[14]).trim() : 'San Salvador';
+                    const hasCredit = row[15] ? String(row[15]).trim().toUpperCase() : 'NO';
+                    const creditLimit = parseFloat(row[16] || 0);
+                    const creditDays = parseInt(row[17] || 30);
                     
                     if (!name) {
-                        errors.push(`Fila ${i + 1}: El nombre completo es requerido.`);
+                        clientErrors.push(`Línea \${i + 1} (Clientes): Nombre Completo es requerido.`);
                         continue;
                     }
                     
                     if (type === 'NATURAL' && !docNum) {
-                        errors.push(`Fila ${i + 1} ("${name.substring(0, 15)}"): El número de documento es requerido para persona natural.`);
+                        clientErrors.push(`Línea \${i + 1} (Clientes) "\${name.substring(0, 15)}": Número de documento es requerido para persona natural.`);
                         continue;
                     }
                     
                     const resolvedDept = findDeptId(deptName);
                     const resolvedMun = findMunId(munName, resolvedDept);
                     
-                    importedList.push({
+                    importedClients.push({
+                        customCode: customCode,
                         nombre: name,
                         tipoCliente: type === 'JURIDICA' ? 'JURIDICA' : 'NATURAL',
                         contribuyente: contrib === 'SI' ? 'SI' : 'NO',
@@ -1046,32 +1073,67 @@ export function renderClientesVehiculos(container, queryParams) {
                         municipio: resolvedMun,
                         credito: hasCredit === 'SI' ? 'SI' : 'NO',
                         limiteCredito: isNaN(creditLimit) ? 0 : creditLimit,
-                        plazoCredito: isNaN(creditDays) ? 30 : creditDays,
-                        
-                        // Vehicle details
-                        vehiculo: vPlacas ? {
-                            placas: vPlacas,
-                            marca: vMarca,
-                            modelo: vModelo,
-                            year: vYear,
-                            color: vColor,
-                            odometro: isNaN(vOdo) ? 0 : vOdo,
-                            motor: vMotor,
-                            vin: vVin,
-                            equipo: vEquipo
-                        } : null
+                        plazoCredito: isNaN(creditDays) ? 30 : creditDays
                     });
                 }
                 
-                if (errors.length > 0) {
-                    const errorMsg = errors.slice(0, 3).join(' | ');
-                    showToast(`Errores en archivo: ${errorMsg}. Se abortó la importación.`, "danger");
+                if (clientErrors.length > 0) {
+                    showToast(`Errores en Clientes: \${clientErrors.slice(0, 3).join(' | ')}`, "danger");
                     fileInput.value = '';
                     return;
                 }
                 
-                if (importedList.length === 0) {
-                    showToast("No se encontraron clientes válidos para importar.", "warning");
+                // Parse Vehicles Sheet (if available)
+                const importedVehicles = [];
+                let vehicleErrors = [];
+                
+                if (vehicleSheetName) {
+                    const vehiclesRows = XLSX.utils.sheet_to_json(workbook.Sheets[vehicleSheetName], { header: 1 });
+                    for (let i = 1; i < vehiclesRows.length; i++) {
+                        const row = vehiclesRows[i];
+                        if (!row || row.length === 0) continue;
+                        if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+                        
+                        const clientRef = row[0] ? String(row[0]).trim() : '';
+                        const clientNameRef = row[1] ? String(row[1]).trim() : '';
+                        const placa = row[2] ? String(row[2]).trim().toUpperCase() : '';
+                        const marca = row[3] ? String(row[3]).trim().toUpperCase() : '';
+                        const modelo = row[4] ? String(row[4]).trim().toUpperCase() : '';
+                        const year = row[5] ? String(row[5]).trim() : '';
+                        const color = row[6] ? String(row[6]).trim().toUpperCase() : '';
+                        const odo = row[7] ? parseInt(row[7]) : 0;
+                        const motor = row[8] ? String(row[8]).trim().toUpperCase() : '';
+                        const vin = row[9] ? String(row[9]).trim().toUpperCase() : '';
+                        const equipo = row[10] ? String(row[10]).trim().toUpperCase() : '';
+                        
+                        if (!placa) {
+                            vehicleErrors.push(`Línea \${i + 1} (Vehículos): Placa del vehículo es requerida.`);
+                            continue;
+                        }
+                        
+                        if (!clientRef && !clientNameRef) {
+                            vehicleErrors.push(`Línea \${i + 1} (Vehículos) "\${placa}": Debe asociarse a un Código o Nombre de Cliente.`);
+                            continue;
+                        }
+                        
+                        importedVehicles.push({
+                            clientRef: clientRef,
+                            clientNameRef: clientNameRef,
+                            placas: placa,
+                            marca: marca,
+                            modelo: modelo,
+                            year: year,
+                            color: color,
+                            odometro: isNaN(odo) ? 0 : odo,
+                            motor: motor,
+                            vin: vin,
+                            equipo: equipo
+                        });
+                    }
+                }
+                
+                if (vehicleErrors.length > 0) {
+                    showToast(`Errores en Vehículos: \${vehicleErrors.slice(0, 3).join(' | ')}`, "danger");
                     fileInput.value = '';
                     return;
                 }
@@ -1082,7 +1144,11 @@ export function renderClientesVehiculos(container, queryParams) {
                 let vehNewCount = 0;
                 let vehUpdateCount = 0;
                 
-                importedList.forEach(item => {
+                // Mapeos temporales para resolver IDs de clientes
+                const customCodeToDbClient = {};
+                const nameToDbClient = {};
+                
+                importedClients.forEach(item => {
                     const existingClient = currentDb.clientes.find(c => {
                         if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
                         if (item.nit && c.NIT === item.nit) return true;
@@ -1093,31 +1159,32 @@ export function renderClientesVehiculos(container, queryParams) {
                     } else {
                         clientNewCount++;
                     }
-                    
-                    if (item.vehiculo) {
-                        const existingVeh = currentDb.vehiculos.find(v => v.Placas === item.vehiculo.placas);
-                        if (existingVeh) {
-                            vehUpdateCount++;
-                        } else {
-                            vehNewCount++;
-                        }
+                });
+                
+                importedVehicles.forEach(item => {
+                    const existingVeh = currentDb.vehiculos.find(v => v.Placas === item.placas);
+                    if (existingVeh) {
+                        vehUpdateCount++;
+                    } else {
+                        vehNewCount++;
                     }
                 });
                 
-                const confirmMsg = `¿Deseas proceder con la importación?\n\n` +
-                                   `Clientes:\n` +
-                                   `- Nuevos a registrar: ${clientNewCount}\n` +
-                                   `- Existentes a actualizar: ${clientUpdateCount}\n\n` +
-                                   `Vehículos / Flota:\n` +
-                                   `- Nuevos a registrar: ${vehNewCount}\n` +
-                                   `- Existentes a actualizar: ${vehUpdateCount}\n\n` +
+                const confirmMsg = `¿Deseas proceder con la importación?\\n\\n` +
+                                   `Clientes:\\n` +
+                                   `- Nuevos a registrar: \${clientNewCount}\\n` +
+                                   `- Existentes a actualizar: \${clientUpdateCount}\\n\\n` +
+                                   `Vehículos / Flota:\\n` +
+                                   `- Nuevos a registrar: \${vehNewCount}\\n` +
+                                   `- Existentes a actualizar: \${vehUpdateCount}\\n\\n` +
                                    `Esta acción modificará la base de datos y se sincronizará con la nube.`;
                                    
                 if (confirm(confirmMsg)) {
                     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
                     const userId = activeUser ? activeUser.Tecnico_ID : '';
                     
-                    importedList.forEach((item, index) => {
+                    // 1. Guardar o actualizar Clientes primero
+                    importedClients.forEach((item, index) => {
                         let clientCode = '';
                         let clientName = item.nombre.toUpperCase();
                         
@@ -1146,7 +1213,6 @@ export function renderClientesVehiculos(container, queryParams) {
                             existingClient['Monto Credito'] = item.limiteCredito;
                             existingClient.Monto_Credito = item.limiteCredito;
                             existingClient['Plazo Credito Días'] = item.plazoCredito;
-                            
                             clientCode = existingClient.Codigo_Cliente;
                         } else {
                             clientCode = "CLIENT-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
@@ -1183,43 +1249,88 @@ export function renderClientesVehiculos(container, queryParams) {
                             });
                         }
                         
-                        if (item.vehiculo) {
-                            const v = item.vehiculo;
-                            const existingVeh = currentDb.vehiculos.find(x => x.Placas === v.placas);
-                            
-                            if (existingVeh) {
-                                existingVeh.Codigo_Cliente = clientCode;
-                                existingVeh.Nombre_Cliente = clientName;
-                                existingVeh.Marca = v.marca;
-                                existingVeh.Modelo = v.modelo;
-                                existingVeh.Año = v.year;
-                                existingVeh.Color = v.color;
-                                existingVeh.Odometro = v.odometro;
-                                existingVeh["Nª_Motor"] = v.motor;
-                                existingVeh["Nª_VIN"] = v.vin;
-                                existingVeh.N_Equipo = v.equipo;
-                            } else {
-                                const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
-                                currentDb.vehiculos.push({
-                                    ID_Vehiculo: newVehId,
-                                    Codigo_Cliente: clientCode,
-                                    Nombre_Cliente: clientName,
-                                    Placas: v.placas,
-                                    Marca: v.marca,
-                                    Modelo: v.modelo,
-                                    Año: v.year,
-                                    Color: v.color,
-                                    Odometro: v.odometro,
-                                    "Nª_Motor": v.motor,
-                                    "Nª_VIN": v.vin,
-                                    N_Equipo: v.equipo
-                                });
+                        // Registrar en mapeos
+                        if (item.customCode) {
+                            customCodeToDbClient[item.customCode.toLowerCase().trim()] = { code: clientCode, name: clientName };
+                        }
+                        nameToDbClient[clientName.toLowerCase().trim()] = { code: clientCode, name: clientName };
+                    });
+                    
+                    // 2. Guardar o actualizar Vehículos
+                    importedVehicles.forEach((v, index) => {
+                        let targetClientCode = '';
+                        let targetClientName = '';
+                        
+                        // Resolver el cliente al que pertenece el vehículo
+                        // 2a. Buscar por código de cliente importado
+                        if (v.clientRef && customCodeToDbClient[v.clientRef.toLowerCase().trim()]) {
+                            const info = customCodeToDbClient[v.clientRef.toLowerCase().trim()];
+                            targetClientCode = info.code;
+                            targetClientName = info.name;
+                        }
+                        // 2b. Fallback a código directo existente en BD
+                        if (!targetClientCode && v.clientRef) {
+                            const match = currentDb.clientes.find(c => c.Codigo_Cliente.toLowerCase().trim() === v.clientRef.toLowerCase().trim());
+                            if (match) {
+                                targetClientCode = match.Codigo_Cliente;
+                                targetClientName = match.Nombre;
                             }
+                        }
+                        // 2c. Fallback por coincidencia de nombre de cliente
+                        if (!targetClientCode && v.clientNameRef) {
+                            const normalizedName = v.clientNameRef.toLowerCase().trim();
+                            if (nameToDbClient[normalizedName]) {
+                                const info = nameToDbClient[normalizedName];
+                                targetClientCode = info.code;
+                                targetClientName = info.name;
+                            } else {
+                                const match = currentDb.clientes.find(c => c.Nombre.toLowerCase().trim() === normalizedName);
+                                if (match) {
+                                    targetClientCode = match.Codigo_Cliente;
+                                    targetClientName = match.Nombre;
+                                }
+                            }
+                        }
+                        
+                        // Si no pudimos resolver el cliente, no podemos agregarlo (o lo enlazamos al cliente por defecto)
+                        if (!targetClientCode) {
+                            console.warn(`No se pudo resolver el cliente para el vehículo con placas \${v.placas}.`);
+                            return;
+                        }
+                        
+                        const existingVeh = currentDb.vehiculos.find(x => x.Placas === v.placas);
+                        if (existingVeh) {
+                            existingVeh.Codigo_Cliente = targetClientCode;
+                            existingVeh.Nombre_Cliente = targetClientName;
+                            existingVeh.Marca = v.marca;
+                            existingVeh.Modelo = v.modelo;
+                            existingVeh.Año = v.year;
+                            existingVeh.Color = v.color;
+                            existingVeh.Odometro = v.odometro;
+                            existingVeh["Nª_Motor"] = v.motor;
+                            existingVeh["Nª_VIN"] = v.vin;
+                            existingVeh.N_Equipo = v.equipo;
+                        } else {
+                            const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
+                            currentDb.vehiculos.push({
+                                ID_Vehiculo: newVehId,
+                                Codigo_Cliente: targetClientCode,
+                                Nombre_Cliente: targetClientName,
+                                Placas: v.placas,
+                                Marca: v.marca,
+                                Modelo: v.modelo,
+                                Año: v.year,
+                                Color: v.color,
+                                Odometro: v.odometro,
+                                "Nª_Motor": v.motor,
+                                "Nª_VIN": v.vin,
+                                N_Equipo: v.equipo
+                            });
                         }
                     });
                     
                     saveDatabase(currentDb);
-                    showToast(`Importación completada con éxito: ${clientNewCount} clientes nuevos, ${vehNewCount} vehículos nuevos`, "success");
+                    showToast(`Importación completada con éxito: \${clientNewCount} clientes y \${vehNewCount} vehículos procesados`, "success");
                     populateClientsList();
                 }
             } catch (err) {
@@ -1232,7 +1343,6 @@ export function renderClientesVehiculos(container, queryParams) {
         
         reader.readAsArrayBuffer(file);
     });
-    
     // Open/Close Add Client Modal
     document.getElementById('add-client-btn').addEventListener('click', () => {
         document.getElementById('new-client-type').value = 'NATURAL';
