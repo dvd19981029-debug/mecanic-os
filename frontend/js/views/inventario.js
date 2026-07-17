@@ -32,6 +32,8 @@ import {
 let activeInventarioTab = 'catalogo';
 
 export function renderInventario(container) {
+    const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+    const isAdmin = activeUser && activeUser.Rol === 'administrador';
     const db = getDatabase();
     db.productos = db.productos || [];
     db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
@@ -70,6 +72,11 @@ export function renderInventario(container) {
                         <input type="text" id="inv-search" placeholder="Buscar repuesto...">
                     </div>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        ${isAdmin ? safe(html`
+                        <button class="btn btn-secondary" id="btn-template-productos" title="Descargar Plantilla Excel de Carga" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-excel" style="color:var(--success);"></i> Plantilla</button>
+                        <button class="btn btn-secondary" id="btn-import-productos" title="Importar desde Excel" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-import" style="color:var(--cyan);"></i> Importar Excel</button>
+                        <input type="file" id="import-productos-file" accept=".xlsx, .xls" style="display:none;">
+                        `) : ''}
                         <button class="btn btn-secondary" id="btn-export-inv"><i class="fa-solid fa-file-excel" style="color:#10b981;"></i> Exportar Catálogo a Excel</button>
                         <button class="btn btn-primary" id="adjust-stock-btn"><i class="fa-solid fa-arrows-spin"></i> Ajuste Manual de Stock</button>
                     </div>
@@ -231,6 +238,261 @@ export function renderInventario(container) {
             const timestamp = new Date().toISOString().slice(0, 10);
             downloadExcelReport(`Catalogo_Inventario_${timestamp}.xlsx`, excelData);
         });
+
+        if (isAdmin) {
+            // Template download
+            document.getElementById('btn-template-productos').addEventListener('click', () => {
+                try {
+                    if (typeof XLSX === 'undefined') {
+                        showToast("Error: La librería de Excel no está cargada.", "danger");
+                        return;
+                    }
+                    
+                    const headers = [
+                        'Código Producto (Opcional)',
+                        'Descripción',
+                        'Unidad de Medida (Pza/Ltro/Gal/etc.)',
+                        'Precio Costo ($)',
+                        'Precio Venta ($) (Excluye IVA)',
+                        'Existencia Inicial (Stock)'
+                    ];
+                    
+                    const samples = [
+                        ['PROD-001', 'FILTRO DE ACEITE TOYOTA 90915-YZZN1', 'Pza', 5.50, 10.00, 15],
+                        ['PROD-002', 'ACEITE CASTROL EDGE 5W30 1GL', 'Gal', 25.00, 45.00, 8],
+                        ['', 'BUJIA DENSO IRIDIUM POWER', 'Pza', 4.50, 8.50, 24]
+                    ];
+                    
+                    const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
+                    ws['!cols'] = [
+                        { wch: 25 },
+                        { wch: 45 },
+                        { wch: 30 },
+                        { wch: 18 },
+                        { wch: 18 },
+                        { wch: 22 }
+                    ];
+                    
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Productos");
+                    
+                    XLSX.writeFile(wb, "Plantilla_Carga_Productos.xlsx");
+                    showToast("Plantilla de carga de productos descargada", "success");
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error al generar la plantilla: " + err.message, "danger");
+                }
+            });
+
+            // File Import
+            const fileInput = document.getElementById('import-productos-file');
+            document.getElementById('btn-import-productos').addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (typeof XLSX === 'undefined') {
+                    showToast("Error: La librería de Excel no está cargada. Intente de nuevo.", "danger");
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const data = new Uint8Array(arrayBuffer);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (rows.length <= 1) {
+                            showToast("El archivo está vacío o no contiene filas de datos.", "warning");
+                            fileInput.value = '';
+                            return;
+                        }
+                        
+                        const importedList = [];
+                        let errors = [];
+                        
+                        for (let i = 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (!row || row.length === 0) continue;
+                            if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+                            
+                            const code = row[0] ? String(row[0]).trim() : '';
+                            const desc = row[1] ? String(row[1]).trim() : '';
+                            const unit = row[2] ? String(row[2]).trim() : 'Pza';
+                            const costBase = row[3];
+                            const priceBase = row[4];
+                            const stockQty = row[5];
+                            
+                            if (!desc) {
+                                errors.push(`Fila ${i + 1}: La descripción está vacía.`);
+                                continue;
+                            }
+                            
+                            const parsedCost = parseFloat(costBase);
+                            if (isNaN(parsedCost) || parsedCost < 0) {
+                                errors.push(`Fila ${i + 1} ("${desc.substring(0, 15)}..."): Precio costo inválido.`);
+                                continue;
+                            }
+                            
+                            const parsedPrice = parseFloat(priceBase);
+                            if (isNaN(parsedPrice) || parsedPrice < 0) {
+                                errors.push(`Fila ${i + 1} ("${desc.substring(0, 15)}..."): Precio venta inválido.`);
+                                continue;
+                            }
+                            
+                            const parsedStock = parseInt(stockQty);
+                            if (isNaN(parsedStock) || parsedStock < 0) {
+                                errors.push(`Fila ${i + 1} ("${desc.substring(0, 15)}..."): Stock inicial inválido.`);
+                                continue;
+                            }
+                            
+                            importedList.push({
+                                code: code,
+                                descripcion: desc,
+                                unit: unit,
+                                costo: parsedCost,
+                                precio: parsedPrice,
+                                stock: parsedStock
+                            });
+                        }
+                        
+                        if (errors.length > 0) {
+                            const errorMsg = errors.slice(0, 3).join(' | ');
+                            showToast(`Errores en archivo: ${errorMsg}. Se abortó la importación.`, "danger");
+                            fileInput.value = '';
+                            return;
+                        }
+                        
+                        if (importedList.length === 0) {
+                            showToast("No se encontraron registros válidos para importar.", "warning");
+                            fileInput.value = '';
+                            return;
+                        }
+                        
+                        const currentDb = getDatabase();
+                        let newCount = 0;
+                        let updateCount = 0;
+                        
+                        importedList.forEach(item => {
+                            const existing = currentDb.productos.find(p => {
+                                if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
+                                return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                            });
+                            if (existing) {
+                                updateCount++;
+                            } else {
+                                newCount++;
+                            }
+                        });
+                        
+                        const confirmMsg = `¿Deseas proceder con la importación?\n\n` + 
+                                           `- Repuestos Nuevos a registrar: ${newCount}\n` +
+                                           `- Repuestos Existentes a actualizar (precios/stock): ${updateCount}\n\n` +
+                                           `Esta acción modificará la base de datos y se sincronizará con la nube.`;
+                                           
+                        if (confirm(confirmMsg)) {
+                            let indexCounter = 0;
+                            
+                            importedList.forEach(item => {
+                                const existing = currentDb.productos.find(p => {
+                                    if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
+                                    return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                                });
+                                
+                                if (existing) {
+                                    existing.Descripcion = item.descripcion;
+                                    existing.Presentacion = item.unit;
+                                    existing['Unidad de Medida'] = item.unit;
+                                    existing['Precio Compra'] = item.costo;
+                                    existing['Precio Venta'] = item.precio;
+                                    existing['Precio Unit'] = item.precio;
+                                    existing['Precio Venta Unit Iva Inc'] = parseFloat((item.precio * 1.13).toFixed(2));
+                                    existing['Precio Unit Iva Inc'] = parseFloat((item.precio * 1.13).toFixed(2));
+                                    
+                                    const diff = item.stock - (existing.Minimos || 0);
+                                    if (diff !== 0) {
+                                        const type = diff > 0 ? 'ENTRADA' : 'SALIDA';
+                                        const absDiff = Math.abs(diff);
+                                        
+                                        existing.Minimos = item.stock;
+                                        
+                                        currentDb['29 Movs de Inventario'] = currentDb['29 Movs de Inventario'] || [];
+                                        currentDb['29 Movs de Inventario'].unshift({
+                                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + indexCounter++,
+                                            id_producto: existing['ID_ Producto'],
+                                            descripcion: existing.Descripcion,
+                                            Cant_Mov: absDiff,
+                                            "Fecha Mov": Date.now(),
+                                            Tipo: type,
+                                            "Valor ($)": item.costo,
+                                            Observacion: "Ajuste por importación masiva Excel"
+                                        });
+                                    }
+                                } else {
+                                    let assignedId = item.code;
+                                    if (!assignedId) {
+                                        const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+                                        const hhmmss = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
+                                        assignedId = `PROD-CS-${yymmdd}-${hhmmss}-${indexCounter++}`;
+                                    }
+                                    
+                                    currentDb.productos.push({
+                                        "ID_ Producto": assignedId,
+                                        "Descripcion": item.descripcion,
+                                        "Precio Compra": item.costo,
+                                        "Precio Venta": item.precio,
+                                        "Precio Unit": item.precio,
+                                        "Precio Venta Unit Iva Inc": parseFloat((item.precio * 1.13).toFixed(2)),
+                                        "Precio Unit Iva Inc": parseFloat((item.precio * 1.13).toFixed(2)),
+                                        "Minimos": item.stock,
+                                        "Presentacion": item.unit,
+                                        "Unidad de Medida": item.unit,
+                                        "Categoría": "100101",
+                                        "Margen": 0,
+                                        "Descuento": "NO",
+                                        "Usuario": activeUser ? activeUser.Tecnico_ID : ''
+                                    });
+                                    
+                                    if (item.stock > 0) {
+                                        currentDb['29 Movs de Inventario'] = currentDb['29 Movs de Inventario'] || [];
+                                        currentDb['29 Movs de Inventario'].unshift({
+                                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + indexCounter++,
+                                            id_producto: assignedId,
+                                            descripcion: item.descripcion,
+                                            Cant_Mov: item.stock,
+                                            "Fecha Mov": Date.now(),
+                                            Tipo: "ENTRADA",
+                                            "Valor ($)": item.costo,
+                                            Observacion: "Inventario inicial por importación masiva Excel"
+                                        });
+                                    }
+                                }
+                            });
+                            
+                            saveDatabase(currentDb);
+                            showToast("Catálogo de productos importado correctamente.", "success");
+                            fileInput.value = '';
+                            renderInventario(container);
+                        } else {
+                            fileInput.value = '';
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Error al importar el archivo: " + err.message, "danger");
+                        fileInput.value = '';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
 
         populateInventoryList();
     }
