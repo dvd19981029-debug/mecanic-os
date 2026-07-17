@@ -554,6 +554,7 @@ export function renderBudgetEditor(container, budget) {
             AplicaRetencion: 0,
             Tecnico_Asignado: db.tecnicos[0] ? db.tecnicos[0].Tecnico_ID : '',
             Asesor_Asignado: '',
+            Orden_Compra: '',
             Fallas_Detectadas: '',
             "Pagado?": "NO"
         };
@@ -612,6 +613,10 @@ export function renderBudgetEditor(container, budget) {
                             ${safe(advisorsHTML)}
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Orden de Compra</label>
+                        <input type="text" id="editor-purchase-order" placeholder="N° Orden de Compra" style="padding: 0.6rem;" value="${escapeHtml(budget.Orden_Compra || '')}">
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -654,6 +659,10 @@ export function renderBudgetEditor(container, budget) {
                             <select id="editor-tech-select" style="padding: 0.5rem;" ${budget.Estado != 1 ? 'disabled' : ''}>
                                 ${safe(techsHTML)}
                             </select>
+                        </div>
+                        <div class="form-group" style="width: 160px;">
+                            <label>Orden de Compra</label>
+                            <input type="text" id="editor-purchase-order" placeholder="N° Orden de Compra" style="padding: 0.5rem;" value="${escapeHtml(budget.Orden_Compra || '')}" ${budget.Estado != 1 ? 'disabled' : ''}>
                         </div>
                     </div>
                 </div>
@@ -874,6 +883,10 @@ export function renderBudgetEditor(container, budget) {
         const advisorEl = document.getElementById('editor-advisor-select');
         if (advisorEl) {
             budget.Asesor_Asignado = advisorEl.value;
+        }
+        const poEl = document.getElementById('editor-purchase-order');
+        if (poEl) {
+            budget.Orden_Compra = poEl.value.trim().toUpperCase();
         }
         const stateEl = document.getElementById('editor-state');
         if (stateEl) {
@@ -1574,6 +1587,10 @@ export function renderBudgetEditor(container, budget) {
         if (advisorSelect) {
             budget.Asesor_Asignado = advisorSelect.value;
         }
+        const poEl = document.getElementById('editor-purchase-order');
+        if (poEl) {
+            budget.Orden_Compra = poEl.value.trim().toUpperCase();
+        }
         
         // Validate technician assignment on every row if in Detailed Commission model (unless rejecting)
         const config = getWorkshopConfig(db);
@@ -1713,6 +1730,12 @@ export function renderBudgetEditor(container, budget) {
 
     const advisorEl = document.getElementById('editor-advisor-select');
     if (advisorEl) advisorEl.addEventListener('change', autoSaveBudget);
+    
+    const poEl = document.getElementById('editor-purchase-order');
+    if (poEl) {
+        poEl.addEventListener('input', autoSaveBudget);
+        poEl.addEventListener('change', autoSaveBudget);
+    }
     
     const fallasEl = document.getElementById('editor-fallas');
     if (fallasEl) {
@@ -2805,6 +2828,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 
                 <div><strong>Técnico Asignado:</strong><br>${tech.Nombre_Completo}</div>
                 <div><strong>Asesor:</strong><br>${advisor.Nombre_Completo}</div>
+                ${budget.Orden_Compra ? safe(`<div><strong>Orden de Compra:</strong><br>${escapeHtml(budget.Orden_Compra)}</div>`) : ''}
             </div>
         </div>
 
