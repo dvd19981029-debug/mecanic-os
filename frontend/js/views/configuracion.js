@@ -321,6 +321,7 @@ export function renderConfiguracion(container, queryParams) {
                         <input type="file" id="import-productos-file" accept=".xlsx, .xls" style="display:none;">
                         ` : ''}
                         <button class="btn btn-primary" id="btn-add-producto"><i class="fa-solid fa-plus"></i> Nuevo Producto</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table>
