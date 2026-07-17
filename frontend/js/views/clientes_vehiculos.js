@@ -1156,10 +1156,18 @@ export function renderClientesVehiculos(container, queryParams) {
                 const customCodeToDbClient = {};
                 const nameToDbClient = {};
                 
+                const cleanDoc = (str) => str ? String(str).replace(/\D/g, '') : '';
+
                 importedClients.forEach(item => {
                     const existingClient = currentDb.clientes.find(c => {
-                        if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
-                        if (item.nit && c.NIT === item.nit) return true;
+                        const cleanItemDoc = cleanDoc(item.numDoc);
+                        const cleanDbDoc = cleanDoc(c['Num Doc']);
+                        if (cleanItemDoc && cleanDbDoc && cleanItemDoc === cleanDbDoc) return true;
+                        
+                        const cleanItemNit = cleanDoc(item.nit);
+                        const cleanDbNit = cleanDoc(c.NIT);
+                        if (cleanItemNit && cleanDbNit && cleanItemNit === cleanDbNit) return true;
+                        
                         return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
                     });
                     if (existingClient) {
@@ -1197,8 +1205,14 @@ export function renderClientesVehiculos(container, queryParams) {
                         let clientName = item.nombre.toUpperCase();
                         
                         const existingClient = currentDb.clientes.find(c => {
-                            if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
-                            if (item.nit && c.NIT === item.nit) return true;
+                            const cleanItemDoc = cleanDoc(item.numDoc);
+                            const cleanDbDoc = cleanDoc(c['Num Doc']);
+                            if (cleanItemDoc && cleanDbDoc && cleanItemDoc === cleanDbDoc) return true;
+                            
+                            const cleanItemNit = cleanDoc(item.nit);
+                            const cleanDbNit = cleanDoc(c.NIT);
+                            if (cleanItemNit && cleanDbNit && cleanItemNit === cleanDbNit) return true;
+                            
                             return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
                         });
                         
