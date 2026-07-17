@@ -809,7 +809,16 @@ export function renderClientesVehiculos(container, queryParams) {
                 'Municipio',
                 '¿Tiene Crédito? (SI/NO)',
                 'Límite de Crédito ($)',
-                'Plazo de Crédito (Días)'
+                'Plazo de Crédito (Días)',
+                'Placas Vehículo',
+                'Marca Vehículo',
+                'Modelo Vehículo',
+                'Año Vehículo',
+                'Color Vehículo',
+                'Odómetro Vehículo',
+                'Nº Motor Vehículo',
+                'Nº VIN Vehículo',
+                'Nº Equipo Vehículo'
             ];
             
             const samples = [
@@ -830,7 +839,16 @@ export function renderClientesVehiculos(container, queryParams) {
                     'San Salvador',
                     'NO',
                     0,
-                    0
+                    0,
+                    'P342765',
+                    'TOYOTA',
+                    'COROLLA',
+                    '2015',
+                    'GRIS',
+                    '125000',
+                    '1ZZ-123456',
+                    'VIN12345678901234',
+                    ''
                 ],
                 [
                     'DISTRIBUIDORA GEMA S.A. DE C.V.',
@@ -849,7 +867,16 @@ export function renderClientesVehiculos(container, queryParams) {
                     'San Salvador',
                     'SI',
                     500.00,
-                    30
+                    30,
+                    'P852963',
+                    'NISSAN',
+                    'FRONTIER',
+                    '2020',
+                    'ROJO',
+                    '45000',
+                    'YD25-987654',
+                    'VIN98765432109876',
+                    'EQ-01'
                 ]
             ];
             
@@ -873,13 +900,22 @@ export function renderClientesVehiculos(container, queryParams) {
                 { wch: 20 }, // Municipio
                 { wch: 22 }, // ¿Tiene Crédito?
                 { wch: 22 }, // Límite de Crédito
-                { wch: 22 }  // Plazo de Crédito
+                { wch: 22 }, // Plazo de Crédito
+                { wch: 18 }, // Placas
+                { wch: 18 }, // Marca
+                { wch: 18 }, // Modelo
+                { wch: 15 }, // Año
+                { wch: 15 }, // Color
+                { wch: 20 }, // Odómetro
+                { wch: 20 }, // Nº Motor
+                { wch: 22 }, // Nº VIN
+                { wch: 20 }  // Nº Equipo
             ];
             
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+            XLSX.utils.book_append_sheet(wb, ws, "Clientes y Flota");
             XLSX.writeFile(wb, "Plantilla_Clientes.xlsx");
-            showToast("Plantilla de clientes descargada correctamente", "success");
+            showToast("Plantilla de clientes y flota descargada correctamente", "success");
         } catch (err) {
             console.error(err);
             showToast("Error al generar la plantilla: " + err.message, "danger");
@@ -969,6 +1005,17 @@ export function renderClientesVehiculos(container, queryParams) {
                     const creditLimit = parseFloat(row[15] || 0);
                     const creditDays = parseInt(row[16] || 30);
                     
+                    // Vehicle fields
+                    const vPlacas = row[17] ? String(row[17]).trim().toUpperCase() : '';
+                    const vMarca = row[18] ? String(row[18]).trim().toUpperCase() : '';
+                    const vModelo = row[19] ? String(row[19]).trim().toUpperCase() : '';
+                    const vYear = row[20] ? String(row[20]).trim() : '';
+                    const vColor = row[21] ? String(row[21]).trim().toUpperCase() : '';
+                    const vOdo = row[22] ? parseInt(row[22]) : 0;
+                    const vMotor = row[23] ? String(row[23]).trim().toUpperCase() : '';
+                    const vVin = row[24] ? String(row[24]).trim().toUpperCase() : '';
+                    const vEquipo = row[25] ? String(row[25]).trim().toUpperCase() : '';
+                    
                     if (!name) {
                         errors.push(`Fila ${i + 1}: El nombre completo es requerido.`);
                         continue;
@@ -999,7 +1046,20 @@ export function renderClientesVehiculos(container, queryParams) {
                         municipio: resolvedMun,
                         credito: hasCredit === 'SI' ? 'SI' : 'NO',
                         limiteCredito: isNaN(creditLimit) ? 0 : creditLimit,
-                        plazoCredito: isNaN(creditDays) ? 30 : creditDays
+                        plazoCredito: isNaN(creditDays) ? 30 : creditDays,
+                        
+                        // Vehicle details
+                        vehiculo: vPlacas ? {
+                            placas: vPlacas,
+                            marca: vMarca,
+                            modelo: vModelo,
+                            year: vYear,
+                            color: vColor,
+                            odometro: isNaN(vOdo) ? 0 : vOdo,
+                            motor: vMotor,
+                            vin: vVin,
+                            equipo: vEquipo
+                        } : null
                     });
                 }
                 
@@ -1017,59 +1077,79 @@ export function renderClientesVehiculos(container, queryParams) {
                 }
                 
                 const currentDb = getDatabase();
-                let newCount = 0;
-                let updateCount = 0;
+                let clientNewCount = 0;
+                let clientUpdateCount = 0;
+                let vehNewCount = 0;
+                let vehUpdateCount = 0;
                 
                 importedList.forEach(item => {
-                    const existing = currentDb.clientes.find(c => {
+                    const existingClient = currentDb.clientes.find(c => {
                         if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
                         if (item.nit && c.NIT === item.nit) return true;
                         return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
                     });
-                    if (existing) {
-                        updateCount++;
+                    if (existingClient) {
+                        clientUpdateCount++;
                     } else {
-                        newCount++;
+                        clientNewCount++;
+                    }
+                    
+                    if (item.vehiculo) {
+                        const existingVeh = currentDb.vehiculos.find(v => v.Placas === item.vehiculo.placas);
+                        if (existingVeh) {
+                            vehUpdateCount++;
+                        } else {
+                            vehNewCount++;
+                        }
                     }
                 });
                 
                 const confirmMsg = `¿Deseas proceder con la importación?\n\n` +
-                                   `- Clientes Nuevos a registrar: ${newCount}\n` +
-                                   `- Clientes Existentes a actualizar: ${updateCount}\n\n` +
-                                   `Esta acción modificará la base de datos de clientes y se sincronizará con la nube.`;
+                                   `Clientes:\n` +
+                                   `- Nuevos a registrar: ${clientNewCount}\n` +
+                                   `- Existentes a actualizar: ${clientUpdateCount}\n\n` +
+                                   `Vehículos / Flota:\n` +
+                                   `- Nuevos a registrar: ${vehNewCount}\n` +
+                                   `- Existentes a actualizar: ${vehUpdateCount}\n\n` +
+                                   `Esta acción modificará la base de datos y se sincronizará con la nube.`;
                                    
                 if (confirm(confirmMsg)) {
                     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
                     const userId = activeUser ? activeUser.Tecnico_ID : '';
                     
                     importedList.forEach((item, index) => {
-                        const existing = currentDb.clientes.find(c => {
+                        let clientCode = '';
+                        let clientName = item.nombre.toUpperCase();
+                        
+                        const existingClient = currentDb.clientes.find(c => {
                             if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
                             if (item.nit && c.NIT === item.nit) return true;
                             return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
                         });
                         
-                        if (existing) {
-                            existing.Nombre = item.nombre.toUpperCase();
-                            existing['Tipo Cliente'] = item.tipoCliente;
-                            existing['Contribuyente?'] = item.contribuyente;
-                            existing['Tipo Doc'] = item.tipoDoc;
-                            existing['Num Doc'] = item.numDoc;
-                            existing.NIT = item.nit;
-                            existing.NRC = item.nrc;
-                            existing.Giro = item.giro;
-                            existing['Categoría Contribuyente'] = item.categoria;
-                            existing.Correo = item.correo;
-                            existing['Telefono 1 '] = item.telefono;
-                            existing.Direccion = item.direccion;
-                            existing.Departamento = item.departamento;
-                            existing.Municipio = item.municipio;
-                            existing['Credito?'] = item.credito;
-                            existing['Monto Credito'] = item.limiteCredito;
-                            existing.Monto_Credito = item.limiteCredito;
-                            existing['Plazo Credito Días'] = item.plazoCredito;
+                        if (existingClient) {
+                            existingClient.Nombre = clientName;
+                            existingClient['Tipo Cliente'] = item.tipoCliente;
+                            existingClient['Contribuyente?'] = item.contribuyente;
+                            existingClient['Tipo Doc'] = item.tipoDoc;
+                            existingClient['Num Doc'] = item.numDoc;
+                            existingClient.NIT = item.nit;
+                            existingClient.NRC = item.nrc;
+                            existingClient.Giro = item.giro;
+                            existingClient['Categoría Contribuyente'] = item.categoria;
+                            existingClient.Correo = item.correo;
+                            existingClient['Telefono 1 '] = item.telefono;
+                            existingClient.Direccion = item.direccion;
+                            existingClient.Departamento = item.departamento;
+                            existingClient.Municipio = item.municipio;
+                            existingClient['Credito?'] = item.credito;
+                            existingClient['Monto Credito'] = item.limiteCredito;
+                            existingClient.Monto_Credito = item.limiteCredito;
+                            existingClient['Plazo Credito Días'] = item.plazoCredito;
+                            
+                            clientCode = existingClient.Codigo_Cliente;
                         } else {
-                            const newCode = "CLIENT-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
+                            clientCode = "CLIENT-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
                             let ret = 0;
                             let perc = 0;
                             if (item.categoria === 'GRANDE') {
@@ -1077,8 +1157,8 @@ export function renderClientesVehiculos(container, queryParams) {
                             }
                             
                             currentDb.clientes.push({
-                                Codigo_Cliente: newCode,
-                                Nombre: item.nombre.toUpperCase(),
+                                Codigo_Cliente: clientCode,
+                                Nombre: clientName,
                                 "Tipo Cliente": item.tipoCliente,
                                 "Contribuyente?": item.contribuyente,
                                 "Tipo Doc": item.tipoDoc,
@@ -1102,10 +1182,44 @@ export function renderClientesVehiculos(container, queryParams) {
                                 Usuario: userId
                             });
                         }
+                        
+                        if (item.vehiculo) {
+                            const v = item.vehiculo;
+                            const existingVeh = currentDb.vehiculos.find(x => x.Placas === v.placas);
+                            
+                            if (existingVeh) {
+                                existingVeh.Codigo_Cliente = clientCode;
+                                existingVeh.Nombre_Cliente = clientName;
+                                existingVeh.Marca = v.marca;
+                                existingVeh.Modelo = v.modelo;
+                                existingVeh.Año = v.year;
+                                existingVeh.Color = v.color;
+                                existingVeh.Odometro = v.odometro;
+                                existingVeh["Nª_Motor"] = v.motor;
+                                existingVeh["Nª_VIN"] = v.vin;
+                                existingVeh.N_Equipo = v.equipo;
+                            } else {
+                                const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
+                                currentDb.vehiculos.push({
+                                    ID_Vehiculo: newVehId,
+                                    Codigo_Cliente: clientCode,
+                                    Nombre_Cliente: clientName,
+                                    Placas: v.placas,
+                                    Marca: v.marca,
+                                    Modelo: v.modelo,
+                                    Año: v.year,
+                                    Color: v.color,
+                                    Odometro: v.odometro,
+                                    "Nª_Motor": v.motor,
+                                    "Nª_VIN": v.vin,
+                                    N_Equipo: v.equipo
+                                });
+                            }
+                        }
                     });
                     
                     saveDatabase(currentDb);
-                    showToast(`Importación de clientes completada con éxito: ${newCount} agregados, ${updateCount} actualizados`, "success");
+                    showToast(`Importación completada con éxito: ${clientNewCount} clientes nuevos, ${vehNewCount} vehículos nuevos`, "success");
                     populateClientsList();
                 }
             } catch (err) {
