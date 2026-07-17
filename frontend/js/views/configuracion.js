@@ -341,6 +341,11 @@ export function renderConfiguracion(container, queryParams) {
     }
 
     function getServiciosHtml() {
+        const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+        const roleName = activeUser ? activeUser.Nivel_Acceso || "Mecánico" : "Mecánico";
+        const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isAdmin = searchRole === "administrador";
+
         return `
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
@@ -350,9 +355,11 @@ export function renderConfiguracion(container, queryParams) {
                     </div>
                     <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                         <input type="text" id="search-servicios-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:220px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
+                        ${isAdmin ? `
                         <button class="btn btn-secondary" id="btn-template-servicios" style="padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-excel" style="color:var(--success);"></i> Plantilla</button>
                         <button class="btn btn-secondary" id="btn-import-servicios" style="padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-import" style="color:var(--cyan);"></i> Importar Excel</button>
                         <input type="file" id="import-servicios-file" accept=".xlsx, .xls" style="display:none;">
+                        ` : ''}
                         <button class="btn btn-primary" id="btn-add-servicio"><i class="fa-solid fa-plus"></i> Nuevo Servicio</button>
                     </div>
                 </div>
@@ -1506,6 +1513,14 @@ export function renderConfiguracion(container, queryParams) {
             populateServicios(e.target.value);
         });
 
+
+        const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+        const roleName = activeUser ? activeUser.Nivel_Acceso || "Mecánico" : "Mecánico";
+        const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isAdmin = searchRole === "administrador";
+
+        if (isAdmin) {
+
         // Template button listener
         document.getElementById('btn-template-servicios').addEventListener('click', () => {
             if (typeof XLSX === 'undefined') {
@@ -1699,6 +1714,8 @@ export function renderConfiguracion(container, queryParams) {
             reader.readAsArrayBuffer(file);
         });
 
+
+        }
         // Add Servicio Trigger
         document.getElementById('btn-add-servicio').addEventListener('click', () => {
             document.getElementById('servicio-modal-title').textContent = 'Registrar Servicio / Mano de Obra';

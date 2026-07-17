@@ -3,9 +3,9 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=70';
+import { renderConfiguracion } from './views/configuracion.js?v=71';
 import { renderLanding } from './views/landing.js?v=69';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=88';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=89';
 import { renderRevision21 } from './views/revision21.js?v=77';
 import { renderPresupuestos } from './views/presupuestos.js?v=88';
 import { renderKanban } from './views/kanban.js?v=69';
