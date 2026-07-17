@@ -1052,6 +1052,16 @@ export function renderInvoicingWorkspace(container, presId) {
             dtePayload.paymentType = 'CONTADO';
         }
 
+        if (p.Orden_Compra && p.Orden_Compra.trim() !== '') {
+            dtePayload.appendices = [
+                {
+                    name: "Orden-Compra",
+                    description: "N° OC",
+                    value: p.Orden_Compra.trim().toUpperCase()
+                }
+            ];
+        }
+
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
