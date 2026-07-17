@@ -1043,7 +1043,8 @@ export function renderInvoicingWorkspace(container, presId) {
             id: generateUUID(),
             recipient: recipientPayload,
             items: formattedItems,
-            retentionIva: dteRetention
+            retentionIva: dteRetention,
+            comments: `Presupuesto: ${p['ID Presupuesto']} | Vehículo: ${vehicleInfo.trim()}`
         };
 
         if (payCond === 'CREDITO') {
