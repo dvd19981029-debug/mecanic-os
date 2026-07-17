@@ -1063,8 +1063,19 @@ export function renderClientesVehiculos(container, queryParams) {
                         continue;
                     }
                     
-                    if (type === 'NATURAL' && !docNum) {
-                        clientErrors.push(`Línea ${i + 1} (Clientes) "${name.substring(0, 15)}": Número de documento es requerido para persona natural.`);
+                    let finalDocNum = docNum;
+                    let finalNit = nit;
+
+                    if (type === 'NATURAL' && docType === 'NIT') {
+                        if (!finalDocNum && finalNit) {
+                            finalDocNum = finalNit;
+                        } else if (!finalNit && finalDocNum) {
+                            finalNit = finalDocNum;
+                        }
+                    }
+
+                    if (type === 'NATURAL' && !finalDocNum && !finalNit) {
+                        clientErrors.push(`Línea ${i + 1} (Clientes) "${name.substring(0, 15)}": Debe proporcionar al menos un documento (DUI o NIT) para persona natural.`);
                         continue;
                     }
                     
@@ -1089,8 +1100,8 @@ export function renderClientesVehiculos(container, queryParams) {
                         tipoCliente: type === 'JURIDICA' ? 'JURIDICA' : 'NATURAL',
                         contribuyente: contrib === 'SI' ? 'SI' : 'NO',
                         tipoDoc: type === 'JURIDICA' ? '' : docType,
-                        numDoc: type === 'JURIDICA' ? '' : docNum,
-                        nit: nit,
+                        numDoc: type === 'JURIDICA' ? '' : finalDocNum,
+                        nit: finalNit,
                         nrc: nrc,
                         giro: resolvedGiro,
                         categoria: (cat === 'GRANDE' || cat === 'MEDIANO') ? cat : 'OTROS',
