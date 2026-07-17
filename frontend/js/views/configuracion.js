@@ -21,7 +21,9 @@ let activeConfigTab = 'taller';
 
 export function renderConfiguracion(container, queryParams) {
     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
-    const isAdmin = activeUser && activeUser.Rol === 'administrador';
+    const roleName = activeUser ? activeUser.Nivel_Acceso || "Mecánico" : "Mecánico";
+    const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isAdmin = searchRole === "administrador";
     const db = window.getDatabase();
     if (queryParams && queryParams.tab) {
         activeConfigTab = queryParams.tab;
