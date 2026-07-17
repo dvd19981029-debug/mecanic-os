@@ -1006,9 +1006,13 @@ export function renderClientesVehiculos(container, queryParams) {
                     if (!name) return '06';
                     if (typeof DEPARTAMENTOS_CATALOG === 'undefined') return '06';
                     const cleaned = String(name).trim().toLowerCase()
-                        .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const paddedCode = cleaned.padStart(2, '0');
+                    if (DEPARTAMENTOS_CATALOG.some(d => d.id === paddedCode)) {
+                        return paddedCode;
+                    }
                     const match = DEPARTAMENTOS_CATALOG.find(d => 
-                        d.nombre.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "") === cleaned
+                        d.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
                     );
                     return match ? match.id : '06';
                 };
@@ -1017,14 +1021,18 @@ export function renderClientesVehiculos(container, queryParams) {
                     if (!name) return '14';
                     if (typeof MUNICIPIOS_CATALOG === 'undefined') return '14';
                     const cleaned = String(name).trim().toLowerCase()
-                        .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const paddedCode = cleaned.padStart(3, '0').slice(-2); // ensure 2 digit padding
+                    if (MUNICIPIOS_CATALOG.some(m => m.id === paddedCode && m.departamentoId === deptId)) {
+                        return paddedCode;
+                    }
                     const match = MUNICIPIOS_CATALOG.find(m => 
                         m.departamentoId === deptId &&
-                        m.nombre.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "") === cleaned
+                        m.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
                     );
                     return match ? match.id : '14';
                 };
-                
+
                 // Parse Clients Sheet
                 for (let i = 1; i < clientsRows.length; i++) {
                     const row = clientsRows[i];
