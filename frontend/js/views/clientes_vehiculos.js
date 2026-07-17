@@ -53,12 +53,17 @@ export function renderClientesVehiculos(container, queryParams) {
     container.innerHTML = html`
         <div class="master-detail-container">
             <div class="glass-card list-panel">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                    <div class="search-bar-container" style="max-width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <div class="search-bar-container" style="flex: 1; min-width: 150px; max-width: 100%;">
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="client-search" placeholder="Buscar cliente por nombre o doc...">
                     </div>
-                    <button class="btn btn-primary" id="add-client-btn" style="padding: 0.6rem 1rem;"><i class="fa-solid fa-user-plus"></i></button>
+                    <div style="display: flex; gap: 0.35rem; align-items: center;">
+                        <button class="btn btn-secondary" id="btn-template-clientes" title="Descargar Plantilla Excel" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-excel" style="color:var(--success);"></i></button>
+                        <button class="btn btn-secondary" id="btn-import-clientes" title="Importar desde Excel" style="padding: 0.6rem 0.8rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-file-import" style="color:var(--cyan);"></i></button>
+                        <input type="file" id="import-clientes-file" accept=".xlsx, .xls" style="display:none;">
+                        <button class="btn btn-primary" id="add-client-btn" style="padding: 0.6rem 0.8rem;"><i class="fa-solid fa-user-plus"></i></button>
+                    </div>
                 </div>
                 
                 <div class="scrollable-list" id="clients-list-container">
@@ -778,6 +783,340 @@ export function renderClientesVehiculos(container, queryParams) {
     // Search filter listener
     clientSearch.addEventListener('input', (e) => {
         populateClientsList(e.target.value);
+    });
+
+    // Template button listener
+    document.getElementById('btn-template-clientes').addEventListener('click', () => {
+        if (typeof XLSX === 'undefined') {
+            showToast("Error: La librería de Excel no está cargada. Intente de nuevo.", "danger");
+            return;
+        }
+        try {
+            const headers = [
+                'Nombre Completo / Razón Social',
+                'Tipo de Cliente (NATURAL/JURIDICA)',
+                '¿Es Contribuyente? (SI/NO)',
+                'Tipo Documento (DUI/PASAPORTE/NIT/OTRO)',
+                'Número Documento',
+                'NIT',
+                'NRC (Registro Contribuyente)',
+                'Giro (Actividad Económica)',
+                'Categoría Contribuyente (OTROS/MEDIANO/GRANDE)',
+                'Correo Electrónico',
+                'Teléfono',
+                'Dirección',
+                'Departamento',
+                'Municipio',
+                '¿Tiene Crédito? (SI/NO)',
+                'Límite de Crédito ($)',
+                'Plazo de Crédito (Días)'
+            ];
+            
+            const samples = [
+                [
+                    'JUAN ANTONIO PEREZ MEJIA',
+                    'NATURAL',
+                    'NO',
+                    'DUI',
+                    '01234567-8',
+                    '0614-101090-101-2',
+                    '',
+                    '',
+                    'OTROS',
+                    'juan.perez@gmail.com',
+                    '7788-9900',
+                    'Urbanización Altavista, Senda 5, Block B',
+                    'San Salvador',
+                    'San Salvador',
+                    'NO',
+                    0,
+                    0
+                ],
+                [
+                    'DISTRIBUIDORA GEMA S.A. DE C.V.',
+                    'JURIDICA',
+                    'SI',
+                    'NIT',
+                    '',
+                    '0614-200515-102-3',
+                    '123456-7',
+                    'Venta de repuestos automotrices',
+                    'MEDIANO',
+                    'compras@grupogema.com.sv',
+                    '2233-4455',
+                    'Calle El Mirador, Edificio Torre Futura, Nivel 12',
+                    'San Salvador',
+                    'San Salvador',
+                    'SI',
+                    500.00,
+                    30
+                ]
+            ];
+            
+            const data = [headers, ...samples];
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            ws['!cols'] = [
+                { wch: 35 }, // Nombre
+                { wch: 32 }, // Tipo de Cliente
+                { wch: 25 }, // ¿Es Contribuyente?
+                { wch: 32 }, // Tipo Documento
+                { wch: 20 }, // Número Documento
+                { wch: 20 }, // NIT
+                { wch: 25 }, // NRC
+                { wch: 30 }, // Giro
+                { wch: 40 }, // Categoría
+                { wch: 30 }, // Correo
+                { wch: 15 }, // Teléfono
+                { wch: 45 }, // Dirección
+                { wch: 20 }, // Departamento
+                { wch: 20 }, // Municipio
+                { wch: 22 }, // ¿Tiene Crédito?
+                { wch: 22 }, // Límite de Crédito
+                { wch: 22 }  // Plazo de Crédito
+            ];
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+            XLSX.writeFile(wb, "Plantilla_Clientes.xlsx");
+            showToast("Plantilla de clientes descargada correctamente", "success");
+        } catch (err) {
+            console.error(err);
+            showToast("Error al generar la plantilla: " + err.message, "danger");
+        }
+    });
+
+    // Trigger file input click when Import button is clicked
+    const fileInput = document.getElementById('import-clientes-file');
+    document.getElementById('btn-import-clientes').addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Parse file input
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (typeof XLSX === 'undefined') {
+            showToast("Error: La librería de Excel no está cargada. Intente de nuevo.", "danger");
+            fileInput.value = '';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const arrayBuffer = e.target.result;
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (rows.length <= 1) {
+                    showToast("El archivo está vacío o no contiene filas de datos.", "warning");
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const importedList = [];
+                let errors = [];
+                
+                const findDeptId = (name) => {
+                    if (!name) return '06';
+                    if (typeof DEPARTAMENTOS_CATALOG === 'undefined') return '06';
+                    const cleaned = String(name).trim().toLowerCase()
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const match = DEPARTAMENTOS_CATALOG.find(d => 
+                        d.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
+                    );
+                    return match ? match.id : '06';
+                };
+                
+                const findMunId = (name, deptId) => {
+                    if (!name) return '14';
+                    if (typeof MUNICIPIOS_CATALOG === 'undefined') return '14';
+                    const cleaned = String(name).trim().toLowerCase()
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const match = MUNICIPIOS_CATALOG.find(m => 
+                        m.departamentoId === deptId &&
+                        m.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === cleaned
+                    );
+                    return match ? match.id : '14';
+                };
+                
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+                    
+                    const name = row[0] ? String(row[0]).trim() : '';
+                    const type = row[1] ? String(row[1]).trim().toUpperCase() : 'NATURAL';
+                    const contrib = row[2] ? String(row[2]).trim().toUpperCase() : 'NO';
+                    const docType = row[3] ? String(row[3]).trim().toUpperCase() : 'DUI';
+                    const docNum = row[4] ? String(row[4]).trim() : '';
+                    const nit = row[5] ? String(row[5]).trim() : '';
+                    const nrc = row[6] ? String(row[6]).trim() : '';
+                    const giro = row[7] ? String(row[7]).trim() : '';
+                    const cat = row[8] ? String(row[8]).trim().toUpperCase() : 'OTROS';
+                    const email = row[9] ? String(row[9]).trim() : '';
+                    const phone = row[10] ? String(row[10]).trim() : '';
+                    const address = row[11] ? String(row[11]).trim() : '';
+                    const deptName = row[12] ? String(row[12]).trim() : 'San Salvador';
+                    const munName = row[13] ? String(row[13]).trim() : 'San Salvador';
+                    const hasCredit = row[14] ? String(row[14]).trim().toUpperCase() : 'NO';
+                    const creditLimit = parseFloat(row[15] || 0);
+                    const creditDays = parseInt(row[16] || 30);
+                    
+                    if (!name) {
+                        errors.push(`Fila ${i + 1}: El nombre completo es requerido.`);
+                        continue;
+                    }
+                    
+                    if (type === 'NATURAL' && !docNum) {
+                        errors.push(`Fila ${i + 1} ("${name.substring(0, 15)}"): El número de documento es requerido para persona natural.`);
+                        continue;
+                    }
+                    
+                    const resolvedDept = findDeptId(deptName);
+                    const resolvedMun = findMunId(munName, resolvedDept);
+                    
+                    importedList.push({
+                        nombre: name,
+                        tipoCliente: type === 'JURIDICA' ? 'JURIDICA' : 'NATURAL',
+                        contribuyente: contrib === 'SI' ? 'SI' : 'NO',
+                        tipoDoc: type === 'JURIDICA' ? '' : docType,
+                        numDoc: type === 'JURIDICA' ? '' : docNum,
+                        nit: nit,
+                        nrc: nrc,
+                        giro: giro,
+                        categoria: (cat === 'GRANDE' || cat === 'MEDIANO') ? cat : 'OTROS',
+                        correo: email,
+                        telefono: phone,
+                        direccion: address,
+                        departamento: resolvedDept,
+                        municipio: resolvedMun,
+                        credito: hasCredit === 'SI' ? 'SI' : 'NO',
+                        limiteCredito: isNaN(creditLimit) ? 0 : creditLimit,
+                        plazoCredito: isNaN(creditDays) ? 30 : creditDays
+                    });
+                }
+                
+                if (errors.length > 0) {
+                    const errorMsg = errors.slice(0, 3).join(' | ');
+                    showToast(`Errores en archivo: ${errorMsg}. Se abortó la importación.`, "danger");
+                    fileInput.value = '';
+                    return;
+                }
+                
+                if (importedList.length === 0) {
+                    showToast("No se encontraron clientes válidos para importar.", "warning");
+                    fileInput.value = '';
+                    return;
+                }
+                
+                const currentDb = getDatabase();
+                let newCount = 0;
+                let updateCount = 0;
+                
+                importedList.forEach(item => {
+                    const existing = currentDb.clientes.find(c => {
+                        if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
+                        if (item.nit && c.NIT === item.nit) return true;
+                        return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
+                    });
+                    if (existing) {
+                        updateCount++;
+                    } else {
+                        newCount++;
+                    }
+                });
+                
+                const confirmMsg = `¿Deseas proceder con la importación?\n\n` +
+                                   `- Clientes Nuevos a registrar: ${newCount}\n` +
+                                   `- Clientes Existentes a actualizar: ${updateCount}\n\n` +
+                                   `Esta acción modificará la base de datos de clientes y se sincronizará con la nube.`;
+                                   
+                if (confirm(confirmMsg)) {
+                    const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+                    const userId = activeUser ? activeUser.Tecnico_ID : '';
+                    
+                    importedList.forEach((item, index) => {
+                        const existing = currentDb.clientes.find(c => {
+                            if (item.numDoc && c['Num Doc'] === item.numDoc) return true;
+                            if (item.nit && c.NIT === item.nit) return true;
+                            return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
+                        });
+                        
+                        if (existing) {
+                            existing.Nombre = item.nombre.toUpperCase();
+                            existing['Tipo Cliente'] = item.tipoCliente;
+                            existing['Contribuyente?'] = item.contribuyente;
+                            existing['Tipo Doc'] = item.tipoDoc;
+                            existing['Num Doc'] = item.numDoc;
+                            existing.NIT = item.nit;
+                            existing.NRC = item.nrc;
+                            existing.Giro = item.giro;
+                            existing['Categoría Contribuyente'] = item.categoria;
+                            existing.Correo = item.correo;
+                            existing['Telefono 1 '] = item.telefono;
+                            existing.Direccion = item.direccion;
+                            existing.Departamento = item.departamento;
+                            existing.Municipio = item.municipio;
+                            existing['Credito?'] = item.credito;
+                            existing['Monto Credito'] = item.limiteCredito;
+                            existing.Monto_Credito = item.limiteCredito;
+                            existing['Plazo Credito Días'] = item.plazoCredito;
+                        } else {
+                            const newCode = "CLIENT-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
+                            let ret = 0;
+                            let perc = 0;
+                            if (item.categoria === 'GRANDE') {
+                                ret = 0.01;
+                            }
+                            
+                            currentDb.clientes.push({
+                                Codigo_Cliente: newCode,
+                                Nombre: item.nombre.toUpperCase(),
+                                "Tipo Cliente": item.tipoCliente,
+                                "Contribuyente?": item.contribuyente,
+                                "Tipo Doc": item.tipoDoc,
+                                "Num Doc": item.numDoc,
+                                NIT: item.nit,
+                                NRC: item.nrc,
+                                Giro: item.giro,
+                                Correo: item.correo,
+                                "Telefono 1 ": item.telefono,
+                                Direccion: item.direccion,
+                                Departamento: item.departamento,
+                                Municipio: item.municipio,
+                                "Categoría Contribuyente": item.categoria,
+                                "Credito?": item.credito,
+                                AplicaRetencion: ret,
+                                AplicaPercepcion: perc,
+                                "Monto Credito": item.limiteCredito,
+                                Monto_Credito: item.limiteCredito,
+                                "Plazo Credito Días": item.plazoCredito,
+                                "% Impuesto": 0.13,
+                                Usuario: userId
+                            });
+                        }
+                    });
+                    
+                    saveDatabase(currentDb);
+                    showToast(`Importación de clientes completada con éxito: ${newCount} agregados, ${updateCount} actualizados`, "success");
+                    populateClientsList();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Error al procesar el archivo Excel: " + err.message, "danger");
+            } finally {
+                fileInput.value = '';
+            }
+        };
+        
+        reader.readAsArrayBuffer(file);
     });
     
     // Open/Close Add Client Modal
