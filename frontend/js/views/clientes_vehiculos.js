@@ -1063,6 +1063,18 @@ export function renderClientesVehiculos(container, queryParams) {
                     const resolvedDept = findDeptId(deptName);
                     const resolvedMun = findMunId(munName, resolvedDept);
                     
+                    let resolvedGiro = giro;
+                    if (giro && typeof GIROS_CATALOG !== 'undefined') {
+                        const cleanedGiro = String(giro).trim();
+                        let match = GIROS_CATALOG.find(g => g.codigo === cleanedGiro);
+                        if (!match) {
+                            match = GIROS_CATALOG.find(g => g.descripcion.toLowerCase() === cleanedGiro.toLowerCase());
+                        }
+                        if (match) {
+                            resolvedGiro = `${match.codigo} - ${match.descripcion}`;
+                        }
+                    }
+                    
                     importedClients.push({
                         customCode: customCode,
                         nombre: name,
@@ -1072,7 +1084,7 @@ export function renderClientesVehiculos(container, queryParams) {
                         numDoc: type === 'JURIDICA' ? '' : docNum,
                         nit: nit,
                         nrc: nrc,
-                        giro: giro,
+                        giro: resolvedGiro,
                         categoria: (cat === 'GRANDE' || cat === 'MEDIANO') ? cat : 'OTROS',
                         correo: email,
                         telefono: phone,
