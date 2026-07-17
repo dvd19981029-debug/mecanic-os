@@ -1059,12 +1059,12 @@ export function renderClientesVehiculos(container, queryParams) {
                     const creditDays = parseInt(row[17] || 30);
                     
                     if (!name) {
-                        clientErrors.push(`Línea \${i + 1} (Clientes): Nombre Completo es requerido.`);
+                        clientErrors.push(`Línea ${i + 1} (Clientes): Nombre Completo es requerido.`);
                         continue;
                     }
                     
                     if (type === 'NATURAL' && !docNum) {
-                        clientErrors.push(`Línea \${i + 1} (Clientes) "\${name.substring(0, 15)}": Número de documento es requerido para persona natural.`);
+                        clientErrors.push(`Línea ${i + 1} (Clientes) "${name.substring(0, 15)}": Número de documento es requerido para persona natural.`);
                         continue;
                     }
                     
@@ -1106,7 +1106,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 }
                 
                 if (clientErrors.length > 0) {
-                    showToast(`Errores en Clientes: \${clientErrors.slice(0, 3).join(' | ')}`, "danger");
+                    showToast(`Errores en Clientes: ${clientErrors.slice(0, 3).join(' | ')}`, "danger");
                     fileInput.value = '';
                     return;
                 }
@@ -1135,12 +1135,12 @@ export function renderClientesVehiculos(container, queryParams) {
                         const equipo = row[10] ? String(row[10]).trim().toUpperCase() : '';
                         
                         if (!placa) {
-                            vehicleErrors.push(`Línea \${i + 1} (Vehículos): Placa del vehículo es requerida.`);
+                            vehicleErrors.push(`Línea ${i + 1} (Vehículos): Placa del vehículo es requerida.`);
                             continue;
                         }
                         
                         if (!clientRef && !clientNameRef) {
-                            vehicleErrors.push(`Línea \${i + 1} (Vehículos) "\${placa}": Debe asociarse a un Código o Nombre de Cliente.`);
+                            vehicleErrors.push(`Línea ${i + 1} (Vehículos) "${placa}": Debe asociarse a un Código o Nombre de Cliente.`);
                             continue;
                         }
                         
@@ -1161,7 +1161,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 }
                 
                 if (vehicleErrors.length > 0) {
-                    showToast(`Errores en Vehículos: \${vehicleErrors.slice(0, 3).join(' | ')}`, "danger");
+                    showToast(`Errores en Vehículos: ${vehicleErrors.slice(0, 3).join(' | ')}`, "danger");
                     fileInput.value = '';
                     return;
                 }
@@ -1208,11 +1208,11 @@ export function renderClientesVehiculos(container, queryParams) {
                 
                 const confirmMsg = `¿Deseas proceder con la importación?\\n\\n` +
                                    `Clientes:\\n` +
-                                   `- Nuevos a registrar: \${clientNewCount}\\n` +
-                                   `- Existentes a actualizar: \${clientUpdateCount}\\n\\n` +
+                                   `- Nuevos a registrar: ${clientNewCount}\\n` +
+                                   `- Existentes a actualizar: ${clientUpdateCount}\\n\\n` +
                                    `Vehículos / Flota:\\n` +
-                                   `- Nuevos a registrar: \${vehNewCount}\\n` +
-                                   `- Existentes a actualizar: \${vehUpdateCount}\\n\\n` +
+                                   `- Nuevos a registrar: ${vehNewCount}\\n` +
+                                   `- Existentes a actualizar: ${vehUpdateCount}\\n\\n` +
                                    `Esta acción modificará la base de datos y se sincronizará con la nube.`;
                                    
                 if (confirm(confirmMsg)) {
@@ -1336,7 +1336,7 @@ export function renderClientesVehiculos(container, queryParams) {
                         
                         // Si no pudimos resolver el cliente, no podemos agregarlo (o lo enlazamos al cliente por defecto)
                         if (!targetClientCode) {
-                            console.warn(`No se pudo resolver el cliente para el vehículo con placas \${v.placas}.`);
+                            console.warn(`No se pudo resolver el cliente para el vehículo con placas ${v.placas}.`);
                             return;
                         }
                         
@@ -1372,7 +1372,7 @@ export function renderClientesVehiculos(container, queryParams) {
                     });
                     
                     saveDatabase(currentDb);
-                    showToast(`Importación completada con éxito: \${clientNewCount} clientes y \${vehNewCount} vehículos procesados`, "success");
+                    showToast(`Importación completada con éxito: ${clientNewCount} clientes y ${vehNewCount} vehículos procesados`, "success");
                     populateClientsList();
                 }
             } catch (err) {
