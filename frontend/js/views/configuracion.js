@@ -1529,7 +1529,7 @@ export function renderConfiguracion(container, queryParams) {
                             return;
                         }
                         
-                        // Deduplicate list by code and description to avoid duplicate entries in file
+                        // Deduplicate list by code and description + price to avoid duplicate entries in file
                         const uniqueImported = [];
                         const seenCodes = new Set();
                         const seenDescs = new Set();
@@ -1538,6 +1538,7 @@ export function renderConfiguracion(container, queryParams) {
                         importedList.forEach(item => {
                             const codeKey = item.code ? item.code.trim().toLowerCase() : null;
                             const descKey = item.descripcion.trim().toLowerCase();
+                            const priceKey = `${item.costo}-${item.precio}`;
                             
                             let isDup = false;
                             if (codeKey) {
@@ -1547,10 +1548,11 @@ export function renderConfiguracion(container, queryParams) {
                                     seenCodes.add(codeKey);
                                 }
                             } else {
-                                if (seenDescs.has(descKey)) {
+                                const compositeKey = `${descKey}-${priceKey}`;
+                                if (seenDescs.has(compositeKey)) {
                                     isDup = true;
                                 } else {
-                                    seenDescs.add(descKey);
+                                    seenDescs.add(compositeKey);
                                 }
                             }
                             
@@ -1568,7 +1570,9 @@ export function renderConfiguracion(container, queryParams) {
                         uniqueImported.forEach(item => {
                             const existing = currentDb.productos.find(p => {
                                 if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
-                                return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                                const matchDesc = String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                                const matchPrice = parseFloat(p['Precio Compra'] || 0) === item.costo && parseFloat(p['Precio Venta'] || 0) === item.precio;
+                                return matchDesc && matchPrice;
                             });
                             if (existing) {
                                 updateCount++;
@@ -1581,7 +1585,7 @@ export function renderConfiguracion(container, queryParams) {
                                            `- Repuestos Nuevos a registrar: ${newCount}\n` +
                                            `- Repuestos Existentes a actualizar (precios/stock): ${updateCount}\n` +
                                            (duplicatesInFile > 0 ? `- Filas duplicadas omitidas en el archivo: ${duplicatesInFile}\n` : '') + `\n` +
-                                           `Esta acción modificará la base de datos y se sincronizará con la nube.`;
+                                           `Esta action modificará la base de datos y se sincronizará con la nube.`;
                                            
                         if (confirm(confirmMsg)) {
                             let indexCounter = 0;
@@ -1589,7 +1593,9 @@ export function renderConfiguracion(container, queryParams) {
                             uniqueImported.forEach(item => {
                                 const existing = currentDb.productos.find(p => {
                                     if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
-                                    return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                                    const matchDesc = String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
+                                    const matchPrice = parseFloat(p['Precio Compra'] || 0) === item.costo && parseFloat(p['Precio Venta'] || 0) === item.precio;
+                                    return matchDesc && matchPrice;
                                 });
                                 
                                 if (existing) {
