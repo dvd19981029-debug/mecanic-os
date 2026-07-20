@@ -423,7 +423,7 @@ export function renderVentaRapida(container) {
         resultsContainer.innerHTML = '';
         const filtered = db.mano_obra.filter(m => 
             (m.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
-            (m.ID_ManoObra || '').toLowerCase().includes(filterText.toLowerCase())
+            String(m.ID_ManoObra || '').toLowerCase().includes(filterText.toLowerCase())
         );
         if (filtered.length === 0) {
             resultsContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:1rem;">Sin resultados</div>';
