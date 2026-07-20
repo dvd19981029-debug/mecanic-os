@@ -313,7 +313,9 @@ export function renderConfiguracion(container, queryParams) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:1rem;">
                     <div>
                         <h3>Catálogo de Repuestos y Productos</h3>
-                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">Administra el catálogo maestro de repuestos para presupuestos y POS.</p>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">
+                            Administra el catálogo maestro de repuestos para presupuestos y POS. <span id="productos-counter-label" style="color:var(--cyan); font-weight:600; margin-left:0.5rem;"></span>
+                        </p>
                     </div>
                     <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                         <input type="text" id="search-productos-input" placeholder="Buscar por descripción o código..." style="padding:0.6rem 1rem; width:280px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary);">
@@ -1206,8 +1208,17 @@ export function renderConfiguracion(container, queryParams) {
                 (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
             );
 
-            // Display top 50 matches for performance
-            const limit = filtered.slice(0, 50);
+            const counterLabel = document.getElementById('productos-counter-label');
+            if (counterLabel) {
+                if (filtered.length > 100) {
+                    counterLabel.textContent = `(Mostrando los primeros 100 de ${filtered.length} productos. Usa el buscador para filtrar)`;
+                } else {
+                    counterLabel.textContent = `(Total: ${filtered.length} productos)`;
+                }
+            }
+
+            // Display top 100 matches for performance
+            const limit = filtered.slice(0, 100);
 
             if (limit.length === 0) {
                 tableBody.innerHTML = html`<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
