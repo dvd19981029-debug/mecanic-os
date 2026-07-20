@@ -1210,10 +1210,15 @@ export function renderConfiguracion(container, queryParams) {
 
             const counterLabel = document.getElementById('productos-counter-label');
             if (counterLabel) {
-                if (filtered.length > 100) {
-                    counterLabel.textContent = `(Mostrando los primeros 100 de ${filtered.length} productos. Usa el buscador para filtrar)`;
+                const totalReg = db.productos.length;
+                if (filterText.trim() === '') {
+                    if (totalReg > 100) {
+                        counterLabel.textContent = `(${totalReg} registrados | Mostrando los primeros 100. Usa el buscador para filtrar)`;
+                    } else {
+                        counterLabel.textContent = `(${totalReg} registrados)`;
+                    }
                 } else {
-                    counterLabel.textContent = `(Total: ${filtered.length} productos)`;
+                    counterLabel.textContent = `(Encontrados: ${filtered.length} de ${totalReg} registrados)`;
                 }
             }
 
