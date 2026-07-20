@@ -18,8 +18,16 @@ import { showToast, html, safe, hashPassword } from '../utils.js?v=69';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
+let productSortColumn = 'descripcion';
+let productSortDirection = 'asc';
 
 export function renderConfiguracion(container, queryParams) {
+    function renderSortIcon(column) {
+        const isCurrent = productSortColumn === column;
+        const iconClass = isCurrent ? (productSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+        const color = isCurrent ? 'var(--cyan)' : 'rgba(255,255,255,0.3)';
+        return `<i class="fa-solid ${iconClass} sort-icon" data-column="${column}" style="margin-left: 5px; font-size: 0.85rem; cursor: pointer; color: ${color}; transition: color 0.2s;"></i>`;
+    }
     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
     const roleName = activeUser ? activeUser.Nivel_Acceso || "Mecánico" : "Mecánico";
     const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -332,14 +340,14 @@ export function renderConfiguracion(container, queryParams) {
                         <thead>
                             <tr>
                                 <th style="text-align:center; width:45px;">N°</th>
-                                <th>Código</th>
-                                <th>Descripción</th>
-                                <th>Presentación</th>
-                                <th style="text-align:right;">P. Compra</th>
-                                <th style="text-align:right;">Precio Neto</th>
-                                <th style="text-align:right;">Precio c/IVA</th>
-                                <th style="text-align:center;">% Ganancia</th>
-                                <th style="text-align:center;">Stock Mín.</th>
+                                <th style="cursor:pointer;" class="sort-header" data-column="codigo">Código ${renderSortIcon('codigo')}</th>
+                                <th style="cursor:pointer;" class="sort-header" data-column="descripcion">Descripción ${renderSortIcon('descripcion')}</th>
+                                <th style="cursor:pointer;" class="sort-header" data-column="presentacion">Presentación ${renderSortIcon('presentacion')}</th>
+                                <th style="text-align:right; cursor:pointer;" class="sort-header" data-column="compra">P. Compra ${renderSortIcon('compra')}</th>
+                                <th style="text-align:right; cursor:pointer;" class="sort-header" data-column="venta">Precio Neto ${renderSortIcon('venta')}</th>
+                                <th style="text-align:right; cursor:pointer;" class="sort-header" data-column="iva">Precio c/IVA ${renderSortIcon('iva')}</th>
+                                <th style="text-align:center; cursor:pointer;" class="sort-header" data-column="ganancia">% Ganancia ${renderSortIcon('ganancia')}</th>
+                                <th style="text-align:center; cursor:pointer;" class="sort-header" data-column="stock">Stock Mín. ${renderSortIcon('stock')}</th>
                                 <th style="text-align:center;">Acciones</th>
                             </tr>
                         </thead>
@@ -1203,10 +1211,51 @@ export function renderConfiguracion(container, queryParams) {
 
         function populateProductos(filterText = '') {
             tableBody.innerHTML = '';
-            const filtered = db.productos.filter(p => 
+            let filtered = db.productos.filter(p => 
                 (p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
                 (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
             );
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                let valA, valB;
+                if (productSortColumn === 'codigo') {
+                    valA = String(a['ID_ Producto'] || '').toLowerCase();
+                    valB = String(b['ID_ Producto'] || '').toLowerCase();
+                } else if (productSortColumn === 'descripcion') {
+                    valA = String(a.Descripcion || '').toLowerCase();
+                    valB = String(b.Descripcion || '').toLowerCase();
+                } else if (productSortColumn === 'presentacion') {
+                    valA = String(a.Presentacion || '').toLowerCase();
+                    valB = String(b.Presentacion || '').toLowerCase();
+                } else if (productSortColumn === 'compra') {
+                    valA = parseFloat(a['Precio Compra'] || 0);
+                    valB = parseFloat(b['Precio Compra'] || 0);
+                } else if (productSortColumn === 'venta') {
+                    valA = parseFloat(a['Precio Venta'] || 0);
+                    valB = parseFloat(b['Precio Venta'] || 0);
+                } else if (productSortColumn === 'iva') {
+                    valA = parseFloat(a['Precio Venta Unit Iva Inc'] || (parseFloat(a['Precio Venta'] || 0) * 1.13));
+                    valB = parseFloat(b['Precio Venta Unit Iva Inc'] || (parseFloat(b['Precio Venta'] || 0) * 1.13));
+                } else if (productSortColumn === 'ganancia') {
+                    const cA = parseFloat(a['Precio Compra'] || 0);
+                    const vA = parseFloat(a['Precio Venta'] || 0);
+                    const cB = parseFloat(b['Precio Compra'] || 0);
+                    const vB = parseFloat(b['Precio Venta'] || 0);
+                    valA = cA > 0 ? (vA - cA) / cA : -1;
+                    valB = cB > 0 ? (vB - cB) / cB : -1;
+                } else if (productSortColumn === 'stock') {
+                    valA = parseInt(a.Minimos || 0);
+                    valB = parseInt(b.Minimos || 0);
+                } else {
+                    valA = String(a.Descripcion || '').toLowerCase();
+                    valB = String(b.Descripcion || '').toLowerCase();
+                }
+
+                if (valA < valB) return productSortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return productSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
 
             const counterLabel = document.getElementById('productos-counter-label');
             if (counterLabel) {
@@ -1311,6 +1360,35 @@ export function renderConfiguracion(container, queryParams) {
         // Search listener
         searchInput.addEventListener('input', (e) => {
             populateProductos(e.target.value);
+        });
+
+        // Update sorting headers dynamically
+        function updateSortIcons() {
+            tabContentArea.querySelectorAll('.sort-header').forEach(header => {
+                const column = header.getAttribute('data-column');
+                const isCurrent = productSortColumn === column;
+                const icon = header.querySelector('i');
+                if (icon) {
+                    icon.className = `fa-solid ${isCurrent ? (productSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort'} sort-icon`;
+                    icon.style.color = isCurrent ? 'var(--cyan)' : 'rgba(255,255,255,0.3)';
+                }
+            });
+        }
+
+        // Bind Sort header click listeners
+        tabContentArea.querySelectorAll('.sort-header').forEach(header => {
+            header.style.userSelect = 'none';
+            header.addEventListener('click', () => {
+                const column = header.getAttribute('data-column');
+                if (productSortColumn === column) {
+                    productSortDirection = productSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    productSortColumn = column;
+                    productSortDirection = 'asc';
+                }
+                updateSortIcons();
+                populateProductos(searchInput.value);
+            });
         });
 
         if (isAdmin) {
