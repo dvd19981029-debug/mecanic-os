@@ -329,6 +329,7 @@ export function renderConfiguracion(container, queryParams) {
                     <table>
                         <thead>
                             <tr>
+                                <th style="text-align:center; width:45px;">N°</th>
                                 <th>Código</th>
                                 <th>Descripción</th>
                                 <th>Presentación</th>
@@ -1209,11 +1210,11 @@ export function renderConfiguracion(container, queryParams) {
             const limit = filtered.slice(0, 50);
 
             if (limit.length === 0) {
-                tableBody.innerHTML = html`<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
+                tableBody.innerHTML = html`<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
                 return;
             }
 
-            limit.forEach(p => {
+            limit.forEach((p, idx) => {
                 const pCompra = parseFloat(p['Precio Compra'] || 0);
                 const pVenta = parseFloat(p['Precio Venta'] || 0);
                 let pctText = 'N/A';
@@ -1230,6 +1231,7 @@ export function renderConfiguracion(container, queryParams) {
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = html`
+                    <td style="text-align:center; color:var(--text-secondary); font-size:0.85rem;">${idx + 1}</td>
                     <td><small style="color:var(--text-muted); font-family:monospace;">${p['ID_ Producto']}</small></td>
                     <td><strong>${p.Descripcion}</strong></td>
                     <td>${p.Presentacion || 'Unidad'}</td>
