@@ -1451,11 +1451,43 @@ export function renderConfiguracion(container, queryParams) {
                             return;
                         }
                         
+                        // Deduplicate list by code and description to avoid duplicate entries in file
+                        const uniqueImported = [];
+                        const seenCodes = new Set();
+                        const seenDescs = new Set();
+                        let duplicatesInFile = 0;
+                        
+                        importedList.forEach(item => {
+                            const codeKey = item.code ? item.code.trim().toLowerCase() : null;
+                            const descKey = item.descripcion.trim().toLowerCase();
+                            
+                            let isDup = false;
+                            if (codeKey) {
+                                if (seenCodes.has(codeKey)) {
+                                    isDup = true;
+                                } else {
+                                    seenCodes.add(codeKey);
+                                }
+                            } else {
+                                if (seenDescs.has(descKey)) {
+                                    isDup = true;
+                                } else {
+                                    seenDescs.add(descKey);
+                                }
+                            }
+                            
+                            if (isDup) {
+                                duplicatesInFile++;
+                            } else {
+                                uniqueImported.push(item);
+                            }
+                        });
+
                         const currentDb = window.getDatabase();
                         let newCount = 0;
                         let updateCount = 0;
                         
-                        importedList.forEach(item => {
+                        uniqueImported.forEach(item => {
                             const existing = currentDb.productos.find(p => {
                                 if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
                                 return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
@@ -1468,14 +1500,15 @@ export function renderConfiguracion(container, queryParams) {
                         });
                         
                         const confirmMsg = `¿Deseas proceder con la importación?\n\n` + 
-                                           `- Repuestos Nuevos a registrar: ... ${newCount}\n` +
-                                           `- Repuestos Existentes a actualizar (precios/stock): ${updateCount}\n\n` +
+                                           `- Repuestos Nuevos a registrar: ${newCount}\n` +
+                                           `- Repuestos Existentes a actualizar (precios/stock): ${updateCount}\n` +
+                                           (duplicatesInFile > 0 ? `- Filas duplicadas omitidas en el archivo: ${duplicatesInFile}\n` : '') + `\n` +
                                            `Esta acción modificará la base de datos y se sincronizará con la nube.`;
                                            
                         if (confirm(confirmMsg)) {
                             let indexCounter = 0;
                             
-                            importedList.forEach(item => {
+                            uniqueImported.forEach(item => {
                                 const existing = currentDb.productos.find(p => {
                                     if (item.code && String(p['ID_ Producto'] || '').trim().toLowerCase() === item.code.toLowerCase()) return true;
                                     return String(p.Descripcion || '').trim().toLowerCase() === item.descripcion.toLowerCase();
