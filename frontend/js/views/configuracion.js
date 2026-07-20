@@ -1261,25 +1261,18 @@ export function renderConfiguracion(container, queryParams) {
             if (counterLabel) {
                 const totalReg = db.productos.length;
                 if (filterText.trim() === '') {
-                    if (totalReg > 100) {
-                        counterLabel.textContent = `(${totalReg} registrados | Mostrando los primeros 100. Usa el buscador para filtrar)`;
-                    } else {
-                        counterLabel.textContent = `(${totalReg} registrados)`;
-                    }
+                    counterLabel.textContent = `(${totalReg} registrados)`;
                 } else {
                     counterLabel.textContent = `(Encontrados: ${filtered.length} de ${totalReg} registrados)`;
                 }
             }
 
-            // Display top 100 matches for performance
-            const limit = filtered.slice(0, 100);
-
-            if (limit.length === 0) {
+            if (filtered.length === 0) {
                 tableBody.innerHTML = html`<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
                 return;
             }
 
-            limit.forEach((p, idx) => {
+            filtered.forEach((p, idx) => {
                 const pCompra = parseFloat(p['Precio Compra'] || 0);
                 const pVenta = parseFloat(p['Precio Venta'] || 0);
                 let pctText = 'N/A';
