@@ -3717,7 +3717,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
 <body>
 
     <div class="no-print-toolbar">
-        <h3>Vista Previa - Orden Compacta (Sin Logos)</h3>
+        <h3>Vista Previa - Formato Compacto</h3>
         <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn-action" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir o PDF</button>
             <button class="btn-close" onclick="window.close()">Cerrar</button>
@@ -3741,12 +3741,21 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <div><strong>Dirección:</strong> ${client.Direccion || 'N/A'}</div>
             </div>
             
-            <!-- Center: Workshop Info -->
-            <div class="top-col top-col-center" style="color: #475569;">
-                <div style="font-weight: 700; color: var(--primary-color);">${ws.nombreTaller || 'Centro de Servicio'}</div>
-                <div>${ws.direccion || ''}</div>
-                <div>Tel: ${ws.telefono || ''}</div>
-                ${ws.correo ? `<div>Email: ${ws.correo}</div>` : ''}
+            <!-- Center: Workshop Info & Logo -->
+            <div class="top-col top-col-center">
+                ${ws.logo ? `
+                    <div style="margin-bottom: 6px;">
+                        <img src="${ws.logo}" style="max-height: 55px; max-width: 180px; object-fit: contain; border-radius: 4px;" />
+                    </div>
+                ` : `
+                    <div style="font-weight: 700; color: var(--primary-color); font-size: 13px; margin-bottom: 4px;">${ws.nombreTaller || 'Centro de Servicio'}</div>
+                `}
+                <div style="color: #475569; font-size: 10px;">
+                    ${ws.logo ? `<div style="font-weight: 700; color: var(--primary-color); font-size: 11px; margin-bottom: 2px;">${ws.nombreTaller || 'Centro de Servicio'}</div>` : ''}
+                    <div>${ws.direccion || ''}</div>
+                    <div>Tel: ${ws.telefono || ''}</div>
+                    ${ws.correo ? `<div>Email: ${ws.correo}</div>` : ''}
+                </div>
             </div>
             
             <!-- Right: Vehicle Info -->
