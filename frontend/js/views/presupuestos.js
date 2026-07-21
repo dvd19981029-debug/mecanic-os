@@ -663,7 +663,7 @@ export function renderBudgetEditor(container, budget) {
                         </div>
                         <div class="form-group" style="width: 160px;">
                             <label>Orden de Compra</label>
-                            <input type="text" id="editor-purchase-order" placeholder="N° Orden de Compra" style="padding: 0.5rem;" value="${escapeHtml(budget.Orden_Compra || '')}" ${budget.Estado != 1 ? 'disabled' : ''}>
+                            <input type="text" id="editor-purchase-order" placeholder="N° Orden de Compra" style="padding: 0.5rem;" value="${escapeHtml(budget.Orden_Compra || '')}" ${(budget.Estado == 3 || budget.Estado == 4) ? 'disabled' : ''}>
                         </div>
                     </div>
                 </div>
@@ -796,7 +796,7 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-success" id="approve-budget-shortcut-btn" style="background: var(--success);"><i class="fa-solid fa-check-double"></i> Aprobar Presupuesto</button>
                         <button class="btn btn-danger" id="reject-budget-shortcut-btn" style="background: var(--danger); border: none; color: white;"><i class="fa-solid fa-ban"></i> Rechazar Cotización</button>
                     ` : '')}
-                    <button class="btn btn-primary" id="save-budget-btn" ${budget.Estado != 1 ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
+                    <button class="btn btn-primary" id="save-budget-btn" ${(budget.Estado == 3 || budget.Estado == 4) ? 'disabled style="opacity: 0.5; pointer-events: none;"' : ''}><i class="fa-solid fa-floppy-disk"></i> Guardar Cotización</button>
                     ${safe((!isNew && budget.Estado == 2) ? `
                         <button class="btn btn-success" id="finalize-work-btn" style="background: #a855f7; border: none; color: white;"><i class="fa-solid fa-circle-check"></i> Finalizar Trabajos</button>
                         <button class="btn btn-warning" id="revert-to-draft-btn" style="background: #f59e0b; color: white; border: none;"><i class="fa-solid fa-rotate-left"></i> Devolver a Borrador</button>
