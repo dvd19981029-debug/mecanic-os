@@ -2420,7 +2420,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
             <thead>
                 <tr>
                     <th class="col-cant">Cant</th>
-                    <th class="col-desc">Descripción Repuestos Traídos por Cliente (Solicitud de Repuestos)</th>
+                    <th class="col-desc">Solicitud de Repuestos</th>
                     <th class="col-price">P. Unitario</th>
                     <th class="col-total">Total ($)</th>
                 </tr>
@@ -2573,7 +2573,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
     if (budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) {
         custPartsHTML = `
             <tr style="background-color: #f8fafc; font-weight: bold;">
-                <td colspan="7" style="padding: 6px 12px; border-bottom: 2px solid #cbd5e1; font-size: 0.75rem; text-align: left;">REPUESTOS TRAÍDOS POR EL CLIENTE (SOLICITUD DE REPUESTOS)</td>
+                <td colspan="7" style="padding: 6px 12px; border-bottom: 2px solid #cbd5e1; font-size: 0.75rem; text-align: left;">SOLICITUD DE REPUESTOS</td>
             </tr>
         ` + budget.Repuestos_Cliente.map((rc, idx) => `
             <tr>
@@ -3510,7 +3510,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
 
         <!-- Repuestos Traídos por Cliente (Solicitud de Repuestos) -->
         ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
-        <div class="section-title">Repuestos Traídos por Cliente (Solicitud de Repuestos)</div>
+        <div class="section-title">Solicitud de Repuestos</div>
         <table>
             <thead>
                 <tr>
@@ -4010,7 +4010,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <!-- Repuestos Traídos por el Cliente (Solicitud de Repuestos) -->
                 ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
                     <tr class="category-header-row">
-                        <td colspan="5">Repuestos Traídos por Cliente (Solicitud de Repuestos)</td>
+                        <td colspan="5">Solicitud de Repuestos</td>
                     </tr>
                     ${budget.Repuestos_Cliente.map(rc => `
                         <tr>
