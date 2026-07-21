@@ -1197,6 +1197,10 @@ export async function renderAdminSolicitudes(container) {
                                     <label style="font-size:0.75rem; margin-bottom:0.25rem;">Próxima Renovación</label>
                                     <input type="date" id="detail-saas-next-pay" value="${nextPayRaw}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
                                 </div>
+                                <div class="form-group" style="margin-top:0.5rem; display:flex; align-items:center; gap:0.5rem;">
+                                    <input type="checkbox" id="detail-saas-features-repuestos" ${workshop.features?.habilitar_repuestos_cliente ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
+                                    <label for="detail-saas-features-repuestos" style="font-size:0.75rem; color:var(--text-primary); cursor:pointer; font-weight:500;">Activar Solicitud de Repuestos</label>
+                                </div>
                                 <button type="submit" class="btn btn-primary" style="padding:0.45rem; font-size:0.75rem; margin-top:0.25rem; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Actualizar Plan</button>
                             </form>
                         </div>
@@ -1581,13 +1585,17 @@ export async function renderAdminSolicitudes(container) {
                         e.preventDefault();
                         const planVal = document.getElementById('detail-saas-plan').value;
                         const priceVal = parseFloat(document.getElementById('detail-saas-price').value);
-                        const statusVal = document.getElementById('detail-saas-status').value;
+                        const statusVal = document.getElementById('detail-saas-status')?.value || workshop.suscripcion_status || 'activo';
                         const nextPayVal = document.getElementById('detail-saas-next-pay').value;
+                        const hasRepuestos = document.getElementById('detail-saas-features-repuestos').checked;
 
                         workshop.plan = planVal;
                         workshop.precio_mensual = priceVal;
                         workshop.suscripcion_status = statusVal;
                         workshop.proximo_pago = nextPayVal ? new Date(nextPayVal + 'T12:00:00').getTime() : null;
+                        
+                        workshop.features = workshop.features || {};
+                        workshop.features.habilitar_repuestos_cliente = hasRepuestos;
 
                         if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
                             db.saas_state.workshopData = workshop;

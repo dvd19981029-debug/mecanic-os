@@ -153,7 +153,7 @@ export function handleRouting() {
                         }
                         
                         // Sync SaaS properties
-                        const saasFields = ['suscripcion_status', 'plan', 'precio_mensual', 'proximo_pago'];
+                        const saasFields = ['suscripcion_status', 'plan', 'precio_mensual', 'proximo_pago', 'features'];
                         saasFields.forEach(field => {
                             if (updatedRequest[field] !== undefined && db.saas_state.workshopData[field] !== updatedRequest[field]) {
                                 db.saas_state.workshopData[field] = updatedRequest[field];

@@ -539,6 +539,7 @@ export function renderBudgetEditor(container, budget) {
     const config = getWorkshopConfig(db);
     const tipoComision = config.tipo_comision || 'general';
     const isDetailed = tipoComision === 'detallada';
+    const habilitarRepuestosCliente = db.saas_state?.workshopData?.features?.habilitar_repuestos_cliente === true;
     
     if (isNew) {
         budget = {
@@ -735,6 +736,26 @@ export function renderBudgetEditor(container, budget) {
                         <!-- Injected -->
                     </div>
                 </div>
+
+                <!-- Customer-provided Parts (Solicitud de Repuestos) -->
+                ${habilitarRepuestosCliente ? safe(`
+                <div class="glass-card" id="editor-customer-parts-card" style="${isNew ? 'opacity: 0.4; pointer-events: none; transition: opacity 0.3s;' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Solicitud de Repuestos (Traídos por Cliente)</h3>
+                        <button class="btn btn-primary" id="add-customer-part-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" ${(isNew || (budget.Estado == 3 || budget.Estado == 4)) ? 'disabled' : ''}><i class="fa-solid fa-plus"></i> Agregar Fila</button>
+                    </div>
+                    
+                    <div class="item-row" style="grid-template-columns: 2.2fr 1fr 50px; background-color: var(--border-color); font-weight: bold; border: none; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                        <div>Descripción del Repuesto</div>
+                        <div>Cantidad</div>
+                        <div></div>
+                    </div>
+                    
+                    <div id="budget-customer-parts-rows" style="margin-top: 0.5rem;">
+                        <!-- Injected -->
+                    </div>
+                </div>
+                `) : ''}
             </div>
 
             <!-- Summary Sticky Sidebar -->
@@ -864,6 +885,7 @@ export function renderBudgetEditor(container, budget) {
     // Local temporary copies of products/labor rows so we don't save to db until user clicks save
     let tempProducts = [...budgetProducts];
     let tempLabor = [...budgetLabor];
+    let tempRepuestosCliente = [...(budget.Repuestos_Cliente || [])];
 
     function autoSaveBudget() {
         if (!budget || !budget['ID Presupuesto']) return;
@@ -904,6 +926,9 @@ export function renderBudgetEditor(container, budget) {
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+        if (habilitarRepuestosCliente) {
+            budget.Repuestos_Cliente = tempRepuestosCliente;
+        }
 
         // If it is a new budget and client+vehicle are selected, make sure it's in the list
         if (isNew && budget.Codigo_Cliente && budget.ID_Vehiculo) {
@@ -1059,6 +1084,48 @@ export function renderBudgetEditor(container, budget) {
             `;
             laborContainer.appendChild(row);
         });
+
+        if (habilitarRepuestosCliente) {
+            const customerPartsContainer = document.getElementById('budget-customer-parts-rows');
+            if (customerPartsContainer) {
+                customerPartsContainer.innerHTML = '';
+                tempRepuestosCliente.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'item-row';
+                    row.style.gridTemplateColumns = '2.2fr 1fr 50px';
+                    row.innerHTML = html`
+                        <div><input type="text" class="row-cust-desc" data-idx="${index}" value="${item.Descripcion || ''}" placeholder="Ej. Filtro de aceite marca K&N traído por cliente" style="padding: 0.35rem; width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;" ${isLocked ? 'disabled' : ''}></div>
+                        <div><input type="number" class="row-cust-qty" data-idx="${index}" value="${item.Cantidad || 1}" min="1" style="padding: 0.35rem; width: 80px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;" ${isLocked ? 'disabled' : ''}></div>
+                        <div><button class="icon-btn btn-danger delete-cust-row-btn" data-idx="${index}" style="width: 30px; height: 30px;" ${isLocked ? 'disabled style="opacity: 0.4; pointer-events: none;"' : ''}><i class="fa-solid fa-trash"></i></button></div>
+                    `;
+                    customerPartsContainer.appendChild(row);
+                });
+
+                // Wire up change events for customer parts
+                customerPartsContainer.querySelectorAll('.row-cust-desc').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        const idx = parseInt(e.target.getAttribute('data-idx'));
+                        tempRepuestosCliente[idx].Descripcion = e.target.value;
+                        autoSaveBudget();
+                    });
+                });
+                customerPartsContainer.querySelectorAll('.row-cust-qty').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        const idx = parseInt(e.target.getAttribute('data-idx'));
+                        tempRepuestosCliente[idx].Cantidad = parseInt(e.target.value) || 1;
+                        autoSaveBudget();
+                    });
+                });
+                customerPartsContainer.querySelectorAll('.delete-cust-row-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+                        tempRepuestosCliente.splice(idx, 1);
+                        renderTempRows();
+                        autoSaveBudget();
+                    });
+                });
+            }
+        }
 
         // Wire up change events
         document.querySelectorAll('.row-qty, .row-price').forEach(input => {
@@ -1382,6 +1449,17 @@ export function renderBudgetEditor(container, budget) {
     });
     document.getElementById('close-item-prod-modal').addEventListener('click', () => prodModal.classList.remove('active'));
 
+    if (habilitarRepuestosCliente) {
+        const addCustBtn = document.getElementById('add-customer-part-btn');
+        if (addCustBtn) {
+            addCustBtn.addEventListener('click', () => {
+                tempRepuestosCliente.push({ Descripcion: '', Cantidad: 1 });
+                renderTempRows();
+                autoSaveBudget();
+            });
+        }
+    }
+
     function populateProdCatalog(filter = '') {
         prodResults.innerHTML = '';
         const filtered = db.productos.filter(p => 
@@ -1623,6 +1701,9 @@ export function renderBudgetEditor(container, budget) {
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+        if (habilitarRepuestosCliente) {
+            budget.Repuestos_Cliente = tempRepuestosCliente;
+        }
         
         if (isNew) {
             const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
@@ -2309,6 +2390,30 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
             </tbody>
         </table>
 
+        <!-- Repuestos Traídos por Cliente (Solicitud de Repuestos) -->
+        ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
+        <table class="data-table" style="margin-top: 15px;">
+            <thead>
+                <tr>
+                    <th class="col-cant">Cant</th>
+                    <th class="col-desc">Descripción Repuestos Traídos por Cliente (Solicitud de Repuestos)</th>
+                    <th class="col-price">P. Unitario</th>
+                    <th class="col-total">Total ($)</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${budget.Repuestos_Cliente.map(rc => `
+                    <tr>
+                        <td style="text-align: center; width: 8%;">${rc.Cantidad}</td>
+                        <td style="width: 62%;">${rc.Descripcion}</td>
+                        <td style="text-align: right; width: 15%;">-</td>
+                        <td style="text-align: right; width: 15%; color: #64748b; font-style: italic;">Traído por cliente</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ` : ''}
+
         <!-- Bottom Layout -->
         <div class="bottom-section">
             <div class="auth-box">
@@ -2440,9 +2545,28 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
         });
     });
 
-    const itemsHTML = items.length === 0
+    let custPartsHTML = '';
+    if (budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) {
+        custPartsHTML = `
+            <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td colspan="7" style="padding: 6px 12px; border-bottom: 2px solid #cbd5e1; font-size: 0.75rem; text-align: left;">REPUESTOS TRAÍDOS POR EL CLIENTE (SOLICITUD DE REPUESTOS)</td>
+            </tr>
+        ` + budget.Repuestos_Cliente.map((rc, idx) => `
+            <tr>
+                <td style="text-align: center; width: 4%;">${items.length + idx + 1}</td>
+                <td style="text-align: center; width: 6%;">${rc.Cantidad}</td>
+                <td style="text-align: center; width: 8%;">Pieza (C)</td>
+                <td style="width: 52%;">${rc.Descripcion}</td>
+                <td style="text-align: center; width: 10%;">-</td>
+                <td style="text-align: center; width: 10%;">-</td>
+                <td style="text-align: center; width: 10%; color: #64748b; font-style: italic;">Traído por cliente</td>
+            </tr>
+        `).join('');
+    }
+
+    const itemsHTML = (items.length === 0 && custPartsHTML === '')
         ? '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 12px;">No se registran items cotizados</td></tr>'
-        : items.map((item, idx) => `
+        : (items.map((item, idx) => `
             <tr>
                 <td style="text-align: center; width: 4%;">${idx + 1}</td>
                 <td style="text-align: center; width: 6%;">${item.cant}</td>
@@ -2452,7 +2576,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <td style="text-align: center; width: 10%;">$ ${item.descItem.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="text-align: center; width: 10%;">$ ${item.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
-        `).join('');
+        `).join('') + custPartsHTML);
 
     const totalLetras = numeroALetras(grandTotal).toUpperCase();
     const conditionStr = budget.Condicion || (client['Credito?'] === 'SI' ? 'CRÉDITO' : 'CONTADO');
@@ -3360,6 +3484,31 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             </tbody>
         </table>
 
+        <!-- Repuestos Traídos por Cliente (Solicitud de Repuestos) -->
+        ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
+        <div class="section-title">Repuestos Traídos por Cliente (Solicitud de Repuestos)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 8%; text-align: center;">Cant</th>
+                    <th style="width: 62%;">Descripción del Item</th>
+                    <th style="width: 15%; text-align: right;">P. Unitario</th>
+                    <th style="width: 15%; text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${budget.Repuestos_Cliente.map(rc => `
+                    <tr>
+                        <td style="text-align: center; font-weight: 500;">${rc.Cantidad}</td>
+                        <td>${rc.Descripcion}</td>
+                        <td style="text-align: right;">-</td>
+                        <td style="text-align: right; color: #94a3b8; font-style: italic;">Traído por cliente</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ` : ''}
+
         <!-- Totals Block -->
         <div class="totals-block">
             <table class="totals-subtable">
@@ -3832,6 +3981,22 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                         <td colspan="4" style="text-align: right;">Total Repuestos:</td>
                         <td style="text-align: right; font-weight: 700;">$ ${sumProd.toFixed(2)}</td>
                     </tr>
+                ` : ''}
+
+                <!-- Repuestos Traídos por el Cliente (Solicitud de Repuestos) -->
+                ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
+                    <tr class="category-header-row">
+                        <td colspan="5">Repuestos Traídos por Cliente (Solicitud de Repuestos)</td>
+                    </tr>
+                    ${budget.Repuestos_Cliente.map(rc => `
+                        <tr>
+                            <td>${rc.Descripcion}</td>
+                            <td style="text-align: center;">${rc.Cantidad}</td>
+                            <td style="text-align: right;">-</td>
+                            <td style="text-align: right;">-</td>
+                            <td style="text-align: right; color: #475569; font-style: italic;">Traído por cliente</td>
+                        </tr>
+                    `).join('')}
                 ` : ''}
             </tbody>
         </table>
