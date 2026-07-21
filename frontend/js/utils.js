@@ -384,8 +384,32 @@ export function makeSelectSearchable(selectId, placeholderText) {
     // Open on focus/click
     input.addEventListener('focus', () => {
         if (originalSelect.disabled) return;
-        populateDropdown(input.value);
+        populateDropdown(''); // Show all options initially on focus
         dropdown.style.display = 'block';
+        setTimeout(() => input.select(), 50); // Highlight text to allow immediate typing
+    });
+
+    // Keyboard navigation
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            input.blur();
+            const curIdx = originalSelect.selectedIndex;
+            if (curIdx >= 0 && originalSelect.options[curIdx].value !== '') {
+                input.value = originalSelect.options[curIdx].text;
+            } else {
+                input.value = '';
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstItem = dropdown.querySelector('div');
+            if (firstItem && firstItem.textContent !== 'Sin resultados') {
+                firstItem.click();
+            } else {
+                dropdown.style.display = 'none';
+            }
+            input.blur();
+        }
     });
     
     // Close when clicking outside

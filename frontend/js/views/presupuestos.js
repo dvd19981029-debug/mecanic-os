@@ -28,7 +28,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable
-} from '../utils.js?v=79';
+} from '../utils.js?v=80';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
