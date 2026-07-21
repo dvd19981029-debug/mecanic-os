@@ -3473,12 +3473,431 @@ export function exportBudgetPDF(budgetId) {
         pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else if (format === 'elegante_ejecutivo') {
         pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
+    } else if (format === 'compacto_orden') {
+        pdfHTML = getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else {
         pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     }
 
     printWindow.document.write(pdfHTML);
     printWindow.document.close();
+}
+
+function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+    const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [] };
+    const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+    const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Orden de Trabajo / Cotización - ${budget['ID Presupuesto']}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --border-color: #cbd5e1;
+            --text-color: #1e293b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+            background-color: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+        .no-print-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            color: #fff;
+            padding: 10px 20px;
+            font-family: sans-serif;
+        }
+        .no-print-toolbar h3 { margin: 0; font-size: 14px; }
+        .no-print-toolbar .btn-action {
+            background: #10b981;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .no-print-toolbar .btn-close {
+            background: #64748b;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .page-container {
+            width: 800px;
+            margin: 0 auto;
+            padding: 25px;
+            box-sizing: border-box;
+        }
+        
+        /* Flex row for top info */
+        .top-info-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            margin-top: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .top-col {
+            flex: 1;
+            font-size: 11px;
+        }
+        .top-col-left {
+            max-width: 35%;
+        }
+        .top-col-center {
+            max-width: 35%;
+            text-align: center;
+        }
+        .top-col-right {
+            max-width: 30%;
+            text-align: right;
+        }
+        
+        .title-block {
+            margin-bottom: 12px;
+        }
+        .title-text {
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+        .subtitle-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            margin: 2px 0 0 0;
+        }
+        
+        .divider-line {
+            border-top: 1px solid #94a3b8;
+            margin: 6px 0;
+        }
+        
+        /* Items Table styling */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+        .items-table th {
+            border-bottom: 2.5px solid var(--primary-color);
+            padding: 5px 8px;
+            font-weight: 700;
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+        .items-table td {
+            padding: 5px 8px;
+            border-bottom: 1px dashed #cbd5e1;
+        }
+        
+        .category-header-row td {
+            font-weight: 800;
+            font-size: 11px;
+            background-color: #f1f5f9;
+            border-bottom: 1.5px solid var(--primary-color);
+            padding: 5px 8px;
+        }
+        
+        .category-total-row td {
+            font-weight: 700;
+            border-top: 1px solid var(--primary-color);
+            border-bottom: 1.5px solid var(--primary-color);
+            padding: 6px 8px;
+            background-color: #f8fafc;
+        }
+        
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        .totals-table {
+            width: 250px;
+            border-collapse: collapse;
+        }
+        .totals-table td {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .totals-table .total-label {
+            font-weight: 600;
+            text-align: left;
+        }
+        .totals-table .total-value {
+            font-weight: 700;
+            text-align: right;
+        }
+        .totals-table .grand-total-row td {
+            font-size: 12px;
+            font-weight: 800;
+            border-top: 2px solid var(--primary-color);
+            border-bottom: 2.5px solid var(--primary-color);
+            background-color: #f8fafc;
+        }
+        
+        /* Signature block */
+        .signatures-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            gap: 20px;
+            page-break-inside: avoid;
+        }
+        .signature-box {
+            flex: 1;
+            text-align: center;
+            border-top: 1px solid #475569;
+            padding-top: 5px;
+            font-size: 10px;
+        }
+        .signature-box .sig-title {
+            font-weight: 700;
+            color: #334155;
+        }
+        .signature-box .sig-name {
+            margin-top: 2px;
+            color: #64748b;
+        }
+        
+        .footer-info {
+            text-align: center;
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 40px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+        }
+        
+        @media print {
+            .no-print-toolbar {
+                display: none !important;
+            }
+            body {
+                background-color: #fff;
+            }
+            .page-container {
+                padding: 0;
+            }
+            @page {
+                size: portrait;
+                margin: 1cm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-toolbar">
+        <h3>Vista Previa - Orden Compacta (Sin Logos)</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn-action" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir o PDF</button>
+            <button class="btn-close" onclick="window.close()">Cerrar</button>
+        </div>
+    </div>
+    
+    <div class="page-container">
+        <!-- Title block -->
+        <div class="title-block">
+            <h1 class="title-text">Orden de Trabajo</h1>
+            <div class="subtitle-text"># ${budget['ID Presupuesto']} | ${budget.Fecha ? new Date(budget.Fecha).toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</div>
+        </div>
+        
+        <!-- Header Info Row -->
+        <div class="top-info-section">
+            <!-- Left: Client Info -->
+            <div class="top-col top-col-left">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">${client.Nombre}</div>
+                <div><strong>Documento:</strong> ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
+                <div><strong>Teléfono:</strong> ${client['Telefono 1 '] || client.Telefono || 'N/A'}</div>
+                <div><strong>Dirección:</strong> ${client.Direccion || 'N/A'}</div>
+            </div>
+            
+            <!-- Center: Workshop Info -->
+            <div class="top-col top-col-center" style="color: #475569;">
+                <div style="font-weight: 700; color: var(--primary-color);">${ws.nombreTaller || 'Centro de Servicio'}</div>
+                <div>${ws.direccion || ''}</div>
+                <div>Tel: ${ws.telefono || ''}</div>
+                ${ws.correo ? `<div>Email: ${ws.correo}</div>` : ''}
+            </div>
+            
+            <!-- Right: Vehicle Info -->
+            <div class="top-col top-col-right">
+                <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">${vehicle.Marca || 'N/A'} ${vehicle.Modelo || ''} ${vehicle.Año ? '(' + vehicle.Año + ')' : ''}</div>
+                <div><strong>Placas:</strong> ${vehicle.Placas || 'N/A'}</div>
+                ${vehicle.Color ? `<div><strong>Color:</strong> ${vehicle.Color}</div>` : ''}
+                ${vehicle.N_Equipo ? `<div><strong>N° Equipo:</strong> ${vehicle.N_Equipo}</div>` : ''}
+                ${budget.Kilometraje ? `<div><strong>Kilometraje:</strong> ${budget.Kilometraje}</div>` : ''}
+            </div>
+        </div>
+        
+        <div class="divider-line"></div>
+        
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Descripción</th>
+                    <th style="text-align: center; width: 10%;">Cant.</th>
+                    <th style="text-align: right; width: 13%;">Precio Unit.</th>
+                    <th style="text-align: right; width: 12%;">Desc.</th>
+                    <th style="text-align: right; width: 15%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Mano de obra / Servicios -->
+                ${labor.length > 0 ? `
+                    <tr class="category-header-row">
+                        <td colspan="5">Mano de Obra y Servicios</td>
+                    </tr>
+                    ${labor.map(l => {
+                        const unitPrice = parseFloat(l.PrecioUnitario || 0);
+                        const qty = parseInt(l.Cantidad || 1);
+                        const disc = parseFloat(l.Descuento || 0);
+                        const tot = (unitPrice * qty) - disc;
+                        return `
+                            <tr>
+                                <td>${l.Descripcion}</td>
+                                <td style="text-align: center;">${qty}</td>
+                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
+                                <td style="text-align: right;">$ ${disc.toFixed(2)}</td>
+                                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                    <tr class="category-total-row">
+                        <td colspan="4" style="text-align: right;">Total Mano de obra:</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${sumLab.toFixed(2)}</td>
+                    </tr>
+                ` : ''}
+                
+                <!-- Repuestos -->
+                ${products.length > 0 ? `
+                    <tr class="category-header-row">
+                        <td colspan="5">Repuestos, Lubricantes y Refacciones</td>
+                    </tr>
+                    ${products.map(p => {
+                        const unitPrice = parseFloat(p.PrecioUnitario || 0);
+                        const qty = parseInt(p.Cantidad || 1);
+                        const disc = parseFloat(p.Descuento || 0);
+                        const tot = (unitPrice * qty) - disc;
+                        return `
+                            <tr>
+                                <td>${p.Descripcion}</td>
+                                <td style="text-align: center;">${qty}</td>
+                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
+                                <td style="text-align: right;">$ ${disc.toFixed(2)}</td>
+                                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                    <tr class="category-total-row">
+                        <td colspan="4" style="text-align: right;">Total Repuestos:</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${sumProd.toFixed(2)}</td>
+                    </tr>
+                ` : ''}
+            </tbody>
+        </table>
+        
+        <!-- Totals & Notes Section -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 20px; page-break-inside: avoid;">
+            <!-- Left: Notes -->
+            <div style="flex: 1; font-size: 10px; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px; min-height: 60px;">
+                <div style="font-weight: 700; color: var(--primary-color); margin-bottom: 4px;">Observaciones / Recomendaciones:</div>
+                <div>${budget[' Observaciones'] || budget.Observaciones || 'Ninguna.'}</div>
+                ${budget.Diagnostico ? `<div style="margin-top: 6px;"><strong>Diagnóstico:</strong> ${budget.Diagnostico}</div>` : ''}
+            </div>
+            
+            <!-- Right: Totals table -->
+            <div style="width: 280px;">
+                <table class="totals-table">
+                    <tr>
+                        <td class="total-label">Subtotal Neto</td>
+                        <td class="total-value">$ ${subtotal.toFixed(2)}</td>
+                    </tr>
+                    ${discount > 0 ? `
+                        <tr style="color: #b45309;">
+                            <td class="total-label">(-) Descuento Promo</td>
+                            <td class="total-value">- $ ${discount.toFixed(2)}</td>
+                        </tr>
+                    ` : ''}
+                    <tr>
+                        <td class="total-label">IVA (13%)</td>
+                        <td class="total-value">$ ${iva.toFixed(2)}</td>
+                    </tr>
+                    ${percVal > 0 ? `
+                        <tr>
+                            <td class="total-label">(+) IVA Percibido</td>
+                            <td class="total-value">+ $ ${percVal.toFixed(2)}</td>
+                        </tr>
+                    ` : ''}
+                    ${retVal > 0 ? `
+                        <tr>
+                            <td class="total-label">(-) IVA Retenido</td>
+                            <td class="total-value">- $ ${retVal.toFixed(2)}</td>
+                        </tr>
+                    ` : ''}
+                    <tr class="grand-total-row">
+                        <td class="total-label">TOTAL</td>
+                        <td class="total-value">$ ${grandTotal.toFixed(2)}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Signatures Block -->
+        <div class="signatures-container">
+            <div class="signature-box">
+                <div class="sig-title">Firma Técnico</div>
+                <div class="sig-name">${tech.Nombre_Completo}</div>
+            </div>
+            <div class="signature-box">
+                <div class="sig-title">Firma Asesor</div>
+                <div class="sig-name">${advisor.Nombre_Completo}</div>
+            </div>
+            <div class="signature-box">
+                <div class="sig-title">Firma Cliente</div>
+                <div class="sig-name">${client.Nombre}</div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer-info">
+            ${ws.direccion || ''} ${ws.telefono ? '• Tel: ' + ws.telefono : ''} ${ws.correo ? '• Email: ' + ws.correo : ''}
+        </div>
+    </div>
+    
+</body>
+</html>
+    `;
 }
 
 // ----------------------------------------------------

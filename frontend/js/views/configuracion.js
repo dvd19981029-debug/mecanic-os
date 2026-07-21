@@ -206,6 +206,7 @@ export function renderConfiguracion(container, queryParams) {
                                         <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' ? 'selected' : ''}>Moderno (Formato FacturaLlama DTE)</option>
                                         <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
                                         <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
+                                        <option value="compacto_orden" ${ws.formato_presupuesto === 'compacto_orden' ? 'selected' : ''}>Compacto / Orden de Trabajo (Sin Logos)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
