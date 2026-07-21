@@ -7,7 +7,7 @@ import { renderConfiguracion } from './views/configuracion.js?v=79';
 import { renderLanding } from './views/landing.js?v=69';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
 import { renderRevision21 } from './views/revision21.js?v=77';
-import { renderPresupuestos } from './views/presupuestos.js?v=93';
+import { renderPresupuestos } from './views/presupuestos.js?v=95';
 import { renderKanban } from './views/kanban.js?v=69';
 import { renderFacturador } from './views/facturador.js?v=91';
 import { renderVentaRapida } from './views/venta_rapida.js?v=80';
@@ -27,7 +27,7 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=82';
+} from './views/saas.js?v=95';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
