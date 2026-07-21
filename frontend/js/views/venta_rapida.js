@@ -28,8 +28,9 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
-} from '../utils.js?v=69';
+    downloadExcelReport,
+    makeSelectSearchable
+} from '../utils.js?v=78';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();
@@ -275,6 +276,7 @@ export function renderVentaRapida(container) {
     const panelPending = document.getElementById('pos-panel-pending');
     const panelHistory = document.getElementById('pos-panel-history');
     
+    makeSelectSearchable('pos-client-select', 'Buscar y seleccionar cliente...');
     const clientSelect = document.getElementById('pos-client-select');
     const docTypeSelect = document.getElementById('pos-doc-type');
     

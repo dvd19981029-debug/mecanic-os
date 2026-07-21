@@ -26,8 +26,9 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
-} from '../utils.js?v=69';
+    downloadExcelReport,
+    makeSelectSearchable
+} from '../utils.js?v=78';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -917,6 +918,9 @@ export function renderBudgetEditor(container, budget) {
 
     // Helper functions for Creation Mode dropdowns
     if (isNew) {
+        makeSelectSearchable('editor-client-select', 'Buscar cliente...');
+        makeSelectSearchable('editor-vehicle-select', 'Buscar vehículo...');
+        
         const clientSelect = document.getElementById('editor-client-select');
         const vehicleSelect = document.getElementById('editor-vehicle-select');
         

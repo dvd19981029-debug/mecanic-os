@@ -270,3 +270,186 @@ export function saveDteLogToFirestore(action, workshopId, docType, requestPayloa
     .then(() => console.log("DTE log written to Firestore successfully from frontend"))
     .catch(err => console.error("Error writing DTE log to Firestore:", err));
 }
+
+// Make a select element searchable with autocomplete input
+export function makeSelectSearchable(selectId, placeholderText) {
+    const originalSelect = document.getElementById(selectId);
+    if (!originalSelect) return null;
+    
+    // Hide original select
+    originalSelect.style.display = 'none';
+    
+    // Create container
+    const container = document.createElement('div');
+    container.className = 'searchable-select-container';
+    container.style.position = 'relative';
+    container.style.width = '100%';
+    
+    // Create text input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'searchable-select-input';
+    input.placeholder = placeholderText;
+    input.style.width = '100%';
+    input.style.padding = '0.65rem';
+    input.style.borderRadius = '6px';
+    input.style.background = 'var(--bg-input)';
+    input.style.border = '1px solid var(--border-color)';
+    input.style.color = 'var(--text-primary)';
+    input.style.fontFamily = 'inherit';
+    input.autocomplete = 'off';
+    
+    // Set initial value
+    const selectedIdx = originalSelect.selectedIndex;
+    if (selectedIdx >= 0 && originalSelect.options[selectedIdx].value !== '') {
+        input.value = originalSelect.options[selectedIdx].text;
+    } else {
+        input.value = '';
+    }
+    
+    // Chevron icon
+    const chevron = document.createElement('i');
+    chevron.className = 'fa-solid fa-chevron-down';
+    chevron.style.position = 'absolute';
+    chevron.style.right = '12px';
+    chevron.style.top = '50%';
+    chevron.style.transform = 'translateY(-50%)';
+    chevron.style.pointerEvents = 'none';
+    chevron.style.color = 'var(--text-secondary)';
+    chevron.style.fontSize = '0.8rem';
+    
+    // Dropdown list
+    const dropdown = document.createElement('div');
+    dropdown.className = 'searchable-select-dropdown';
+    dropdown.style.display = 'none';
+    dropdown.style.position = 'absolute';
+    dropdown.style.top = '100%';
+    dropdown.style.left = '0';
+    dropdown.style.right = '0';
+    dropdown.style.maxHeight = '200px';
+    dropdown.style.overflowY = 'auto';
+    dropdown.style.background = 'var(--bg-card)';
+    dropdown.style.border = '1px solid var(--border-color)';
+    dropdown.style.borderRadius = '6px';
+    dropdown.style.zIndex = '1000';
+    dropdown.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
+    dropdown.style.marginTop = '4px';
+    
+    container.appendChild(input);
+    container.appendChild(chevron);
+    container.appendChild(dropdown);
+    
+    // Insert container after original select
+    originalSelect.parentNode.insertBefore(container, originalSelect.nextSibling);
+    
+    // Helper to render matching options
+    function populateDropdown(filterText = '') {
+        dropdown.innerHTML = '';
+        const options = Array.from(originalSelect.options);
+        
+        // Filter out initial empty placeholder if we have search input
+        const filtered = options.filter((opt, idx) => {
+            if (idx === 0 && opt.value === '') return false;
+            return opt.textContent.toLowerCase().includes(filterText.toLowerCase());
+        });
+        
+        if (filtered.length === 0) {
+            dropdown.innerHTML = '<div style="padding:0.65rem; color:var(--text-muted); text-align:center; font-size:0.85rem;">Sin resultados</div>';
+            return;
+        }
+        
+        filtered.forEach(opt => {
+            const item = document.createElement('div');
+            item.style.padding = '0.65rem 1rem';
+            item.style.cursor = 'pointer';
+            item.style.fontSize = '0.9rem';
+            item.style.color = 'var(--text-primary)';
+            item.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+            item.textContent = opt.textContent;
+            
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.05)');
+            item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+            
+            item.addEventListener('click', () => {
+                input.value = opt.textContent;
+                originalSelect.value = opt.value;
+                originalSelect.dispatchEvent(new Event('change'));
+                dropdown.style.display = 'none';
+            });
+            dropdown.appendChild(item);
+        });
+    }
+    
+    // Open on focus/click
+    input.addEventListener('focus', () => {
+        if (originalSelect.disabled) return;
+        populateDropdown(input.value);
+        dropdown.style.display = 'block';
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.style.display = 'none';
+            // Restore correct value text if invalid
+            const curIdx = originalSelect.selectedIndex;
+            if (curIdx >= 0 && originalSelect.options[curIdx].value !== '') {
+                input.value = originalSelect.options[curIdx].text;
+            } else {
+                input.value = '';
+            }
+        }
+    });
+    
+    // Filter on type
+    input.addEventListener('input', () => {
+        populateDropdown(input.value);
+    });
+    
+    // Sync disabled and changed state from original select
+    const observer = new MutationObserver(() => {
+        input.disabled = originalSelect.disabled;
+        if (originalSelect.disabled) {
+            input.style.opacity = '0.5';
+            input.value = '';
+        } else {
+            input.style.opacity = '1';
+            const curIdx = originalSelect.selectedIndex;
+            if (curIdx >= 0 && originalSelect.options[curIdx].value !== '') {
+                input.value = originalSelect.options[curIdx].text;
+            } else {
+                input.value = '';
+            }
+        }
+    });
+    observer.observe(originalSelect, { attributes: true, attributeFilter: ['disabled'] });
+    
+    // Also listen to options additions/deletions (childList)
+    const optionsObserver = new MutationObserver(() => {
+        const curIdx = originalSelect.selectedIndex;
+        if (curIdx >= 0 && originalSelect.options[curIdx].value !== '') {
+            input.value = originalSelect.options[curIdx].text;
+        } else {
+            input.value = '';
+        }
+    });
+    optionsObserver.observe(originalSelect, { childList: true });
+    
+    // Listen to manual changes of selection value
+    originalSelect.addEventListener('change', () => {
+        const curIdx = originalSelect.selectedIndex;
+        if (curIdx >= 0 && originalSelect.options[curIdx].value !== '') {
+            input.value = originalSelect.options[curIdx].text;
+        } else {
+            input.value = '';
+        }
+    });
+    
+    // Initial sync
+    input.disabled = originalSelect.disabled;
+    if (originalSelect.disabled) {
+        input.style.opacity = '0.5';
+    }
+    
+    return container;
+}
