@@ -72,6 +72,7 @@ export function renderPresupuestos(container, queryParams) {
                             <th>Fecha</th>
                             <th>Cliente</th>
                             <th>Placas Auto</th>
+                            <th>N° Equipo</th>
                             <th>Total (Con IVA)</th>
                             <th>Estado</th>
                             <th>Acciones</th>
@@ -186,7 +187,7 @@ export function renderPresupuestos(container, queryParams) {
         });
 
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
+            rowsContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
             return;
         }
 
@@ -218,6 +219,9 @@ export function renderPresupuestos(container, queryParams) {
             const iva = subtotal * taxRate;
             
             const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
+            const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
+            const numEquipo = vehicle.N_Equipo || 'N/A';
+
             let retVal = 0;
             let percVal = 0;
             const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
@@ -235,6 +239,7 @@ export function renderPresupuestos(container, queryParams) {
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${escapeHtml(p.Nombre)}</td>
                 <td><span class="badge-tag badge-primary">${escapeHtml(p.Placas || 'N/A')}</span></td>
+                <td><strong style="color:var(--cyan); font-family:monospace;">${escapeHtml(numEquipo)}</strong></td>
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>${safe(statusBadge)}</td>
                 <td>
