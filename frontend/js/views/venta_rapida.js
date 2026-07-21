@@ -785,6 +785,9 @@ export function renderVentaRapida(container) {
                         <button class="btn btn-secondary btn-editar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);">
                             <i class="fa-solid fa-pen-to-square"></i> Editar
                         </button>
+                        <button class="btn btn-danger btn-eliminar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; background:transparent; border:1px solid var(--danger); color:var(--danger);">
+                            <i class="fa-solid fa-trash-can"></i> Eliminar
+                        </button>
                     </div>
                 </td>
             `;
@@ -820,6 +823,18 @@ export function renderVentaRapida(container) {
                     tabBtnNew.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editar Venta (${vr.ID_Venta_Rapida})`;
                     
                     switchPosTab('new');
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-eliminar-pos').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm(`¿Estás seguro de que deseas eliminar permanentemente la Venta Rápida ${id}?`)) {
+                    db['43 Venta Rapida'] = (db['43 Venta Rapida'] || []).filter(vr => vr.ID_Venta_Rapida !== id);
+                    saveDatabase(db);
+                    showToast(`Venta Rápida ${id} eliminada con éxito`, "success");
+                    populatePendingList(pendingSearch.value);
                 }
             });
         });
