@@ -30,7 +30,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable
-} from '../utils.js?v=78';
+} from '../utils.js?v=79';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();
@@ -65,7 +65,7 @@ export function renderVentaRapida(container) {
                             <div class="form-group" style="margin:0;">
                                 <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">Seleccionar Cliente</label>
                                 <select id="pos-client-select" style="padding: 0.65rem; width:100%; font-family:inherit;">
-                                    ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join(''))}
+                                    ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)}</option>`).join(''))}
                                 </select>
                             </div>
                             <div class="form-group" style="margin:0;">

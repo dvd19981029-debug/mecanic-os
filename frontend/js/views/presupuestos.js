@@ -28,7 +28,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable
-} from '../utils.js?v=78';
+} from '../utils.js?v=79';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
@@ -585,7 +585,7 @@ export function renderBudgetEditor(container, budget) {
                         <label>1. Seleccionar Cliente</label>
                         <select id="editor-client-select" required style="padding: 0.65rem;">
                             <option value="">-- Busque y seleccione Cliente --</option>
-                            ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)} (${escapeHtml(c.Codigo_Cliente)})</option>`).join(''))}
+                            ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)}</option>`).join(''))}
                         </select>
                     </div>
                     <div class="form-group">

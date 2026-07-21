@@ -350,7 +350,8 @@ export function makeSelectSearchable(selectId, placeholderText) {
         // Filter out initial empty placeholder if we have search input
         const filtered = options.filter((opt, idx) => {
             if (idx === 0 && opt.value === '') return false;
-            return opt.textContent.toLowerCase().includes(filterText.toLowerCase());
+            return opt.textContent.toLowerCase().includes(filterText.toLowerCase()) ||
+                   opt.value.toLowerCase().includes(filterText.toLowerCase());
         });
         
         if (filtered.length === 0) {
