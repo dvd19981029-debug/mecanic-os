@@ -36,6 +36,7 @@ export function renderVentaRapida(container) {
     
     let tempProducts = [];
     let tempLabor = [];
+    let editingVentaRapidaId = null;
     
     container.innerHTML = html`
         <div class="tabs-container" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; flex-wrap: wrap;">
@@ -656,32 +657,69 @@ export function renderVentaRapida(container) {
         
         const clientCode = clientSelect.value;
         const client = db.clientes.find(c => c.Codigo_Cliente === clientCode) || {};
-        const vrId = "VR-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
-        
-        const newVR = {
-            ID_Venta_Rapida: vrId,
-            "Marca Temporal": Date.now(),
-            Usuario: getActiveUser().Email || "jjmunoz932@gmail.com",
-            Cliente: clientCode,
-            Nombre: client.Nombre || "Consumidor Final",
-            " Observaciones": "Venta directa de mostrador",
-            "% Impuesto": 0.13,
-            Estado: "PENDIENTE",
-            "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
-            ID_Promocion: promoSelect.value || "",
-            productos: JSON.parse(JSON.stringify(tempProducts)),
-            mano_obra: JSON.parse(JSON.stringify(tempLabor)),
-            subtotal: lastCalculatedSubtotal,
-            descuento: lastCalculatedDiscount,
-            iva: lastCalculatedIva,
-            percepcion: lastCalculatedPerception,
-            retencion: lastCalculatedRetention,
-            total: lastCalculatedGrandTotal
-        };
         
         db['43 Venta Rapida'] = db['43 Venta Rapida'] || [];
-        db['43 Venta Rapida'].unshift(newVR);
-        saveDatabase(db);
+        
+        if (editingVentaRapidaId) {
+            // Update existing VR
+            const existingIdx = db['43 Venta Rapida'].findIndex(vr => vr.ID_Venta_Rapida === editingVentaRapidaId);
+            if (existingIdx !== -1) {
+                const oldVR = db['43 Venta Rapida'][existingIdx];
+                db['43 Venta Rapida'][existingIdx] = {
+                    ...oldVR,
+                    Usuario: getActiveUser().Email || "jjmunoz932@gmail.com",
+                    Cliente: clientCode,
+                    Nombre: client.Nombre || "Consumidor Final",
+                    "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
+                    ID_Promocion: promoSelect.value || "",
+                    productos: JSON.parse(JSON.stringify(tempProducts)),
+                    mano_obra: JSON.parse(JSON.stringify(tempLabor)),
+                    subtotal: lastCalculatedSubtotal,
+                    descuento: lastCalculatedDiscount,
+                    iva: lastCalculatedIva,
+                    percepcion: lastCalculatedPerception,
+                    retencion: lastCalculatedRetention,
+                    total: lastCalculatedGrandTotal
+                };
+                saveDatabase(db);
+                showToast(`Venta Rápida ${editingVentaRapidaId} actualizada con éxito`, "success");
+            } else {
+                showToast("Error: No se encontró la venta rápida original para actualizar.", "danger");
+            }
+            
+            // Reset editing state
+            editingVentaRapidaId = null;
+            saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Crear Venta Rápida';
+            saveBtn.className = 'btn btn-success';
+            saveBtn.style.backgroundColor = '';
+            tabBtnNew.innerHTML = '<i class="fa-solid fa-cart-plus"></i> Nueva Venta';
+        } else {
+            // Create new VR
+            const vrId = "VR-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
+            const newVR = {
+                ID_Venta_Rapida: vrId,
+                "Marca Temporal": Date.now(),
+                Usuario: getActiveUser().Email || "jjmunoz932@gmail.com",
+                Cliente: clientCode,
+                Nombre: client.Nombre || "Consumidor Final",
+                " Observaciones": "Venta directa de mostrador",
+                "% Impuesto": 0.13,
+                Estado: "PENDIENTE",
+                "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
+                ID_Promocion: promoSelect.value || "",
+                productos: JSON.parse(JSON.stringify(tempProducts)),
+                mano_obra: JSON.parse(JSON.stringify(tempLabor)),
+                subtotal: lastCalculatedSubtotal,
+                descuento: lastCalculatedDiscount,
+                iva: lastCalculatedIva,
+                percepcion: lastCalculatedPerception,
+                retencion: lastCalculatedRetention,
+                total: lastCalculatedGrandTotal
+            };
+            db['43 Venta Rapida'].unshift(newVR);
+            saveDatabase(db);
+            showToast(`Venta Rápida ${vrId} creada con éxito y pendiente de facturación`, "success");
+        }
         
         // Clear form
         tempProducts = [];
@@ -689,8 +727,6 @@ export function renderVentaRapida(container) {
         promoSelect.value = '';
         renderTempRows();
         calculateTotals();
-        
-        showToast(`Venta Rápida ${vrId} creada con éxito y pendiente de facturación`, "success");
         switchPosTab('pending');
     });
     
@@ -699,6 +735,14 @@ export function renderVentaRapida(container) {
             tempProducts = [];
             tempLabor = [];
             promoSelect.value = '';
+            editingVentaRapidaId = null;
+            
+            // Reset button and tab
+            saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Crear Venta Rápida';
+            saveBtn.className = 'btn btn-success';
+            saveBtn.style.backgroundColor = '';
+            tabBtnNew.innerHTML = '<i class="fa-solid fa-cart-plus"></i> Nueva Venta';
+            
             renderTempRows();
             calculateTotals();
             showToast("Formulario vaciado", "info");
@@ -734,9 +778,14 @@ export function renderVentaRapida(container) {
                 <td><strong>$ ${vr.total.toFixed(2)}</strong></td>
                 <td style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(vr.Usuario)}</td>
                 <td>
-                    <button class="btn btn-success btn-facturar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem;">
-                        <i class="fa-solid fa-cash-register"></i> Facturar (DTE)
-                    </button>
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <button class="btn btn-success btn-facturar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem;">
+                            <i class="fa-solid fa-cash-register"></i> Facturar (DTE)
+                        </button>
+                        <button class="btn btn-secondary btn-editar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; background:transparent; border:1px solid var(--border-color); color:var(--text-primary);">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        </button>
+                    </div>
                 </td>
             `;
             rowsContainer.appendChild(tr);
@@ -745,6 +794,33 @@ export function renderVentaRapida(container) {
         document.querySelectorAll('.btn-facturar-pos').forEach(btn => {
             btn.addEventListener('click', () => {
                 openPOSBillingModal(btn.getAttribute('data-id'));
+            });
+        });
+
+        document.querySelectorAll('.btn-editar-pos').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const vr = db['43 Venta Rapida'].find(x => x.ID_Venta_Rapida === id);
+                if (vr) {
+                    editingVentaRapidaId = vr.ID_Venta_Rapida;
+                    
+                    clientSelect.value = vr.Cliente || '';
+                    docTypeSelect.value = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'CCF' : 'FE';
+                    promoSelect.value = vr.ID_Promocion || '';
+                    
+                    tempProducts = JSON.parse(JSON.stringify(vr.productos || []));
+                    tempLabor = JSON.parse(JSON.stringify(vr.mano_obra || []));
+                    
+                    renderTempRows();
+                    calculateTotals();
+                    
+                    saveBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Guardar Cambios';
+                    saveBtn.className = 'btn btn-primary';
+                    saveBtn.style.backgroundColor = 'var(--primary)';
+                    tabBtnNew.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editar Venta (${vr.ID_Venta_Rapida})`;
+                    
+                    switchPosTab('new');
+                }
             });
         });
     }
