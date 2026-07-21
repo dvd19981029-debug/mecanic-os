@@ -946,7 +946,7 @@ export function renderBudgetEditor(container, budget) {
             clientVehicles.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.ID_Vehiculo;
-                opt.textContent = `${v.Placas} - ${v.Marca} ${v.Modelo} (${v.Año})`;
+                opt.textContent = `${v.Placas} - ${v.Marca} ${v.Modelo} (${v.Año})${v.N_Equipo ? ' • Eq: ' + v.N_Equipo : ''}`;
                 vehicleSelect.appendChild(opt);
             });
             
