@@ -2431,7 +2431,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                         <td style="text-align: center; width: 8%;">${rc.Cantidad}</td>
                         <td style="width: 62%;">${rc.Descripcion}</td>
                         <td style="text-align: right; width: 15%;">-</td>
-                        <td style="text-align: right; width: 15%; color: #64748b; font-style: italic;">Traído por cliente</td>
+                        <td style="text-align: right; width: 15%;">-</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -2583,7 +2583,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                 <td style="width: 52%;">${rc.Descripcion}</td>
                 <td style="text-align: center; width: 10%;">-</td>
                 <td style="text-align: center; width: 10%;">-</td>
-                <td style="text-align: center; width: 10%; color: #64748b; font-style: italic;">Traído por cliente</td>
+                <td style="text-align: center; width: 10%;">-</td>
             </tr>
         `).join('');
     }
@@ -3526,7 +3526,7 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
                         <td style="text-align: center; font-weight: 500;">${rc.Cantidad}</td>
                         <td>${rc.Descripcion}</td>
                         <td style="text-align: right;">-</td>
-                        <td style="text-align: right; color: #94a3b8; font-style: italic;">Traído por cliente</td>
+                        <td style="text-align: right;">-</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -4018,7 +4018,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                             <td style="text-align: center;">${rc.Cantidad}</td>
                             <td style="text-align: right;">-</td>
                             <td style="text-align: right;">-</td>
-                            <td style="text-align: right; color: #475569; font-style: italic;">Traído por cliente</td>
+                            <td style="text-align: right;">-</td>
                         </tr>
                     `).join('')}
                 ` : ''}
