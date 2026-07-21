@@ -172,12 +172,18 @@ export function renderPresupuestos(container, queryParams) {
         if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
         rowsContainer.innerHTML = '';
-        const filtered = db.presupuestos.filter(p => 
-            p.Estado != 2 && p.Estado != 3 && p.Estado != 4 && p.Estado != 5 &&
-            ((p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p.Placas || '').toLowerCase().includes(filter.toLowerCase()))
-        );
+        const filtered = db.presupuestos.filter(p => {
+            if (p.Estado == 2 || p.Estado == 3 || p.Estado == 4 || p.Estado == 5) return false;
+            
+            const termMatch = (p['ID Presupuesto'] || '').toLowerCase().includes(filter.toLowerCase()) ||
+                (p.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+                (p.Placas || '').toLowerCase().includes(filter.toLowerCase());
+                
+            if (termMatch) return true;
+            
+            const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
+            return (vehicle.N_Equipo || '').toLowerCase().includes(filter.toLowerCase());
+        });
 
         // Sort by creation date descending (newest first)
         filtered.sort((a, b) => {
