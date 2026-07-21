@@ -1011,6 +1011,18 @@ export function renderBudgetEditor(container, budget) {
             document.getElementById('editor-labor-card').style.pointerEvents = 'none';
             document.getElementById('add-labor-item-btn').disabled = true;
             
+            if (habilitarRepuestosCliente) {
+                const card = document.getElementById('editor-customer-parts-card');
+                if (card) {
+                    card.style.opacity = '0.4';
+                    card.style.pointerEvents = 'none';
+                }
+                const btn = document.getElementById('add-customer-part-btn');
+                if (btn) {
+                    btn.disabled = true;
+                }
+            }
+            
             document.getElementById('editor-summary-card').style.opacity = '0.4';
             document.getElementById('editor-summary-card').style.pointerEvents = 'none';
         }
@@ -1023,6 +1035,18 @@ export function renderBudgetEditor(container, budget) {
             document.getElementById('editor-labor-card').style.opacity = '1';
             document.getElementById('editor-labor-card').style.pointerEvents = 'all';
             document.getElementById('add-labor-item-btn').disabled = false;
+            
+            if (habilitarRepuestosCliente) {
+                const card = document.getElementById('editor-customer-parts-card');
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'all';
+                }
+                const btn = document.getElementById('add-customer-part-btn');
+                if (btn) {
+                    btn.disabled = false;
+                }
+            }
             
             document.getElementById('editor-summary-card').style.opacity = '1';
             document.getElementById('editor-summary-card').style.pointerEvents = 'all';
