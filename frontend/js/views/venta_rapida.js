@@ -482,7 +482,8 @@ export function renderVentaRapida(container) {
                 id: m.ID_ManoObra,
                 desc: m.Descripcion,
                 price: parseFloat(m.PrecioUnitario || m.Precio || 0),
-                qty: 1
+                qty: 1,
+                isPriceEditable: m.PrecioEditable !== 'NO'
             });
         }
         renderTempRows();
@@ -515,12 +516,21 @@ export function renderVentaRapida(container) {
             laborRows.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.85rem;">No hay servicios agregados</div>';
         } else {
             tempLabor.forEach((item, index) => {
+                const moCatalog = db.mano_obra.find(m => m.ID_ManoObra === item.id);
+                const isPriceEditable = !moCatalog || moCatalog.PrecioEditable !== 'NO';
+
                 const row = document.createElement('div');
                 row.className = 'item-row';
                 row.style = 'display: grid; grid-template-columns: 80px 2.5fr 1fr 1fr 1fr 50px; gap: 1rem; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px dashed var(--border-color);';
                 row.innerHTML = html`
                     <div style="font-family:monospace; font-size:0.8rem;">${escapeHtml(item.id)}</div>
-                    <div style="font-size:0.85rem; font-weight:600;">${escapeHtml(item.desc)}</div>
+                    <div>
+                        ${isPriceEditable ? safe(`
+                            <input type="text" value="${escapeHtml(item.desc)}" class="pos-desc-input-labor" data-idx="${index}" style="width:100%; padding:0.3rem; font-family:inherit; font-size:0.85rem; font-weight:600; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; box-sizing:border-box;">
+                        `) : safe(`
+                            <div style="font-size:0.85rem; font-weight:600;">${escapeHtml(item.desc)}</div>
+                        `)}
+                    </div>
                     <div><input type="number" min="1" value="${item.qty}" class="pos-qty-input-labor" data-idx="${index}" style="width:60px; padding:0.3rem; font-family:inherit;"></div>
                     <div><input type="number" step="0.01" min="0" value="${item.price.toFixed(2)}" class="pos-price-input-labor" data-idx="${index}" style="width:75px; padding:0.3rem; font-family:inherit;"></div>
                     <div style="text-align:right; font-weight:600; font-size:0.9rem;">$ ${(item.price * item.qty).toFixed(2)}</div>
@@ -562,6 +572,13 @@ export function renderVentaRapida(container) {
                 tempLabor[idx].price = Math.max(0, parseFloat(e.target.value) || 0);
                 renderTempRows();
                 calculateTotals();
+            });
+        });
+
+        document.querySelectorAll('.pos-desc-input-labor').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const idx = parseInt(input.getAttribute('data-idx'));
+                tempLabor[idx].desc = e.target.value;
             });
         });
         

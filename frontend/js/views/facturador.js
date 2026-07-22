@@ -827,7 +827,7 @@ export function renderInvoicingWorkspace(container, presId) {
         : 1;
 
     function getItemDiscountedPrice(item, isLabor) {
-        const rawPrice = parseFloat(item.PrecioUnitario || 0);
+        const rawPrice = parseFloat(item.PrecioUnitario || item.price || 0);
         if (!promo) return rawPrice;
         
         if (promo.Tipo === 'monto_fijo') {
@@ -1013,9 +1013,9 @@ export function renderInvoicingWorkspace(container, presId) {
                 const unitPrice = rawPrice;
                 return {
                     type: 'BIENES',
-                    internalCode: String(item['ID_Producto DPP'] || '').trim(),
-                    description: item.Descripcion || 'Producto',
-                    quantity: parseInt(item.Cantidad || 1),
+                    internalCode: String(item['ID_Producto DPP'] || item.id || '').trim(),
+                    description: item.Descripcion || item.desc || 'Producto',
+                    quantity: parseInt(item.Cantidad || item.qty || 1),
                     unitPrice: unitPrice,
                     saleType: 'GRAVADA'
                 };
@@ -1025,9 +1025,9 @@ export function renderInvoicingWorkspace(container, presId) {
                 const unitPrice = rawPrice;
                 return {
                     type: 'SERVICIOS',
-                    internalCode: String(item['ID_ManoObra'] || '').trim(),
-                    description: item.Descripcion || 'Mano de Obra',
-                    quantity: parseInt(item.Cantidad || 1),
+                    internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),
+                    description: item.Descripcion || item.desc || 'Mano de Obra',
+                    quantity: parseInt(item.Cantidad || item.qty || 1),
                     unitPrice: unitPrice,
                     saleType: 'GRAVADA'
                 };
@@ -1200,23 +1200,25 @@ export function renderInvoicingWorkspace(container, presId) {
                         <tbody>
                             ${safe(prodItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, false);
+                                const descName = item.Descripcion || item.desc || '';
                                 return `
                                     <tr>
-                                        <td>${item.Descripcion.substring(0,25)}</td>
-                                        <td>${item.Cantidad}</td>
+                                        <td>${descName.substring(0,25)}</td>
+                                        <td>${item.Cantidad || item.qty}</td>
                                         <td>$${discPrice.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
                             ${safe(laborItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, true);
+                                const descName = item.Descripcion || item.desc || '';
                                 return `
                                     <tr>
-                                        <td>${item.Descripcion.substring(0,25)}</td>
-                                        <td>${item.Cantidad}</td>
+                                        <td>${descName.substring(0,25)}</td>
+                                        <td>${item.Cantidad || item.qty}</td>
                                         <td>$${discPrice.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad)).toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
