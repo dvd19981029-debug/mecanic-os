@@ -3913,6 +3913,16 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             }
             .page-container {
                 padding: 0;
+                width: 100%;
+                min-height: 25.2cm;
+                display: flex;
+                flex-direction: column;
+            }
+            .signatures-container {
+                margin-top: auto !important;
+            }
+            .footer-info {
+                margin-top: 15px !important;
             }
             @page {
                 size: portrait;
