@@ -3948,15 +3948,15 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             </div>
             
             <!-- Center: Workshop Info & Logo -->
-            <div class="top-col top-col-center">
+            <div class="top-col top-col-center" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
                 ${ws.logo ? `
-                    <div style="margin-bottom: 6px;">
-                        <img src="${ws.logo}" style="max-height: 55px; max-width: 180px; object-fit: contain; border-radius: 4px;" />
+                    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px; width: 100%; max-width: 220px; min-height: 85px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 6px; box-sizing: border-box;">
+                        <img src="${ws.logo}" style="max-height: 75px; max-width: 100%; object-fit: contain; display: block;" />
                     </div>
                 ` : `
-                    <div style="font-weight: 700; color: var(--primary-color); font-size: 13px; margin-bottom: 4px;">${ws.nombreTaller || 'Centro de Servicio'}</div>
+                    <div style="font-weight: 700; color: var(--primary-color); font-size: 13px; margin-bottom: 4px; text-align: center;">${ws.nombreTaller || 'Centro de Servicio'}</div>
                 `}
-                <div style="color: #475569; font-size: 10px;">
+                <div style="color: #475569; font-size: 10px; text-align: center; line-height: 1.4; margin-top: 2px;">
                     ${ws.logo ? `<div style="font-weight: 700; color: var(--primary-color); font-size: 11px; margin-bottom: 2px;">${ws.nombreTaller || 'Centro de Servicio'}</div>` : ''}
                     <div>${ws.direccion || ''}</div>
                     <div>Tel: ${ws.telefono || ''}</div>
