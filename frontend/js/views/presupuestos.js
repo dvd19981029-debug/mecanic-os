@@ -3810,17 +3810,18 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             border-collapse: collapse;
             margin-top: 10px;
             font-size: 11px;
+            line-height: 1.25;
         }
         .items-table th {
             border-bottom: 2.5px solid var(--primary-color);
-            padding: 5px 8px;
+            padding: 4px 8px;
             font-weight: 700;
             text-align: left;
             text-transform: uppercase;
             font-size: 10px;
         }
         .items-table td {
-            padding: 5px 8px;
+            padding: 3.5px 8px;
             border-bottom: 1px dashed #cbd5e1;
         }
         
@@ -3829,14 +3830,14 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             font-size: 11px;
             background-color: #f1f5f9;
             border-bottom: 1.5px solid var(--primary-color);
-            padding: 5px 8px;
+            padding: 4px 8px;
         }
         
         .category-total-row td {
             font-weight: 700;
             border-top: 1px solid var(--primary-color);
             border-bottom: 1.5px solid var(--primary-color);
-            padding: 6px 8px;
+            padding: 5px 8px;
             background-color: #f8fafc;
         }
         
