@@ -1110,7 +1110,13 @@ export function renderBudgetEditor(container, budget) {
 
             row.innerHTML = html`
                 <div><small class="text-muted">${escapeHtml(item.ID_ManoObra || 'MO')}</small></div>
-                <div><strong>${escapeHtml(item.Descripcion)}</strong></div>
+                <div>
+                    ${isPriceEditable ? safe(`
+                        <input type="text" class="row-desc" data-type="labor" data-idx="${index}" value="${escapeHtml(item.Descripcion)}" style="padding: 0.35rem; width: 100%; font-weight: bold; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; box-sizing: border-box;" ${isLocked ? 'disabled' : ''}>
+                    `) : safe(`
+                        <strong>${escapeHtml(item.Descripcion)}</strong>
+                    `)}
+                </div>
                 ${safe(techCol)}
                 <div><input type="number" class="row-qty" data-type="labor" data-idx="${index}" value="${item.Cantidad}" min="1" style="padding: 0.35rem; width: 60px;" ${isLocked ? 'disabled' : ''}></div>
                 <div><input type="number" class="row-price" data-type="labor" data-idx="${index}" value="${item.PrecioUnitario}" step="0.01" style="padding: 0.35rem; width: 80px; ${!isPriceEditable ? 'background:rgba(255,255,255,0.05); color:var(--text-muted); cursor:not-allowed;' : ''}" ${priceDisabled ? 'disabled title="Este precio es fijo (no editable)"' : ''}></div>
@@ -1179,6 +1185,22 @@ export function renderBudgetEditor(container, budget) {
                 }
                 renderTempRows();
                 calculateTotals();
+                autoSaveBudget();
+            });
+        });
+
+        // Wire up description change events
+        document.querySelectorAll('.row-desc').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const type = e.target.getAttribute('data-type');
+                const idx = parseInt(e.target.getAttribute('data-idx'));
+                const val = e.target.value;
+
+                if (type === 'labor') {
+                    tempLabor[idx].Descripcion = val;
+                } else if (type === 'product') {
+                    tempProducts[idx].Descripcion = val;
+                }
                 autoSaveBudget();
             });
         });
