@@ -3908,15 +3908,26 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             .no-print-toolbar {
                 display: none !important;
             }
+            html, body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
             body {
                 background-color: #fff;
+                padding: 1.2cm 1.4cm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
             }
             .page-container {
                 padding: 0;
                 width: 100%;
-                min-height: 25.2cm;
+                flex: 1;
                 display: flex;
                 flex-direction: column;
+                min-height: 0;
             }
             .signatures-container {
                 margin-top: auto !important;
@@ -3926,7 +3937,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             }
             @page {
                 size: portrait;
-                margin: 1cm;
+                margin: 0;
             }
         }
     </style>
