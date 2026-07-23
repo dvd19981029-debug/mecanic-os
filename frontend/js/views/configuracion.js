@@ -557,7 +557,11 @@ export function renderConfiguracion(container, queryParams) {
                     <button class="close-modal-btn" id="close-producto-modal">&times;</button>
                 </div>
                 <form id="producto-form" novalidate style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
-                    <input type="hidden" id="producto-id">
+                    <input type="hidden" id="producto-original-id">
+                    <div class="form-group">
+                        <label>Código de Producto / Repuesto</label>
+                        <input type="text" id="producto-id" required placeholder="Ej. PROD-CS-230722-120000">
+                    </div>
                     <div class="form-group">
                         <label>Descripción / Nombre del Repuesto</label>
                         <input type="text" id="producto-descripcion" required placeholder="Ej. Balatas delanteras">
@@ -1316,6 +1320,7 @@ export function renderConfiguracion(container, queryParams) {
                     const p = db.productos.find(x => x['ID_ Producto'] === id);
                     if (p) {
                         document.getElementById('producto-modal-title').textContent = 'Editar Producto / Repuesto';
+                        document.getElementById('producto-original-id').value = p['ID_ Producto'];
                         document.getElementById('producto-id').value = p['ID_ Producto'];
                         document.getElementById('producto-descripcion').value = p.Descripcion || '';
                         document.getElementById('producto-precio-compra').value = p['Precio Compra'] || 0;
@@ -1716,7 +1721,13 @@ export function renderConfiguracion(container, queryParams) {
         // Add Product Trigger
         document.getElementById('btn-add-producto').addEventListener('click', () => {
             document.getElementById('producto-modal-title').textContent = 'Registrar Producto / Repuesto';
-            document.getElementById('producto-id').value = '';
+            document.getElementById('producto-original-id').value = '';
+            
+            const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+            const hhmmss = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
+            const newId = `PROD-CS-${yymmdd}-${hhmmss}`;
+            document.getElementById('producto-id').value = newId;
+            
             document.getElementById('producto-descripcion').value = '';
             document.getElementById('producto-precio-compra').value = '0.00';
             document.getElementById('producto-precio-venta').value = '0.00';
@@ -1737,13 +1748,19 @@ export function renderConfiguracion(container, queryParams) {
         const prodForm = document.getElementById('producto-form');
         prodForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const id = document.getElementById('producto-id').value;
+            const originalId = document.getElementById('producto-original-id').value;
+            const newCode = document.getElementById('producto-id').value.trim();
             const desc = document.getElementById('producto-descripcion').value.trim();
             const compraInput = document.getElementById('producto-precio-compra');
             const precioInput = document.getElementById('producto-precio-venta');
             const minimosInput = document.getElementById('producto-minimos');
             const presInput = document.getElementById('producto-presentacion');
 
+            if (!newCode) {
+                showToast("Por favor, ingrese el código de producto", "danger");
+                document.getElementById('producto-id').focus();
+                return;
+            }
             if (!desc) {
                 showToast("Por favor, ingrese la descripción o nombre del repuesto", "danger");
                 document.getElementById('producto-descripcion').focus();
@@ -1776,10 +1793,27 @@ export function renderConfiguracion(container, queryParams) {
             const pres = presInput.value.trim() || 'Unidad';
 
             const currentDb = window.getDatabase();
-            if (id) {
+
+            // Validate duplicate code
+            const codeExists = currentDb.productos.some(x => {
+                if (originalId) {
+                    return x['ID_ Producto'] === newCode && x['ID_ Producto'] !== originalId;
+                } else {
+                    return x['ID_ Producto'] === newCode;
+                }
+            });
+
+            if (codeExists) {
+                showToast(`Ya existe otro producto con el código "${newCode}"`, "danger");
+                document.getElementById('producto-id').focus();
+                return;
+            }
+
+            if (originalId) {
                 // Edit
-                const p = currentDb.productos.find(x => x['ID_ Producto'] === id);
+                const p = currentDb.productos.find(x => x['ID_ Producto'] === originalId);
                 if (p) {
+                    p['ID_ Producto'] = newCode;
                     p.Descripcion = desc;
                     p['Precio Compra'] = compra;
                     p['Precio Venta'] = precio;
@@ -1792,11 +1826,8 @@ export function renderConfiguracion(container, queryParams) {
                 showToast("Producto actualizado en catálogo", "success");
             } else {
                 // Add
-                const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-                const hhmmss = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
-                const newId = `PROD-CS-${yymmdd}-${hhmmss}`;
                 currentDb.productos.push({
-                    "ID_ Producto": newId,
+                    "ID_ Producto": newCode,
                     "Descripcion": desc,
                     "Precio Compra": compra,
                     "Precio Venta": precio,
