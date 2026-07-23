@@ -443,6 +443,90 @@ export function renderIssuedTab(container) {
     dateStartInput.value = defaultStart;
     dateEndInput.value = defaultEnd;
     
+    function showFloatingDropdown(button, itemsHtml) {
+        let existing = document.getElementById('global-dte-dropdown');
+        if (existing) existing.remove();
+
+        const dropdown = document.createElement('div');
+        dropdown.id = 'global-dte-dropdown';
+        dropdown.className = 'dte-actions-dropdown';
+        dropdown.style.display = 'flex';
+        dropdown.style.position = 'fixed';
+        dropdown.style.zIndex = '99999';
+        dropdown.style.background = '#1e293b';
+        dropdown.style.border = '1px solid #334155';
+        dropdown.style.borderRadius = '6px';
+        dropdown.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.5)';
+        dropdown.style.minWidth = '160px';
+        dropdown.style.flexDirection = 'column';
+        dropdown.style.padding = '0.35rem 0';
+        
+        dropdown.innerHTML = itemsHtml;
+        document.body.appendChild(dropdown);
+        
+        const rect = button.getBoundingClientRect();
+        const dropdownHeight = dropdown.offsetHeight || 180;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        
+        if (spaceBelow < dropdownHeight + 10 && rect.top > dropdownHeight + 10) {
+            dropdown.style.top = `${rect.top - dropdownHeight - 4}px`;
+        } else {
+            dropdown.style.top = `${rect.bottom + 4}px`;
+        }
+        
+        dropdown.style.left = `${rect.right - dropdown.offsetWidth}px`;
+        
+        dropdown.querySelectorAll('.btn-view-dte-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                viewDtePdf(btn.getAttribute('data-id'));
+                dropdown.remove();
+            });
+        });
+        
+        dropdown.querySelectorAll('.btn-print-dte-ticket').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                printDteTicket(btn.getAttribute('data-id'));
+                dropdown.remove();
+            });
+        });
+        
+        dropdown.querySelectorAll('.btn-query-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                queryDteStatusMH(btn.getAttribute('data-id'));
+                dropdown.remove();
+            });
+        });
+        
+        dropdown.querySelectorAll('.btn-invalidate-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openInvalidateDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
+                dropdown.remove();
+            });
+        });
+        
+        dropdown.querySelectorAll('.btn-reemit-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                reemitBudget(btn.getAttribute('data-id'));
+                dropdown.remove();
+            });
+        });
+        
+        const closeHandler = (e) => {
+            if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+                dropdown.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeHandler);
+        }, 50);
+    }
+    
     function populate(filter = '') {
         rowsContainer.innerHTML = '';
         
@@ -502,57 +586,14 @@ export function renderIssuedTab(container) {
             const uuidText = p.controlNumber && p.controlNumber !== p.mhControlNumber ? p.controlNumber : '';
             const uuidSub = uuidText ? `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; font-family: monospace;" title="Código de Generación (UUID): ${uuidText}">Gen: ${uuidText.substring(0, 8)}...</div>` : '';
             
-            // Dropdown definition
-            if (!window.toggleDteDropdown) {
-                window.toggleDteDropdown = function(event, budgetId) {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    document.querySelectorAll('.dte-actions-dropdown').forEach(dropdown => {
-                        if (dropdown.id !== `dropdown-${budgetId}`) {
-                            dropdown.style.display = 'none';
-                        }
-                    });
-                    const dropdown = document.getElementById(`dropdown-${budgetId}`);
-                    if (dropdown) {
-                        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
-                    }
-                };
-
-                document.addEventListener('click', () => {
-                    document.querySelectorAll('.dte-actions-dropdown').forEach(dropdown => {
-                        dropdown.style.display = 'none';
-                    });
-                });
-            }
-
-            const actionsHtml = isAnulado
-                ? `
-                    <div style="position: relative; display: inline-block;">
-                        <button class="btn btn-secondary" onclick="toggleDteDropdown(event, '${p['ID Presupuesto']}')" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
-                            <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
-                        </button>
-                        <div id="dropdown-${p['ID Presupuesto']}" class="dte-actions-dropdown">
-                            <a href="#presupuestos?id=${p['ID Presupuesto']}" class="dte-dropdown-item" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
-                            <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
-                            <button class="dte-dropdown-item btn-reemit-dte" data-id="${p['ID Presupuesto']}" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
-                        </div>
-                    </div>
-                  `
-                : `
-                    <div style="position: relative; display: inline-block;">
-                        <button class="btn btn-secondary" onclick="toggleDteDropdown(event, '${p['ID Presupuesto']}')" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
-                            <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
-                        </button>
-                        <div id="dropdown-${p['ID Presupuesto']}" class="dte-actions-dropdown">
-                            <a href="#presupuestos?id=${p['ID Presupuesto']}" class="dte-dropdown-item" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
-                            <button class="dte-dropdown-item btn-view-dte-pdf" data-id="${genCode}" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                            <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${p['ID Presupuesto']}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
-                            <button class="dte-dropdown-item btn-query-dte" data-id="${genCode}" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
-                            <div style="border-top: 1px solid var(--border-color); margin: 0.25rem 0;"></div>
-                            <button class="dte-dropdown-item btn-invalidate-dte" data-id="${genCode}" data-presid="${p['ID Presupuesto']}" style="color: #ef4444;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
-                        </div>
-                    </div>
-                  `;
+            // Actions element
+            const actionsHtml = `
+                <div style="position: relative; display: inline-block;">
+                    <button class="btn btn-secondary btn-dte-actions" data-id="${p['ID Presupuesto']}" data-anulado="${isAnulado}" data-control="${genCode}" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
+                        <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
+                    </button>
+                </div>
+            `;
             
             const tr = document.createElement('tr');
             if (isAnulado) {
@@ -578,43 +619,35 @@ export function renderIssuedTab(container) {
             rowsContainer.appendChild(tr);
         });
         
-        // Bind PDF DTE Buttons
-        rowsContainer.querySelectorAll('.btn-view-dte-pdf').forEach(btn => {
+        // Bind DTE Actions Button
+        rowsContainer.querySelectorAll('.btn-dte-actions').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                viewDtePdf(btn.getAttribute('data-id'));
-            });
-        });
-        
-        // Bind Ticket Buttons
-        rowsContainer.querySelectorAll('.btn-print-dte-ticket').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                printDteTicket(btn.getAttribute('data-id'));
-            });
-        });
-        
-        // Bind Query Buttons
-        rowsContainer.querySelectorAll('.btn-query-dte').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                queryDteStatusMH(btn.getAttribute('data-id'));
-            });
-        });
-        
-        // Bind Invalidate Buttons
-        rowsContainer.querySelectorAll('.btn-invalidate-dte').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                openInvalidateDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
-            });
-        });
-
-        // Bind Re-emit Buttons
-        rowsContainer.querySelectorAll('.btn-reemit-dte').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                reemitBudget(btn.getAttribute('data-id'));
+                e.stopPropagation();
+                
+                const budgetId = btn.getAttribute('data-id');
+                const isAnulado = btn.getAttribute('data-anulado') === 'true';
+                const genCode = btn.getAttribute('data-control');
+                
+                let menuHtml = '';
+                if (isAnulado) {
+                    menuHtml = `
+                        <a href="#presupuestos?id=${budgetId}" class="dte-dropdown-item" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
+                        <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${budgetId}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                        <button class="dte-dropdown-item btn-reemit-dte" data-id="${budgetId}" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
+                    `;
+                } else {
+                    menuHtml = `
+                        <a href="#presupuestos?id=${budgetId}" class="dte-dropdown-item" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
+                        <button class="dte-dropdown-item btn-view-dte-pdf" data-id="${genCode}" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${budgetId}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
+                        <button class="dte-dropdown-item btn-query-dte" data-id="${genCode}" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+                        <div style="border-top: 1px solid var(--border-color); margin: 0.25rem 0;"></div>
+                        <button class="dte-dropdown-item btn-invalidate-dte" data-id="${genCode}" data-presid="${budgetId}" style="color: #ef4444;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                    `;
+                }
+                
+                showFloatingDropdown(btn, menuHtml);
             });
         });
     }
