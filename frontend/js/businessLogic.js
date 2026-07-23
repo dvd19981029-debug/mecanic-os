@@ -37,20 +37,34 @@ export function getBudgetGrandTotal(budget, db) {
     discount = Math.min(discount, subtotal);
     const subtotalConDescuento = Math.max(0, subtotal - discount);
     
+    const preciosConIva = db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.features && db.saas_state.workshopData.features.precios_con_iva === true;
     const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
-    const iva = subtotalConDescuento * taxRate;
+
+    let iva = 0;
+    let baseParaImpuestos = subtotalConDescuento;
+    let grandTotal = 0;
+
+    if (preciosConIva) {
+        grandTotal = subtotalConDescuento;
+        baseParaImpuestos = subtotalConDescuento / 1.13;
+        iva = subtotalConDescuento - baseParaImpuestos;
+    } else {
+        iva = subtotalConDescuento * taxRate;
+        grandTotal = subtotalConDescuento + iva;
+        baseParaImpuestos = subtotalConDescuento;
+    }
 
     let retVal = 0;
     let percVal = 0;
     const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+    if (client.AplicaRetencion > 0 && baseParaImpuestos >= 100.00) {
+        retVal = baseParaImpuestos * parseFloat(client.AplicaRetencion);
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
+        percVal = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
     }
 
-    const rawTotal = subtotalConDescuento + iva + percVal - retVal;
+    const rawTotal = grandTotal + percVal - retVal;
     return Math.round(rawTotal * 100) / 100;
 }
 

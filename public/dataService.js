@@ -677,6 +677,21 @@ const dataService = {
                 }
             }
         },
+        async deleteRequest(requestId) {
+            if (dataService.cache.solicitudes_registro) {
+                dataService.cache.solicitudes_registro = dataService.cache.solicitudes_registro.filter(s => s.id !== requestId);
+                localStorage.setItem('mecanic_os_db', JSON.stringify(dataService.cache));
+            }
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    await dbFirestore.collection("saas_requests").doc(requestId).delete();
+                    dataService.saas.logOp('deletes', 1);
+                } catch (e) {
+                    console.error("Error deleting request from Firestore:", e);
+                    throw e;
+                }
+            }
+        },
         listenRequest(requestId, callback) {
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 return dbFirestore.collection("saas_requests").doc(requestId).onSnapshot((doc) => {

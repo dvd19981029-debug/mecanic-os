@@ -214,30 +214,9 @@ export function renderPresupuestos(container, queryParams) {
                 ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
                 : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
             
-            // Calculate total for this budget
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotal * taxRate;
-            
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
             const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
             const numEquipo = vehicle.N_Equipo || 'N/A';
-
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
-            if (isGranContrib && subtotal >= 100.00) {
-                retVal = subtotal * 0.01;
-            }
-            if (client.AplicaPercepcion > 0) {
-                percVal = subtotal * parseFloat(client.AplicaPercepcion);
-            }
-            const grandTotal = subtotal + iva + percVal - retVal;
+            const grandTotal = getBudgetGrandTotal(p, db);
 
             const tr = document.createElement('tr');
             tr.innerHTML = html`
@@ -361,27 +340,7 @@ export function renderPresupuestos(container, queryParams) {
                 if (!eqMatch) return false;
             }
 
-            // Calculate budget grand total to apply minimum amount filter
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotal * taxRate;
-
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
-            if (isGranContrib && subtotal >= 100.00) {
-                retVal = subtotal * 0.01;
-            }
-            if (client.AplicaPercepcion > 0) {
-                percVal = subtotal * parseFloat(client.AplicaPercepcion);
-            }
-            const grandTotal = subtotal + iva + percVal - retVal;
-
+            const grandTotal = getBudgetGrandTotal(p, db);
             p._cachedTotal = grandTotal;
             p._cachedEquipo = vehicle.N_Equipo || 'N/A';
 

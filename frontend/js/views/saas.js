@@ -2602,6 +2602,25 @@ if (window.saasViewReceiptPaymentId) {
                 }
             });
         });
+
+        document.querySelectorAll('.btn-delete-saas').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm("¿Está seguro de que desea ELIMINAR permanentemente esta solicitud? Esta acción no se puede deshacer y se borrará de la base de datos.")) {
+                    dataService.saas.deleteRequest(id)
+                        .then(() => {
+                            showToast("Solicitud eliminada exitosamente", "success");
+                            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+                                renderAdminSolicitudes(container);
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Error deleting request:", err);
+                            showToast("Error al eliminar la solicitud: " + err.message, "error");
+                        });
+                }
+            });
+        });
     }
     
     // Switch state actions
@@ -3207,14 +3226,17 @@ if (window.saasViewReceiptPaymentId) {
                                         </td>
                                         <td><span class="badge-tag ${badgeColor}">${s.status.toUpperCase()}</span></td>
                                         <td>
-                                            ${s.status === 'pendiente' 
-                                                ? `
-                                                    <div style="display:flex; gap:0.5rem;">
+                                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                ${s.status === 'pendiente' 
+                                                    ? `
                                                         <button class="btn btn-primary btn-approve-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem;"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
                                                         <button class="btn btn-secondary btn-reject-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Rechazar</button>
-                                                    </div>
-                                                ` 
-                                                : `<span style="font-size:0.8rem; color:var(--text-muted);">Procesado</span>`}
+                                                    ` 
+                                                    : `<span style="font-size:0.8rem; color:var(--text-muted); margin-right:0.25rem;">Procesado</span>`}
+                                                <button class="btn btn-secondary btn-delete-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger); background:transparent; display:flex; align-items:center; justify-content:center;" title="Eliminar Solicitud">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 `;

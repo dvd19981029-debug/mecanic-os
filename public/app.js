@@ -508,20 +508,34 @@ function getBudgetGrandTotal(budget, db) {
     const discount = parseFloat(budget.Descuento || 0);
     const subtotalConDescuento = Math.max(0, subtotal - discount);
     
+    const preciosConIva = db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.features && db.saas_state.workshopData.features.precios_con_iva === true;
     const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotalConDescuento * taxRate;
+
+    let iva = 0;
+    let baseParaImpuestos = subtotalConDescuento;
+    let grandTotal = 0;
+
+    if (preciosConIva) {
+        grandTotal = subtotalConDescuento;
+        baseParaImpuestos = subtotalConDescuento / 1.13;
+        iva = subtotalConDescuento - baseParaImpuestos;
+    } else {
+        iva = subtotalConDescuento * taxRate;
+        grandTotal = subtotalConDescuento + iva;
+        baseParaImpuestos = subtotalConDescuento;
+    }
 
     let retVal = 0;
     let percVal = 0;
     const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
-    if (client.AplicaRetencion > 0) {
-        retVal = subtotalConDescuento * parseFloat(client.AplicaRetencion);
+    if (client.AplicaRetencion > 0 && baseParaImpuestos >= 100.00) {
+        retVal = baseParaImpuestos * parseFloat(client.AplicaRetencion);
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
+        percVal = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
     }
 
-    return subtotalConDescuento + iva + percVal - retVal;
+    return grandTotal + percVal - retVal;
 }
 
 // Helper: Calculate client unpaid credit balance
@@ -11004,6 +11018,25 @@ if (window.saasConfigWorkshopId) {
                 }
             });
         });
+
+        document.querySelectorAll('.btn-delete-saas').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                if (confirm("¿Está seguro de que desea ELIMINAR permanentemente esta solicitud? Esta acción no se puede deshacer y se borrará de la base de datos.")) {
+                    dataService.saas.deleteRequest(id)
+                        .then(() => {
+                            showToast("Solicitud eliminada exitosamente", "success");
+                            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+                                renderAdminSolicitudes(container);
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Error deleting request:", err);
+                            showToast("Error al eliminar la solicitud: " + err.message, "error");
+                        });
+                }
+            });
+        });
     }
     
     // Switch state actions
@@ -11340,14 +11373,17 @@ if (window.saasConfigWorkshopId) {
                                         </td>
                                         <td><span class="badge-tag ${badgeColor}">${s.status.toUpperCase()}</span></td>
                                         <td>
-                                            ${s.status === 'pendiente' 
-                                                ? `
-                                                    <div style="display:flex; gap:0.5rem;">
+                                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                ${s.status === 'pendiente' 
+                                                    ? `
                                                         <button class="btn btn-primary btn-approve-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem;"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
                                                         <button class="btn btn-secondary btn-reject-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Rechazar</button>
-                                                    </div>
-                                                ` 
-                                                : `<span style="font-size:0.8rem; color:var(--text-muted);">Procesado</span>`}
+                                                    ` 
+                                                    : `<span style="font-size:0.8rem; color:var(--text-muted); margin-right:0.25rem;">Procesado</span>`}
+                                                <button class="btn btn-secondary btn-delete-saas" data-id="${s.id}" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--danger); border-color:var(--danger); background:transparent; display:flex; align-items:center; justify-content:center;" title="Eliminar Solicitud">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 `;
