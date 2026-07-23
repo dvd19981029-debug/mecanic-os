@@ -989,16 +989,7 @@ export function renderInvoicingWorkspace(container, presId) {
         const formattedItems = [
             ...prodItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, false);
-                let unitPrice = rawPrice;
-                if (isCCF) {
-                    if (preciosConIva) {
-                        unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
-                    }
-                } else {
-                    if (!preciosConIva) {
-                        unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
-                    }
-                }
+                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'BIENES',
                     internalCode: String(item['ID_Producto DPP'] || item.id || '').trim(),
@@ -1010,16 +1001,7 @@ export function renderInvoicingWorkspace(container, presId) {
             }),
             ...laborItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, true);
-                let unitPrice = rawPrice;
-                if (isCCF) {
-                    if (preciosConIva) {
-                        unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
-                    }
-                } else {
-                    if (!preciosConIva) {
-                        unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
-                    }
-                }
+                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                 return {
                     type: 'SERVICIOS',
                     internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),

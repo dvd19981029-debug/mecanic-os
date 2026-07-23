@@ -1065,16 +1065,7 @@ export function renderVentaRapida(container) {
             const formattedItems = [
                 ...(vr.productos || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, false);
-                    let unitPrice = rawPrice;
-                    if (isCCF) {
-                        if (preciosConIva) {
-                            unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
-                        }
-                    } else {
-                        if (!preciosConIva) {
-                            unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
-                        }
-                    }
+                    const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                     return {
                         type: 'BIENES',
                         internalCode: String(item.id || '').trim(),
@@ -1086,16 +1077,7 @@ export function renderVentaRapida(container) {
                 }),
                 ...(vr.mano_obra || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, true);
-                    let unitPrice = rawPrice;
-                    if (isCCF) {
-                        if (preciosConIva) {
-                            unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
-                        }
-                    } else {
-                        if (!preciosConIva) {
-                            unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
-                        }
-                    }
+                    const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
                     return {
                         type: 'SERVICIOS',
                         internalCode: String(item.id || '').trim(),
