@@ -578,11 +578,11 @@ export function renderConfiguracion(container, queryParams) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Precio Venta ($ Sin IVA)</label>
+                            <label id="lbl-producto-precio-venta">Precio Venta ($ Sin IVA)</label>
                             <input type="number" id="producto-precio-venta" required min="0" step="0.01" value="0.00">
                         </div>
                         <div class="form-group">
-                            <label>Precio Venta con IVA (13% Auto)</label>
+                            <label id="lbl-producto-precio-iva">Precio Venta con IVA (13% Auto)</label>
                             <input type="text" id="producto-precio-iva" readonly style="background:rgba(255,255,255,0.05); color:var(--text-muted); padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
                         </div>
                     </div>
@@ -619,7 +619,7 @@ export function renderConfiguracion(container, queryParams) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Precio Unitario ($ Sin IVA)</label>
+                            <label id="lbl-servicio-precio">Precio Unitario ($ Sin IVA)</label>
                             <input type="number" id="servicio-precio" required min="0" step="0.01" value="0.00">
                         </div>
                         <div class="form-group">
@@ -727,6 +727,18 @@ export function renderConfiguracion(container, queryParams) {
             </div>
         </div>
     `;
+
+    const preciosConIva = ws.features && ws.features.precios_con_iva === true;
+    if (preciosConIva) {
+        const lblVenta = document.getElementById('lbl-producto-precio-venta');
+        if (lblVenta) lblVenta.textContent = 'Precio Venta ($ Con IVA)';
+        
+        const lblIva = document.getElementById('lbl-producto-precio-iva');
+        if (lblIva) lblIva.textContent = 'Precio Venta Sin IVA (Calculado)';
+
+        const lblServ = document.getElementById('lbl-servicio-precio');
+        if (lblServ) lblServ.textContent = 'Precio Unitario ($ Con IVA)';
+    }
 
     const tabContentArea = document.getElementById('config-tab-content-area');
 
@@ -1324,7 +1336,10 @@ export function renderConfiguracion(container, queryParams) {
                         document.getElementById('producto-id').value = p['ID_ Producto'];
                         document.getElementById('producto-descripcion').value = p.Descripcion || '';
                         document.getElementById('producto-precio-compra').value = p['Precio Compra'] || 0;
-                        document.getElementById('producto-precio-venta').value = p['Precio Venta'] || 0;
+                        const pVentaVal = preciosConIva 
+                            ? (p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || parseFloat((p['Precio Venta'] * 1.13).toFixed(2)))
+                            : (p['Precio Venta'] || 0);
+                        document.getElementById('producto-precio-venta').value = pVentaVal;
                         document.getElementById('producto-minimos').value = p.Minimos || 1;
                         document.getElementById('producto-presentacion').value = p.Presentacion || 'Unidad';
                         
@@ -1696,12 +1711,22 @@ export function renderConfiguracion(container, queryParams) {
             const pCompra = parseFloat(pCompraInput.value || 0);
             const pVenta = parseFloat(pVentaInput.value || 0);
             
-            // 1. Calculate price with IVA (13%)
-            pIvaInput.value = '$ ' + parseFloat(pVenta * 1.13).toFixed(2);
+            const wsConfig = getWorkshopConfig(db);
+            const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+            let pVentaNeto = pVenta;
+            if (preciosConIva) {
+                // pVenta is already the price WITH IVA
+                pVentaNeto = pVenta / 1.13;
+                pIvaInput.value = '$ ' + parseFloat(pVentaNeto).toFixed(2);
+            } else {
+                pVentaNeto = pVenta;
+                pIvaInput.value = '$ ' + parseFloat(pVenta * 1.13).toFixed(2);
+            }
             
             // 2. Calculate profit percentage
             if (pCompra > 0) {
-                const diff = pVenta - pCompra;
+                const diff = pVentaNeto - pCompra;
                 const pct = (diff / pCompra) * 100;
                 pGananciaInput.value = pct.toFixed(1) + '%';
                 
@@ -1809,6 +1834,9 @@ export function renderConfiguracion(container, queryParams) {
                 return;
             }
 
+            const finalPrecioBase = preciosConIva ? parseFloat((precio / 1.13).toFixed(4)) : precio;
+            const finalPrecioIvaInc = preciosConIva ? precio : parseFloat((precio * 1.13).toFixed(2));
+
             if (originalId) {
                 // Edit
                 const p = currentDb.productos.find(x => x['ID_ Producto'] === originalId);
@@ -1816,10 +1844,10 @@ export function renderConfiguracion(container, queryParams) {
                     p['ID_ Producto'] = newCode;
                     p.Descripcion = desc;
                     p['Precio Compra'] = compra;
-                    p['Precio Venta'] = precio;
-                    p['Precio Unit'] = precio;
-                    p['Precio Venta Unit Iva Inc'] = parseFloat((precio * 1.13).toFixed(2));
-                    p['Precio Unit Iva Inc'] = parseFloat((precio * 1.13).toFixed(2));
+                    p['Precio Venta'] = finalPrecioBase;
+                    p['Precio Unit'] = finalPrecioBase;
+                    p['Precio Venta Unit Iva Inc'] = finalPrecioIvaInc;
+                    p['Precio Unit Iva Inc'] = finalPrecioIvaInc;
                     p.Minimos = minimos;
                     p.Presentacion = pres;
                 }
@@ -1830,10 +1858,10 @@ export function renderConfiguracion(container, queryParams) {
                     "ID_ Producto": newCode,
                     "Descripcion": desc,
                     "Precio Compra": compra,
-                    "Precio Venta": precio,
-                    "Precio Unit": precio,
-                    "Precio Venta Unit Iva Inc": parseFloat((precio * 1.13).toFixed(2)),
-                    "Precio Unit Iva Inc": parseFloat((precio * 1.13).toFixed(2)),
+                    "Precio Venta": finalPrecioBase,
+                    "Precio Unit": finalPrecioBase,
+                    "Precio Venta Unit Iva Inc": finalPrecioIvaInc,
+                    "Precio Unit Iva Inc": finalPrecioIvaInc,
                     "Minimos": minimos,
                     "Presentacion": pres,
                     "Categoría": "100101",
@@ -1902,7 +1930,10 @@ export function renderConfiguracion(container, queryParams) {
                         document.getElementById('servicio-modal-title').textContent = 'Editar Servicio / Mano de Obra';
                         document.getElementById('servicio-id').value = mo.ID_ManoObra;
                         document.getElementById('servicio-descripcion').value = mo.Descripcion || '';
-                        document.getElementById('servicio-precio').value = mo.PrecioUnitario || 0;
+                        const moPriceVal = preciosConIva 
+                            ? (mo.PrecioUnitarioIvaInc || parseFloat((mo.PrecioUnitario * 1.13).toFixed(2)))
+                            : (mo.PrecioUnitario || 0);
+                        document.getElementById('servicio-precio').value = moPriceVal;
                         document.getElementById('servicio-unidad').value = mo.UnidadMedida || 'Servicio';
                         document.getElementById('servicio-categoria').value = mo.Categoria || 'MO001';
                         document.getElementById('servicio-editable').value = mo.PrecioEditable || 'SI';
@@ -2181,12 +2212,16 @@ export function renderConfiguracion(container, queryParams) {
             const precio = parseFloat(precioInput.value || 0);
 
             const currentDb = window.getDatabase();
+            const finalPrecioBase = preciosConIva ? parseFloat((precio / 1.13).toFixed(4)) : precio;
+            const finalPrecioIvaInc = preciosConIva ? precio : parseFloat((precio * 1.13).toFixed(2));
+
             if (id) {
                 // Edit
                 const mo = currentDb.mano_obra.find(x => x.ID_ManoObra.toString() === id.toString());
                 if (mo) {
                     mo.Descripcion = desc;
-                    mo.PrecioUnitario = precio;
+                    mo.PrecioUnitario = finalPrecioBase;
+                    mo.PrecioUnitarioIvaInc = finalPrecioIvaInc;
                     mo.UnidadMedida = unidad;
                     mo.Categoria = cat;
                     mo.PrecioEditable = editable;
@@ -2200,7 +2235,8 @@ export function renderConfiguracion(container, queryParams) {
                 currentDb.mano_obra.push({
                     "ID_ManoObra": nextId,
                     "Descripcion": desc,
-                    "PrecioUnitario": precio,
+                    "PrecioUnitario": finalPrecioBase,
+                    "PrecioUnitarioIvaInc": finalPrecioIvaInc,
                     "UnidadMedida": unidad,
                     "Categoria": cat,
                     "PrecioEditable": editable,

@@ -988,6 +988,11 @@ function getWorkshopConfig(db) {
     if (!cfg.formato_presupuesto) {
         cfg.formato_presupuesto = 'moderno_facturallama';
     }
+    if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.features) {
+        cfg.features = db.saas_state.workshopData.features;
+    } else {
+        cfg.features = {};
+    }
     return cfg;
 }
 

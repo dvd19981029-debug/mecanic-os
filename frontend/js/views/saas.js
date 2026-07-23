@@ -1201,6 +1201,10 @@ export async function renderAdminSolicitudes(container) {
                                     <input type="checkbox" id="detail-saas-features-repuestos" ${workshop.features?.habilitar_repuestos_cliente ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
                                     <label for="detail-saas-features-repuestos" style="font-size:0.75rem; color:var(--text-primary); cursor:pointer; font-weight:500;">Activar Solicitud de Repuestos</label>
                                 </div>
+                                <div class="form-group" style="margin-top:0.25rem; display:flex; align-items:center; gap:0.5rem;">
+                                    <input type="checkbox" id="detail-saas-features-precios-iva" ${workshop.features?.precios_con_iva ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px;">
+                                    <label for="detail-saas-features-precios-iva" style="font-size:0.75rem; color:var(--text-primary); cursor:pointer; font-weight:500;">Digitar Precios con IVA Incluido</label>
+                                </div>
                                 <button type="submit" class="btn btn-primary" style="padding:0.45rem; font-size:0.75rem; margin-top:0.25rem; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Actualizar Plan</button>
                             </form>
                         </div>
@@ -1588,6 +1592,7 @@ export async function renderAdminSolicitudes(container) {
                         const statusVal = document.getElementById('detail-saas-status')?.value || workshop.suscripcion_status || 'activo';
                         const nextPayVal = document.getElementById('detail-saas-next-pay').value;
                         const hasRepuestos = document.getElementById('detail-saas-features-repuestos').checked;
+                        const hasPreciosIva = document.getElementById('detail-saas-features-precios-iva').checked;
 
                         workshop.plan = planVal;
                         workshop.precio_mensual = priceVal;
@@ -1596,6 +1601,7 @@ export async function renderAdminSolicitudes(container) {
                         
                         workshop.features = workshop.features || {};
                         workshop.features.habilitar_repuestos_cliente = hasRepuestos;
+                        workshop.features.precios_con_iva = hasPreciosIva;
 
                         if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id === id) {
                             db.saas_state.workshopData = workshop;

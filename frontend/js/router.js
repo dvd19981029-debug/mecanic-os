@@ -3,13 +3,13 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=80';
+import { renderConfiguracion } from './views/configuracion.js?v=81';
 import { renderLanding } from './views/landing.js?v=69';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
 import { renderRevision21 } from './views/revision21.js?v=77';
-import { renderPresupuestos } from './views/presupuestos.js?v=107';
+import { renderPresupuestos } from './views/presupuestos.js?v=108';
 import { renderKanban } from './views/kanban.js?v=69';
-import { renderFacturador } from './views/facturador.js?v=104';
+import { renderFacturador } from './views/facturador.js?v=106';
 import { renderVentaRapida } from './views/venta_rapida.js?v=102';
 import { renderCaja } from './views/caja.js?v=69';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
@@ -27,7 +27,7 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=95';
+} from './views/saas.js?v=96';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
@@ -37,7 +37,7 @@ import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js?v=69';
+} from '../app.js?v=70';
 
 import { showToast } from './utils.js?v=69';
 

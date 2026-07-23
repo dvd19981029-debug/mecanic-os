@@ -1275,16 +1275,30 @@ export function renderBudgetEditor(container, budget) {
         
         const subtotalConDescuento = subtotal - discount;
         const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-        const iva = subtotalConDescuento * taxRate;
         
-        let grandTotal = subtotalConDescuento + iva;
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+        let iva = 0;
+        let grandTotal = 0;
+        let subtotalNetoDisp = subtotal;
+
+        if (preciosConIva) {
+            grandTotal = subtotalConDescuento;
+            subtotalNetoDisp = grandTotal / 1.13;
+            iva = grandTotal - subtotalNetoDisp;
+        } else {
+            iva = subtotalConDescuento * taxRate;
+            grandTotal = subtotalConDescuento + iva;
+            subtotalNetoDisp = subtotal;
+        }
         
         const selectedClientCode = isNew ? document.getElementById('editor-client-select').value : budget.Codigo_Cliente;
         const selectedClient = db.clientes.find(c => c.Codigo_Cliente === selectedClientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
         
         document.getElementById('sum-products').textContent = '$' + sumProd.toFixed(2);
         document.getElementById('sum-labor').textContent = '$' + sumLab.toFixed(2);
-        document.getElementById('subtotal-neto').textContent = '$' + subtotal.toFixed(2);
+        document.getElementById('subtotal-neto').textContent = '$' + subtotalNetoDisp.toFixed(2);
         
         const discountSection = document.getElementById('discount-section');
         if (discountSection) {
@@ -1297,14 +1311,16 @@ export function renderBudgetEditor(container, budget) {
         const retPerEl = document.getElementById('ret-per-section');
         retPerEl.innerHTML = '';
         
+        const baseParaImpuestos = preciosConIva ? (subtotalConDescuento / 1.13) : subtotalConDescuento;
+
         if (selectedClient.AplicaPercepcion > 0) {
-            const perc = subtotalConDescuento * parseFloat(selectedClient.AplicaPercepcion);
+            const perc = baseParaImpuestos * parseFloat(selectedClient.AplicaPercepcion);
             grandTotal += perc;
             retPerEl.innerHTML += `<div class="summary-row"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perc.toFixed(2)}</span></div>`;
         }
         const isGranContrib = selectedClient['Categoría Contribuyente'] === 'GRANDE' || (selectedClient.AplicaRetencion > 0);
-        if (isGranContrib && subtotalConDescuento >= 100.00) {
-            const ret = subtotalConDescuento * 0.01;
+        if (isGranContrib && baseParaImpuestos >= 100.00) {
+            const ret = baseParaImpuestos * 0.01;
             grandTotal -= ret;
             retPerEl.innerHTML += `<div class="summary-row"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${ret.toFixed(2)}</span></div>`;
         }
@@ -1317,6 +1333,9 @@ export function renderBudgetEditor(container, budget) {
         const modalId = 'create-custom-product-modal';
         const existing = document.getElementById(modalId);
         if (existing) existing.remove();
+
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
         const newProdId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
 
@@ -1355,7 +1374,7 @@ export function renderBudgetEditor(container, budget) {
                         </div>
                         <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                             <div class="form-group">
-                                <label>Precio Venta ($)</label>
+                                <label>${preciosConIva ? 'Precio Venta (Con IVA)' : 'Precio Venta ($)'}</label>
                                 <input type="number" id="new-prod-price-sell" required value="15.00" step="0.01" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                             </div>
                             <div class="form-group">
@@ -1398,6 +1417,9 @@ export function renderBudgetEditor(container, budget) {
                 return;
             }
 
+            const finalPrecioBase = preciosConIva ? parseFloat((priceSell / 1.13).toFixed(4)) : priceSell;
+            const finalPrecioIvaInc = preciosConIva ? priceSell : parseFloat((priceSell * 1.13).toFixed(2));
+
             const newProd = {
                 'ID_ Producto': code,
                 Descripcion: desc,
@@ -1405,10 +1427,10 @@ export function renderBudgetEditor(container, budget) {
                 'Unidad de Medida': unit,
                 'Precio Compra': priceCost,
                 'Precio Costo': priceCost,
-                'Precio Venta': parseFloat((priceSell / 1.13).toFixed(4)),
-                'Precio Unit': parseFloat((priceSell / 1.13).toFixed(4)),
-                'Precio Venta Unit Iva Inc': priceSell,
-                'Precio Unit Iva Inc': priceSell,
+                'Precio Venta': finalPrecioBase,
+                'Precio Unit': finalPrecioBase,
+                'Precio Venta Unit Iva Inc': finalPrecioIvaInc,
+                'Precio Unit Iva Inc': finalPrecioIvaInc,
                 Minimos: stock,
                 Presentacion: unit === 'Pza' ? 'Unidad' : unit
             };
@@ -1425,6 +1447,9 @@ export function renderBudgetEditor(container, budget) {
         const modalId = 'create-custom-labor-modal';
         const existing = document.getElementById(modalId);
         if (existing) existing.remove();
+
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
         const newMoId = "MO-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*10);
 
@@ -1446,7 +1471,7 @@ export function renderBudgetEditor(container, budget) {
                             <input type="text" id="new-mo-desc" required value="${escapeHtml(initialDesc)}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group">
-                            <label>Precio Base ($)</label>
+                            <label>${preciosConIva ? 'Precio Unitario (Con IVA)' : 'Precio Base ($)'}</label>
                             <input type="number" id="new-mo-price" required value="10.00" step="0.01" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-group">
@@ -1484,10 +1509,14 @@ export function renderBudgetEditor(container, budget) {
                 return;
             }
 
+            const finalPrecioBase = preciosConIva ? parseFloat((price / 1.13).toFixed(4)) : price;
+            const finalPrecioIvaInc = preciosConIva ? price : parseFloat((price * 1.13).toFixed(2));
+
             const newMo = {
                 ID_ManoObra: code,
                 Descripcion: desc,
-                PrecioUnitario: price,
+                PrecioUnitario: finalPrecioBase,
+                PrecioUnitarioIvaInc: finalPrecioIvaInc,
                 PrecioEditable: editable
             };
 
@@ -1524,13 +1553,21 @@ export function renderBudgetEditor(container, budget) {
             (p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
         );
 
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
         filtered.slice(0, 10).forEach(p => {
             const item = document.createElement('div');
             item.className = 'list-item';
+            
+            const displayPrice = preciosConIva
+                ? parseFloat(p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || ((p['Precio Unit'] || p['Precio Venta'] || 0) * 1.13))
+                : parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
+
             item.innerHTML = html`
                 <div class="list-item-main">
                     <span class="list-item-title">${p.Descripcion}</span>
-                    <span class="list-item-subtitle">Código: ${p['ID_ Producto']} • Unitario: $${parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0).toFixed(2)}</span>
+                    <span class="list-item-subtitle">Código: ${p['ID_ Producto']} • Unitario: $${displayPrice.toFixed(2)}</span>
                 </div>
                 <button class="btn btn-primary btn-add" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i></button>
             `;
@@ -1545,7 +1582,7 @@ export function renderBudgetEditor(container, budget) {
                     Descripcion: p.Descripcion,
                     Cantidad: 1,
                     UnidadMedida: p['Unidad de Medida'] || 'Pza',
-                    PrecioUnitario: parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0),
+                    PrecioUnitario: displayPrice,
                     ImpuestoCodigo: 'IVA13',
                     Tecnico_ID: defaultTechId
                 });
@@ -1582,6 +1619,11 @@ export function renderBudgetEditor(container, budget) {
                 openCreateProductModal(filter.trim(), (newProd) => {
                     const activeUser = getActiveUser();
                     const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                    
+                    const addedPrice = preciosConIva
+                        ? parseFloat(newProd['Precio Unit Iva Inc'] || newProd['Precio Venta Unit Iva Inc'] || 0)
+                        : parseFloat(newProd['Precio Unit'] || newProd['Precio Venta'] || 0);
+
                     tempProducts.push({
                         DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                         'ID_Presupuesto DPP': budget['ID Presupuesto'],
@@ -1589,7 +1631,7 @@ export function renderBudgetEditor(container, budget) {
                         Descripcion: newProd.Descripcion,
                         Cantidad: 1,
                         UnidadMedida: newProd['Unidad de Medida'],
-                        PrecioUnitario: parseFloat(newProd['Precio Unit'] || 0),
+                        PrecioUnitario: addedPrice,
                         ImpuestoCodigo: 'IVA13',
                         Tecnico_ID: defaultTechId
                     });
@@ -1622,13 +1664,21 @@ export function renderBudgetEditor(container, budget) {
             (mo.ID_ManoObra || '').toString().includes(filter)
         );
 
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
         filtered.slice(0, 10).forEach(mo => {
             const item = document.createElement('div');
             item.className = 'list-item';
+            
+            const displayPrice = preciosConIva
+                ? parseFloat(mo.PrecioUnitarioIvaInc || ((mo.PrecioUnitario || 0) * 1.13))
+                : parseFloat(mo.PrecioUnitario || 0);
+
             item.innerHTML = html`
                 <div class="list-item-main">
                     <span class="list-item-title">${mo.Descripcion}</span>
-                    <span class="list-item-subtitle">Servicio: ${mo.ID_ManoObra} • Base: $${parseFloat(mo.PrecioUnitario || 0).toFixed(2)}</span>
+                    <span class="list-item-subtitle">Servicio: ${mo.ID_ManoObra} • ${preciosConIva ? 'Unitario (Con IVA)' : 'Base'}: $${displayPrice.toFixed(2)}</span>
                 </div>
                 <button class="btn btn-primary btn-add" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i></button>
             `;
@@ -1642,7 +1692,7 @@ export function renderBudgetEditor(container, budget) {
                     ID_ManoObra: mo.ID_ManoObra,
                     Descripcion: mo.Descripcion,
                     Cantidad: 1,
-                    PrecioUnitario: parseFloat(mo.PrecioUnitario || 0),
+                    PrecioUnitario: displayPrice,
                     FechaCreacion: Date.now(),
                     Tecnico_ID: defaultTechId
                 });
@@ -1679,13 +1729,18 @@ export function renderBudgetEditor(container, budget) {
                 openCreateLaborModal(filter.trim(), (newMo) => {
                     const activeUser = getActiveUser();
                     const defaultTechId = (activeUser && activeUser.Tecnico_ID) ? activeUser.Tecnico_ID : (budget.Tecnico_Asignado || '');
+                    
+                    const addedPrice = preciosConIva
+                        ? parseFloat(newMo.PrecioUnitarioIvaInc || 0)
+                        : parseFloat(newMo.PrecioUnitario || 0);
+
                     tempLabor.push({
                         ID_DetalleMO: "DETMO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                         'ID_Presupuesto MO': budget['ID Presupuesto'],
                         ID_ManoObra: newMo.ID_ManoObra,
                         Descripcion: newMo.Descripcion,
                         Cantidad: 1,
-                        PrecioUnitario: parseFloat(newMo.PrecioUnitario || 0),
+                        PrecioUnitario: addedPrice,
                         FechaCreacion: Date.now(),
                         Tecnico_ID: defaultTechId
                     });
@@ -3634,7 +3689,7 @@ export function exportBudgetPDF(budgetId) {
 
     const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
     const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
-    const subtotal = sumProd + sumLab;
+    const rawSubtotal = sumProd + sumLab;
 
     // Calculate promotion discount
     const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
@@ -3648,23 +3703,47 @@ export function exportBudgetPDF(budgetId) {
             discount = parseFloat(promo.Valor || 0);
         }
     }
-    discount = Math.min(discount, subtotal);
+    discount = Math.min(discount, rawSubtotal);
 
-    const subtotalConDescuento = subtotal - discount;
+    const subtotalConDescuento = rawSubtotal - discount;
     const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-    const iva = subtotalConDescuento * taxRate;
+
+    const wsConfig = getWorkshopConfig(db);
+    const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+    let iva = 0;
+    let subtotal = rawSubtotal;
+    let baseParaImpuestos = subtotalConDescuento;
+    let finalDiscount = discount;
+
+    if (preciosConIva) {
+        const totalSinImpuestos = subtotalConDescuento / 1.13;
+        iva = subtotalConDescuento - totalSinImpuestos;
+        subtotal = rawSubtotal / 1.13;
+        baseParaImpuestos = totalSinImpuestos;
+        finalDiscount = discount / 1.13;
+    } else {
+        iva = subtotalConDescuento * taxRate;
+        baseParaImpuestos = subtotalConDescuento;
+    }
 
     let retVal = 0;
     let percVal = 0;
     const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
-    if (isGranContrib && subtotalConDescuento >= 100.00) {
-        retVal = subtotalConDescuento * 0.01;
+    if (isGranContrib && baseParaImpuestos >= 100.00) {
+        retVal = baseParaImpuestos * 0.01;
     }
     if (client.AplicaPercepcion > 0) {
-        percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
+        percVal = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
     }
 
-    const grandTotal = subtotalConDescuento + iva + percVal - retVal;
+    let grandTotal = 0;
+    if (preciosConIva) {
+        grandTotal = subtotalConDescuento + percVal - retVal;
+    } else {
+        grandTotal = subtotalConDescuento + iva + percVal - retVal;
+    }
+    discount = finalDiscount;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {

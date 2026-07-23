@@ -846,18 +846,31 @@ export function renderInvoicingWorkspace(container, presId) {
     prodItems.forEach(item => subtotal += getItemDiscountedPrice(item, false) * parseInt(item.Cantidad || 1));
     laborItems.forEach(item => subtotal += getItemDiscountedPrice(item, true) * parseInt(item.Cantidad || 1));
     
-    const iva = subtotal * 0.13;
-    let grandTotal = subtotal + iva;
+    const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+    let iva = 0;
+    let grandTotal = 0;
+    let baseParaImpuestos = subtotal;
+
+    if (preciosConIva) {
+        grandTotal = subtotal;
+        baseParaImpuestos = subtotal / 1.13;
+        iva = subtotal - baseParaImpuestos;
+    } else {
+        iva = subtotal * 0.13;
+        grandTotal = subtotal + iva;
+        baseParaImpuestos = subtotal;
+    }
     
     let retention = 0;
     let perception = 0;
     if (client.AplicaPercepcion > 0) {
-        perception = subtotal * parseFloat(client.AplicaPercepcion);
+        perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
         grandTotal += perception;
     }
     const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-    if (isGranContrib && subtotal >= 100.00) {
-        retention = subtotal * 0.01;
+    if (isGranContrib && baseParaImpuestos >= 100.00) {
+        retention = baseParaImpuestos * 0.01;
         grandTotal -= retention;
     }
 
@@ -1226,7 +1239,7 @@ export function renderInvoicingWorkspace(container, presId) {
                     </table>
                     <p>--------------------------------------------------</p>
                     <div style="text-align:right;">
-                        <p>Subtotal Neto: $ ${subtotal.toFixed(2)}</p>
+                        <p>Subtotal Neto: $ ${(preciosConIva ? baseParaImpuestos : subtotal).toFixed(2)}</p>
                         <p>IVA (13%): $ ${iva.toFixed(2)}</p>
                         ${safe(perception > 0 ? `<p>Percepción (2%): $ ${perception.toFixed(2)}</p>` : '')}
                         ${safe(retention > 0 ? `<p>Retención (1%): $ ${retention.toFixed(2)}</p>` : '')}
@@ -1466,20 +1479,35 @@ export function printDteTicket(presId) {
         prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
         laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
         
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
         const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
         const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-        const iva = subtotal * taxRate;
         
+        let iva = 0;
+        let grandTotal = 0;
+        let baseParaImpuestos = subtotal;
+
+        if (preciosConIva) {
+            grandTotal = subtotal;
+            baseParaImpuestos = subtotal / 1.13;
+            iva = subtotal - baseParaImpuestos;
+        } else {
+            iva = subtotal * taxRate;
+            grandTotal = subtotal + iva;
+            baseParaImpuestos = subtotal;
+        }
+
         let retention = 0;
         let perception = 0;
         if (client.AplicaPercepcion > 0) {
-            perception = subtotal * parseFloat(client.AplicaPercepcion);
+            perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
         }
         const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        if (isGranContrib && subtotal >= 100.00) {
-            retention = subtotal * 0.01;
+        if (isGranContrib && baseParaImpuestos >= 100.00) {
+            retention = baseParaImpuestos * 0.01;
         }
-        const grandTotal = subtotal + iva + perception - retention;
+        grandTotal = grandTotal + perception - retention;
 
         const genCode = p.controlNumber || 'N/A';
         
@@ -1556,13 +1584,13 @@ export function printDteTicket(presId) {
             background-color: #c0392b;
         }
         .receipt-container {
-            width: 80mm;
+            width: 70mm;
             min-height: 100vh;
             margin: 70px auto 30px auto;
             background: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             box-sizing: border-box;
-            padding: 8mm 6mm;
+            padding: 6mm 4mm;
             position: relative;
         }
         .text-center { text-align: center; }
@@ -1661,16 +1689,18 @@ export function printDteTicket(presId) {
                 background-color: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                width: 100% !important;
+                width: 80mm !important;
+                display: flex !important;
+                justify-content: center !important;
             }
             .control-bar {
                 display: none !important;
             }
             .receipt-container {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 4mm 7mm 4mm 3mm !important;
+                width: 70mm !important;
+                max-width: 70mm !important;
+                margin: 0 auto !important;
+                padding: 4mm 2mm !important;
                 box-shadow: none !important;
                 min-height: auto !important;
                 box-sizing: border-box !important;
@@ -1791,7 +1821,7 @@ export function printDteTicket(presId) {
         <table class="totals-table">
             <tr>
                 <td>Subtotal Neto:</td>
-                <td class="text-right">$ ${subtotal.toFixed(2)}</td>
+                <td class="text-right">$ ${(preciosConIva ? baseParaImpuestos : subtotal).toFixed(2)}</td>
             </tr>
             <tr>
                 <td>IVA (13%):</td>
