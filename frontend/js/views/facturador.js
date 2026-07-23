@@ -1197,25 +1197,27 @@ export function renderInvoicingWorkspace(container, presId) {
                         <tbody>
                             ${safe(prodItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, false);
+                                const discPriceNeto = preciosConIva ? (discPrice / 1.13) : discPrice;
                                 const descName = item.Descripcion || item.desc || '';
                                 return `
                                     <tr>
                                         <td>${descName.substring(0,25)}</td>
                                         <td>${item.Cantidad || item.qty}</td>
-                                        <td>$${discPrice.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
+                                        <td>$${discPriceNeto.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPriceNeto * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
                             ${safe(laborItems.map(item => {
                                 const discPrice = getItemDiscountedPrice(item, true);
+                                const discPriceNeto = preciosConIva ? (discPrice / 1.13) : discPrice;
                                 const descName = item.Descripcion || item.desc || '';
                                 return `
                                     <tr>
                                         <td>${descName.substring(0,25)}</td>
                                         <td>${item.Cantidad || item.qty}</td>
-                                        <td>$${discPrice.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPrice * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
+                                        <td>$${discPriceNeto.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${(discPriceNeto * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
@@ -1788,16 +1790,7 @@ export function printDteTicket(presId) {
             <tbody>
                 ${safe(prodItems.map(item => {
                     const price = parseFloat(item.PrecioUnitario || item.price || 0);
-                    let unitPriceDisplay = price;
-                    if (isCCF) {
-                        if (preciosConIva) {
-                            unitPriceDisplay = price / 1.13;
-                        }
-                    } else {
-                        if (!preciosConIva) {
-                            unitPriceDisplay = price * 1.13;
-                        }
-                    }
+                    const unitPriceDisplay = preciosConIva ? (price / 1.13) : price;
                     return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
@@ -1809,16 +1802,7 @@ export function printDteTicket(presId) {
                 }).join(''))}
                 ${safe(laborItems.map(item => {
                     const price = parseFloat(item.PrecioUnitario || item.price || 0);
-                    let unitPriceDisplay = price;
-                    if (isCCF) {
-                        if (preciosConIva) {
-                            unitPriceDisplay = price / 1.13;
-                        }
-                    } else {
-                        if (!preciosConIva) {
-                            unitPriceDisplay = price * 1.13;
-                        }
-                    }
+                    const unitPriceDisplay = preciosConIva ? (price / 1.13) : price;
                     return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
