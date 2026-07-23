@@ -630,12 +630,25 @@ export function renderVentaRapida(container) {
         discountSection.innerHTML = promoRowHtml;
         
         const subtotalConDescuento = Math.max(0, subtotal - discount);
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
         const taxRate = 0.13;
         
-        const iva = subtotalConDescuento * taxRate;
-        taxIvaEl.textContent = '$ ' + iva.toFixed(2);
+        let iva = 0;
+        let grandTotal = 0;
+        let baseParaImpuestos = subtotalConDescuento;
+
+        if (preciosConIva) {
+            grandTotal = subtotalConDescuento;
+            baseParaImpuestos = subtotalConDescuento / 1.13;
+            iva = subtotalConDescuento - baseParaImpuestos;
+        } else {
+            iva = subtotalConDescuento * taxRate;
+            grandTotal = subtotalConDescuento + iva;
+            baseParaImpuestos = subtotalConDescuento;
+        }
         
-        let grandTotal = subtotalConDescuento + iva;
+        taxIvaEl.textContent = '$ ' + iva.toFixed(2);
         
         const clientCode = clientSelect.value;
         const client = db.clientes.find(c => c.Codigo_Cliente === clientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
@@ -644,13 +657,13 @@ export function renderVentaRapida(container) {
         let perception = 0;
         let retention = 0;
         if (client.AplicaPercepcion > 0) {
-            perception = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
+            perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
             grandTotal += perception;
             retPerSection.innerHTML += `<div class="summary-row" style="display:flex; justify-content:space-between;"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perception.toFixed(2)}</span></div>`;
         }
         const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        if (isGranContrib && subtotalConDescuento >= 100.00) {
-            retention = subtotalConDescuento * 0.01;
+        if (isGranContrib && baseParaImpuestos >= 100.00) {
+            retention = baseParaImpuestos * 0.01;
             grandTotal -= retention;
             retPerSection.innerHTML += `<div class="summary-row" style="display:flex; justify-content:space-between;"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${retention.toFixed(2)}</span></div>`;
         }
@@ -1046,10 +1059,22 @@ export function renderVentaRapida(container) {
                 return rawPrice;
             }
             
+            const wsConfig = getWorkshopConfig(db);
+            const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
             const formattedItems = [
                 ...(vr.productos || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, false);
-                    const unitPrice = rawPrice;
+                    let unitPrice = rawPrice;
+                    if (isCCF) {
+                        if (preciosConIva) {
+                            unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
+                        }
+                    } else {
+                        if (!preciosConIva) {
+                            unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
+                        }
+                    }
                     return {
                         type: 'BIENES',
                         internalCode: String(item.id || '').trim(),
@@ -1061,7 +1086,16 @@ export function renderVentaRapida(container) {
                 }),
                 ...(vr.mano_obra || []).map(item => {
                     const rawPrice = getItemDiscountedPrice(item, true);
-                    const unitPrice = rawPrice;
+                    let unitPrice = rawPrice;
+                    if (isCCF) {
+                        if (preciosConIva) {
+                            unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
+                        }
+                    } else {
+                        if (!preciosConIva) {
+                            unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
+                        }
+                    }
                     return {
                         type: 'SERVICIOS',
                         internalCode: String(item.id || '').trim(),
@@ -1073,8 +1107,13 @@ export function renderVentaRapida(container) {
                 })
             ];
             
+            let discountedSubtotal = 0;
+            (vr.productos || []).forEach(item => discountedSubtotal += getItemDiscountedPrice(item, false) * parseInt(item.qty || 1));
+            (vr.mano_obra || []).forEach(item => discountedSubtotal += getItemDiscountedPrice(item, true) * parseInt(item.qty || 1));
+            
+            const baseParaImpuestos = preciosConIva ? (discountedSubtotal / 1.13) : discountedSubtotal;
             const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            const dteRetention = (isGranContribValue && lastCalculatedSubtotal >= 100.00) ? parseFloat((lastCalculatedSubtotal * 0.01).toFixed(4)) : 0;
+            const dteRetention = (isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
             
             const dtePayload = {
                 id: generateUUID(),

@@ -307,20 +307,7 @@ export function renderPendingTab(container) {
         rowsContainer.innerHTML = '';
         
         const filtered = pending.filter(p => {
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotal * taxRate;
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            if (isGranContrib && subtotal >= 100.00) retVal = subtotal * 0.01;
-            if (client.AplicaPercepcion > 0) percVal = subtotal * parseFloat(client.AplicaPercepcion);
-            const grandTotal = subtotal + iva + percVal - retVal;
+            const grandTotal = getBudgetGrandTotal(p, db);
             const grandTotalString = grandTotal.toFixed(2);
             const grandTotalFormatted = grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             
@@ -340,26 +327,7 @@ export function renderPendingTab(container) {
         }
         
         filtered.forEach(p => {
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotal * taxRate;
-            
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            if (isGranContrib && subtotal >= 100.00) {
-                retVal = subtotal * 0.01;
-            }
-            if (client.AplicaPercepcion > 0) {
-                percVal = subtotal * parseFloat(client.AplicaPercepcion);
-            }
-            const grandTotal = subtotal + iva + percVal - retVal;
+            const grandTotal = getBudgetGrandTotal(p, db);
             
             const tr = document.createElement('tr');
             tr.innerHTML = html`
@@ -492,24 +460,7 @@ export function renderIssuedTab(container) {
         });
         
         const filtered = dateFiltered.filter(p => {
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            
-            const discount = parseFloat(p.Descuento || 0);
-            const subtotalConDescuento = Math.max(0, subtotal - discount);
-            
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotalConDescuento * taxRate;
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            if (isGranContrib && subtotalConDescuento >= 100.00) retVal = subtotalConDescuento * 0.01;
-            if (client.AplicaPercepcion > 0) percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
-            const grandTotal = subtotalConDescuento + iva + percVal - retVal;
+            const grandTotal = getBudgetGrandTotal(p, db);
             const grandTotalString = grandTotal.toFixed(2);
             const grandTotalFormatted = grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             
@@ -537,30 +488,7 @@ export function renderIssuedTab(container) {
         }
         
         filtered.forEach(p => {
-            const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === p['ID Presupuesto']);
-            const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === p['ID Presupuesto']);
-            
-            const sumProd = products.reduce((sum, prod) => sum + parseFloat(prod.PrecioUnitario || 0) * parseInt(prod.Cantidad || 1), 0);
-            const sumLab = labor.reduce((sum, lab) => sum + parseFloat(lab.PrecioUnitario || 0) * parseInt(lab.Cantidad || 1), 0);
-            const subtotal = sumProd + sumLab;
-            
-            const discount = parseFloat(p.Descuento || 0);
-            const subtotalConDescuento = Math.max(0, subtotal - discount);
-            
-            const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-            const iva = subtotalConDescuento * taxRate;
-            
-            const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || {};
-            let retVal = 0;
-            let percVal = 0;
-            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            if (isGranContrib && subtotalConDescuento >= 100.00) {
-                retVal = subtotalConDescuento * 0.01;
-            }
-            if (client.AplicaPercepcion > 0) {
-                percVal = subtotalConDescuento * parseFloat(client.AplicaPercepcion);
-            }
-            const grandTotal = subtotalConDescuento + iva + percVal - retVal;
+            const grandTotal = getBudgetGrandTotal(p, db);
             
             const isAnulado = p.Estado == 4 || p.Anulado;
             const dteLabel = p.Doc_a_Emitir === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
@@ -846,20 +774,23 @@ export function renderInvoicingWorkspace(container, presId) {
     prodItems.forEach(item => subtotal += getItemDiscountedPrice(item, false) * parseInt(item.Cantidad || 1));
     laborItems.forEach(item => subtotal += getItemDiscountedPrice(item, true) * parseInt(item.Cantidad || 1));
     
+    const discount = parseFloat(p.Descuento || 0);
+    const subtotalConDescuento = Math.max(0, subtotal - discount);
+    
     const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
     let iva = 0;
     let grandTotal = 0;
-    let baseParaImpuestos = subtotal;
+    let baseParaImpuestos = subtotalConDescuento;
 
     if (preciosConIva) {
-        grandTotal = subtotal;
-        baseParaImpuestos = subtotal / 1.13;
-        iva = subtotal - baseParaImpuestos;
+        grandTotal = subtotalConDescuento;
+        baseParaImpuestos = subtotalConDescuento / 1.13;
+        iva = subtotalConDescuento - baseParaImpuestos;
     } else {
-        iva = subtotal * 0.13;
-        grandTotal = subtotal + iva;
-        baseParaImpuestos = subtotal;
+        iva = subtotalConDescuento * 0.13;
+        grandTotal = subtotalConDescuento + iva;
+        baseParaImpuestos = subtotalConDescuento;
     }
     
     let retention = 0;
@@ -915,6 +846,7 @@ export function renderInvoicingWorkspace(container, presId) {
 
         <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem;">
             <div style="display:flex; justify-content:space-between;"><span>Subtotal Neto:</span><span>$ ${subtotal.toFixed(2)}</span></div>
+            ${safe(discount > 0 ? `<div style="display:flex; justify-content:space-between; color: var(--warning);"><span>Descuento:</span><span>- $ ${discount.toFixed(2)}</span></div>` : '')}
             <div style="display:flex; justify-content:space-between;"><span>IVA (13%):</span><span>$ ${iva.toFixed(2)}</span></div>
             ${safe(perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : '')}
             ${safe(retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : '')}
@@ -1023,7 +955,16 @@ export function renderInvoicingWorkspace(container, presId) {
         const formattedItems = [
             ...prodItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, false);
-                const unitPrice = rawPrice;
+                let unitPrice = rawPrice;
+                if (isCCF) {
+                    if (preciosConIva) {
+                        unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
+                    }
+                } else {
+                    if (!preciosConIva) {
+                        unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
+                    }
+                }
                 return {
                     type: 'BIENES',
                     internalCode: String(item['ID_Producto DPP'] || item.id || '').trim(),
@@ -1035,7 +976,16 @@ export function renderInvoicingWorkspace(container, presId) {
             }),
             ...laborItems.map(item => {
                 const rawPrice = getItemDiscountedPrice(item, true);
-                const unitPrice = rawPrice;
+                let unitPrice = rawPrice;
+                if (isCCF) {
+                    if (preciosConIva) {
+                        unitPrice = parseFloat((rawPrice / 1.13).toFixed(4));
+                    }
+                } else {
+                    if (!preciosConIva) {
+                        unitPrice = parseFloat((rawPrice * 1.13).toFixed(4));
+                    }
+                }
                 return {
                     type: 'SERVICIOS',
                     internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),
@@ -1052,7 +1002,7 @@ export function renderInvoicingWorkspace(container, presId) {
         const ws = (db.saas_state && db.saas_state.workshopData) || {};
 
         const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        const dteRetention = (isGranContribValue && subtotal >= 100.00) ? parseFloat((subtotal * 0.01).toFixed(4)) : 0;
+        const dteRetention = (isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
 
         const dtePayload = {
             id: generateUUID(),
@@ -1479,6 +1429,9 @@ export function printDteTicket(presId) {
         prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
         laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
         
+        const discount = parseFloat(p.Descuento || 0);
+        const subtotalConDescuento = Math.max(0, subtotal - discount);
+
         const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
         const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
@@ -1486,16 +1439,16 @@ export function printDteTicket(presId) {
         
         let iva = 0;
         let grandTotal = 0;
-        let baseParaImpuestos = subtotal;
+        let baseParaImpuestos = subtotalConDescuento;
 
         if (preciosConIva) {
-            grandTotal = subtotal;
-            baseParaImpuestos = subtotal / 1.13;
-            iva = subtotal - baseParaImpuestos;
+            grandTotal = subtotalConDescuento;
+            baseParaImpuestos = subtotalConDescuento / 1.13;
+            iva = subtotalConDescuento - baseParaImpuestos;
         } else {
-            iva = subtotal * taxRate;
-            grandTotal = subtotal + iva;
-            baseParaImpuestos = subtotal;
+            iva = subtotalConDescuento * taxRate;
+            grandTotal = subtotalConDescuento + iva;
+            baseParaImpuestos = subtotalConDescuento;
         }
 
         let retention = 0;
@@ -1799,22 +1752,48 @@ export function printDteTicket(presId) {
                 </tr>
             </thead>
             <tbody>
-                ${safe(prodItems.map(item => `
+                ${safe(prodItems.map(item => {
+                    const price = parseFloat(item.PrecioUnitario || item.price || 0);
+                    let unitPriceDisplay = price;
+                    if (isCCF) {
+                        if (preciosConIva) {
+                            unitPriceDisplay = price / 1.13;
+                        }
+                    } else {
+                        if (!preciosConIva) {
+                            unitPriceDisplay = price * 1.13;
+                        }
+                    }
+                    return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
                         <td style="text-align: center;">${item.Cantidad || item.qty}</td>
-                        <td style="text-align: right;">$${parseFloat(item.PrecioUnitario || item.price || 0).toFixed(2)}</td>
-                        <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
+                        <td style="text-align: right;">$${unitPriceDisplay.toFixed(2)}</td>
+                        <td style="text-align: right;">$${(unitPriceDisplay * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
                     </tr>
-                `).join(''))}
-                ${safe(laborItems.map(item => `
+                    `;
+                }).join(''))}
+                ${safe(laborItems.map(item => {
+                    const price = parseFloat(item.PrecioUnitario || item.price || 0);
+                    let unitPriceDisplay = price;
+                    if (isCCF) {
+                        if (preciosConIva) {
+                            unitPriceDisplay = price / 1.13;
+                        }
+                    } else {
+                        if (!preciosConIva) {
+                            unitPriceDisplay = price * 1.13;
+                        }
+                    }
+                    return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
                         <td style="text-align: center;">${item.Cantidad || item.qty}</td>
-                        <td style="text-align: right;">$${parseFloat(item.PrecioUnitario || item.price || 0).toFixed(2)}</td>
-                        <td style="text-align: right;">$${(parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
+                        <td style="text-align: right;">$${unitPriceDisplay.toFixed(2)}</td>
+                        <td style="text-align: right;">$${(unitPriceDisplay * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
                     </tr>
-                `).join(''))}
+                    `;
+                }).join(''))}
             </tbody>
         </table>
         <div class="double-divider"></div>
@@ -1823,6 +1802,11 @@ export function printDteTicket(presId) {
                 <td>Subtotal Neto:</td>
                 <td class="text-right">$ ${(preciosConIva ? baseParaImpuestos : subtotal).toFixed(2)}</td>
             </tr>
+            ${safe(discount > 0 ? `
+            <tr>
+                <td style="color: #c0392b;">Descuento:</td>
+                <td class="text-right" style="color: #c0392b;">- $ ${discount.toFixed(2)}</td>
+            </tr>` : '')}
             <tr>
                 <td>IVA (13%):</td>
                 <td class="text-right">$ ${iva.toFixed(2)}</td>
