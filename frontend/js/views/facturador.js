@@ -1497,7 +1497,7 @@ export function printDteTicket(presId) {
     <title>Ticket DTE - ${presId}</title>
     <style>
         @page {
-            size: 72mm auto;
+            size: 80mm auto;
             margin: 0;
         }
         html, body {
@@ -1658,17 +1658,22 @@ export function printDteTicket(presId) {
         }
         @media print {
             html, body {
-                background-color: white;
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
             }
             .control-bar {
                 display: none !important;
             }
             .receipt-container {
-                width: 72mm;
-                margin: 0 auto;
-                padding: 4mm 1.5mm;
-                box-shadow: none;
-                min-height: auto;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 4mm 7mm 4mm 3mm !important;
+                box-shadow: none !important;
+                min-height: auto !important;
+                box-sizing: border-box !important;
             }
             .divider {
                 border-top: 1px dashed black;
