@@ -777,6 +777,7 @@ export function renderInvoicingWorkspace(container, presId) {
     const discount = parseFloat(p.Descuento || 0);
     const subtotalConDescuento = Math.max(0, subtotal - discount);
     
+    const wsConfig = getWorkshopConfig(db);
     const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
     let iva = 0;
