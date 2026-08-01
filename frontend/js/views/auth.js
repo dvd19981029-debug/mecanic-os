@@ -53,15 +53,15 @@ export function renderLockScreen(container) {
                 
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 2rem; color: var(--text-primary);">Selecciona tu Perfil de Empleado</h2>
                 
-                <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1.25rem; justify-content: center; max-width: 1100px; margin: 0 auto;">
+                <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1.25rem; justify-content: center; max-width: 1200px; margin: 0 auto;">
                     ${safe(tecnicos.map(t => {
                         const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
                         return html`
                             <div class="user-card lock-profile-card" data-id="${t.Codigo_Cliente || t.Nombre_Completo || t.Email}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem 0.75rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
                                 <img src="${avatar}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
-                                <div style="text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    <strong style="font-size: 0.9rem; display: block; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${t.Nombre_Completo}">${t.Nombre_Completo}</strong>
-                                    <small style="color: var(--text-secondary); font-size: 0.75rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${t.Nivel_Acceso}">${t.Nivel_Acceso}</small>
+                                <div style="text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                                    <strong style="font-size: 0.9rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-primary); line-height: 1.25; min-height: 2.5em; text-align: center; width: 100%;" title="${t.Nombre_Completo}">${t.Nombre_Completo}</strong>
+                                    <small style="color: var(--text-secondary); font-size: 0.75rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: center;" title="${t.Nivel_Acceso}">${t.Nivel_Acceso}</small>
                                 </div>
                             </div>
                         `;
