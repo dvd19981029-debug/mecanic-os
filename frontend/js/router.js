@@ -80,16 +80,20 @@ export function handleRouting() {
         const db = window.getDatabase();
         
         // Auto-activate SaaS status if firebase user is authenticated as owner
+        // (SOLO si la cuenta no está pendiente de aprobación, pendiente de términos ni suspendida)
         if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
             const fUser = firebase.auth().currentUser;
-            if (!db.saas_state || db.saas_state.status !== 'active') {
-                db.saas_state = db.saas_state || {};
-                db.saas_state.status = 'active';
-                db.saas_state.workshopData = db.saas_state.workshopData || {};
-                db.saas_state.workshopData.uid = fUser.uid;
-                db.saas_state.workshopData.correo = fUser.email;
-                db.saas_state.termsSigned = true;
-                saveDatabase(db);
+            const currentStatus = (db.saas_state && db.saas_state.status) || 'guest';
+            if (currentStatus !== 'pending' && currentStatus !== 'approved_terms_pending' && currentStatus !== 'guest' && currentStatus !== 'suspended') {
+                if (!db.saas_state || db.saas_state.status !== 'active') {
+                    db.saas_state = db.saas_state || {};
+                    db.saas_state.status = 'active';
+                    db.saas_state.workshopData = db.saas_state.workshopData || {};
+                    db.saas_state.workshopData.uid = fUser.uid;
+                    db.saas_state.workshopData.correo = fUser.email;
+                    db.saas_state.termsSigned = true;
+                    saveDatabase(db);
+                }
             }
         }
         
