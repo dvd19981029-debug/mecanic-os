@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=69';
+} from '../../app.js';
 import {
     showToast,
     escapeHtml,
@@ -29,7 +29,7 @@ import {
     downloadExcelReport,
     html,
     safe
-} from '../utils.js?v=69';
+} from '../utils.js';
 
 export function renderLockScreen(container) {
     const db = getDatabase();

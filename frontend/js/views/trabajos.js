@@ -3,12 +3,12 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=69';
+} from '../../app.js';
 import {
     showToast,
     escapeHtml
-} from '../utils.js?v=69';
-import { exportBudgetPDF } from './presupuestos.js?v=88';
+} from '../utils.js';
+import { exportBudgetPDF } from './presupuestos.js';
 
 export function renderTrabajosTaller(container) {
     const db = getDatabase();

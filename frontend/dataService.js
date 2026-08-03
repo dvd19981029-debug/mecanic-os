@@ -35,6 +35,7 @@ const dataService = {
     workshopOwnerUid: null,   // UID del taller (puede ser del dueño o compartido por empleados)
     readOnlyMode: false,      // true cuando el dispositivo es de un empleado (sin Firebase Auth propio)
     listeners: [],
+    lastTokenRefreshTime: 0,
 
     async getStorageItem(key) {
         if (typeof localforage !== 'undefined') {
@@ -465,18 +466,23 @@ const dataService = {
 
         const handleSyncError = (error) => {
             console.error("Mecanic OS: Firestore Sync Error:", error);
-            if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+            if (error.code === 'unauthenticated') {
                 if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
-                    console.log("Mecanic OS: Auth session expired or permission denied. Refreshing token to reconnect...");
-                    firebase.auth().currentUser.getIdToken(true).then(() => {
-                        console.log("Mecanic OS: Firebase token refreshed successfully. Restoring sync listeners...");
-                        const ownerUid = getWorkshopOwnerUid();
-                        if (ownerUid) {
-                            this.startSync(ownerUid, this.readOnlyMode);
-                        }
-                    }).catch(err => {
-                        console.error("Mecanic OS: Failed to refresh Firebase token:", err);
-                    });
+                    const now = Date.now();
+                    // Prevent refreshing more than once every 15 seconds to avoid infinite retry loops
+                    if (now - this.lastTokenRefreshTime > 15000) {
+                        this.lastTokenRefreshTime = now;
+                        console.log("Mecanic OS: Auth session expired. Refreshing token to reconnect...");
+                        firebase.auth().currentUser.getIdToken(true).then(() => {
+                            console.log("Mecanic OS: Firebase token refreshed successfully. Restoring sync listeners...");
+                            const ownerUid = getWorkshopOwnerUid();
+                            if (ownerUid) {
+                                this.startSync(ownerUid, this.readOnlyMode);
+                            }
+                        }).catch(err => {
+                            console.error("Mecanic OS: Failed to refresh Firebase token:", err);
+                        });
+                    }
                 }
             }
         };
@@ -626,14 +632,19 @@ const dataService = {
             this.cache['45 Pagos VR'] = this.cache.pagos_vr;
             this.cache.config_taller = null;
             this.cache.ingreso_config = null;
-            this.cache.saas_state = {
-                status: 'guest',
-                workshopData: null,
-                termsSigned: false,
-                signatureName: '',
-                signedAt: null
-            };
-            this.cache.solicitudes_registro = [];
+            // Si el estado actual es 'pending' (el taller se acaba de registrar y se cerró la sesión para esperar aprobación),
+            // conservamos el saas_state en lugar de sobreescribirlo a 'guest'.
+            const currentStatus = (this.cache.saas_state && this.cache.saas_state.status) || 'guest';
+            if (currentStatus !== 'pending') {
+                this.cache.saas_state = {
+                    status: 'guest',
+                    workshopData: null,
+                    termsSigned: false,
+                    signatureName: '',
+                    signedAt: null
+                };
+                this.cache.solicitudes_registro = [];
+            }
             this.cache.saas_payments = [];
         }
         await this.setStorageItem('mecanic_os_db', this.cache);

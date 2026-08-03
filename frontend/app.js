@@ -14,13 +14,13 @@ import {
     downloadExcelReport,
     html,
     safe
-} from './js/utils.js?v=69';
+} from './js/utils.js';
 
 import {
     calculateElSalvadorPeriodPayroll,
     getBudgetGrandTotal,
     getClientPendingBalance
-} from './js/businessLogic.js?v=69';
+} from './js/businessLogic.js';
 
 import {
     updateUserUI,
@@ -32,7 +32,7 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode
-} from './js/ui.js?v=85';
+} from './js/ui.js';
 
 // Expose critical functions globally to window for legacy compatibility
 window.showToast = showToast;
@@ -315,6 +315,16 @@ function initFirebaseAuthListener() {
             if (user && !user.isAnonymous) {
                 // --- Dueño del taller autenticado con Firebase ---
                 currentFirebaseUser = user;
+                
+                // Evitar iniciar sincronización o migración de datos si el taller
+                // está en proceso de registro (pending) o en modo invitado (guest).
+                const db = typeof getDatabase === 'function' ? getDatabase() : null;
+                const saasState = (db && db.saas_state) || {};
+                if (saasState.status === 'pending' || saasState.status === 'guest') {
+                    console.log("Mecanic OS: User authenticated but SaaS status is pending/guest. Ignoring sync/migration.");
+                    return;
+                }
+
                 // Guardar UID del taller para que empleados puedan conectarse
                 localStorage.setItem('mecanic_os_workshop_uid', user.uid);
                 updateCloudStatusUI(true, "active");

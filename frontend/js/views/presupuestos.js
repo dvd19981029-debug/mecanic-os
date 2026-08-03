@@ -17,7 +17,7 @@ import {
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=69';
+} from '../../app.js';
 import {
     showToast,
     escapeHtml,
@@ -28,7 +28,7 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable
-} from '../utils.js?v=80';
+} from '../utils.js';
 
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();

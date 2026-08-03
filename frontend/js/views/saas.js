@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     safe
-} from '../../app.js?v=69';
+} from '../../app.js';
 import {
     showToast,
     escapeHtml,
@@ -29,8 +29,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     saveDteLogToFirestore
-} from '../utils.js?v=69';
-import { renderSaaSAdminLogin } from './auth.js?v=69';
+} from '../utils.js';
+import { renderSaaSAdminLogin } from './auth.js';
 
 export async function renderRegistroSaaS(container) {
     const db = getDatabase();
@@ -210,7 +210,7 @@ export async function renderRegistroSaaS(container) {
                         </div>
                         <div class="form-group">
                             <label>Contraseña de Acceso</label>
-                            <input type="password" id="reg-prop-pass" required placeholder="Mínimo 4 caracteres" style="padding:0.6rem;">
+                            <input type="password" id="reg-prop-pass" required minlength="6" placeholder="Mínimo 6 caracteres" style="padding:0.6rem;">
                         </div>
                     </div>
                 </div>
@@ -372,7 +372,27 @@ export async function renderRegistroSaaS(container) {
             };
             
             try {
-                await dataService.saas.createRequest(requestData);
+                // Agregar un timeout de 4 segundos a la escritura en Firestore para evitar que se quede
+                // colgado indefinidamente si hay problemas de red, bloqueadores de anuncios o el servidor no responde.
+                const createPromise = dataService.saas.createRequest(requestData);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout de conexión con el servidor de base de datos")), 4000)
+                );
+                
+                try {
+                    await Promise.race([createPromise, timeoutPromise]);
+                } catch (raceErr) {
+                    console.warn("Advertencia: El registro en la nube excedió el tiempo límite (timeout). Guardando localmente en cola offline:", raceErr);
+                    // Forzar el guardado local en la cola si la promesa falló por timeout
+                    if (!dataService.cache.solicitudes_registro) {
+                        dataService.cache.solicitudes_registro = [];
+                    }
+                    if (!dataService.cache.solicitudes_registro.some(s => s.id === requestData.id)) {
+                        dataService.cache.solicitudes_registro.push(requestData);
+                        await dataService.setStorageItem('mecanic_os_db', dataService.cache);
+                    }
+                }
+
                 // Cerrar sesión inmediatamente para que no queden autenticados
                 if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
                     await firebase.auth().signOut();
