@@ -370,20 +370,23 @@ export async function renderRegistroSaaS(container) {
                     backendUrl: ''
                 }
             };
-            
+
             try {
-                // Agregar un timeout de 4 segundos a la escritura en Firestore para evitar que se quede
-                // colgado indefinidamente si hay problemas de red, bloqueadores de anuncios o el servidor no responde.
+                // Intentar escritura en Firestore con timeout de 8 segundos.
+                // Si falla o hace timeout, guardar localmente y avisar al usuario honestamente.
+                let firestoreSuccess = false;
                 const createPromise = dataService.saas.createRequest(requestData);
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout de conexión con el servidor de base de datos")), 4000)
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('timeout')), 8000)
                 );
-                
+
                 try {
                     await Promise.race([createPromise, timeoutPromise]);
+                    firestoreSuccess = true;
                 } catch (raceErr) {
-                    console.warn("Advertencia: El registro en la nube excedió el tiempo límite (timeout). Guardando localmente en cola offline:", raceErr);
-                    // Forzar el guardado local en la cola si la promesa falló por timeout
+                    const isTimeout = raceErr.message === 'timeout';
+                    console.warn('Advertencia: No se pudo confirmar la escritura en Firestore.', raceErr.message);
+                    // Guardar localmente como respaldo offline
                     if (!dataService.cache.solicitudes_registro) {
                         dataService.cache.solicitudes_registro = [];
                     }
@@ -393,11 +396,13 @@ export async function renderRegistroSaaS(container) {
                     }
                 }
 
-                // Cerrar sesión inmediatamente para que no queden autenticados
+                // Cerrar sesión para que no queden autenticados como admin temporal
                 if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
                     await firebase.auth().signOut();
                 }
-                
+
+                // Guardar estado local como 'pending' en ambos casos (éxito y fallo de red)
+                // para que el router escuche cuando el admin apruebe desde Firestore
                 currentDb.saas_state = {
                     status: 'pending',
                     workshopData: requestData,
@@ -406,12 +411,19 @@ export async function renderRegistroSaaS(container) {
                     signedAt: null
                 };
                 saveDatabase(currentDb);
-                showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
+
+                if (firestoreSuccess) {
+                    showToast('¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.', 'success');
+                } else {
+                    // Aviso honesto: la solicitud no llegó al servidor aún
+                    showToast('Tu solicitud fue guardada localmente pero no pudimos confirmar la conexión con el servidor. Serás notificado cuando sea procesada. Si esto persiste, contacta al administrador.', 'warning');
+                }
+
                 window.location.hash = 'landing';
                 handleRouting();
             } catch (err) {
-                console.error("Error al registrar el taller:", err);
-                showToast("Error al guardar la solicitud: " + err.message, "error");
+                console.error('Error al registrar el taller:', err);
+                showToast('Error al guardar la solicitud: ' + err.message, 'error');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = origHtml;
             }
