@@ -944,7 +944,7 @@ export async function renderAdminSolicitudes(container) {
     const isFirebaseAdmin = currentUser && ['dvd19981029@gmail.com', 'amejia2998@gmail.com'].includes((currentUser.email || '').toLowerCase());
     const hasCustomFirebaseConfig = localStorage.getItem('mecanic_os_firebase_config') !== null;
     
-    // Wire up central requests listener
+    // Wire up central requests listener (only once per page session)
     if (typeof dbFirestore !== 'undefined' && dbFirestore && !window.saasRequestsListenerWired) {
         window.saasRequestsListenerWired = true;
         dataService.saas.listenRequests((requests) => {
@@ -954,7 +954,9 @@ export async function renderAdminSolicitudes(container) {
                 renderAdminSolicitudes(container);
             }
         });
-        return;
+        // IMPORTANTE: NO hacemos return aquí. Continuamos para renderizar la vista
+        // con los datos actuales mientras el listener se activa en segundo plano.
+        // El `return` anterior causaba que el panel siempre mostrara "0 solicitudes" en la primera carga.
     }
     
     // Load and sync central SaaS config from /saas_metrics/config
