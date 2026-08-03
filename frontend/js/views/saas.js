@@ -403,10 +403,26 @@ export async function renderRegistroSaaS(container) {
                     registerRequest(userCredential.user.uid);
                 })
                 .catch((error) => {
-                    console.error("Error al crear usuario en Firebase Auth:", error);
-                    showToast(`Error al crear la cuenta: ${error.message}`, "error");
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = origHtml;
+                    if (error.code === 'auth/email-already-in-use') {
+                        // User exists in Auth but might not have a finished Firestore request document.
+                        // Attempt to log in with the provided password to authenticate and save the request.
+                        firebase.auth().signInWithEmailAndPassword(email, pass)
+                            .then((userCredential) => {
+                                console.log("User already exists in Firebase Auth. Sign-in successful. Creating request under existing UID.");
+                                registerRequest(userCredential.user.uid);
+                            })
+                            .catch((loginError) => {
+                                console.error("Error signing in with existing user:", loginError);
+                                showToast("Este correo electrónico ya está registrado. Por favor, usa otra dirección de correo o recupera tu contraseña.", "error");
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = origHtml;
+                            });
+                    } else {
+                        console.error("Error al crear usuario en Firebase Auth:", error);
+                        showToast(`Error al crear la cuenta: ${error.message}`, "error");
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origHtml;
+                    }
                 });
         } else {
             const mockUid = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
