@@ -20,11 +20,11 @@ export function renderVehiculos(container) {
     });
     const vehiculosList = Array.from(vehiculosMap.values());
 
-    const clientesList = db['01 Clientes'] || db.clientes || [];
-    const ingresosList = db['03 Hojas de Ingreso'] || [];
-    const presupuestosList = db['04 Presupuestos'] || [];
-    const trabajosList = db['05 Trabajos en Progreso'] || [];
-    const revisionesList = db['21 Puntos'] || [];
+    const clientesList = db.clientes || db['01 Clientes'] || [];
+    const ingresosList = db.ingresos || db['03 Hojas de Ingreso'] || [];
+    const presupuestosList = db.presupuestos || db['04 Presupuestos'] || [];
+    const trabajosList = db.trabajos || db['05 Trabajos en Progreso'] || [];
+    const revisionesList = db.revisiones || db['21 Puntos'] || [];
 
     // Helper to get Placa
     function getVehiclePlaca(v) {
@@ -64,6 +64,7 @@ export function renderVehiculos(container) {
         const idVeh = (v.ID_Vehiculo || '').trim().toUpperCase();
 
         const match = (item) => {
+            if (!item) return false;
             const itemPlaca = (item.Placas || item.Placa || item.placas || item.ID_Vehiculo || '').trim().toUpperCase();
             const itemVehId = (item.ID_Vehiculo || '').trim().toUpperCase();
             return (placa && placa !== 'S/N' && itemPlaca === placa) || (idVeh && itemVehId === idVeh);
@@ -74,8 +75,22 @@ export function renderVehiculos(container) {
         const vTrabajos = trabajosList.filter(match);
         const vRevisiones = revisionesList.filter(match);
 
-        const enTaller = vIngresos.some(i => i.Estado === 'EN_PROCESO' || i.Estado === 'PENDIENTE') ||
-                         vTrabajos.some(t => t.Estado !== 'ENTREGADO' && t.Estado !== 'FINALIZADO');
+        const vPresupuestosActive = vPresupuestos.some(p => {
+            const st = p.Estado;
+            return st === 2 || st === '2' || st === 'APROBADO' || st === 'EN_PROCESO' || st === 'EN PROCESO';
+        });
+
+        const vIngresosActive = vIngresos.some(i => {
+            const st = (i.Estado || '').toString().trim().toUpperCase();
+            return st === 'EN_PROCESO' || st === 'PENDIENTE' || st === 'EN PROCESO' || st === 'EN TALLER' || st === 'PROCESO';
+        });
+
+        const vTrabajosActive = vTrabajos.some(t => {
+            const st = (t.Estado || '').toString().trim().toUpperCase();
+            return st !== 'ENTREGADO' && st !== 'FINALIZADO' && st !== 'COBRADO' && st !== 'CANCELADO';
+        });
+
+        const enTaller = vPresupuestosActive || vIngresosActive || vTrabajosActive;
 
         return {
             ingresosCount: vIngresos.length,
