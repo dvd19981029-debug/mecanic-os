@@ -272,14 +272,21 @@ export function renderLockScreen(container) {
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
                 
-                performUnifiedLogin(email, pass, btn, (success) => {
+                const loginFn = window.performUnifiedLogin || performUnifiedLogin;
+                if (typeof loginFn === 'function') {
+                    loginFn(email, pass, btn, (success) => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                        if (success) {
+                            window.location.hash = 'taller-dashboard';
+                            handleRouting();
+                        }
+                    });
+                } else {
+                    console.error("performUnifiedLogin function is missing");
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
-                    if (success) {
-                        window.location.hash = 'taller-dashboard';
-                        handleRouting();
-                    }
-                });
+                }
             });
         }
     }

@@ -60,6 +60,7 @@ window.setupMunicipiosSelect = setupMunicipiosSelect;
 window.setupOfficialCatalogsSelect = setupOfficialCatalogsSelect;
 window.getGirosOptionsHtml = getGirosOptionsHtml;
 window.getValidEconomicActivityCode = getValidEconomicActivityCode;
+window.performUnifiedLogin = performUnifiedLogin;
 
 // Embedded Database from Grupo Gema
 const DEFAULT_DATABASE = {
