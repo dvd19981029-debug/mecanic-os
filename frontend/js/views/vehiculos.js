@@ -11,15 +11,28 @@ import {
 export function renderVehiculos(container) {
     const db = getDatabase();
 
-    // Data structures
-    const vehiculosList = db['02 Vehiculos'] || db.vehiculos || [];
+    // Data structures - Combine db.vehiculos and db['02 Vehiculos'] removing duplicates
+    const rawVehicles = [...(db.vehiculos || []), ...(db['02 Vehiculos'] || [])];
+    const vehiculosMap = new Map();
+    rawVehicles.forEach(v => {
+        const key = v.ID_Vehiculo || v.Placas || v.Placa || JSON.stringify(v);
+        if (!vehiculosMap.has(key)) vehiculosMap.set(key, v);
+    });
+    const vehiculosList = Array.from(vehiculosMap.values());
+
     const clientesList = db['01 Clientes'] || db.clientes || [];
     const ingresosList = db['03 Hojas de Ingreso'] || [];
     const presupuestosList = db['04 Presupuestos'] || [];
     const trabajosList = db['05 Trabajos en Progreso'] || [];
     const revisionesList = db['21 Puntos'] || [];
 
-    // Map clients by Code / ID for fast lookup
+    // Helper to get Placa
+    function getVehiclePlaca(v) {
+        if (!v) return 'S/N';
+        return (v.Placas || v.Placa || v.placas || v['Número de Placas'] || v.ID_Vehiculo || 'S/N').trim();
+    }
+
+    // Map clients by Code / ID / Name for fast lookup
     const clientMap = new Map();
     clientesList.forEach(c => {
         const id = c.ID_Cliente || c.Codigo_Cliente || c.id;
@@ -29,7 +42,7 @@ export function renderVehiculos(container) {
 
     // Helper to resolve client for a vehicle
     function getVehicleClient(v) {
-        const clientId = v.ID_Cliente || v.Cliente_ID || v.Cliente;
+        const clientId = v.ID_Cliente || v.Cliente_ID || v.Cliente || v.Codigo_Cliente;
         if (clientId && clientMap.has(clientId)) {
             return clientMap.get(clientId);
         }
@@ -43,15 +56,23 @@ export function renderVehiculos(container) {
         };
     }
 
-    // Helper to get stats for a vehicle
-    function getVehicleStats(placa) {
-        if (!placa) return { ingresosCount: 0, presupuestosCount: 0, trabajosCount: 0, revisionesCount: 0, enTaller: false, ingresos: [], presupuestos: [], trabajos: [], revisiones: [] };
-        const pUpper = placa.trim().toUpperCase();
+    // Helper to get stats and history for a vehicle
+    function getVehicleStats(v) {
+        if (!v) return { ingresosCount: 0, presupuestosCount: 0, trabajosCount: 0, revisionesCount: 0, enTaller: false, ingresos: [], presupuestos: [], trabajos: [], revisiones: [] };
+        
+        const placa = getVehiclePlaca(v).toUpperCase();
+        const idVeh = (v.ID_Vehiculo || '').trim().toUpperCase();
 
-        const vIngresos = ingresosList.filter(i => (i.Placa || i.ID_Vehiculo || '').trim().toUpperCase() === pUpper);
-        const vPresupuestos = presupuestosList.filter(p => (p.Placa || p.ID_Vehiculo || '').trim().toUpperCase() === pUpper);
-        const vTrabajos = trabajosList.filter(t => (t.Placa || t.ID_Vehiculo || '').trim().toUpperCase() === pUpper);
-        const vRevisiones = revisionesList.filter(r => (r.Placa || r.ID_Vehiculo || '').trim().toUpperCase() === pUpper);
+        const match = (item) => {
+            const itemPlaca = (item.Placas || item.Placa || item.placas || item.ID_Vehiculo || '').trim().toUpperCase();
+            const itemVehId = (item.ID_Vehiculo || '').trim().toUpperCase();
+            return (placa && placa !== 'S/N' && itemPlaca === placa) || (idVeh && itemVehId === idVeh);
+        };
+
+        const vIngresos = ingresosList.filter(match);
+        const vPresupuestos = presupuestosList.filter(match);
+        const vTrabajos = trabajosList.filter(match);
+        const vRevisiones = revisionesList.filter(match);
 
         const enTaller = vIngresos.some(i => i.Estado === 'EN_PROCESO' || i.Estado === 'PENDIENTE') ||
                          vTrabajos.some(t => t.Estado !== 'ENTREGADO' && t.Estado !== 'FINALIZADO');
@@ -78,7 +99,7 @@ export function renderVehiculos(container) {
     const totalVehicles = vehiculosList.length;
     let vehiclesInShop = 0;
     vehiculosList.forEach(v => {
-        if (getVehicleStats(v.Placa || v.ID_Vehiculo).enTaller) vehiclesInShop++;
+        if (getVehicleStats(v).enTaller) vehiclesInShop++;
     });
 
     container.innerHTML = html`
@@ -160,14 +181,14 @@ export function renderVehiculos(container) {
                 <table>
                     <thead>
                         <tr>
-                            <th>Placa / ID</th>
-                            <th>Vehículo</th>
-                            <th>Año / Color</th>
-                            <th>Propietario / Cliente</th>
-                            <th>VIN / Motor</th>
-                            <th>Historial</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
+                            <th>PLACA</th>
+                            <th>VEHÍCULO</th>
+                            <th>AÑO / COLOR</th>
+                            <th>PROPIETARIO / CLIENTE</th>
+                            <th>VIN / MOTOR</th>
+                            <th>HISTORIAL</th>
+                            <th>ESTADO</th>
+                            <th>ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody id="veh-table-body">
@@ -208,7 +229,8 @@ export function renderVehiculos(container) {
         const selectedStatus = document.getElementById('veh-status-filter').value;
 
         const filtered = vehiculosList.filter(v => {
-            const placa = (v.Placa || v.ID_Vehiculo || '').toLowerCase();
+            const placa = getVehiclePlaca(v).toLowerCase();
+            const idVeh = (v.ID_Vehiculo || '').toLowerCase();
             const marca = (v.Marca || '').toLowerCase();
             const modelo = (v.Modelo || '').toLowerCase();
             const anio = (v.Año || v.Anio || '').toString().toLowerCase();
@@ -221,6 +243,7 @@ export function renderVehiculos(container) {
 
             const matchesSearch = !searchText || (
                 placa.includes(searchText) ||
+                idVeh.includes(searchText) ||
                 marca.includes(searchText) ||
                 modelo.includes(searchText) ||
                 anio.includes(searchText) ||
@@ -232,7 +255,7 @@ export function renderVehiculos(container) {
 
             const matchesBrand = !selectedBrand || (v.Marca || '').trim().toUpperCase() === selectedBrand;
 
-            const stats = getVehicleStats(v.Placa || v.ID_Vehiculo);
+            const stats = getVehicleStats(v);
             let matchesStatus = true;
             if (selectedStatus === 'en_taller') matchesStatus = stats.enTaller;
             if (selectedStatus === 'fuera') matchesStatus = !stats.enTaller;
@@ -246,19 +269,21 @@ export function renderVehiculos(container) {
         }
 
         filtered.forEach(v => {
-            const placa = v.Placa || v.ID_Vehiculo || 'S/N';
+            const placa = getVehiclePlaca(v);
+            const idVeh = v.ID_Vehiculo || '';
             const client = getVehicleClient(v);
-            const stats = getVehicleStats(placa);
+            const stats = getVehicleStats(v);
 
             const tr = document.createElement('tr');
             tr.innerHTML = html`
                 <td>
-                    <strong style="font-family:monospace; font-size:0.95rem; background:rgba(99,102,241,0.1); color:var(--primary); padding:0.25rem 0.6rem; border-radius:4px; border:1px solid rgba(99,102,241,0.2);">
-                        ${escapeHtml(placa)}
+                    <strong style="font-family:monospace; font-size:1.05rem; background:rgba(99,102,241,0.15); color:var(--primary); padding:0.3rem 0.75rem; border-radius:6px; border:1px solid rgba(99,102,241,0.3); display:inline-block;">
+                        <i class="fa-solid fa-id-card" style="font-size:0.85rem; margin-right:0.35rem;"></i>${escapeHtml(placa)}
                     </strong>
+                    ${safe(idVeh && idVeh !== placa ? `<span style="display:block; font-family:monospace; font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">ID: ${escapeHtml(idVeh)}</span>` : '')}
                 </td>
                 <td>
-                    <strong style="color:var(--text-primary); display:block;">${escapeHtml(v.Marca || '')} ${escapeHtml(v.Modelo || '')}</strong>
+                    <strong style="color:var(--text-primary); display:block; font-size:0.95rem;">${escapeHtml(v.Marca || '')} ${escapeHtml(v.Modelo || '')}</strong>
                     <span style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(v.Tipo || 'Automóvil')}</span>
                 </td>
                 <td>
@@ -288,7 +313,7 @@ export function renderVehiculos(container) {
                 </td>
                 <td>
                     <div style="display:flex; gap:0.4rem; align-items:center;">
-                        <button class="btn btn-primary btn-expediente-veh" data-placa="${escapeHtml(placa)}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;">
+                        <button class="btn btn-primary btn-expediente-veh" data-key="${escapeHtml(v.ID_Vehiculo || placa)}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;">
                             <i class="fa-solid fa-folder-open"></i> Expediente
                         </button>
                     </div>
@@ -300,17 +325,19 @@ export function renderVehiculos(container) {
         // Bind Expediente button click
         tableBody.querySelectorAll('.btn-expediente-veh').forEach(btn => {
             btn.addEventListener('click', () => {
-                const placa = btn.getAttribute('data-placa');
-                openVehicleExpedienteModal(placa);
+                const key = btn.getAttribute('data-key');
+                const veh = vehiculosList.find(v => (v.ID_Vehiculo || getVehiclePlaca(v)) === key);
+                openVehicleExpedienteModal(veh);
             });
         });
     }
 
     // Open Expediente Modal
-    function openVehicleExpedienteModal(placa) {
-        const veh = vehiculosList.find(v => (v.Placa || v.ID_Vehiculo || '').trim().toUpperCase() === placa.trim().toUpperCase()) || { Placa: placa };
+    function openVehicleExpedienteModal(veh) {
+        if (!veh) return;
+        const placa = getVehiclePlaca(veh);
         const client = getVehicleClient(veh);
-        const stats = getVehicleStats(placa);
+        const stats = getVehicleStats(veh);
 
         const modal = document.getElementById('veh-expediente-modal');
         const modalTitle = document.getElementById('exp-modal-title');
