@@ -103,7 +103,7 @@ export function renderCaja(container) {
             // Suggest previous balance as initial balance
             const lastSession = db.cajas_sesiones.filter(s => s.estado === 'CERRADA')
                                   .sort((a,b) => b.fecha_cierre - a.fecha_cierre)[0];
-            const suggestedBalance = lastSession ? parseFloat(lastSession.saldo_real || 0) : 50.00;
+            const suggestedBalance = lastSession ? parseFloat(lastSession.saldo_real || 0) : 0.00;
             
             tabContent.innerHTML = html`
                 <div class="glass-card" style="max-width:500px; margin:2rem auto; padding:2rem; text-align:center; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:rgba(255,255,255,0.01);">
