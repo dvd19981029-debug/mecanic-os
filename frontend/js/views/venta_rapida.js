@@ -910,7 +910,9 @@ export function renderVentaRapida(container) {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 if (confirm(`¿Estás seguro de que deseas eliminar permanentemente la Venta Rápida ${id}?`)) {
-                    db['43 Venta Rapida'] = (db['43 Venta Rapida'] || []).filter(vr => vr.ID_Venta_Rapida !== id);
+                    const filtered = (db['43 Venta Rapida'] || db.venta_rapida || []).filter(vr => vr.ID_Venta_Rapida !== id);
+                    db['43 Venta Rapida'] = filtered;
+                    db.venta_rapida = filtered;
                     saveDatabase(db);
                     showToast(`Venta Rápida ${id} eliminada con éxito`, "success");
                     populatePendingList(pendingSearch.value);

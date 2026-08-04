@@ -295,10 +295,20 @@ const dataService = {
         const oldCache = this.lastSyncedState || {};
         // Align aliased array references in memory, prioritizing new camelCase keys if they have been reassigned
         const alignAlias = (newKey, legacyKey) => {
-            if (db[newKey] && db[newKey] !== db[legacyKey]) {
-                db[legacyKey] = db[newKey];
+            if (Array.isArray(db[newKey]) && Array.isArray(db[legacyKey])) {
+                if (db[newKey] !== db[legacyKey]) {
+                    if (db[legacyKey].length !== db[newKey].length) {
+                        const target = db[legacyKey].length < db[newKey].length ? db[legacyKey] : db[newKey];
+                        db[newKey] = target;
+                        db[legacyKey] = target;
+                    } else {
+                        db[legacyKey] = db[newKey];
+                    }
+                }
             } else if (db[legacyKey]) {
                 db[newKey] = db[legacyKey];
+            } else if (db[newKey]) {
+                db[legacyKey] = db[newKey];
             } else {
                 db[newKey] = db[newKey] || [];
                 db[legacyKey] = db[newKey];
