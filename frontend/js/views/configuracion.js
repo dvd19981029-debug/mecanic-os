@@ -2563,6 +2563,14 @@ export function renderConfiguracion(container, queryParams) {
         
         renderExpedienteTabs();
         modal.classList.add('active');
+
+        const closeExpBtn = document.getElementById('close-expediente-modal');
+        if (closeExpBtn) {
+            closeExpBtn.onclick = () => modal.classList.remove('active');
+        }
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        };
     }
 
     function openPayrollCalculation(tech, initialBonos = 0) {
@@ -2640,7 +2648,17 @@ export function renderConfiguracion(container, queryParams) {
         }
         
         updateCalcView(tech.Salario_Base, initialBonos);
-        document.getElementById('payroll-modal').classList.add('active');
+        const pModal = document.getElementById('payroll-modal');
+        if (pModal) {
+            pModal.classList.add('active');
+            const closePayBtn = document.getElementById('close-payroll-modal');
+            if (closePayBtn) {
+                closePayBtn.onclick = () => pModal.classList.remove('active');
+            }
+            pModal.onclick = (e) => {
+                if (e.target === pModal) pModal.classList.remove('active');
+            };
+        }
     }
 }
 function renderChecklistConfig(container, db) {
