@@ -651,20 +651,40 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
 
     const proceedAsAdmin = () => {
         firebase.auth().signInWithEmailAndPassword(email, pass)
-            .then((userCredential) => {
+            .then(async (userCredential) => {
                 const ownerUid = userCredential.user.uid;
                 localStorage.setItem('mecanic_os_workshop_uid', ownerUid);
                 sessionStorage.setItem('mecanic_os_session_key', hashedPass);
                 
+                let saasStatus = 'active';
+                let saasTermsSigned = true;
+                let remoteWorkshopData = null;
+
+                if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                    try {
+                        const reqDoc = await dbFirestore.collection("saas_requests").doc(ownerUid).get();
+                        if (reqDoc.exists) {
+                            remoteWorkshopData = reqDoc.data();
+                            saasStatus = remoteWorkshopData.status || 'active';
+                            if (saasStatus === 'pendiente') {
+                                saasStatus = 'pending';
+                            }
+                            saasTermsSigned = remoteWorkshopData.termsSigned || false;
+                        }
+                    } catch (e) {
+                        console.error("Error fetching saas_requests:", e);
+                    }
+                }
+
                 dataService.startSync(ownerUid, false); // false = admin mode
                 
                 const db = getDatabase();
                 db.saas_state = db.saas_state || {};
-                db.saas_state.status = 'active';
-                db.saas_state.workshopData = db.saas_state.workshopData || {};
+                db.saas_state.status = saasStatus;
+                db.saas_state.workshopData = remoteWorkshopData || db.saas_state.workshopData || {};
                 db.saas_state.workshopData.uid = ownerUid;
                 db.saas_state.workshopData.correo = email;
-                db.saas_state.termsSigned = true;
+                db.saas_state.termsSigned = saasTermsSigned;
                 saveDatabase(db);
                 
                 // Do not set active user directly, let them select their profile from the lock screen (streaming-style)
