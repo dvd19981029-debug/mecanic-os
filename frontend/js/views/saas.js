@@ -4324,13 +4324,15 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                 logo: saas.workshopData.logo || ''
             };
             
-            const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
+            if (!db.tecnicos) db.tecnicos = [];
+            const ownerName = (saas.workshopData && (saas.workshopData.propietario || saas.workshopData.nombre)) || sigName || 'Administrador';
+            const exists = db.tecnicos.some(t => (t.Nombre_Completo || '').toLowerCase() === ownerName.toLowerCase());
             if (!exists) {
                 const newTech = {
                     Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
-                    Nombre_Completo: saas.workshopData.propietario,
-                    Email: saas.workshopData.correo,
-                    Telefono: saas.workshopData.telefono,
+                    Nombre_Completo: ownerName,
+                    Email: (saas.workshopData && saas.workshopData.correo) || email,
+                    Telefono: (saas.workshopData && saas.workshopData.telefono) || '',
                     Especialidad: 'Gerente General',
                     Nivel_Acceso: 'Administrador',
                     Salario_Base: 1500,
