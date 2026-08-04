@@ -82,7 +82,9 @@ export function handleRouting() {
         // Auto-activate SaaS status if firebase user is authenticated as owner
         if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
             const fUser = firebase.auth().currentUser;
-            if (!db.saas_state || db.saas_state.status !== 'active') {
+            const validSaasStates = ['active', 'pending', 'approved_terms_pending', 'suspended'];
+
+            if (!db.saas_state || !validSaasStates.includes(db.saas_state.status)) {
                 db.saas_state = db.saas_state || {};
                 db.saas_state.status = 'active';
                 db.saas_state.workshopData = db.saas_state.workshopData || {};
