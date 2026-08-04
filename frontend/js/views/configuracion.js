@@ -853,6 +853,7 @@ export function renderConfiguracion(container, queryParams) {
         const appViewsConfig = [
             { route: 'taller-dashboard', label: 'Panel Taller', icon: 'fa-solid fa-gauge-high' },
             { route: 'clientes-vehiculos', label: 'Clientes y Autos', icon: 'fa-solid fa-users-gear' },
+            { route: 'vehiculos', label: 'Gestión de Vehículos', icon: 'fa-solid fa-car' },
             { route: 'ingresos', label: 'Recepción / Ingresos', icon: 'fa-solid fa-file-signature' },
             { route: 'revision-21', label: 'Hoja 21 Puntos', icon: 'fa-solid fa-clipboard-check' },
             { route: 'presupuestos', label: 'Presupuestos', icon: 'fa-solid fa-file-invoice-dollar' },
