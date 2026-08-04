@@ -6,6 +6,7 @@ import { renderTallerDashboard } from './views/dashboard.js?v=69';
 import { renderConfiguracion } from './views/configuracion.js?v=81';
 import { renderLanding } from './views/landing.js?v=69';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
+import { renderVehiculos } from './views/vehiculos.js';
 import { renderRevision21 } from './views/revision21.js?v=77';
 import { renderPresupuestos } from './views/presupuestos.js?v=108';
 import { renderKanban } from './views/kanban.js?v=69';
@@ -44,6 +45,7 @@ import { showToast } from './utils.js?v=69';
 const routes = {
     'taller-dashboard': renderTallerDashboard,
     'clientes-vehiculos': renderClientesVehiculos,
+    'vehiculos': renderVehiculos,
     'revision-21': renderRevision21,
     'presupuestos': renderPresupuestos,
     'trabajos-taller': renderTrabajosTaller,
@@ -266,10 +268,9 @@ export function handleRouting() {
                 return;
             }
         }
-        
-        // Check role permissions for application views
+             // Check role permissions for application views
         const appViews = [
-            'taller-dashboard', 'clientes-vehiculos', 'ingresos', 'revision-21', 'presupuestos', 'kanban',
+            'taller-dashboard', 'clientes-vehiculos', 'vehiculos', 'ingresos', 'revision-21', 'presupuestos', 'kanban',
             'facturador', 'venta-rapida', 'caja', 'cuentas-cobrar', 'inventario', 'gastos', 'planilla',
             'comisiones', 'dashboard-bi', 'configuracion'
         ];
@@ -297,14 +298,14 @@ export function handleRouting() {
                         allowedRoutes = appViews;
                     } else if (searchRole === "recepcionista") {
                         allowedRoutes = [
-                            "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban",
+                            "taller-dashboard", "clientes-vehiculos", "vehiculos", "ingresos", "revision-21", "presupuestos", "kanban",
                             "facturador", "venta-rapida", "caja", "cuentas-cobrar", "comisiones"
                         ];
                     } else {
-                        allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "kanban", "comisiones"];
+                        allowedRoutes = ["taller-dashboard", "clientes-vehiculos", "vehiculos", "ingresos", "revision-21", "presupuestos", "kanban", "comisiones"];
                     }
                 }
- 
+
                 if (!allowedRoutes.includes(routeName)) {
                     showToast("Acceso restringido: No tienes permisos para ver esta sección.", "error");
                     const fallback = allowedRoutes.find(r => appViews.includes(r)) || 'taller-dashboard';
@@ -346,6 +347,7 @@ export function handleRouting() {
             const titles = {
                 'taller-dashboard': { title: 'Panel de Control de Taller', subtitle: 'Operaciones diarias y accesos directos' },
                 'clientes-vehiculos': { title: 'Directorio de Clientes y Vehículos', subtitle: 'Historiales clínicos y gestión de flota' },
+                'vehiculos': { title: 'Gestión & Expedientes de Vehículos', subtitle: 'Catálogo de vehículos registrados e historial técnico de servicios' },
                 'revision-21': { title: 'Hoja de Inspección de 21 Puntos', subtitle: 'Recepción digital y diagnóstico semáforo' },
                 'presupuestos': { title: 'Presupuestos y Cotizaciones', subtitle: 'Cálculo de costos y emisión de cotizaciones' },
                 'kanban': { title: 'Tablero de Control del Taller', subtitle: 'Monitoreo de flujo y estado de reparaciones' },
