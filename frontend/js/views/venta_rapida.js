@@ -699,7 +699,8 @@ export function renderVentaRapida(container) {
                 const oldVR = db['43 Venta Rapida'][existingIdx];
                 db['43 Venta Rapida'][existingIdx] = {
                     ...oldVR,
-                    Usuario: getActiveUser().Email || "jjmunoz932@gmail.com",
+                    Usuario: (getActiveUser() && getActiveUser().Email) || "jjmunoz932@gmail.com",
+                    UsuarioNombre: (getActiveUser() && getActiveUser().Nombre_Completo) || "",
                     Cliente: clientCode,
                     Nombre: client.Nombre || "Consumidor Final",
                     "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
@@ -731,7 +732,8 @@ export function renderVentaRapida(container) {
             const newVR = {
                 ID_Venta_Rapida: vrId,
                 "Marca Temporal": Date.now(),
-                Usuario: getActiveUser().Email || "jjmunoz932@gmail.com",
+                Usuario: (getActiveUser() && getActiveUser().Email) || "jjmunoz932@gmail.com",
+                UsuarioNombre: (getActiveUser() && getActiveUser().Nombre_Completo) || "",
                 Cliente: clientCode,
                 Nombre: client.Nombre || "Consumidor Final",
                 " Observaciones": "Venta directa de mostrador",
@@ -781,6 +783,50 @@ export function renderVentaRapida(container) {
         }
     });
 
+    // Helper to resolve email/user ID to full name
+    function getUsuarioDisplayName(userVal) {
+        if (!userVal) return 'N/A';
+        const tecnicos = db.tecnicos || [];
+        const valLower = userVal.trim().toLowerCase();
+
+        // 1. Match by Email
+        const matchEmail = tecnicos.find(t => (t.Email || '').trim().toLowerCase() === valLower);
+        if (matchEmail && matchEmail.Nombre_Completo) return matchEmail.Nombre_Completo;
+
+        // 2. Match by Tecnico_ID or Codigo_Cliente
+        const matchId = tecnicos.find(t => (t.Tecnico_ID || '') === userVal || (t.Codigo_Cliente || '') === userVal);
+        if (matchId && matchId.Nombre_Completo) return matchId.Nombre_Completo;
+
+        // 3. Match by Nombre_Completo directly
+        const matchName = tecnicos.find(t => (t.Nombre_Completo || '').trim().toLowerCase() === valLower);
+        if (matchName && matchName.Nombre_Completo) return matchName.Nombre_Completo;
+
+        // 4. Check activeUser
+        const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+        if (activeUser && activeUser.Nombre_Completo) {
+            if ((activeUser.Email || '').trim().toLowerCase() === valLower || (activeUser.Tecnico_ID || '') === userVal) {
+                return activeUser.Nombre_Completo;
+            }
+        }
+
+        // 5. Check SaaS workshop owner config
+        if (db.saas_state && db.saas_state.workshopData) {
+            const wsData = db.saas_state.workshopData;
+            if (wsData.correo && wsData.correo.trim().toLowerCase() === valLower && wsData.propietario) {
+                return wsData.propietario;
+            }
+        }
+
+        // 6. Check config_taller
+        if (db.config_taller && db.config_taller.propietario) {
+            if (db.config_taller.correo && db.config_taller.correo.trim().toLowerCase() === valLower) {
+                return db.config_taller.propietario;
+            }
+        }
+
+        return userVal;
+    }
+
     // Populate Pending Table
     function populatePendingList(filterText = '') {
         const rowsContainer = document.getElementById('pos-pending-rows');
@@ -801,6 +847,7 @@ export function renderVentaRapida(container) {
             const tr = document.createElement('tr');
             const dateStr = new Date(vr['Marca Temporal']).toLocaleString('es-SV');
             const docLabel = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
+            const userDisplayName = getUsuarioDisplayName(vr.UsuarioNombre || vr.Usuario);
             
             tr.innerHTML = html`
                 <td><strong style="font-family:monospace;">${escapeHtml(vr.ID_Venta_Rapida)}</strong></td>
@@ -808,7 +855,7 @@ export function renderVentaRapida(container) {
                 <td>${escapeHtml(vr.Nombre)}</td>
                 <td><span class="badge-tag badge-secondary">${docLabel}</span></td>
                 <td><strong>$ ${vr.total.toFixed(2)}</strong></td>
-                <td style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(vr.Usuario)}</td>
+                <td><strong style="font-size:0.85rem; color:var(--text-primary);">${escapeHtml(userDisplayName)}</strong></td>
                 <td>
                     <div style="display:flex; gap:0.4rem; align-items:center;">
                         <button class="btn btn-success btn-facturar-pos" data-id="${vr.ID_Venta_Rapida}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem;">
