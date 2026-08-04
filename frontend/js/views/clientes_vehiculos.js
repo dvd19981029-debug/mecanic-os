@@ -988,17 +988,45 @@ export function renderClientesVehiculos(container, queryParams) {
                     return;
                 }
                 
-                const clientSheetName = sheetNames.find(n => n.toLowerCase().includes('client')) || sheetNames[0];
-                const vehicleSheetName = sheetNames.find(n => n.toLowerCase().includes('vehic') || n.toLowerCase().includes('auto') || n.toLowerCase().includes('carro')) || (sheetNames.length > 1 ? sheetNames[1] : null);
-                
-                const clientsRows = XLSX.utils.sheet_to_json(workbook.Sheets[clientSheetName], { header: 1 });
-                
-                if (clientsRows.length <= 1) {
-                    showToast("La hoja de clientes está vacía.", "warning");
-                    fileInput.value = '';
-                    return;
+                // Smart sheet identification based on name or column headers
+                let clientSheetName = null;
+                let vehicleSheetName = null;
+
+                sheetNames.forEach(name => {
+                    const lowerName = name.toLowerCase();
+                    if (lowerName.includes('client')) clientSheetName = name;
+                    if (lowerName.includes('vehic') || lowerName.includes('auto') || lowerName.includes('carro') || lowerName.includes('flota') || lowerName.includes('unidad')) vehicleSheetName = name;
+                });
+
+                // Inspect headers of sheets if not identified by name
+                sheetNames.forEach(name => {
+                    if (clientSheetName && vehicleSheetName) return;
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1 });
+                    if (!rows || rows.length === 0) return;
+                    const headersStr = (rows[0] || []).map(cell => String(cell || '').toLowerCase()).join(' ');
+
+                    if (!vehicleSheetName && (headersStr.includes('placa') || headersStr.includes('marca') || headersStr.includes('modelo') || headersStr.includes('odometro'))) {
+                        vehicleSheetName = name;
+                    } else if (!clientSheetName && (headersStr.includes('dui') || headersStr.includes('nit') || headersStr.includes('documento') || headersStr.includes('nombre') || headersStr.includes('giro'))) {
+                        clientSheetName = name;
+                    }
+                });
+
+                if (!clientSheetName && !vehicleSheetName) {
+                    if (sheetNames.length === 1) {
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetNames[0]], { header: 1 });
+                        const headersStr = (rows[0] || []).map(cell => String(cell || '').toLowerCase()).join(' ');
+                        if (headersStr.includes('placa') || headersStr.includes('marca')) {
+                            vehicleSheetName = sheetNames[0];
+                        } else {
+                            clientSheetName = sheetNames[0];
+                        }
+                    } else {
+                        clientSheetName = sheetNames[0];
+                        vehicleSheetName = sheetNames[1];
+                    }
                 }
-                
+
                 const importedClients = [];
                 let clientErrors = [];
                 
@@ -1022,7 +1050,7 @@ export function renderClientesVehiculos(container, queryParams) {
                     if (typeof MUNICIPIOS_CATALOG === 'undefined') return '14';
                     const cleaned = String(name).trim().toLowerCase()
                         .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const paddedCode = cleaned.padStart(3, '0').slice(-2); // ensure 2 digit padding
+                    const paddedCode = cleaned.padStart(3, '0').slice(-2);
                     if (MUNICIPIOS_CATALOG.some(m => m.id === paddedCode && m.departamentoId === deptId)) {
                         return paddedCode;
                     }
@@ -1033,87 +1061,90 @@ export function renderClientesVehiculos(container, queryParams) {
                     return match ? match.id : '14';
                 };
 
-                // Parse Clients Sheet
-                for (let i = 1; i < clientsRows.length; i++) {
-                    const row = clientsRows[i];
-                    if (!row || row.length === 0) continue;
-                    if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
-                    
-                    const customCode = row[0] ? String(row[0]).trim() : '';
-                    const name = row[1] ? String(row[1]).trim() : '';
-                    const type = row[2] ? String(row[2]).trim().toUpperCase() : 'NATURAL';
-                    const contrib = row[3] ? String(row[3]).trim().toUpperCase() : 'NO';
-                    const docType = row[4] ? String(row[4]).trim().toUpperCase() : 'DUI';
-                    const docNum = row[5] ? String(row[5]).trim() : '';
-                    const nit = row[6] ? String(row[6]).trim() : '';
-                    const nrc = row[7] ? String(row[7]).trim() : '';
-                    const giro = row[8] ? String(row[8]).trim() : '';
-                    const cat = row[9] ? String(row[9]).trim().toUpperCase() : 'OTROS';
-                    const email = row[10] ? String(row[10]).trim() : '';
-                    const phone = row[11] ? String(row[11]).trim() : '';
-                    const address = row[12] ? String(row[12]).trim() : '';
-                    const deptName = row[13] ? String(row[13]).trim() : 'San Salvador';
-                    const munName = row[14] ? String(row[14]).trim() : 'San Salvador';
-                    const hasCredit = row[15] ? String(row[15]).trim().toUpperCase() : 'NO';
-                    const creditLimit = parseFloat(row[16] || 0);
-                    const creditDays = parseInt(row[17] || 30);
-                    
-                    if (!name) {
-                        clientErrors.push(`Línea ${i + 1} (Clientes): Nombre Completo es requerido.`);
-                        continue;
-                    }
-                    
-                    let finalDocNum = docNum;
-                    let finalNit = nit;
+                // Parse Clients Sheet (if valid and not vehicle sheet)
+                if (clientSheetName && clientSheetName !== vehicleSheetName && workbook.Sheets[clientSheetName]) {
+                    const clientsRows = XLSX.utils.sheet_to_json(workbook.Sheets[clientSheetName], { header: 1 });
+                    for (let i = 1; i < clientsRows.length; i++) {
+                        const row = clientsRows[i];
+                        if (!row || row.length === 0) continue;
+                        if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
+                        
+                        const customCode = row[0] ? String(row[0]).trim() : '';
+                        const name = row[1] ? String(row[1]).trim() : '';
+                        const type = row[2] ? String(row[2]).trim().toUpperCase() : 'NATURAL';
+                        const contrib = row[3] ? String(row[3]).trim().toUpperCase() : 'NO';
+                        const docType = row[4] ? String(row[4]).trim().toUpperCase() : 'DUI';
+                        const docNum = row[5] ? String(row[5]).trim() : '';
+                        const nit = row[6] ? String(row[6]).trim() : '';
+                        const nrc = row[7] ? String(row[7]).trim() : '';
+                        const giro = row[8] ? String(row[8]).trim() : '';
+                        const cat = row[9] ? String(row[9]).trim().toUpperCase() : 'OTROS';
+                        const email = row[10] ? String(row[10]).trim() : '';
+                        const phone = row[11] ? String(row[11]).trim() : '';
+                        const address = row[12] ? String(row[12]).trim() : '';
+                        const deptName = row[13] ? String(row[13]).trim() : 'San Salvador';
+                        const munName = row[14] ? String(row[14]).trim() : 'San Salvador';
+                        const hasCredit = row[15] ? String(row[15]).trim().toUpperCase() : 'NO';
+                        const creditLimit = parseFloat(row[16] || 0);
+                        const creditDays = parseInt(row[17] || 30);
+                        
+                        if (!name) {
+                            clientErrors.push(`Línea ${i + 1} (Clientes): Nombre Completo es requerido.`);
+                            continue;
+                        }
+                        
+                        let finalDocNum = docNum;
+                        let finalNit = nit;
 
-                    if (type === 'NATURAL' && docType === 'NIT') {
-                        if (!finalDocNum && finalNit) {
-                            finalDocNum = finalNit;
-                        } else if (!finalNit && finalDocNum) {
-                            finalNit = finalDocNum;
+                        if (type === 'NATURAL' && docType === 'NIT') {
+                            if (!finalDocNum && finalNit) {
+                                finalDocNum = finalNit;
+                            } else if (!finalNit && finalDocNum) {
+                                finalNit = finalDocNum;
+                            }
                         }
-                    }
 
-                    if (type === 'NATURAL' && !finalDocNum && !finalNit) {
-                        clientErrors.push(`Línea ${i + 1} (Clientes) "${name.substring(0, 15)}": Debe proporcionar al menos un documento (DUI o NIT) para persona natural.`);
-                        continue;
-                    }
-                    
-                    const resolvedDept = findDeptId(deptName);
-                    const resolvedMun = findMunId(munName, resolvedDept);
-                    
-                    let resolvedGiro = giro;
-                    if (giro && typeof GIROS_CATALOG !== 'undefined') {
-                        const cleanedGiro = String(giro).trim();
-                        let match = GIROS_CATALOG.find(g => g.codigo === cleanedGiro);
-                        if (!match) {
-                            match = GIROS_CATALOG.find(g => g.descripcion.toLowerCase() === cleanedGiro.toLowerCase());
+                        if (type === 'NATURAL' && !finalDocNum && !finalNit) {
+                            clientErrors.push(`Línea ${i + 1} (Clientes) "${name.substring(0, 15)}": Debe proporcionar al menos un documento (DUI o NIT) para persona natural.`);
+                            continue;
                         }
-                        if (match) {
-                            resolvedGiro = `${match.codigo} - ${match.descripcion}`;
+                        
+                        const resolvedDept = findDeptId(deptName);
+                        const resolvedMun = findMunId(munName, resolvedDept);
+                        
+                        let resolvedGiro = giro;
+                        if (giro && typeof GIROS_CATALOG !== 'undefined') {
+                            const cleanedGiro = String(giro).trim();
+                            let match = GIROS_CATALOG.find(g => g.codigo === cleanedGiro);
+                            if (!match) {
+                                match = GIROS_CATALOG.find(g => g.descripcion.toLowerCase() === cleanedGiro.toLowerCase());
+                            }
+                            if (match) {
+                                resolvedGiro = `${match.codigo} - ${match.descripcion}`;
+                            }
                         }
+                        
+                        importedClients.push({
+                            customCode: customCode,
+                            nombre: name,
+                            tipoCliente: type === 'JURIDICA' ? 'JURIDICA' : 'NATURAL',
+                            contribuyente: contrib === 'SI' ? 'SI' : 'NO',
+                            tipoDoc: type === 'JURIDICA' ? '' : docType,
+                            numDoc: type === 'JURIDICA' ? '' : finalDocNum,
+                            nit: finalNit,
+                            nrc: nrc,
+                            giro: resolvedGiro,
+                            categoria: (cat === 'GRANDE' || cat === 'MEDIANO') ? cat : 'OTROS',
+                            correo: email,
+                            telefono: phone,
+                            direccion: address,
+                            departamento: resolvedDept,
+                            municipio: resolvedMun,
+                            credito: hasCredit === 'SI' ? 'SI' : 'NO',
+                            limiteCredito: isNaN(creditLimit) ? 0 : creditLimit,
+                            plazoCredito: isNaN(creditDays) ? 30 : creditDays
+                        });
                     }
-                    
-                    importedClients.push({
-                        customCode: customCode,
-                        nombre: name,
-                        tipoCliente: type === 'JURIDICA' ? 'JURIDICA' : 'NATURAL',
-                        contribuyente: contrib === 'SI' ? 'SI' : 'NO',
-                        tipoDoc: type === 'JURIDICA' ? '' : docType,
-                        numDoc: type === 'JURIDICA' ? '' : finalDocNum,
-                        nit: finalNit,
-                        nrc: nrc,
-                        giro: resolvedGiro,
-                        categoria: (cat === 'GRANDE' || cat === 'MEDIANO') ? cat : 'OTROS',
-                        correo: email,
-                        telefono: phone,
-                        direccion: address,
-                        departamento: resolvedDept,
-                        municipio: resolvedMun,
-                        credito: hasCredit === 'SI' ? 'SI' : 'NO',
-                        limiteCredito: isNaN(creditLimit) ? 0 : creditLimit,
-                        plazoCredito: isNaN(creditDays) ? 30 : creditDays
-                    });
                 }
                 
                 if (clientErrors.length > 0) {
@@ -1126,7 +1157,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 const importedVehicles = [];
                 let vehicleErrors = [];
                 
-                if (vehicleSheetName) {
+                if (vehicleSheetName && workbook.Sheets[vehicleSheetName]) {
                     const vehiclesRows = XLSX.utils.sheet_to_json(workbook.Sheets[vehicleSheetName], { header: 1 });
                     for (let i = 1; i < vehiclesRows.length; i++) {
                         const row = vehiclesRows[i];
@@ -1147,11 +1178,6 @@ export function renderClientesVehiculos(container, queryParams) {
                         
                         if (!placa) {
                             vehicleErrors.push(`Línea ${i + 1} (Vehículos): Placa del vehículo es requerida.`);
-                            continue;
-                        }
-                        
-                        if (!clientRef && !clientNameRef) {
-                            vehicleErrors.push(`Línea ${i + 1} (Vehículos) "${placa}": Debe asociarse a un Código o Nombre de Cliente.`);
                             continue;
                         }
                         
@@ -1176,23 +1202,32 @@ export function renderClientesVehiculos(container, queryParams) {
                     fileInput.value = '';
                     return;
                 }
+
+                if (importedClients.length === 0 && importedVehicles.length === 0) {
+                    showToast("No se encontraron datos de clientes ni de vehículos para importar.", "warning");
+                    fileInput.value = '';
+                    return;
+                }
                 
                 const currentDb = getDatabase();
                 let clientNewCount = 0;
                 let clientUpdateCount = 0;
                 let vehNewCount = 0;
                 let vehUpdateCount = 0;
+                let unresolvedVehiclesCount = 0;
                 
                 // Mapeos temporales para resolver IDs de clientes
                 const customCodeToDbClient = {};
                 const nameToDbClient = {};
                 
+                const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+                const userId = activeUser ? activeUser.Tecnico_ID : '';
                 const cleanDoc = (str) => str ? String(str).replace(/\D/g, '') : '';
 
                 importedClients.forEach(item => {
                     const existingClient = currentDb.clientes.find(c => {
                         const cleanItemDoc = cleanDoc(item.numDoc);
-                        const cleanDbDoc = cleanDoc(c['Num Doc']);
+                        const cleanDbDoc = cleanDoc(c['Num Doc'] || c['Num Doc'] || c.DUI);
                         if (cleanItemDoc && cleanDbDoc && cleanItemDoc === cleanDbDoc) return true;
                         
                         const cleanItemNit = cleanDoc(item.nit);
@@ -1201,191 +1236,158 @@ export function renderClientesVehiculos(container, queryParams) {
                         
                         return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
                     });
+
+                    let clientCode = '';
+                    let clientName = item.nombre;
+                    
                     if (existingClient) {
                         clientUpdateCount++;
+                        clientCode = existingClient.Codigo_Cliente;
+                        existingClient.Nombre = item.nombre;
+                        existingClient['Tipo Persona'] = item.tipoCliente;
+                        existingClient.Contribuyente = item.contribuyente;
+                        existingClient['Tipo Doc'] = item.tipoDoc;
+                        existingClient['Num Doc'] = item.numDoc;
+                        existingClient.NIT = item.nit;
+                        existingClient.NRC = item.nrc;
+                        existingClient.Giro = item.giro;
+                        existingClient.Categoria = item.categoria;
+                        existingClient.Correo = item.correo;
+                        existingClient.Telefono = item.telefono;
+                        existingClient.Direccion = item.direccion;
+                        existingClient.Departamento = item.departamento;
+                        existingClient.Municipio = item.municipio;
+                        existingClient.Credito = item.credito;
+                        existingClient.Limite_Credito = item.limiteCredito;
+                        existingClient.Plazo_Credito = item.plazoCredito;
                     } else {
                         clientNewCount++;
+                        clientCode = item.customCode ? item.customCode : ("CLI-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + Math.floor(Math.random() * 100));
+                        currentDb.clientes.push({
+                            Codigo_Cliente: clientCode,
+                            Nombre: item.nombre,
+                            "Tipo Persona": item.tipoCliente,
+                            Contribuyente: item.contribuyente,
+                            "Tipo Doc": item.tipoDoc,
+                            "Num Doc": item.numDoc,
+                            NIT: item.nit,
+                            NRC: item.nrc,
+                            Giro: item.giro,
+                            Categoria: item.categoria,
+                            Correo: item.correo,
+                            Telefono: item.telefono,
+                            Direccion: item.direccion,
+                            Departamento: item.departamento,
+                            Municipio: item.municipio,
+                            Credito: item.credito,
+                            Limite_Credito: item.limiteCredito,
+                            Plazo_Credito: item.plazoCredito,
+                            "% Impuesto": 0.13,
+                            Usuario: userId
+                        });
                     }
+                    
+                    if (item.customCode) {
+                        customCodeToDbClient[item.customCode.toLowerCase().trim()] = { code: clientCode, name: clientName };
+                    }
+                    nameToDbClient[clientName.toLowerCase().trim()] = { code: clientCode, name: clientName };
                 });
                 
-                importedVehicles.forEach(item => {
-                    const existingVeh = currentDb.vehiculos.find(v => v.Placas === item.placas);
+                // Guardar o actualizar Vehículos
+                importedVehicles.forEach((v, index) => {
+                    let targetClientCode = '';
+                    let targetClientName = '';
+                    
+                    const refLower = (v.clientRef || '').toLowerCase().trim();
+                    const nameLower = (v.clientNameRef || '').toLowerCase().trim();
+
+                    // 1. Buscar en clientes importados en esta sesión
+                    if (refLower && customCodeToDbClient[refLower]) {
+                        targetClientCode = customCodeToDbClient[refLower].code;
+                        targetClientName = customCodeToDbClient[refLower].name;
+                    } else if (nameLower && nameToDbClient[nameLower]) {
+                        targetClientCode = nameToDbClient[nameLower].code;
+                        targetClientName = nameToDbClient[nameLower].name;
+                    }
+
+                    // 2. Buscar en base de datos existente por Código de Cliente / ID / Documento
+                    if (!targetClientCode && refLower) {
+                        const match = currentDb.clientes.find(c => {
+                            const code = (c.Codigo_Cliente || c.ID_Cliente || c.id || '').toLowerCase().trim();
+                            if (code === refLower) return true;
+                            const doc = cleanDoc(c['Num Doc'] || c.DUI || c.NIT);
+                            const refDoc = cleanDoc(refLower);
+                            return doc && refDoc && doc === refDoc;
+                        });
+                        if (match) {
+                            targetClientCode = match.Codigo_Cliente || match.ID_Cliente || match.id;
+                            targetClientName = match.Nombre;
+                        }
+                    }
+
+                    // 3. Buscar en base de datos existente por Nombre de Cliente
+                    if (!targetClientCode && nameLower) {
+                        const match = currentDb.clientes.find(c => (c.Nombre || '').toLowerCase().trim() === nameLower);
+                        if (match) {
+                            targetClientCode = match.Codigo_Cliente || match.ID_Cliente || match.id;
+                            targetClientName = match.Nombre;
+                        }
+                    }
+                    
+                    if (!targetClientCode) {
+                        console.warn(`No se pudo resolver el cliente para el vehículo con placas ${v.placas}. Ref: "${v.clientRef}", Nombre: "${v.clientNameRef}"`);
+                        unresolvedVehiclesCount++;
+                        return;
+                    }
+                    
+                    const existingVeh = currentDb.vehiculos.find(x => (x.Placas || x.Placa || '').trim().toUpperCase() === v.placas.toUpperCase());
                     if (existingVeh) {
                         vehUpdateCount++;
+                        existingVeh.Codigo_Cliente = targetClientCode;
+                        existingVeh.Nombre_Cliente = targetClientName;
+                        existingVeh.Marca = v.marca;
+                        existingVeh.Modelo = v.modelo;
+                        existingVeh.Año = v.year;
+                        existingVeh.Color = v.color;
+                        existingVeh.Odometro = v.odometro;
+                        existingVeh["Nª_Motor"] = v.motor;
+                        existingVeh["Nª_VIN"] = v.vin;
+                        existingVeh.N_Equipo = v.equipo;
                     } else {
                         vehNewCount++;
+                        const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
+                        currentDb.vehiculos.push({
+                            ID_Vehiculo: newVehId,
+                            Codigo_Cliente: targetClientCode,
+                            Nombre_Cliente: targetClientName,
+                            Placas: v.placas,
+                            Marca: v.marca,
+                            Modelo: v.modelo,
+                            Año: v.year,
+                            Color: v.color,
+                            Odometro: v.odometro,
+                            "Nª_Motor": v.motor,
+                            "Nª_VIN": v.vin,
+                            N_Equipo: v.equipo
+                        });
                     }
                 });
                 
-                const confirmMsg = `¿Deseas proceder con la importación?\\n\\n` +
-                                   `Clientes:\\n` +
-                                   `- Nuevos a registrar: ${clientNewCount}\\n` +
-                                   `- Existentes a actualizar: ${clientUpdateCount}\\n\\n` +
-                                   `Vehículos / Flota:\\n` +
-                                   `- Nuevos a registrar: ${vehNewCount}\\n` +
-                                   `- Existentes a actualizar: ${vehUpdateCount}\\n\\n` +
-                                   `Esta acción modificará la base de datos y se sincronizará con la nube.`;
-                                   
-                if (confirm(confirmMsg)) {
-                    const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
-                    const userId = activeUser ? activeUser.Tecnico_ID : '';
-                    
-                    // 1. Guardar o actualizar Clientes primero
-                    importedClients.forEach((item, index) => {
-                        let clientCode = '';
-                        let clientName = item.nombre.toUpperCase();
-                        
-                        const existingClient = currentDb.clientes.find(c => {
-                            const cleanItemDoc = cleanDoc(item.numDoc);
-                            const cleanDbDoc = cleanDoc(c['Num Doc']);
-                            if (cleanItemDoc && cleanDbDoc && cleanItemDoc === cleanDbDoc) return true;
-                            
-                            const cleanItemNit = cleanDoc(item.nit);
-                            const cleanDbNit = cleanDoc(c.NIT);
-                            if (cleanItemNit && cleanDbNit && cleanItemNit === cleanDbNit) return true;
-                            
-                            return c.Nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim();
-                        });
-                        
-                        if (existingClient) {
-                            existingClient.Nombre = clientName;
-                            existingClient['Tipo Cliente'] = item.tipoCliente;
-                            existingClient['Contribuyente?'] = item.contribuyente;
-                            existingClient['Tipo Doc'] = item.tipoDoc;
-                            existingClient['Num Doc'] = item.numDoc;
-                            existingClient.NIT = item.nit;
-                            existingClient.NRC = item.nrc;
-                            existingClient.Giro = item.giro;
-                            existingClient['Categoría Contribuyente'] = item.categoria;
-                            existingClient.Correo = item.correo;
-                            existingClient['Telefono 1 '] = item.telefono;
-                            existingClient.Direccion = item.direccion;
-                            existingClient.Departamento = item.departamento;
-                            existingClient.Municipio = item.municipio;
-                            existingClient['Credito?'] = item.credito;
-                            existingClient['Monto Credito'] = item.limiteCredito;
-                            existingClient.Monto_Credito = item.limiteCredito;
-                            existingClient['Plazo Credito Días'] = item.plazoCredito;
-                            clientCode = existingClient.Codigo_Cliente;
-                        } else {
-                            clientCode = "CLIENT-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
-                            let ret = 0;
-                            let perc = 0;
-                            if (item.categoria === 'GRANDE') {
-                                ret = 0.01;
-                            }
-                            
-                            currentDb.clientes.push({
-                                Codigo_Cliente: clientCode,
-                                Nombre: clientName,
-                                "Tipo Cliente": item.tipoCliente,
-                                "Contribuyente?": item.contribuyente,
-                                "Tipo Doc": item.tipoDoc,
-                                "Num Doc": item.numDoc,
-                                NIT: item.nit,
-                                NRC: item.nrc,
-                                Giro: item.giro,
-                                Correo: item.correo,
-                                "Telefono 1 ": item.telefono,
-                                Direccion: item.direccion,
-                                Departamento: item.departamento,
-                                Municipio: item.municipio,
-                                "Categoría Contribuyente": item.categoria,
-                                "Credito?": item.credito,
-                                AplicaRetencion: ret,
-                                AplicaPercepcion: perc,
-                                "Monto Credito": item.limiteCredito,
-                                Monto_Credito: item.limiteCredito,
-                                "Plazo Credito Días": item.plazoCredito,
-                                "% Impuesto": 0.13,
-                                Usuario: userId
-                            });
-                        }
-                        
-                        // Registrar en mapeos
-                        if (item.customCode) {
-                            customCodeToDbClient[item.customCode.toLowerCase().trim()] = { code: clientCode, name: clientName };
-                        }
-                        nameToDbClient[clientName.toLowerCase().trim()] = { code: clientCode, name: clientName };
-                    });
-                    
-                    // 2. Guardar o actualizar Vehículos
-                    importedVehicles.forEach((v, index) => {
-                        let targetClientCode = '';
-                        let targetClientName = '';
-                        
-                        // Resolver el cliente al que pertenece el vehículo
-                        // 2a. Buscar por código de cliente importado
-                        if (v.clientRef && customCodeToDbClient[v.clientRef.toLowerCase().trim()]) {
-                            const info = customCodeToDbClient[v.clientRef.toLowerCase().trim()];
-                            targetClientCode = info.code;
-                            targetClientName = info.name;
-                        }
-                        // 2b. Fallback a código directo existente en BD
-                        if (!targetClientCode && v.clientRef) {
-                            const match = currentDb.clientes.find(c => c.Codigo_Cliente.toLowerCase().trim() === v.clientRef.toLowerCase().trim());
-                            if (match) {
-                                targetClientCode = match.Codigo_Cliente;
-                                targetClientName = match.Nombre;
-                            }
-                        }
-                        // 2c. Fallback por coincidencia de nombre de cliente
-                        if (!targetClientCode && v.clientNameRef) {
-                            const normalizedName = v.clientNameRef.toLowerCase().trim();
-                            if (nameToDbClient[normalizedName]) {
-                                const info = nameToDbClient[normalizedName];
-                                targetClientCode = info.code;
-                                targetClientName = info.name;
-                            } else {
-                                const match = currentDb.clientes.find(c => c.Nombre.toLowerCase().trim() === normalizedName);
-                                if (match) {
-                                    targetClientCode = match.Codigo_Cliente;
-                                    targetClientName = match.Nombre;
-                                }
-                            }
-                        }
-                        
-                        // Si no pudimos resolver el cliente, no podemos agregarlo (o lo enlazamos al cliente por defecto)
-                        if (!targetClientCode) {
-                            console.warn(`No se pudo resolver el cliente para el vehículo con placas ${v.placas}.`);
-                            return;
-                        }
-                        
-                        const existingVeh = currentDb.vehiculos.find(x => x.Placas === v.placas);
-                        if (existingVeh) {
-                            existingVeh.Codigo_Cliente = targetClientCode;
-                            existingVeh.Nombre_Cliente = targetClientName;
-                            existingVeh.Marca = v.marca;
-                            existingVeh.Modelo = v.modelo;
-                            existingVeh.Año = v.year;
-                            existingVeh.Color = v.color;
-                            existingVeh.Odometro = v.odometro;
-                            existingVeh["Nª_Motor"] = v.motor;
-                            existingVeh["Nª_VIN"] = v.vin;
-                            existingVeh.N_Equipo = v.equipo;
-                        } else {
-                            const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + index;
-                            currentDb.vehiculos.push({
-                                ID_Vehiculo: newVehId,
-                                Codigo_Cliente: targetClientCode,
-                                Nombre_Cliente: targetClientName,
-                                Placas: v.placas,
-                                Marca: v.marca,
-                                Modelo: v.modelo,
-                                Año: v.year,
-                                Color: v.color,
-                                Odometro: v.odometro,
-                                "Nª_Motor": v.motor,
-                                "Nª_VIN": v.vin,
-                                N_Equipo: v.equipo
-                            });
-                        }
-                    });
-                    
-                    saveDatabase(currentDb);
-                    showToast(`Importación completada con éxito: ${clientNewCount} clientes y ${vehNewCount} vehículos procesados`, "success");
-                    populateClientsList();
+                saveDatabase(currentDb);
+                
+                let successMsg = `Importación completada: ${clientNewCount + clientUpdateCount} clientes y ${vehNewCount + vehUpdateCount} vehículos procesados`;
+                if (importedClients.length === 0 && (vehNewCount + vehUpdateCount) > 0) {
+                    successMsg = `Vehículos procesados correctamente: ${vehNewCount} nuevos y ${vehUpdateCount} actualizados para clientes registrados.`;
                 }
+                showToast(successMsg, "success");
+
+                if (unresolvedVehiclesCount > 0) {
+                    setTimeout(() => {
+                        showToast(`Atención: ${unresolvedVehiclesCount} vehículos no pudieron asociarse porque su Código o Nombre de Cliente no existe en el sistema.`, "warning");
+                    }, 2500);
+                }
+
+                populateClientsList();
             } catch (err) {
                 console.error(err);
                 showToast("Error al procesar el archivo Excel: " + err.message, "danger");
