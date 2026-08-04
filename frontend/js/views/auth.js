@@ -184,6 +184,8 @@ export function renderLockScreen(container) {
         });
     }
 
+    const isFirebaseAuthed = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
+
     // Si está autenticado pero NO se han firmado los términos, redirigir a #terminos
     if (isFirebaseAuthed && (!saas.termsSigned || saas.status === 'approved_terms_pending')) {
         db.saas_state.status = 'approved_terms_pending';
