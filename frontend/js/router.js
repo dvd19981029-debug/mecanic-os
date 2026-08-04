@@ -139,12 +139,31 @@ export function handleRouting() {
 
         // 2. Reactive Status Listener for Active/Suspended Workshop
         if (saas.status === 'active' && saas.workshopData && saas.workshopData.id) {
+            // Si el estado local dice 'active' pero los términos NUNCA fueron firmados, corregir a 'approved_terms_pending'
+            if (!saas.termsSigned && (!db.tecnicos || db.tecnicos.length === 0)) {
+                db.saas_state.status = 'approved_terms_pending';
+                saveDatabase(db);
+                window.location.hash = 'terminos';
+                handleRouting();
+                return;
+            }
+
             if (!window.saasActiveListener) {
                 const reqId = saas.workshopData.id;
                 window.saasActiveListener = dataService.saas.listenRequest(reqId, (updatedRequest) => {
                     if (updatedRequest) {
                         let changed = false;
                         
+                        // Si en la nube la solicitud está aprobada pendiente de términos y localmente no se han firmado
+                        if (updatedRequest.status === 'approved_terms_pending' && !db.saas_state.termsSigned) {
+                            db.saas_state.status = 'approved_terms_pending';
+                            db.saas_state.workshopData = updatedRequest;
+                            saveDatabase(db);
+                            window.location.hash = 'terminos';
+                            handleRouting();
+                            return;
+                        }
+
                         // Sync DTE config if changed
                         const localDte = db.saas_state.workshopData.dte_config || {};
                         const remoteDte = updatedRequest.dte_config || {};
