@@ -366,6 +366,11 @@ export function renderPendingTab(container) {
 
 export function renderIssuedTab(container) {
     const db = getDatabase();
+    const activeUser = getActiveUser();
+    const roleName = activeUser ? (activeUser.Nivel_Acceso || activeUser.Tecnico_Rol || activeUser.Rol || "Mecánico") : "Mecánico";
+    const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isAdmin = searchRole === "administrador" || searchRole === "admin";
+
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
