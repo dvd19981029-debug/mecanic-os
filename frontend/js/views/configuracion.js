@@ -1766,10 +1766,7 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('producto-modal-title').textContent = 'Registrar Producto / Repuesto';
             document.getElementById('producto-original-id').value = '';
             
-            const yymmdd = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-            const hhmmss = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
-            const newId = `PROD-CS-${yymmdd}-${hhmmss}`;
-            document.getElementById('producto-id').value = newId;
+            document.getElementById('producto-id').value = '';
             
             document.getElementById('producto-descripcion').value = '';
             document.getElementById('producto-precio-compra').value = '0.00';
