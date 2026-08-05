@@ -307,13 +307,28 @@ export function renderGastos(container) {
         const formEl = document.getElementById('purchase-invoice-form');
 
         function renderRows() {
-            rowsContainer.innerHTML = purchaseItems.map((item, idx) => `
+            rowsContainer.innerHTML = purchaseItems.map((item, idx) => {
+                const prod = item.id_producto ? db.productos.find(p => p['ID_ Producto'] === item.id_producto) : null;
+                const displayName = prod ? prod.Descripcion : (item.nombre_display || '');
+                return `
                 <tr data-idx="${idx}">
-                    <td>
-                        <select class="pur-row-prod" required style="width:100%; padding:0.4rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
-                            <option value="">-- Seleccionar Repuesto --</option>
-                            ${safe(db.productos.map(p => `<option value="${p['ID_ Producto']}" ${item.id_producto === p['ID_ Producto'] ? 'selected' : ''}>${escapeHtml(p.Descripcion)} (${escapeHtml(p['ID_ Producto'])})</option>`).join(''))}
-                        </select>
+                    <td style="position:relative;">
+                        <div class="pur-prod-search-wrap" style="position:relative;">
+                            <div style="display:flex; align-items:center; gap:0.4rem; padding:0.4rem 0.6rem; background:var(--bg-input); border:1px solid ${item.id_producto ? 'var(--primary)' : 'var(--border-color)'}; border-radius:6px; cursor:pointer;" data-trigger-idx="${idx}">
+                                <i class="fa-solid fa-magnifying-glass" style="color:var(--text-muted); font-size:0.8rem; flex-shrink:0;"></i>
+                                <span class="pur-prod-label" style="flex:1; font-size:0.85rem; color:${item.id_producto ? 'var(--text-primary)' : 'var(--text-muted)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${item.id_producto ? escapeHtml(displayName) : '🔍 Buscar repuesto...'}
+                                </span>
+                                ${item.id_producto ? `<i class="fa-solid fa-circle-check" style="color:var(--success); font-size:0.75rem;"></i>` : ''}
+                            </div>
+                            <div class="pur-prod-dropdown" data-for-idx="${idx}" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:9999; background:var(--bg-card); border:1px solid var(--primary); border-top:none; border-radius:0 0 8px 8px; box-shadow:0 8px 24px rgba(0,0,0,0.4); max-height:260px; overflow:hidden;">
+                                <div style="padding:0.5rem; border-bottom:1px solid var(--border-color);">
+                                    <input type="text" class="pur-prod-input" data-idx="${idx}" placeholder="Escribe descripción o código..." autocomplete="off" style="width:100%; padding:0.45rem 0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; font-size:0.85rem; box-sizing:border-box;">
+                                </div>
+                                <div class="pur-prod-results" data-idx="${idx}" style="overflow-y:auto; max-height:200px;"></div>
+                            </div>
+                        </div>
+                        <input type="hidden" class="pur-row-prod" value="${item.id_producto || ''}">
                     </td>
                     <td>
                         <input type="number" class="pur-row-cant" required min="1" value="${item.cant}" style="width:100%; padding:0.4rem; text-align:center;">
@@ -322,45 +337,62 @@ export function renderGastos(container) {
                         <input type="number" class="pur-row-cost" required min="0" step="0.0001" value="${item.precio_costo}" style="width:100%; padding:0.4rem; text-align:right;">
                     </td>
                     <td style="text-align:right; font-weight:600; padding:0.4rem;" class="pur-row-subtotal">
-                        $ ${(item.cant * item.precio_costo).toFixed(4)}
+                        $ ${(item.cant * item.precio_costo).toFixed(2)}
                     </td>
                     <td style="text-align:center;">
-                        ${safe(purchaseItems.length > 1 ? `<button type="button" class="pur-row-delete-btn" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;">&times;</button>` : '')}
+                        ${purchaseItems.length > 1 ? `<button type="button" class="pur-row-delete-btn" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.1rem;">&times;</button>` : ''}
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
 
-            // Attach event listeners to all inputs in the rows
+            // Attach listeners to every row
             rowsContainer.querySelectorAll('tr').forEach(row => {
                 const idx = parseInt(row.getAttribute('data-idx'));
-                const prodSelect = row.querySelector('.pur-row-prod');
+                const hiddenProdInput = row.querySelector('.pur-row-prod');
                 const cantInput = row.querySelector('.pur-row-cant');
                 const costInput = row.querySelector('.pur-row-cost');
                 const deleteBtn = row.querySelector('.pur-row-delete-btn');
+                const triggerDiv = row.querySelector('[data-trigger-idx]');
+                const dropdown = row.querySelector('.pur-prod-dropdown');
+                const searchInput = row.querySelector('.pur-prod-input');
+                const resultsDiv = row.querySelector('.pur-prod-results');
 
-                prodSelect.addEventListener('change', (e) => {
-                    purchaseItems[idx].id_producto = e.target.value;
-                    // Auto-fill cost price with current price unit from DB if 0
-                    if (e.target.value && purchaseItems[idx].precio_costo === 0) {
-                        const dbProd = db.productos.find(p => p['ID_ Producto'] === e.target.value);
-                        if (dbProd) {
-                            purchaseItems[idx].precio_costo = parseFloat(dbProd['Precio Unit'] || 0);
-                            costInput.value = purchaseItems[idx].precio_costo.toFixed(4);
-                        }
+                // Open dropdown on trigger click
+                triggerDiv.addEventListener('click', (e) => {
+                    // Close all other dropdowns first
+                    document.querySelectorAll('.pur-prod-dropdown').forEach(d => {
+                        if (d !== dropdown) d.style.display = 'none';
+                    });
+                    const isOpen = dropdown.style.display === 'block';
+                    dropdown.style.display = isOpen ? 'none' : 'block';
+                    if (!isOpen) {
+                        searchInput.value = '';
+                        populateProdResults(resultsDiv, '', idx, hiddenProdInput, row, dropdown);
+                        setTimeout(() => searchInput.focus(), 50);
                     }
-                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
-                    updateTotals();
+                });
+
+                searchInput.addEventListener('input', () => {
+                    populateProdResults(resultsDiv, searchInput.value, idx, hiddenProdInput, row, dropdown);
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!row.contains(e.target)) {
+                        dropdown.style.display = 'none';
+                        document.removeEventListener('click', closeDropdown);
+                    }
                 });
 
                 cantInput.addEventListener('input', (e) => {
                     purchaseItems[idx].cant = parseInt(e.target.value) || 0;
-                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
+                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(2)}`;
                     updateTotals();
                 });
 
                 costInput.addEventListener('input', (e) => {
                     purchaseItems[idx].precio_costo = parseFloat(e.target.value) || 0;
-                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(4)}`;
+                    row.querySelector('.pur-row-subtotal').textContent = `$ ${(purchaseItems[idx].cant * purchaseItems[idx].precio_costo).toFixed(2)}`;
                     updateTotals();
                 });
 
@@ -374,6 +406,63 @@ export function renderGastos(container) {
             });
 
             updateTotals();
+        }
+
+        function populateProdResults(resultsDiv, filter, idx, hiddenInput, row, dropdown) {
+            resultsDiv.innerHTML = '';
+            const term = filter.toLowerCase().trim();
+            const filtered = db.productos.filter(p =>
+                !term ||
+                (p.Descripcion || '').toLowerCase().includes(term) ||
+                (p['ID_ Producto'] || '').toLowerCase().includes(term)
+            ).slice(0, 12);
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.82rem;"><i class="fa-solid fa-circle-info"></i> No se encontraron productos</div>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const div = document.createElement('div');
+                const isSelected = purchaseItems[idx].id_producto === p['ID_ Producto'];
+                div.style.cssText = `
+                    display:flex; justify-content:space-between; align-items:center;
+                    padding:0.6rem 0.85rem; cursor:pointer; gap:0.5rem;
+                    border-bottom:1px solid rgba(255,255,255,0.05);
+                    background:${isSelected ? 'rgba(110,68,255,0.15)' : 'transparent'};
+                    transition:background 0.15s;
+                `;
+                div.addEventListener('mouseover', () => div.style.background = 'rgba(255,255,255,0.06)');
+                div.addEventListener('mouseout', () => div.style.background = isSelected ? 'rgba(110,68,255,0.15)' : 'transparent');
+
+                const costo = parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
+                div.innerHTML = `
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.Descripcion)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:1px;">
+                            <span style="color:var(--primary); font-weight:500;">${escapeHtml(p['ID_ Producto'] || '')}</span>
+                            ${p['Unidad de Medida'] ? ` · ${escapeHtml(p['Unidad de Medida'])}` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <div style="font-size:0.85rem; font-weight:700; color:var(--success);">$${costo.toFixed(2)}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">costo unit.</div>
+                    </div>
+                `;
+
+                div.addEventListener('click', () => {
+                    purchaseItems[idx].id_producto = p['ID_ Producto'];
+                    purchaseItems[idx].nombre_display = p.Descripcion;
+                    if (purchaseItems[idx].precio_costo === 0) {
+                        purchaseItems[idx].precio_costo = costo;
+                    }
+                    dropdown.style.display = 'none';
+                    renderRows();
+                    updateTotals();
+                });
+
+                resultsDiv.appendChild(div);
+            });
         }
 
         function updateTotals() {
