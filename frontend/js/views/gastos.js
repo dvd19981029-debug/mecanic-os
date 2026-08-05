@@ -34,6 +34,11 @@ let activeGastosTab = 'egresos';
 export function renderGastos(container) {
     const db = getDatabase();
     
+    const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+    const roleName = activeUser ? (activeUser.Nivel_Acceso || activeUser.Tecnico_Rol || activeUser.Rol || "Mecánico") : "Mecánico";
+    const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isAdmin = searchRole === "administrador" || searchRole === "admin";
+    
     // Set up structures
     db.gastos = db.gastos || [];
     db.proveedores = db.proveedores || [];
@@ -96,11 +101,12 @@ export function renderGastos(container) {
                                     <th>Monto Total</th>
                                     <th>Proveedor</th>
                                     <th>Forma Pago</th>
+                                    ${isAdmin ? '<th style="text-align:center;">Acciones</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
                                 ${safe(db.gastos.length === 0 
-                                    ? '<tr><td colspan="5" style="text-align:center; color:var(--text-muted)">Sin gastos registrados</td></tr>'
+                                    ? `<tr><td colspan="${isAdmin ? 6 : 5}" style="text-align:center; color:var(--text-muted)">Sin gastos registrados</td></tr>`
                                     : db.gastos.map(g => {
                                         const provName = g.ID_Proveedor ? (db.proveedores.find(p => p.ID_Proveedor === g.ID_Proveedor)?.Nombre || 'Proveedor') : 'General/Otros';
                                         let dateStr = 'N/A';
@@ -135,6 +141,11 @@ export function renderGastos(container) {
                                                 <td style="font-weight:700;">$ ${parseFloat(g['Monto Total']).toFixed(2)}</td>
                                                 <td>${escapeHtml(provName)}</td>
                                                 <td><span class="badge-tag badge-success">${escapeHtml(g['Forma de Pago'] || 'EFECTIVO')}</span></td>
+                                                ${isAdmin ? `
+                                                    <td style="text-align:center;">
+                                                        <button class="btn btn-secondary btn-edit-gasto" data-id="${g['ID Gasto']}" title="Editar Gasto (Solo Administradores)" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
+                                                    </td>
+                                                ` : ''}
                                             </tr>
                                         `;
                                     }).join(''))}
@@ -192,6 +203,15 @@ export function renderGastos(container) {
             </div>
         `;
 
+        if (isAdmin) {
+            parent.querySelectorAll('.btn-edit-gasto').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    openEditGastoModal(id);
+                });
+            });
+        }
+
         const form = document.getElementById('expense-form');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -216,6 +236,124 @@ export function renderGastos(container) {
             db.gastos.unshift(newExpense);
             saveDatabase(db);
             showToast("Gasto operacional registrado correctamente", "success");
+            renderGastos(container);
+        });
+    }
+
+    function openEditGastoModal(gastoId) {
+        const g = db.gastos.find(item => item['ID Gasto'] === gastoId);
+        if (!g) return;
+
+        const modalId = 'edit-gasto-modal';
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const provOptions = db.proveedores.map(p => 
+            `<option value="${p.ID_Proveedor}" ${g.ID_Proveedor === p.ID_Proveedor ? 'selected' : ''}>${escapeHtml(p.Nombre)}</option>`
+        ).join('');
+
+        const categories = ['Servicios Públicos', 'Insumos Directos', 'Herramientas', 'Administración', 'Nota de Crédito', 'Otros'];
+        const catOptions = categories.map(cat => 
+            `<option value="${cat}" ${g['ID Categoría Gasto'] === cat ? 'selected' : ''}>${cat}</option>`
+        ).join('');
+
+        const modalHtml = html`
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px);">
+                <div class="glass-card" style="width:90%; max-width:520px; padding:1.5rem; border-radius:12px; background:var(--bg-card, #1e1e2d); border:1px solid var(--border-color, rgba(255,255,255,0.1));">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary);"><i class="fa-solid fa-pen-to-square" style="color:var(--primary); margin-right:0.5rem;"></i> Editar Gasto / Egreso</h3>
+                        <button id="close-edit-gasto-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form id="edit-gasto-form" style="display:flex; flex-direction:column; gap:1rem;">
+                        <div class="form-group">
+                            <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Fecha de Gasto</label>
+                            <input type="date" id="edit-gasto-date" required value="${g['Fecha Gasto'] || ''}" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Concepto / Detalle Gasto</label>
+                            <input type="text" id="edit-gasto-concept" required value="${escapeHtml(g.Concepto || '')}" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                        <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Monto Total ($)</label>
+                                <input type="number" id="edit-gasto-amount" required step="0.01" value="${parseFloat(g['Monto Total'] || 0).toFixed(2)}" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                            </div>
+                            <div class="form-group">
+                                <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Forma de Pago</label>
+                                <select id="edit-gasto-pay-method" style="width:100%; height:38px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                                    <option value="EFECTIVO" ${g['Forma de Pago'] === 'EFECTIVO' ? 'selected' : ''}>Efectivo (Caja Chica)</option>
+                                    <option value="TRANSFERENCIA" ${g['Forma de Pago'] === 'TRANSFERENCIA' ? 'selected' : ''}>Transferencia Bancaria</option>
+                                    <option value="TARJETA" ${g['Forma de Pago'] === 'TARJETA' ? 'selected' : ''}>Tarjeta Débito/Crédito</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Proveedor / Acreedor</label>
+                                <select id="edit-gasto-proveedor" style="width:100%; height:38px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                                    <option value="">-- General / Ninguno --</option>
+                                    ${safe(provOptions)}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Categoría Gasto</label>
+                                <select id="edit-gasto-cat" style="width:100%; height:38px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                                    ${safe(catOptions)}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-edit-gasto">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const closeModal = () => {
+            const m = document.getElementById(modalId);
+            if (m) m.remove();
+        };
+
+        document.getElementById('close-edit-gasto-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-edit-gasto').addEventListener('click', closeModal);
+
+        document.getElementById('edit-gasto-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newDate = document.getElementById('edit-gasto-date').value;
+            const newConcept = document.getElementById('edit-gasto-concept').value;
+            const newAmount = parseFloat(document.getElementById('edit-gasto-amount').value);
+            const newMethod = document.getElementById('edit-gasto-pay-method').value;
+            const newProvId = document.getElementById('edit-gasto-proveedor').value || null;
+            const newCat = document.getElementById('edit-gasto-cat').value;
+
+            g['Fecha Gasto'] = newDate;
+            g.Concepto = newConcept;
+            g['Monto Total'] = newAmount;
+            g['Forma de Pago'] = newMethod;
+            g.ID_Proveedor = newProvId;
+            g['ID Categoría Gasto'] = newCat;
+
+            // Sincronizar con compra si proviene de una factura
+            if (g.Concepto && g.Concepto.includes('Factura ')) {
+                const match = g.Concepto.match(/Factura\s+([^\s\()]+)/);
+                if (match && match[1]) {
+                    const invoiceNum = match[1];
+                    const purchase = db.compras.find(c => c.Num_Factura === invoiceNum);
+                    if (purchase) {
+                        purchase.Fecha_Compra = newDate;
+                        purchase.Monto_Total = newAmount;
+                        if (newProvId) purchase.ID_Proveedor = newProvId;
+                    }
+                }
+            }
+
+            saveDatabase(db);
+            closeModal();
+            showToast("Gasto actualizado correctamente", "success");
             renderGastos(container);
         });
     }
