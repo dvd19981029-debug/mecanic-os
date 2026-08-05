@@ -225,12 +225,21 @@ export function renderGastos(container) {
         purchaseItems = purchaseItems.length === 0 ? [{ id_producto: '', cant: 1, precio_costo: 0 }] : purchaseItems;
 
         parent.innerHTML = html`
-            <div class="glass-card" style="max-width:900px; margin:0 auto;">
-                <h3>Registrar Entrada de Factura de Compra</h3>
-                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.5rem;">Carga las compras de repuestos del taller para registrar automáticamente el ingreso de stock al inventario.</p>
+            <div class="glass-card" style="max-width:960px; margin:0 auto;">
+                <h3 id="pur-form-title">Registrar Entrada de Factura de Compra</h3>
+                <p id="pur-form-subtitle" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.5rem;">Carga las compras de repuestos del taller para registrar automáticamente el ingreso de stock al inventario.</p>
                 
                 <form id="purchase-invoice-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <div class="form-row" style="display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr; gap:1rem;">
+                    <div class="form-row" style="display:grid; grid-template-columns:1.2fr 1.5fr 1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Tipo de DTE</label>
+                            <select id="pur-tipo-dte" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%; font-weight:600;">
+                                <option value="CCF">Crédito Fiscal (CCF)</option>
+                                <option value="FAC">Factura Consumidor</option>
+                                <option value="FSE">Sujeto Excluido (FSE)</option>
+                                <option value="NC" style="color:#f87171;">Nota de Crédito (NC)</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label>Proveedor</label>
                             <select id="pur-proveedor" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
@@ -239,14 +248,14 @@ export function renderGastos(container) {
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Fecha de Factura</label>
+                            <label>Fecha del DTE</label>
                             <input type="date" id="pur-date" required value="${new Date().toISOString().split('T')[0]}" style="padding:0.6rem;">
                         </div>
                         <div class="form-group">
-                            <label>Número de Factura / DTE</label>
+                            <label>Número de Documento / DTE</label>
                             <input type="text" id="pur-num-doc" required placeholder="Ej: FCF-1002" style="padding:0.6rem;">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="pur-condicion-group">
                             <label>Condición de Pago</label>
                             <select id="pur-condicion" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                 <option value="CONTADO">Contado (Pagado ya)</option>
@@ -277,17 +286,17 @@ export function renderGastos(container) {
                     </div>
 
                     <div style="border-top:1px solid var(--border-color); padding-top:1rem; display:flex; justify-content:flex-end;">
-                        <div style="width:300px; font-size:0.85rem; display:flex; flex-direction:column; gap:0.5rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:6px; border:1px solid var(--border-color);">
+                        <div style="width:320px; font-size:0.85rem; display:flex; flex-direction:column; gap:0.5rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:6px; border:1px solid var(--border-color);">
                             <div style="display:flex; justify-content:space-between;">
                                 <span>Subtotal Neto:</span>
                                 <strong id="pur-summary-subtotal">$ 0.00</strong>
                             </div>
-                            <div style="display:flex; justify-content:space-between;">
-                                <span>IVA Crédito Fiscal (13%):</span>
+                            <div style="display:flex; justify-content:space-between;" id="pur-iva-row">
+                                <span id="pur-iva-label">IVA Crédito Fiscal (13%):</span>
                                 <strong id="pur-summary-iva">$ 0.00</strong>
                             </div>
                             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.1); padding-top:0.5rem; font-size:1.05rem; color:var(--primary); font-weight:700;">
-                                <span>Total Factura:</span>
+                                <span id="pur-total-label">Total Factura:</span>
                                 <strong id="pur-summary-total">$ 0.00</strong>
                             </div>
                         </div>
@@ -295,7 +304,7 @@ export function renderGastos(container) {
 
                     <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
                         <button type="button" class="btn btn-secondary" id="btn-cancel-purchase">Cancelar</button>
-                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-circle-check"></i> Registrar Factura de Compra</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-purchase"><i class="fa-solid fa-circle-check"></i> Registrar DTE</button>
                     </div>
                 </form>
             </div>
@@ -305,6 +314,55 @@ export function renderGastos(container) {
         const addRowBtn = document.getElementById('btn-add-purchase-row');
         const cancelBtn = document.getElementById('btn-cancel-purchase');
         const formEl = document.getElementById('purchase-invoice-form');
+        const tipoDteSelect = document.getElementById('pur-tipo-dte');
+        const condicionGroup = document.getElementById('pur-condicion-group');
+        const condicionSelect = document.getElementById('pur-condicion');
+
+        // React to DTE type changes
+        function onTipoDteChange() {
+            const tipo = tipoDteSelect.value;
+            const isNC = tipo === 'NC';
+            const formTitle = document.getElementById('pur-form-title');
+            const formSubtitle = document.getElementById('pur-form-subtitle');
+            const submitBtn = document.getElementById('btn-submit-purchase');
+            const ivaRow = document.getElementById('pur-iva-row');
+            const ivaLabel = document.getElementById('pur-iva-label');
+            const totalLabel = document.getElementById('pur-total-label');
+
+            if (isNC) {
+                formTitle.innerHTML = '<span style="color:var(--danger);"><i class="fa-solid fa-rotate-left"></i> Registrar Nota de Crédito</span>';
+                formSubtitle.innerHTML = '<span style="color:#f87171;"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Nota de Crédito:</strong> Reduce el inventario y revierte el gasto correspondiente.</span>';
+                submitBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Registrar Nota de Crédito';
+                submitBtn.style.background = 'var(--danger)';
+                // NC is always settled immediately (no CxP)
+                condicionSelect.value = 'CONTADO';
+                condicionGroup.style.opacity = '0.5';
+                condicionGroup.style.pointerEvents = 'none';
+                ivaLabel.textContent = 'IVA a Revertir (13%):';
+                totalLabel.textContent = 'Total Revertido:';
+                ivaRow.style.color = 'var(--danger)';
+                document.getElementById('pur-summary-total').style.color = 'var(--danger)';
+            } else {
+                const labels = { CCF: 'Crédito Fiscal (CCF)', FAC: 'Factura Consumidor', FSE: 'Sujeto Excluido (FSE)' };
+                formTitle.textContent = `Registrar Entrada — ${labels[tipo] || 'Factura de Compra'}`;
+                formSubtitle.textContent = 'Carga las compras de repuestos del taller para registrar automáticamente el ingreso de stock al inventario.';
+                submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> Registrar ${labels[tipo] || 'DTE'}`;
+                submitBtn.style.background = '';
+                condicionGroup.style.opacity = '1';
+                condicionGroup.style.pointerEvents = 'auto';
+                // FSE has no IVA
+                if (tipo === 'FSE') {
+                    ivaLabel.textContent = 'IVA (FSE - No Aplica):';
+                } else {
+                    ivaLabel.textContent = 'IVA Crédito Fiscal (13%):';
+                }
+                ivaRow.style.color = '';
+                document.getElementById('pur-summary-total').style.color = 'var(--primary)';
+            }
+            updateTotals();
+        }
+
+        tipoDteSelect.addEventListener('change', onTipoDteChange);
 
         function renderRows() {
             rowsContainer.innerHTML = purchaseItems.map((item, idx) => {
@@ -466,16 +524,20 @@ export function renderGastos(container) {
         }
 
         function updateTotals() {
+            const tipo = tipoDteSelect ? tipoDteSelect.value : 'CCF';
             let sumNet = 0;
             purchaseItems.forEach(item => {
                 sumNet += item.cant * item.precio_costo;
             });
-            const iva = sumNet * 0.13;
+            // FSE has no IVA; NC shows negative amounts
+            const hasIva = tipo !== 'FSE';
+            const iva = hasIva ? sumNet * 0.13 : 0;
             const total = sumNet + iva;
+            const sign = tipo === 'NC' ? '-' : '';
 
-            document.getElementById('pur-summary-subtotal').textContent = `$ ${sumNet.toFixed(2)}`;
-            document.getElementById('pur-summary-iva').textContent = `$ ${iva.toFixed(2)}`;
-            document.getElementById('pur-summary-total').textContent = `$ ${total.toFixed(2)}`;
+            document.getElementById('pur-summary-subtotal').textContent = `${sign}$ ${sumNet.toFixed(2)}`;
+            document.getElementById('pur-summary-iva').textContent = hasIva ? `${sign}$ ${iva.toFixed(2)}` : `$ 0.00 (N/A)`;
+            document.getElementById('pur-summary-total').textContent = `${sign}$ ${total.toFixed(2)}`;
         }
 
         addRowBtn.addEventListener('click', () => {
@@ -498,19 +560,23 @@ export function renderGastos(container) {
                 return;
             }
 
+            const tipoDte = tipoDteSelect.value; // CCF | FAC | FSE | NC
+            const isNC = tipoDte === 'NC';
+            const hasIva = tipoDte !== 'FSE';
+
             const provId = document.getElementById('pur-proveedor').value;
             const date = document.getElementById('pur-date').value;
             const numDoc = document.getElementById('pur-num-doc').value;
-            const condicion = document.getElementById('pur-condicion').value;
+            const condicion = isNC ? 'CONTADO' : document.getElementById('pur-condicion').value;
 
             // Calculations
             let sumNet = 0;
             purchaseItems.forEach(item => sumNet += item.cant * item.precio_costo);
-            const iva = sumNet * 0.13;
+            const iva = hasIva ? sumNet * 0.13 : 0;
             const total = sumNet + iva;
 
             const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor S.A.', Dias_Credito: 0 };
-            const purchaseId = "COMPRA-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
+            const purchaseId = (isNC ? 'NC' : 'COMPRA') + '-CS-' + Math.floor(Date.now() / 1000).toString().substring(3);
 
             // Calculate due date for credit
             const creditDays = parseInt(prov.Dias_Credito || 0);
@@ -524,76 +590,99 @@ export function renderGastos(container) {
                 dueDate = `${year}-${month}-${day}`;
             }
 
-            // 1. Create Purchase record
+            // 1. Create Purchase/NC record
             const newPurchase = {
                 ID_Compra: purchaseId,
+                Tipo_DTE: tipoDte,
                 ID_Proveedor: provId,
                 Fecha_Compra: date,
                 Fecha_Vencimiento: dueDate,
                 Dias_Credito: creditDays,
                 Num_Factura: numDoc,
-                Monto_Neto: sumNet,
-                Monto_IVA: iva,
-                Monto_Total: total,
+                Monto_Neto: isNC ? -sumNet : sumNet,
+                Monto_IVA: isNC ? -iva : iva,
+                Monto_Total: isNC ? -total : total,
                 Condicion: condicion,
                 Estado_Pago: condicion === 'CONTADO' ? 'PAGADO' : 'PENDIENTE',
                 Saldo_Pendiente: condicion === 'CONTADO' ? 0 : total,
                 Items: purchaseItems.map(item => ({
                     ID_Producto: item.id_producto,
-                    Cantidad: item.cant,
+                    Cantidad: isNC ? -item.cant : item.cant,
                     Precio_Costo: item.precio_costo
                 }))
             };
             db.compras.unshift(newPurchase);
 
-            // 2. Affect Stock and cost in Catalog, and record Kardex movements (skip for consumibles)
+            // 2. Affect Stock / Kardex (skip consumibles; NC subtracts)
+            const dteLabelMap = { CCF: 'CCF', FAC: 'Factura', FSE: 'FSE', NC: 'Nota de Crédito' };
             purchaseItems.forEach(item => {
                 const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
-                if (prod) {
-                    if (!prod.Consumible) {
-                        // Only affect stock and kardex for non-consumible products
+                if (prod && !prod.Consumible) {
+                    if (isNC) {
+                        // Subtract stock (but never below 0)
+                        prod.Minimos = Math.max(0, (prod.Minimos || 0) - item.cant);
+                    } else {
                         prod.Minimos = (prod.Minimos || 0) + item.cant;
-
-                        // Kardex
-                        db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
-                        db['29 Movs de Inventario'].unshift({
-                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
-                            id_producto: item.id_producto,
-                            descripcion: prod.Descripcion,
-                            Cant_Mov: item.cant,
-                            "Fecha Mov": Date.now(),
-                            Tipo: 'ENTRADA',
-                            "Valor ($)": item.precio_costo,
-                            Observacion: `Compra Factura ${numDoc} (${prov.Nombre})`
-                        });
                     }
-                    // Always update purchase cost price regardless of type
-                    prod['Precio Compra'] = item.precio_costo;
+
+                    db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                    db['29 Movs de Inventario'].unshift({
+                        id_Mov: 'MOVIN-CS-' + Math.floor(Date.now() / 1000).toString().substring(3),
+                        id_producto: item.id_producto,
+                        descripcion: prod.Descripcion,
+                        Cant_Mov: item.cant,
+                        'Fecha Mov': Date.now(),
+                        Tipo: isNC ? 'SALIDA' : 'ENTRADA',
+                        'Valor ($)': item.precio_costo,
+                        Observacion: `${dteLabelMap[tipoDte]} ${numDoc} (${prov.Nombre})`
+                    });
+
+                    // Update cost price for normal purchases
+                    if (!isNC) prod['Precio Compra'] = item.precio_costo;
                 }
             });
 
-
-            // 3. Register cash outflow in Egresos if CONTADO
+            // 3. Register cash movement in Egresos
             if (condicion === 'CONTADO') {
-                db.gastos.unshift({
-                    "ID Gasto": "GASTO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
-                    "Fecha Gasto": date,
-                    Concepto: `Compra de Repuestos - Factura ${numDoc} (${prov.Nombre})`,
-                    "Monto Total": total,
-                    "Forma de Pago": "EFECTIVO",
-                    "ID Categoría Gasto": "Insumos Directos",
-                    "Estado Pago": "PAGADO",
-                    ID_Proveedor: provId
-                });
+                const tipeName = dteLabelMap[tipoDte] || tipoDte;
+                if (isNC) {
+                    // NC: register as negative gasto (credit/reversal)
+                    db.gastos.unshift({
+                        'ID Gasto': 'NC-GASTO-CS-' + Math.floor(Date.now() / 1000).toString().substring(3),
+                        'Fecha Gasto': date,
+                        Concepto: `Nota de Crédito ${numDoc} - Reversión (${prov.Nombre})`,
+                        'Monto Total': -total,
+                        'Forma de Pago': 'EFECTIVO',
+                        'ID Categoría Gasto': 'Nota de Crédito',
+                        'Estado Pago': 'PAGADO',
+                        ID_Proveedor: provId
+                    });
+                } else {
+                    db.gastos.unshift({
+                        'ID Gasto': 'GASTO-CS-' + Math.floor(Date.now() / 1000).toString().substring(3),
+                        'Fecha Gasto': date,
+                        Concepto: `Compra ${tipeName} - ${numDoc} (${prov.Nombre})`,
+                        'Monto Total': total,
+                        'Forma de Pago': 'EFECTIVO',
+                        'ID Categoría Gasto': 'Insumos Directos',
+                        'Estado Pago': 'PAGADO',
+                        ID_Proveedor: provId
+                    });
+                }
             }
 
             saveDatabase(db);
-            showToast("Factura de compra registrada con éxito. Stock e inventario actualizados.", "success");
-            
+            if (isNC) {
+                showToast(`Nota de Crédito ${numDoc} registrada. Inventario y gastos revertidos.`, 'success');
+            } else {
+                showToast(`${dteLabelMap[tipoDte]} ${numDoc} registrada con éxito. Stock e inventario actualizados.`, 'success');
+            }
+
             activeGastosTab = condicion === 'CONTADO' ? 'egresos' : 'cxp';
             purchaseItems = []; // Reset
             renderGastos(container);
         });
+
 
         renderRows();
     }
