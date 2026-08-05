@@ -1327,10 +1327,10 @@ export function renderConfiguracion(container, queryParams) {
                     <td style="text-align:center; font-weight:bold; color:${pctColor};">${pctText}</td>
                     <td style="text-align:center;">${p.Minimos || 1}</td>
                     <td style="text-align:center;">
-                        ${p.Consumible
+                        ${safe(p.Consumible
                             ? `<span style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.55rem; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.35); border-radius:99px; font-size:0.72rem; font-weight:700;">🧴 Consumible</span>`
                             : `<span style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.55rem; background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:99px; font-size:0.72rem; font-weight:700;">🔩 Repuesto</span>`
-                        }
+                        )}
                     </td>
                     <td style="text-align:center;">
                         <div style="display:flex; gap:0.35rem; justify-content:center;">
