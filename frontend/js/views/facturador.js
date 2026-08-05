@@ -507,6 +507,15 @@ export function renderIssuedTab(container) {
                 dropdown.remove();
             });
         });
+
+        dropdown.querySelectorAll('.btn-emit-nc-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openEmitNcDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
+                dropdown.remove();
+            });
+        });
+
         
         dropdown.querySelectorAll('.btn-reemit-dte').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -644,6 +653,9 @@ export function renderIssuedTab(container) {
                         <button class="dte-dropdown-item btn-query-dte" data-id="${genCode}" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
                         <div style="border-top: 1px solid var(--border-color); margin: 0.25rem 0;"></div>
                         <button class="dte-dropdown-item btn-invalidate-dte" data-id="${genCode}" data-presid="${budgetId}" style="color: #ef4444;" title="Anular DTE"><i class="fa-solid fa-ban"></i> Anular</button>
+                        ${safe(isAdmin ? `
+                            <button class="dte-dropdown-item btn-emit-nc-dte" data-id="${genCode}" data-presid="${budgetId}" style="color: #f59e0b;" title="Emitir Nota de Crédito DTE en MH"><i class="fa-solid fa-rotate-left"></i> Nota de Crédito</button>
+                        ` : '')}
                     `;
                 }
                 
@@ -2289,6 +2301,266 @@ function openInvalidateDteModal(dteId, presId) {
         });
     });
 }
+
+function openEmitNcDteModal(dteId, presId) {
+    const db = getDatabase();
+    const dteCfg = getSecureDteConfig();
+    
+    let p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
+    let isQuickSale = false;
+    if (!p) {
+        p = (db['43 Venta Rapida'] || []).find(vr => vr.controlNumber === dteId || vr.ID_Venta_Rapida === presId);
+        isQuickSale = true;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px);';
+    modal.innerHTML = html`
+        <div class="glass-card" style="max-width:500px; width:90%; padding:1.5rem; border-radius:12px; background:var(--bg-card, #1e1e2d); border:1px solid var(--border-color);">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary);"><i class="fa-solid fa-rotate-left" style="color:var(--warning); margin-right:0.5rem;"></i> Emisión de Nota de Crédito (DTE)</h3>
+                <button class="close-modal-btn" id="close-nc-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <form id="emit-nc-dte-form" style="display:flex; flex-direction:column; gap:1rem;">
+                <p style="font-size:0.85rem; color:var(--text-secondary);">Esta acción generará y transmitirá una <strong>Nota de Crédito oficial (DTE-05)</strong> al Ministerio de Hacienda relacionada al documento:<br><strong style="word-break:break-all; color:var(--warning);">${dteId}</strong>.<br><br>Revertirá el ingreso contable y devolverá los repuestos al inventario.</p>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Motivo de Nota de Crédito</label>
+                    <select id="nc-reason" required style="width:100%; padding:0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius:6px;">
+                        <option value="DEVOLUCION_PRODUCTO">Devolución parcial o total de repuestos/mercadería</option>
+                        <option value="DESCUENTO_BONIFICACION">Descuento o bonificación otorgada a posteriori</option>
+                        <option value="RESCISION_SERVICIO">Rescisión de contrato o servicio de taller</option>
+                        <option value="CORRECCION_MONTO">Ajuste o corrección de valor cobrado</option>
+                        <option value="OTRO">Otro motivo comercial justificable</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:0.35rem; font-size:0.85rem; color:var(--text-secondary);">Comentario / Justificación</label>
+                    <input type="text" id="nc-comment" placeholder="Ej. Devolución de filtro por modelo equivocado" required style="width:100%; padding:0.6rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius:6px;">
+                </div>
+                
+                <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                    <button type="button" class="btn btn-secondary" id="close-nc-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-warning" style="background:#f59e0b; color:#fff; border:none; font-weight:600;"><i class="fa-solid fa-rotate-left"></i> Transmitir Nota de Crédito</button>
+                </div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const closeModal = () => { modal.remove(); };
+    document.getElementById('close-nc-modal').addEventListener('click', closeModal);
+    document.getElementById('close-nc-btn').addEventListener('click', closeModal);
+    
+    document.getElementById('emit-nc-dte-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const reason = document.getElementById('nc-reason').value;
+        const comment = document.getElementById('nc-comment').value;
+        
+        const submitBtn = modal.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Transmitiendo Nota de Crédito...';
+        
+        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+        const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
+
+        // Target original document UUID
+        const origDteUuid = p ? (p.codigoGeneracion || p.mhGenerationCode || p.generationCode || generateUUID()) : generateUUID();
+
+        // Build NC Payload for FacturaLlama
+        const clientObj = isQuickSale ? null : db.clientes.find(c => c.ID_Cliente === p?.ID_Cliente);
+        const ncPayload = {
+            id: generateUUID(),
+            relatedTaxDocuments: [
+                { id: origDteUuid }
+            ],
+            recipient: {
+                name: (clientObj ? clientObj.Nombre : p?.Cliente || p?.Nombre || "Cliente General").substring(0, 150),
+                email: (clientObj ? clientObj.Email : p?.Email || "cliente@taller.com").substring(0, 100),
+                economicActivity: clientObj?.Codigo_Actividad || "62020",
+                nrc: clientObj?.NRC || "12345678",
+                identificationDocument: {
+                    type: (clientObj?.DUI ? "DUI" : "NIT"),
+                    number: (clientObj?.DUI || clientObj?.NIT || "000000000").replace(/-/g, "")
+                },
+                address: {
+                    department: clientObj?.Departamento || "06",
+                    municipality: clientObj?.Municipio || "14",
+                    complement: (clientObj?.Direccion || "San Salvador, El Salvador").substring(0, 200)
+                }
+            },
+            items: (isQuickSale ? (p?.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p?.['ID Presupuesto'])).map(item => {
+                const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
+                const dbProd = db.productos.find(prod => prod['ID_ Producto'] === prodId);
+                const desc = isQuickSale ? (item.description || item.name || 'Repuesto') : (dbProd ? dbProd.Descripcion : 'Repuesto');
+                const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1));
+                const price = parseFloat(isQuickSale ? (item.price || 0) : (item.PrecioUnitario || dbProd?.['Precio Venta'] || 0));
+                return {
+                    type: "BIENES",
+                    description: `Ajuste/Devolución NC: ${desc}`.substring(0, 1000),
+                    quantity: qty,
+                    unitPrice: price,
+                    saleType: "GRAVADA",
+                    documentNumber: origDteUuid
+                };
+            })
+        };
+
+        function processLocalNcSuccess(resData = {}) {
+            if (p) {
+                if (isQuickSale) {
+                    p.Estado = "REVERTIDO_NC";
+                    p.Nota_Credito = true;
+                    p.Fecha_NC = Date.now();
+                    p.numNc = resData.controlNumber || ("NC-DTE-05-" + Math.floor(Date.now() / 1000));
+                } else {
+                    p.Estado = 5; // Revertido con Nota de Crédito
+                    p.Estado_DTE = "REVERTIDO_NC";
+                    p.Nota_Credito = true;
+                    p.Fecha_NC = Date.now();
+                    p.numNc = resData.controlNumber || ("NC-DTE-05-" + Math.floor(Date.now() / 1000));
+                }
+                
+                // Restore stock and record devolution movement in Kardex
+                const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p['ID Presupuesto']);
+                prodItems.forEach(item => {
+                    const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
+                    const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1));
+                    
+                    const dbProd = db.productos.find(prod => prod['ID_ Producto'] === prodId);
+                    if (dbProd && !dbProd.Consumible) {
+                        dbProd.Minimos = (dbProd.Minimos || 0) + qty;
+                        
+                        db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                        db['29 Movs de Inventario'].unshift({
+                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
+                            id_producto: prodId,
+                            descripcion: dbProd.Descripcion,
+                            Cant_Mov: qty,
+                            "Fecha Mov": Date.now(),
+                            Tipo: "ENTRADA",
+                            "Valor ($)": parseFloat(isQuickSale ? (item.price || dbProd['Precio Unit'] || 10) : (item.PrecioUnitario || dbProd['Precio Unit'] || 10)),
+                            Observacion: `Reversión por Nota de Crédito DTE ${resData.controlNumber || p.ID_Venta_Rapida || p['ID Presupuesto']}`,
+                            DTE: resData.controlNumber || p.mhControlNumber || p.controlNumber || ''
+                        });
+                    }
+                });
+                
+                // Traceability: record negative payments for returns
+                db.pagos = db.pagos || [];
+                const activePayments = db.pagos.filter(pay => pay.ID_Presupuesto === (p.ID_Venta_Rapida || p['ID Presupuesto']) && pay['Estado Pago'] === 'COMPLETADO');
+                activePayments.forEach(pay => {
+                    const devPayId = "NC-PAGO-DEV-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
+                    db.pagos.unshift({
+                        "ID Pago": devPayId,
+                        ID_Presupuesto: pay.ID_Presupuesto,
+                        "Fecha Pago": Date.now(),
+                        "Monto Pago": -Math.abs(parseFloat(pay['Monto Pago'] || 0)),
+                        "Metodo Pago": pay['Metodo Pago'],
+                        "Estado Pago": "REVERTIDO_NC",
+                        User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                        Cliente: pay.Cliente || p.Cliente || p.Nombre
+                    });
+                });
+                saveDatabase(db);
+            }
+            closeModal();
+            showToast("Nota de Crédito DTE emitida con éxito. Stock devuelto a inventario y reversión financiera registrada.", "success");
+            handleRouting();
+        }
+
+        if (isSimulated && !baseUrl) {
+            const simulatedRes = {
+                success: true,
+                simulated: true,
+                code: "00",
+                description: "Nota de Crédito DTE Simulada Exitosamente",
+                generationCode: ncPayload.id,
+                controlNumber: "DTE-05-M001P001-" + Math.floor(Math.random()*90000 + 10000),
+                receptionSeal: Math.floor(Math.random()*9000000).toString() + "-APPROVED-NC"
+            };
+            saveDteLogToFirestore(
+                "Nota de Crédito DTE (Simulado)",
+                db.saas_state?.workshopData?.id || 'desconocido',
+                "nc",
+                ncPayload,
+                200,
+                simulatedRes,
+                "MOCK / FRONTEND SIMULADO"
+            );
+            setTimeout(() => processLocalNcSuccess(simulatedRes), 1000);
+            return;
+        }
+
+        if (!baseUrl) {
+            showToast("Error: Debe configurar la URL del servidor backend en Ajustes para emitir DTEs reales.", "danger");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Transmitir Nota de Crédito';
+            return;
+        }
+
+        const endpoint = `${baseUrl}/api/dte`;
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                apiKey: dteCfg.apiKey,
+                docType: 'nc',
+                payload: ncPayload,
+                workshopId: db.saas_state?.workshopData?.id || 'desconocido'
+            })
+        })
+        .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("html")) {
+                throw new Error("El servidor backend retornó HTML en lugar de JSON. Verifique su URL del backend en Ajustes.");
+            }
+            if (!response.ok) {
+                return response.json().then(errData => {
+                    const errMsg = errData.message || errData.error || 'Error al emitir Nota de Crédito';
+                    return Promise.reject(new Error(errMsg));
+                }, () => {
+                    return Promise.reject(new Error(`Error de conexión (Código ${response.status}).`));
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            saveDteLogToFirestore(
+                "Nota de Crédito DTE",
+                db.saas_state?.workshopData?.id || 'desconocido',
+                "nc",
+                ncPayload,
+                200,
+                data,
+                endpoint
+            );
+            processLocalNcSuccess(data);
+        })
+        .catch(err => {
+            saveDteLogToFirestore(
+                "Nota de Crédito DTE (Fallo)",
+                db.saas_state?.workshopData?.id || 'desconocido',
+                "nc",
+                ncPayload,
+                500,
+                { error: err.message },
+                endpoint
+            );
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Transmitir Nota de Crédito';
+            showToast(err.message, "danger");
+        });
+    });
+}
+
 
 // 7. VENTA RAPIDA POS VIEW
 
