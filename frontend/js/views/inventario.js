@@ -26,7 +26,8 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
+    downloadExcelReport,
+    makeSelectSearchable
 } from '../utils.js?v=69';
 
 let activeInventarioTab = 'catalogo';
@@ -170,6 +171,8 @@ export function renderInventario(container) {
 
         searchInput.addEventListener('input', (e) => populateInventoryList(e.target.value));
         
+        makeSelectSearchable('stock-prod-select', 'Buscar repuesto por nombre o código...');
+
         document.getElementById('adjust-stock-btn').addEventListener('click', () => stockModal.classList.add('active'));
         document.getElementById('close-stock-modal').addEventListener('click', () => stockModal.classList.remove('active'));
         document.getElementById('cancel-stock').addEventListener('click', () => stockModal.classList.remove('active'));
