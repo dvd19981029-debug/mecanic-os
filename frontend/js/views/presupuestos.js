@@ -896,6 +896,8 @@ export function renderBudgetEditor(container, budget) {
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+        db['21 Detalle Presupuesto Producto'] = db.detalle_productos;
+        db['11 Detalle Mano de Obra'] = db.detalle_mano_obra;
         if (habilitarRepuestosCliente) {
             budget.Repuestos_Cliente = tempRepuestosCliente;
         }
@@ -1772,6 +1774,8 @@ export function renderBudgetEditor(container, budget) {
         // Save details
         db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
         db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+        db['21 Detalle Presupuesto Producto'] = db.detalle_productos;
+        db['11 Detalle Mano de Obra'] = db.detalle_mano_obra;
         if (habilitarRepuestosCliente) {
             budget.Repuestos_Cliente = tempRepuestosCliente;
         }
