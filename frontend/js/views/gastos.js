@@ -101,7 +101,7 @@ export function renderGastos(container) {
                                     <th>Monto Total</th>
                                     <th>Proveedor</th>
                                     <th>Forma Pago</th>
-                                    ${isAdmin ? '<th style="text-align:center;">Acciones</th>' : ''}
+                                    ${safe(isAdmin ? '<th style="text-align:center;">Acciones</th>' : '')}
                                 </tr>
                             </thead>
                             <tbody>
