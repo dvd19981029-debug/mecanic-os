@@ -505,6 +505,11 @@ export function renderCaja(container) {
     }
     
     function renderHistoryCutsTab() {
+        const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
+        const roleName = activeUser ? (activeUser.Nivel_Acceso || activeUser.Tecnico_Rol || activeUser.Rol || "Mecánico") : "Mecánico";
+        const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isAdmin = searchRole === "administrador" || searchRole === "admin";
+
         const closedSessions = db.cajas_sesiones.filter(s => s.estado === 'CERRADA');
         
         if (closedSessions.length === 0) {
@@ -549,11 +554,11 @@ export function renderCaja(container) {
                                             <td style="padding:0.65rem 0.5rem; font-weight:600;"><code style="color:var(--cyan);">${s.id_sesion}</code></td>
                                             <td style="padding:0.65rem 0.5rem; font-size:0.8rem;">
                                                 <div>${new Date(s.fecha_apertura).toLocaleDateString('es-SV')}</div>
-                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${s.usuario_apertura.split('@')[0]}</div>
+                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${(s.usuario_apertura || 'Admin').split('@')[0]}</div>
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; font-size:0.8rem;">
                                                 <div>${new Date(s.fecha_cierre).toLocaleDateString('es-SV')}</div>
-                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${s.usuario_cierre.split('@')[0]}</div>
+                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${(s.usuario_cierre || 'Admin').split('@')[0]}</div>
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; text-align:right; font-weight:600;">$ ${s.saldo_inicial.toFixed(2)}</td>
                                             <td style="padding:0.65rem 0.5rem; text-align:right; font-weight:700; color:var(--cyan);">$ ${s.saldo_real.toFixed(2)}</td>
@@ -561,9 +566,16 @@ export function renderCaja(container) {
                                                 ${diff > 0.01 ? '+' : ''}$ ${diff.toFixed(2)}
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; text-align:center;">
-                                                <button class="btn btn-secondary btn-print-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem;">
-                                                    <i class="fa-solid fa-print"></i> Imprimir Ticket
-                                                </button>
+                                                <div style="display:flex; justify-content:center; gap:0.35rem;">
+                                                    <button class="btn btn-secondary btn-print-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Imprimir Ticket de Corte">
+                                                        <i class="fa-solid fa-print"></i> Imprimir Ticket
+                                                    </button>
+                                                    ${isAdmin ? `
+                                                        <button class="btn btn-danger btn-delete-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:#e74c3c; border:none; color:#fff;" title="Eliminar Corte de Caja (Solo Administradores)">
+                                                            <i class="fa-solid fa-trash"></i> Eliminar
+                                                        </button>
+                                                    ` : ''}
+                                                </div>
                                             </td>
                                         </tr>
                                     `;
@@ -582,6 +594,24 @@ export function renderCaja(container) {
                 printCorteTicket(sId);
             });
         });
+
+        // Delete corte handlers (Admin only)
+        if (isAdmin) {
+            tabContent.querySelectorAll('.btn-delete-corte').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sId = btn.getAttribute('data-session-id');
+                    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el corte de caja ${sId}? Esta acción eliminará el registro.`)) {
+                        db.cajas_sesiones = (db.cajas_sesiones || []).filter(s => s.id_sesion !== sId);
+                        if (db['31 Cortes de Caja']) {
+                            db['31 Cortes de Caja'] = db['31 Cortes de Caja'].filter(s => s.id_sesion !== sId);
+                        }
+                        saveDatabase(db);
+                        showToast(`Corte de caja ${sId} eliminado con éxito.`, "success");
+                        renderHistoryCutsTab();
+                    }
+                });
+            });
+        }
     }
     
     function renderMonthlyConsolidationTab() {
