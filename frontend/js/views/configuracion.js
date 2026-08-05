@@ -349,6 +349,7 @@ export function renderConfiguracion(container, queryParams) {
                                 <th style="text-align:right; cursor:pointer;" class="sort-header" data-column="iva">Precio c/IVA ${renderSortIcon('iva')}</th>
                                 <th style="text-align:center; cursor:pointer;" class="sort-header" data-column="ganancia">% Ganancia ${renderSortIcon('ganancia')}</th>
                                 <th style="text-align:center; cursor:pointer;" class="sort-header" data-column="stock">Stock Mín. ${renderSortIcon('stock')}</th>
+                                <th style="text-align:center;">Tipo</th>
                                 <th style="text-align:center;">Acciones</th>
                             </tr>
                         </thead>
@@ -595,6 +596,15 @@ export function renderConfiguracion(container, queryParams) {
                             <label>Presentación / Tipo Unidad</label>
                             <input type="text" id="producto-presentacion" required value="Unidad" placeholder="Ej. Unidad, Galón, Litro">
                         </div>
+                    </div>
+                    <div style="margin-top:0.25rem;">
+                        <label style="display:flex; align-items:center; gap:0.75rem; cursor:pointer; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(255,255,255,0.02); user-select:none;" id="lbl-consumible">
+                            <input type="checkbox" id="producto-consumible" style="width:18px; height:18px; accent-color:var(--warning); cursor:pointer;">
+                            <div>
+                                <div style="font-weight:600; font-size:0.9rem;">🧴 Producto Consumible</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Ej: jabones, lubricantes, materiales de limpieza. <strong style="color:var(--warning);">No afecta inventario</strong> cuando se registra una compra.</div>
+                            </div>
+                        </label>
                     </div>
                     <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:0.5rem;">
                         <button type="button" class="btn btn-secondary" id="btn-cancel-producto">Cancelar</button>
@@ -1317,6 +1327,12 @@ export function renderConfiguracion(container, queryParams) {
                     <td style="text-align:center; font-weight:bold; color:${pctColor};">${pctText}</td>
                     <td style="text-align:center;">${p.Minimos || 1}</td>
                     <td style="text-align:center;">
+                        ${p.Consumible
+                            ? `<span style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.55rem; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.35); border-radius:99px; font-size:0.72rem; font-weight:700;">🧴 Consumible</span>`
+                            : `<span style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.55rem; background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:99px; font-size:0.72rem; font-weight:700;">🔩 Repuesto</span>`
+                        }
+                    </td>
+                    <td style="text-align:center;">
                         <div style="display:flex; gap:0.35rem; justify-content:center;">
                             <button class="btn btn-secondary btn-edit-producto" data-id="${p['ID_ Producto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
                             <button class="btn btn-secondary btn-delete-producto" data-id="${p['ID_ Producto']}" style="padding:0.25rem 0.5rem; font-size:0.75rem; color:var(--danger);"><i class="fa-solid fa-trash"></i></button>
@@ -1343,6 +1359,7 @@ export function renderConfiguracion(container, queryParams) {
                         document.getElementById('producto-precio-venta').value = pVentaVal;
                         document.getElementById('producto-minimos').value = p.Minimos || 1;
                         document.getElementById('producto-presentacion').value = p.Presentacion || 'Unidad';
+                        document.getElementById('producto-consumible').checked = p.Consumible === true;
                         
                         // Update calculations inside modal
                         if (typeof window.updateProductCalculations === 'function') {
@@ -1759,6 +1776,7 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('producto-precio-venta').value = '0.00';
             document.getElementById('producto-minimos').value = '1';
             document.getElementById('producto-presentacion').value = 'Unidad';
+            document.getElementById('producto-consumible').checked = false;
             
             // Reset calculations inside modal
             updateProductCalculations();
@@ -1838,6 +1856,8 @@ export function renderConfiguracion(container, queryParams) {
             const finalPrecioBase = preciosConIva ? parseFloat((precio / 1.13).toFixed(4)) : precio;
             const finalPrecioIvaInc = preciosConIva ? precio : parseFloat((precio * 1.13).toFixed(2));
 
+            const isConsumible = document.getElementById('producto-consumible').checked;
+
             if (originalId) {
                 // Edit
                 const p = currentDb.productos.find(x => x['ID_ Producto'] === originalId);
@@ -1851,6 +1871,7 @@ export function renderConfiguracion(container, queryParams) {
                     p['Precio Unit Iva Inc'] = finalPrecioIvaInc;
                     p.Minimos = minimos;
                     p.Presentacion = pres;
+                    p.Consumible = isConsumible;
                 }
                 showToast("Producto actualizado en catálogo", "success");
             } else {
@@ -1865,6 +1886,7 @@ export function renderConfiguracion(container, queryParams) {
                     "Precio Unit Iva Inc": finalPrecioIvaInc,
                     "Minimos": minimos,
                     "Presentacion": pres,
+                    "Consumible": isConsumible,
                     "Categoría": "100101",
                     "Margen": 0,
                     "Descuento": "NO",

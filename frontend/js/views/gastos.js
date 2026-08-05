@@ -546,27 +546,32 @@ export function renderGastos(container) {
             };
             db.compras.unshift(newPurchase);
 
-            // 2. Affect Stock and cost in Catalog, and record Kardex movements
+            // 2. Affect Stock and cost in Catalog, and record Kardex movements (skip for consumibles)
             purchaseItems.forEach(item => {
                 const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
                 if (prod) {
-                    prod.Minimos = (prod.Minimos || 0) + item.cant;
-                    prod['Precio Unit'] = item.precio_costo;
+                    if (!prod.Consumible) {
+                        // Only affect stock and kardex for non-consumible products
+                        prod.Minimos = (prod.Minimos || 0) + item.cant;
 
-                    // Kardex
-                    db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
-                    db['29 Movs de Inventario'].unshift({
-                        id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
-                        id_producto: item.id_producto,
-                        descripcion: prod.Descripcion,
-                        Cant_Mov: item.cant,
-                        "Fecha Mov": Date.now(),
-                        Tipo: 'ENTRADA',
-                        "Valor ($)": item.precio_costo,
-                        Observacion: `Compra Factura ${numDoc} (${prov.Nombre})`
-                    });
+                        // Kardex
+                        db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                        db['29 Movs de Inventario'].unshift({
+                            id_Mov: "MOVIN-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
+                            id_producto: item.id_producto,
+                            descripcion: prod.Descripcion,
+                            Cant_Mov: item.cant,
+                            "Fecha Mov": Date.now(),
+                            Tipo: 'ENTRADA',
+                            "Valor ($)": item.precio_costo,
+                            Observacion: `Compra Factura ${numDoc} (${prov.Nombre})`
+                        });
+                    }
+                    // Always update purchase cost price regardless of type
+                    prod['Precio Compra'] = item.precio_costo;
                 }
             });
+
 
             // 3. Register cash outflow in Egresos if CONTADO
             if (condicion === 'CONTADO') {
