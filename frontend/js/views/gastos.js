@@ -404,7 +404,7 @@ export function renderGastos(container) {
                     
                     <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
                         <h4 style="margin-bottom:0.75rem; color:var(--primary); font-weight:700;">Detalle de Repuestos / Insumos</h4>
-                        <div class="table-container">
+                        <div class="table-container" style="overflow:visible; position:relative; min-height: 180px;">
                             <table style="min-width:100%;">
                                 <thead>
                                     <tr>
@@ -553,8 +553,12 @@ export function renderGastos(container) {
                 const searchInput = row.querySelector('.pur-prod-input');
                 const resultsDiv = row.querySelector('.pur-prod-results');
 
+                // Stop propagation on dropdown clicks so typing or selecting doesn't close it
+                dropdown.addEventListener('click', (e) => e.stopPropagation());
+
                 // Open dropdown on trigger click
                 triggerDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     // Close all other dropdowns first
                     document.querySelectorAll('.pur-prod-dropdown').forEach(d => {
                         if (d !== dropdown) d.style.display = 'none';
@@ -568,16 +572,9 @@ export function renderGastos(container) {
                     }
                 });
 
-                searchInput.addEventListener('input', () => {
+                searchInput.addEventListener('input', (e) => {
+                    e.stopPropagation();
                     populateProdResults(resultsDiv, searchInput.value, idx, hiddenProdInput, row, dropdown);
-                });
-
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function closeDropdown(e) {
-                    if (!row.contains(e.target)) {
-                        dropdown.style.display = 'none';
-                        document.removeEventListener('click', closeDropdown);
-                    }
                 });
 
                 cantInput.addEventListener('input', (e) => {
@@ -593,13 +590,27 @@ export function renderGastos(container) {
                 });
 
                 if (deleteBtn) {
-                    deleteBtn.addEventListener('click', () => {
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         purchaseItems.splice(idx, 1);
                         renderRows();
                         updateTotals();
                     });
                 }
             });
+
+            // Single global document click handler to close dropdowns when clicking outside
+            if (!window._purCloseDropdownListener) {
+                window._purCloseDropdownListener = (e) => {
+                    document.querySelectorAll('.pur-prod-search-wrap').forEach(wrap => {
+                        if (!wrap.contains(e.target)) {
+                            const d = wrap.querySelector('.pur-prod-dropdown');
+                            if (d) d.style.display = 'none';
+                        }
+                    });
+                };
+                document.addEventListener('click', window._purCloseDropdownListener);
+            }
 
             updateTotals();
         }
