@@ -721,8 +721,9 @@ export function renderGastos(container) {
             // Calculations
             let sumNet = 0;
             purchaseItems.forEach(item => sumNet += item.cant * item.precio_costo);
-            const iva = hasIva ? sumNet * 0.13 : 0;
-            const total = sumNet + iva;
+            const roundedSumNet = parseFloat(sumNet.toFixed(2));
+            const roundedIva = hasIva ? parseFloat((sumNet * 0.13).toFixed(2)) : 0;
+            const roundedTotal = parseFloat((roundedSumNet + roundedIva).toFixed(2));
 
             const prov = db.proveedores.find(p => p.ID_Proveedor === provId) || { Nombre: 'Proveedor S.A.', Dias_Credito: 0 };
             const purchaseId = (isNC ? 'NC' : 'COMPRA') + '-CS-' + Math.floor(Date.now() / 1000).toString().substring(3);
@@ -748,12 +749,12 @@ export function renderGastos(container) {
                 Fecha_Vencimiento: dueDate,
                 Dias_Credito: creditDays,
                 Num_Factura: numDoc,
-                Monto_Neto: isNC ? -sumNet : sumNet,
-                Monto_IVA: isNC ? -iva : iva,
-                Monto_Total: isNC ? -total : total,
+                Monto_Neto: isNC ? -roundedSumNet : roundedSumNet,
+                Monto_IVA: isNC ? -roundedIva : roundedIva,
+                Monto_Total: isNC ? -roundedTotal : roundedTotal,
                 Condicion: condicion,
                 Estado_Pago: condicion === 'CONTADO' ? 'PAGADO' : 'PENDIENTE',
-                Saldo_Pendiente: condicion === 'CONTADO' ? 0 : total,
+                Saldo_Pendiente: condicion === 'CONTADO' ? 0 : (isNC ? -roundedTotal : roundedTotal),
                 Items: purchaseItems.map(item => ({
                     ID_Producto: item.id_producto,
                     Cantidad: isNC ? -item.cant : item.cant,
@@ -838,6 +839,20 @@ export function renderGastos(container) {
 
     // --- TAB 3: ACCOUNTS PAYABLE (CxP) ---
     function renderCxpTab(parent) {
+        // Sanitize purchase balances to exact 2 decimals to fix float rounding discrepancies
+        (db.compras || []).forEach(c => {
+            if (c.Saldo_Pendiente !== undefined) {
+                c.Saldo_Pendiente = parseFloat(parseFloat(c.Saldo_Pendiente || 0).toFixed(2));
+                if (c.Saldo_Pendiente <= 0 && c.Estado_Pago === 'PENDIENTE') {
+                    c.Estado_Pago = 'PAGADO';
+                    c.Saldo_Pendiente = 0;
+                }
+            }
+            if (c.Monto_Total !== undefined) {
+                c.Monto_Total = parseFloat(parseFloat(c.Monto_Total || 0).toFixed(2));
+            }
+        });
+
         const pendingPurchases = db.compras.filter(c => c.Estado_Pago === 'PENDIENTE');
         const totalDebt = pendingPurchases.reduce((sum, c) => sum + parseFloat(c.Saldo_Pendiente || 0), 0);
         const countUnpaid = pendingPurchases.length;
@@ -1021,7 +1036,12 @@ export function renderGastos(container) {
             const method = document.getElementById('abono-method').value;
             const notes = document.getElementById('abono-notes').value;
 
-            if (amount <= 0 || amount > parseFloat(comp.Saldo_Pendiente)) {
+            // Normalize balances to integer cents to guarantee accurate float comparisons
+            const currentDebt = parseFloat(parseFloat(comp.Saldo_Pendiente || 0).toFixed(2));
+            const amountCents = Math.round((amount || 0) * 100);
+            const debtCents = Math.round(currentDebt * 100);
+
+            if (isNaN(amount) || amount <= 0 || amountCents > debtCents) {
                 showToast("Monto inválido. No puede ser mayor a la deuda pendiente.", "danger");
                 return;
             }
@@ -1039,11 +1059,13 @@ export function renderGastos(container) {
                 Notas: notes
             });
 
-            // 2. Update purchase balance
-            comp.Saldo_Pendiente = parseFloat((parseFloat(comp.Saldo_Pendiente) - amount).toFixed(2));
-            if (comp.Saldo_Pendiente <= 0) {
+            // 2. Update purchase balance safely using cents
+            const newBalanceCents = debtCents - amountCents;
+            if (newBalanceCents <= 0) {
                 comp.Estado_Pago = 'PAGADO';
                 comp.Saldo_Pendiente = 0;
+            } else {
+                comp.Saldo_Pendiente = parseFloat((newBalanceCents / 100).toFixed(2));
             }
 
             // 3. Register cash outflow in Egresos (flujo de caja real)
