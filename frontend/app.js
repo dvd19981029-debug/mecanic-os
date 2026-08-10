@@ -443,6 +443,10 @@ function smartRefreshView(changedCollection) {
             'movs_inventario': ['inventario'],
             'venta_rapida': ['venta-rapida', 'taller-dashboard', 'dashboard-bi'],
             'gastos': ['gastos', 'dashboard-bi'],
+            'compras': ['gastos', 'dashboard-bi'],
+            'abonos_proveedores': ['gastos', 'dashboard-bi'],
+            'proveedores': ['gastos'],
+            'ingresos': ['ingresos', 'dashboard-bi'],
             'pagos_vr': ['venta-rapida'],
         };
         
