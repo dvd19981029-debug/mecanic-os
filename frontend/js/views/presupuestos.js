@@ -4009,6 +4009,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <div><strong>Documento:</strong> ${client['Num Doc'] || client.Num_Documento || client.NIT || client.DUI || 'N/A'}</div>
                 <div><strong>Teléfono:</strong> ${client['Telefono 1 '] || client.Telefono || 'N/A'}</div>
                 <div><strong>Dirección:</strong> ${client.Direccion || 'N/A'}</div>
+                <div><strong>Número de Orden:</strong> ${budget.Orden_Compra || 'N/A'}</div>
             </div>
             
             <!-- Center: Workshop Info & Logo -->
