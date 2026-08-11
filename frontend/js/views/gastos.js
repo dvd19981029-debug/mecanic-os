@@ -368,7 +368,8 @@ export function renderGastos(container) {
                 <p id="pur-form-subtitle" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.5rem;">Carga las compras de repuestos del taller para registrar automáticamente el ingreso de stock al inventario.</p>
                 
                 <form id="purchase-invoice-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <div class="form-row" style="display:grid; grid-template-columns:1.2fr 1.5fr 1fr 1fr 1fr; gap:1rem;">
+                    <!-- Linea 1: Tipo DTE, Proveedor, Fecha DTE, Condicion Pago -->
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1.5fr 1fr 1fr; gap:1rem;">
                         <div class="form-group">
                             <label>Tipo de DTE</label>
                             <select id="pur-tipo-dte" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%; font-weight:600;">
@@ -389,16 +390,24 @@ export function renderGastos(container) {
                             <label>Fecha del DTE</label>
                             <input type="date" id="pur-date" required value="${new Date().toISOString().split('T')[0]}" style="padding:0.6rem;">
                         </div>
-                        <div class="form-group">
-                            <label>Número de Documento / DTE</label>
-                            <input type="text" id="pur-num-doc" required placeholder="Ej: FCF-1002" style="padding:0.6rem;">
-                        </div>
                         <div class="form-group" id="pur-condicion-group">
                             <label>Condición de Pago</label>
                             <select id="pur-condicion" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                 <option value="CONTADO">Contado (Pagado ya)</option>
                                 <option value="CREDITO">Crédito (Cuenta x Pagar)</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- Linea 2: Codigo de Generacion & Numero de Control -->
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label>Código de Generación</label>
+                            <input type="text" id="pur-num-doc" required placeholder="Ej: 4B17731D-B09B-89A8-5BFD-A3646BD9D9CE" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Control</label>
+                            <input type="text" id="pur-num-control" placeholder="Ej: DTE-01-M001P001-000000000001509" style="padding:0.6rem;">
                         </div>
                     </div>
                     
@@ -715,7 +724,8 @@ export function renderGastos(container) {
 
             const provId = document.getElementById('pur-proveedor').value;
             const date = document.getElementById('pur-date').value;
-            const numDoc = document.getElementById('pur-num-doc').value;
+            const numDoc = document.getElementById('pur-num-doc').value.trim();
+            const numControl = (document.getElementById('pur-num-control')?.value || '').trim();
             const condicion = isNC ? 'CONTADO' : document.getElementById('pur-condicion').value;
 
             // Calculations
@@ -749,6 +759,7 @@ export function renderGastos(container) {
                 Fecha_Vencimiento: dueDate,
                 Dias_Credito: creditDays,
                 Num_Factura: numDoc,
+                Num_Control: numControl,
                 Monto_Neto: isNC ? -roundedSumNet : roundedSumNet,
                 Monto_IVA: isNC ? -roundedIva : roundedIva,
                 Monto_Total: isNC ? -roundedTotal : roundedTotal,
@@ -935,6 +946,7 @@ export function renderGastos(container) {
                                             <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
                                             <td>
                                                 <strong>${escapeHtml(c.Num_Factura)}</strong>
+                                                ${c.Num_Control ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;" title="Número de Control">Ctrl: ${escapeHtml(c.Num_Control)}</div>` : ''}
                                                 ${itemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; border-top:1px dashed var(--border-color); padding-top:0.3rem; line-height:1.4; font-weight:normal; max-width:280px; word-break:break-word;">${itemsDetail}</div>` : ''}
                                             </td>
                                             <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total).toFixed(2)}</td>
