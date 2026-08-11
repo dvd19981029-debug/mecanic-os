@@ -26,7 +26,8 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
+    downloadExcelReport,
+    makeSelectSearchable
 } from '../utils.js?v=69';
 
 let activeGastosTab = 'egresos';
@@ -464,6 +465,8 @@ export function renderGastos(container) {
         const tipoDteSelect = document.getElementById('pur-tipo-dte');
         const condicionGroup = document.getElementById('pur-condicion-group');
         const condicionSelect = document.getElementById('pur-condicion');
+
+        makeSelectSearchable('pur-proveedor', 'Buscar y seleccionar proveedor...');
 
         // React to DTE type changes
         function onTipoDteChange() {
