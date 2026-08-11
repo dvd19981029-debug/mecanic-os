@@ -142,6 +142,12 @@ export function renderInventario(container) {
         const stockForm = document.getElementById('stock-form');
         const exportBtn = document.getElementById('btn-export-inv');
 
+        const getProductCost = (p) => parseFloat(p['Precio Compra'] || p['Precio Unit'] || p['Precio Costo'] || 0);
+        const getProductSalePrice = (p) => {
+            const cost = getProductCost(p);
+            return parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || p['Precio Venta'] || (cost > 0 ? (cost * 1.3).toFixed(2) : 0));
+        };
+
         function populateInventoryList(filter = '') {
             rowsEl.innerHTML = '';
             const filtered = db.productos.filter(p => 
@@ -155,13 +161,16 @@ export function renderInventario(container) {
                 if (qty <= 0) alertTag = '<span class="badge-tag badge-danger">Agotado</span>';
                 else if (qty <= 3) alertTag = '<span class="badge-tag badge-warning">Mínimo</span>';
 
+                const cost = getProductCost(p);
+                const salePrice = getProductSalePrice(p);
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = html`
                     <td><strong>${escapeHtml(p['ID_ Producto'])}</strong></td>
                     <td>${escapeHtml(p.Descripcion)}</td>
                     <td>${escapeHtml(p['Unidad de Medida'] || 'Pza')}</td>
-                    <td>$ ${parseFloat(p['Precio Unit'] || 10).toFixed(2)}</td>
-                    <td>$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || 13).toFixed(2)}</td>
+                    <td>$ ${cost.toFixed(2)}</td>
+                    <td>$ ${salePrice.toFixed(2)}</td>
                     <td><strong>${qty}</strong></td>
                     <td>${safe(alertTag)}</td>
                 `;
@@ -198,7 +207,7 @@ export function renderInventario(container) {
                     Cant_Mov: qty,
                     "Fecha Mov": Date.now(),
                     Tipo: type,
-                    "Valor ($)": parseFloat(p['Precio Unit'] || 10),
+                    "Valor ($)": getProductCost(p),
                     Observacion: notes
                 });
 
@@ -225,8 +234,8 @@ export function renderInventario(container) {
                 "Código Producto": p['ID_ Producto'] || '',
                 "Descripción": p.Descripcion || '',
                 "Unidad de Medida": p['Unidad de Medida'] || 'Pza',
-                "Precio Costo ($)": parseFloat(p['Precio Unit'] || 10),
-                "Precio Venta ($)": parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || 13),
+                "Precio Costo ($)": getProductCost(p),
+                "Precio Venta ($)": getProductSalePrice(p),
                 "Existencia": p.Minimos || 0,
                 "Estado": (p.Minimos || 0) <= 0 ? "Agotado" : ((p.Minimos || 0) <= 3 ? "Mínimo" : "OK")
             }));
