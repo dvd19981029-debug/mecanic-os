@@ -4096,7 +4096,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                             <tr>
                                 <td>${p.Descripcion}</td>
                                 <td style="text-align: center;">${qty}</td>
-                                <td style="text-align: right;">$ ${effectiveUnitPrice.toFixed(2)}</td>
+                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
                                 <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toFixed(2)}</td>
                             </tr>
                         `;
