@@ -232,6 +232,83 @@ export function renderVehiculos(container) {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Editar Vehículo -->
+        <div id="veh-edit-modal" class="modal" style="display:none; align-items:center; justify-content:center;">
+            <div class="modal-content glass-card" style="max-width:650px; width:95%; max-height:90vh; overflow-y:auto; padding:1.75rem;">
+                <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                    <h3 style="margin:0; font-family:'Outfit', sans-serif; font-size:1.3rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                        <i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Editar Registro de Vehículo
+                    </h3>
+                    <button class="close-modal-btn" id="close-veh-edit-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+
+                <form id="veh-edit-form" style="display:flex; flex-direction:column; gap:1rem;">
+                    <input type="hidden" id="edit-v-key">
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Número de Placas / Identificador *</label>
+                            <input type="text" id="edit-v-placa" required style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-weight:700;">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Número de Equipo</label>
+                            <input type="text" id="edit-v-equipo" placeholder="Ej: PU-620" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Marca *</label>
+                            <input type="text" id="edit-v-marca" required placeholder="Ej: TOYOTA" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Modelo *</label>
+                            <input type="text" id="edit-v-modelo" required placeholder="Ej: HILUX" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Año</label>
+                            <input type="text" id="edit-v-year" placeholder="2024" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Color</label>
+                            <input type="text" id="edit-v-color" placeholder="Ej: BLANCO" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Tipo</label>
+                            <input type="text" id="edit-v-tipo" placeholder="Automóvil, Pick-up, etc." style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">VIN / Chasis</label>
+                            <input type="text" id="edit-v-vin" placeholder="N° VIN" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-family:monospace;">
+                        </div>
+                        <div class="form-group">
+                            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Número de Motor</label>
+                            <input type="text" id="edit-v-motor" placeholder="N° Motor" style="width:100%; padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-family:monospace;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">Cliente / Propietario Asignado</label>
+                        <select id="edit-v-cliente" style="width:100%; height:38px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary);">
+                            <option value="">-- Sin Cliente Asignado / Consumidor Final --</option>
+                            ${safe(clientesList.map(c => `<option value="${escapeHtml(c.ID_Cliente || c.Codigo_Cliente || '')}">${escapeHtml(c.Nombre || '')} (${escapeHtml(c.Codigo_Cliente || 'N/A')})</option>`).join(''))}
+                        </select>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <button type="button" class="btn btn-secondary" id="cancel-veh-edit">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
 
     // Render Table Function
@@ -335,6 +412,9 @@ export function renderVehiculos(container) {
                 </td>
                 <td>
                     <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <button class="btn btn-secondary btn-edit-veh" data-key="${escapeHtml(v.ID_Vehiculo || placa)}" title="Editar Vehículo" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        </button>
                         <button class="btn btn-primary btn-expediente-veh" data-key="${escapeHtml(v.ID_Vehiculo || placa)}" style="padding:0.35rem 0.65rem; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:0.35rem;">
                             <i class="fa-solid fa-folder-open"></i> Expediente
                         </button>
@@ -344,7 +424,15 @@ export function renderVehiculos(container) {
             tableBody.appendChild(tr);
         });
 
-        // Bind Expediente button click
+        // Bind Edit & Expediente button clicks
+        tableBody.querySelectorAll('.btn-edit-veh').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.getAttribute('data-key');
+                const veh = vehiculosList.find(v => (v.ID_Vehiculo || getVehiclePlaca(v)) === key);
+                openEditVehicleModal(veh);
+            });
+        });
+
         tableBody.querySelectorAll('.btn-expediente-veh').forEach(btn => {
             btn.addEventListener('click', () => {
                 const key = btn.getAttribute('data-key');
@@ -352,6 +440,32 @@ export function renderVehiculos(container) {
                 openVehicleExpedienteModal(veh);
             });
         });
+    }
+
+    // Open Edit Vehicle Modal Function
+    function openEditVehicleModal(veh) {
+        if (!veh) return;
+        const key = veh.ID_Vehiculo || getVehiclePlaca(veh);
+        const placa = getVehiclePlaca(veh);
+        const nEquipoVal = (veh.N_Equipo || veh.N_equipo || veh.Num_Equipo || veh.Equipo || veh.No_Equipo || veh['N° Equipo'] || veh['Número de Equipo'] || '').toString().trim();
+        const client = getVehicleClient(veh);
+
+        document.getElementById('edit-v-key').value = key;
+        document.getElementById('edit-v-placa').value = placa;
+        document.getElementById('edit-v-equipo').value = nEquipoVal;
+        document.getElementById('edit-v-marca').value = veh.Marca || '';
+        document.getElementById('edit-v-modelo').value = veh.Modelo || '';
+        document.getElementById('edit-v-year').value = veh.Año || veh.Anio || '';
+        document.getElementById('edit-v-color').value = veh.Color || '';
+        document.getElementById('edit-v-tipo').value = veh.Tipo || 'Automóvil';
+        document.getElementById('edit-v-vin').value = veh.VIN || veh.Chasis || veh.N_Chasis || veh.Nª_VIN || '';
+        document.getElementById('edit-v-motor').value = veh.Motor || veh.N_Motor || veh.Nª_Motor || '';
+
+        const clientSel = document.getElementById('edit-v-cliente');
+        const currClientId = veh.ID_Cliente || veh.Cliente_ID || veh.Cliente || veh.Codigo_Cliente || (client ? (client.ID_Cliente || client.Codigo_Cliente) : '');
+        clientSel.value = currClientId || '';
+
+        document.getElementById('veh-edit-modal').style.display = 'flex';
     }
 
     // Open Expediente Modal
@@ -589,6 +703,74 @@ export function renderVehiculos(container) {
         }
 
         return '';
+    }
+
+    // Edit modal listeners setup
+    const editModal = document.getElementById('veh-edit-modal');
+    const closeEditBtn = document.getElementById('close-veh-edit-modal');
+    const cancelEditBtn = document.getElementById('cancel-veh-edit');
+    const editForm = document.getElementById('veh-edit-form');
+
+    if (closeEditBtn) closeEditBtn.onclick = () => { editModal.style.display = 'none'; };
+    if (cancelEditBtn) cancelEditBtn.onclick = () => { editModal.style.display = 'none'; };
+
+    if (editForm) {
+        editForm.onsubmit = (e) => {
+            e.preventDefault();
+            const key = document.getElementById('edit-v-key').value;
+            const target = vehiculosList.find(v => (v.ID_Vehiculo || getVehiclePlaca(v)) === key);
+            if (!target) {
+                showToast("No se encontró el vehículo para actualizar", "danger");
+                return;
+            }
+
+            const newPlaca = document.getElementById('edit-v-placa').value.trim();
+            const newEquipo = document.getElementById('edit-v-equipo').value.trim();
+            const newMarca = document.getElementById('edit-v-marca').value.trim();
+            const newModelo = document.getElementById('edit-v-modelo').value.trim();
+            const newYear = document.getElementById('edit-v-year').value.trim();
+            const newColor = document.getElementById('edit-v-color').value.trim();
+            const newTipo = document.getElementById('edit-v-tipo').value.trim();
+            const newVin = document.getElementById('edit-v-vin').value.trim();
+            const newMotor = document.getElementById('edit-v-motor').value.trim();
+            const newClientId = document.getElementById('edit-v-cliente').value;
+
+            // Update target in memory
+            target.Placas = newPlaca;
+            target.Placa = newPlaca;
+            target['Número de Placas'] = newPlaca;
+            target.Marca = newMarca;
+            target.Modelo = newModelo;
+            target.Año = newYear;
+            target.Anio = newYear;
+            target.Color = newColor;
+            target.Tipo = newTipo;
+            target.N_Equipo = newEquipo;
+            target.Num_Equipo = newEquipo;
+            target.Equipo = newEquipo;
+            target.VIN = newVin;
+            target.Nª_VIN = newVin;
+            target.Chasis = newVin;
+            target.Motor = newMotor;
+            target.N_Motor = newMotor;
+            target.Nª_Motor = newMotor;
+            target.ID_Cliente = newClientId;
+            target.Cliente_ID = newClientId;
+
+            // Update in db.vehiculos / db['02 Vehiculos']
+            db.vehiculos = db.vehiculos || [];
+            const idx = db.vehiculos.findIndex(x => (x.ID_Vehiculo || x.Placas || x.Placa) === (target.ID_Vehiculo || target.Placas || target.Placa) || (x.ID_Vehiculo || x.Placas || x.Placa) === key);
+            if (idx >= 0) {
+                db.vehiculos[idx] = { ...db.vehiculos[idx], ...target };
+            } else {
+                db.vehiculos.unshift(target);
+            }
+
+            saveDatabase(db);
+            showToast("Vehículo actualizado con éxito", "success");
+            editModal.style.display = 'none';
+            renderVehiclesTable();
+        };
     }
 
     // Event listeners setup
