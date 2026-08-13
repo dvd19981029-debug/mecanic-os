@@ -4085,20 +4085,25 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     ${products.map(p => {
                         const unitPrice = parseFloat(p.PrecioUnitario || 0);
                         const qty = parseInt(p.Cantidad || 1);
-                        const disc = parseFloat(p.Descuento || 0);
-                        const tot = (unitPrice * qty) - disc;
+                        const itemDisc = parseFloat(p.Descuento || 0);
+                        const baseLineTotal = (unitPrice * qty) - itemDisc;
+                        
+                        // Apply promo discount proportionally to each product item line
+                        const linePromoDisc = (sumProd > 0 && discount > 0) ? (baseLineTotal / sumProd) * discount : 0;
+                        const effectiveLineTotal = baseLineTotal - linePromoDisc;
+                        const effectiveUnitPrice = qty > 0 ? effectiveLineTotal / qty : 0;
                         return `
                             <tr>
                                 <td>${p.Descripcion}</td>
                                 <td style="text-align: center;">${qty}</td>
-                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
-                                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
+                                <td style="text-align: right;">$ ${effectiveUnitPrice.toFixed(2)}</td>
+                                <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toFixed(2)}</td>
                             </tr>
                         `;
                     }).join('')}
                     <tr class="category-total-row">
                         <td colspan="3" style="text-align: right;">Total Repuestos:</td>
-                        <td style="text-align: right; font-weight: 700;">$ ${sumProd.toFixed(2)}</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${(sumProd - discount).toFixed(2)}</td>
                     </tr>
                 ` : ''}
 
@@ -4133,14 +4138,8 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <table class="totals-table">
                     <tr>
                         <td class="total-label">Subtotal Neto</td>
-                        <td class="total-value">$ ${subtotal.toFixed(2)}</td>
+                        <td class="total-value">$ ${(subtotal - discount).toFixed(2)}</td>
                     </tr>
-                    ${discount > 0 ? `
-                        <tr style="color: #b45309;">
-                            <td class="total-label">(-) Descuento Promo</td>
-                            <td class="total-value">- $ ${discount.toFixed(2)}</td>
-                        </tr>
-                    ` : ''}
                     <tr>
                         <td class="total-label">IVA (13%)</td>
                         <td class="total-value">$ ${iva.toFixed(2)}</td>
