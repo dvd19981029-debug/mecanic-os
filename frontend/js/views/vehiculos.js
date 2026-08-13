@@ -198,6 +198,7 @@ export function renderVehiculos(container) {
                         <tr>
                             <th>PLACA</th>
                             <th>VEHÍCULO</th>
+                            <th>N° EQUIPO</th>
                             <th>AÑO / COLOR</th>
                             <th>PROPIETARIO / CLIENTE</th>
                             <th>VIN / MOTOR</th>
@@ -281,7 +282,7 @@ export function renderVehiculos(container) {
         });
 
         if (filtered.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:3rem; color:var(--text-muted);">No se encontraron vehículos registrados que coincidan con la búsqueda.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:3rem; color:var(--text-muted);">No se encontraron vehículos registrados que coincidan con la búsqueda.</td></tr>`;
             return;
         }
 
@@ -303,7 +304,9 @@ export function renderVehiculos(container) {
                 <td>
                     <strong style="color:var(--text-primary); display:block; font-size:0.95rem;">${escapeHtml(v.Marca || '')} ${escapeHtml(v.Modelo || '')}</strong>
                     <span style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(v.Tipo || 'Automóvil')}</span>
-                    ${safe(nEquipoVal ? `<span style="display:block; font-size:0.75rem; color:var(--cyan); font-weight:600; margin-top:2px;"><i class="fa-solid fa-hashtag" style="font-size:0.7rem;"></i> Eq: ${escapeHtml(nEquipoVal)}</span>` : '')}
+                </td>
+                <td>
+                    ${safe(nEquipoVal ? `<span style="font-family:monospace; font-weight:700; font-size:0.85rem; color:var(--cyan); border:1px solid rgba(6,182,212,0.3); background:rgba(6,182,212,0.1); padding:0.25rem 0.6rem; border-radius:5px; display:inline-block;"><i class="fa-solid fa-hashtag" style="font-size:0.75rem; margin-right:0.2rem;"></i>${escapeHtml(nEquipoVal)}</span>` : '<span style="color:var(--text-muted); font-size:0.8rem;">-</span>')}
                 </td>
                 <td>
                     <span>${escapeHtml(v.Año || v.Anio || 'N/A')}</span>
