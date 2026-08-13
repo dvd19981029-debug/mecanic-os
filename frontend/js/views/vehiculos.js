@@ -172,7 +172,7 @@ export function renderVehiculos(container) {
             <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
                 <div class="search-bar-container" style="flex-grow:1; max-width:400px; margin:0;">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="veh-search-input" placeholder="Buscar por Placa, Marca, Modelo, VIN, Propietario...">
+                    <input type="text" id="veh-search-input" placeholder="Buscar por Placa, N° Equipo, Marca, Modelo, VIN, Propietario...">
                 </div>
 
                 <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
@@ -249,9 +249,10 @@ export function renderVehiculos(container) {
             const marca = (v.Marca || '').toLowerCase();
             const modelo = (v.Modelo || '').toLowerCase();
             const anio = (v.Año || v.Anio || '').toString().toLowerCase();
-            const vin = (v.VIN || v.Chasis || v.N_Chasis || '').toLowerCase();
+            const vin = (v.VIN || v.Chasis || v.N_Chasis || v.Nª_VIN || '').toLowerCase();
             const motor = (v.Motor || v.N_Motor || '').toLowerCase();
             const color = (v.Color || '').toLowerCase();
+            const nEquipo = (v.N_Equipo || v.N_equipo || v.Num_Equipo || v.Equipo || v.No_Equipo || v['N° Equipo'] || v['Número de Equipo'] || '').toString().toLowerCase();
 
             const client = getVehicleClient(v);
             const clientName = (client.Nombre || '').toLowerCase();
@@ -265,6 +266,7 @@ export function renderVehiculos(container) {
                 vin.includes(searchText) ||
                 motor.includes(searchText) ||
                 color.includes(searchText) ||
+                nEquipo.includes(searchText) ||
                 clientName.includes(searchText)
             );
 
@@ -286,6 +288,7 @@ export function renderVehiculos(container) {
         filtered.forEach(v => {
             const placa = getVehiclePlaca(v);
             const idVeh = v.ID_Vehiculo || '';
+            const nEquipoVal = (v.N_Equipo || v.N_equipo || v.Num_Equipo || v.Equipo || v.No_Equipo || v['N° Equipo'] || v['Número de Equipo'] || '').toString().trim();
             const client = getVehicleClient(v);
             const stats = getVehicleStats(v);
 
@@ -300,6 +303,7 @@ export function renderVehiculos(container) {
                 <td>
                     <strong style="color:var(--text-primary); display:block; font-size:0.95rem;">${escapeHtml(v.Marca || '')} ${escapeHtml(v.Modelo || '')}</strong>
                     <span style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(v.Tipo || 'Automóvil')}</span>
+                    ${safe(nEquipoVal ? `<span style="display:block; font-size:0.75rem; color:var(--cyan); font-weight:600; margin-top:2px;"><i class="fa-solid fa-hashtag" style="font-size:0.7rem;"></i> Eq: ${escapeHtml(nEquipoVal)}</span>` : '')}
                 </td>
                 <td>
                     <span>${escapeHtml(v.Año || v.Anio || 'N/A')}</span>
