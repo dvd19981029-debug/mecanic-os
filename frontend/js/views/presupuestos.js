@@ -4045,18 +4045,17 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 50%;">Descripción</th>
-                    <th style="text-align: center; width: 10%;">Cant.</th>
-                    <th style="text-align: right; width: 13%;">Precio Unit.</th>
-                    <th style="text-align: right; width: 12%;">Desc.</th>
-                    <th style="text-align: right; width: 15%;">Total</th>
+                    <th style="width: 55%;">Descripción</th>
+                    <th style="text-align: center; width: 12%;">Cant.</th>
+                    <th style="text-align: right; width: 15%;">Precio Unit.</th>
+                    <th style="text-align: right; width: 18%;">Total</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- Mano de obra / Servicios -->
                 ${labor.length > 0 ? `
                     <tr class="category-header-row">
-                        <td colspan="5">Mano de Obra y Servicios</td>
+                        <td colspan="4">Mano de Obra y Servicios</td>
                     </tr>
                     ${labor.map(l => {
                         const unitPrice = parseFloat(l.PrecioUnitario || 0);
@@ -4068,13 +4067,12 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                                 <td>${l.Descripcion}</td>
                                 <td style="text-align: center;">${qty}</td>
                                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
-                                <td style="text-align: right;">$ ${disc.toFixed(2)}</td>
                                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
                             </tr>
                         `;
                     }).join('')}
                     <tr class="category-total-row">
-                        <td colspan="4" style="text-align: right;">Total Mano de obra:</td>
+                        <td colspan="3" style="text-align: right;">Total Mano de obra:</td>
                         <td style="text-align: right; font-weight: 700;">$ ${sumLab.toFixed(2)}</td>
                     </tr>
                 ` : ''}
@@ -4082,7 +4080,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <!-- Repuestos -->
                 ${products.length > 0 ? `
                     <tr class="category-header-row">
-                        <td colspan="5">Repuestos, Lubricantes y Refacciones</td>
+                        <td colspan="4">Repuestos, Lubricantes y Refacciones</td>
                     </tr>
                     ${products.map(p => {
                         const unitPrice = parseFloat(p.PrecioUnitario || 0);
@@ -4094,13 +4092,12 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                                 <td>${p.Descripcion}</td>
                                 <td style="text-align: center;">${qty}</td>
                                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
-                                <td style="text-align: right;">$ ${disc.toFixed(2)}</td>
                                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
                             </tr>
                         `;
                     }).join('')}
                     <tr class="category-total-row">
-                        <td colspan="4" style="text-align: right;">Total Repuestos:</td>
+                        <td colspan="3" style="text-align: right;">Total Repuestos:</td>
                         <td style="text-align: right; font-weight: 700;">$ ${sumProd.toFixed(2)}</td>
                     </tr>
                 ` : ''}
@@ -4108,13 +4105,12 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <!-- Repuestos Traídos por el Cliente (Solicitud de Repuestos) -->
                 ${(budget.Repuestos_Cliente && budget.Repuestos_Cliente.length > 0) ? `
                     <tr class="category-header-row">
-                        <td colspan="5">Solicitud de Repuestos</td>
+                        <td colspan="4">Solicitud de Repuestos</td>
                     </tr>
                     ${budget.Repuestos_Cliente.map(rc => `
                         <tr>
                             <td>${rc.Descripcion}</td>
                             <td style="text-align: center;">${rc.Cantidad}</td>
-                            <td style="text-align: right;">-</td>
                             <td style="text-align: right;">-</td>
                             <td style="text-align: right;">-</td>
                         </tr>
