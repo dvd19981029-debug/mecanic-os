@@ -1513,7 +1513,7 @@ export function printDteTicket(presId) {
     <title>Ticket DTE - ${presId}</title>
     <style>
         @page {
-            size: 80mm auto;
+            size: 70mm auto;
             margin: 0;
         }
         html, body {
@@ -1675,11 +1675,13 @@ export function printDteTicket(presId) {
         @media print {
             html, body {
                 background-color: white !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
-                width: 80mm !important;
+                width: 70mm !important;
+                max-width: 70mm !important;
                 display: flex !important;
                 justify-content: center !important;
+                align-items: flex-start !important;
             }
             .control-bar {
                 display: none !important;

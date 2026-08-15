@@ -733,14 +733,20 @@ export function renderCaja(container) {
             <head>
                 <title>Corte de Caja - ${s.id_sesion}</title>
                 <style>
+                    @page {
+                        size: 70mm auto;
+                        margin: 0;
+                    }
                     body {
                         font-family: 'Courier New', Courier, monospace;
                         font-size: 12px;
                         color: #000;
                         background: #fff;
-                        padding: 20px;
-                        width: 300px;
+                        padding: 10px;
+                        width: 70mm;
+                        max-width: 70mm;
                         margin: 0 auto;
+                        box-sizing: border-box;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
@@ -757,15 +763,17 @@ export function renderCaja(container) {
                     .sign-line { border-top: 1px solid #000; width: 120px; text-align: center; padding-top: 5px; font-size: 10px; }
                     
                     @media print {
-                        body {
-                            padding: 10px !important;
-                            margin: 0 !important;
-                            width: 100% !important;
+                        html, body {
+                            padding: 4mm 2mm !important;
+                            margin: 0 auto !important;
+                            width: 70mm !important;
+                            max-width: 70mm !important;
+                            display: flex !important;
+                            flex-direction: column !important;
+                            align-items: center !important;
+                            box-sizing: border-box !important;
                             -webkit-print-color-adjust: exact !important;
                             print-color-adjust: exact !important;
-                        }
-                        @page {
-                            margin: 0;
                         }
                     }
                 </style>
