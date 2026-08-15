@@ -1924,22 +1924,22 @@ export function renderGastos(container) {
                 let runningBalance = 0;
                 const excelData = [];
                 ledger.forEach(t => {
-                    runningBalance += t.cargo - t.abono;
+                    runningBalance = Math.round((runningBalance + t.cargo - t.abono) * 100) / 100;
                     if (t.fecha >= fromDate && t.fecha <= toDate) {
                         excelData.push({
                             "Fecha": t.fecha,
                             "Referencia / Factura": t.ref,
                             "Tipo Transacción": t.tipo,
                             "N° DTE / Control": t.dte || "-",
-                            "Compras (+) ($)": t.cargo || 0,
-                            "Abonos (-) ($)": t.abono || 0,
-                            "Saldo Deuda ($)": runningBalance
+                            "Compras (+) ($)": parseFloat((t.cargo || 0).toFixed(2)),
+                            "Abonos (-) ($)": parseFloat((t.abono || 0).toFixed(2)),
+                            "Saldo Deuda ($)": parseFloat(runningBalance.toFixed(2))
                         });
                     }
                 });
 
                 const cleanName = prov.Nombre.replace(/[^a-zA-Z0-9]/g, '_');
-                downloadExcelReport(`Estado_Cuenta_Proveedor_${cleanName}_${Date.now()}.xlsx`, excelData);
+                downloadExcelReport(`Estado_Cuenta_Proveedor_${cleanName}_${Date.now()}.xls`, excelData);
             } else if (val === 'cuentas_por_pagar') {
                 const debtors = {};
                 db.compras.forEach(c => {
@@ -1962,8 +1962,14 @@ export function renderGastos(container) {
                         debtors[provId]["Total Abonado ($)"] += (total - balance);
                     }
                 });
-                const excelData = Object.values(debtors);
-                downloadExcelReport(`Reporte_Cuentas_por_Pagar_${Date.now()}.xlsx`, excelData);
+                const excelData = Object.values(debtors).map(d => ({
+                    "Proveedor": d["Proveedor"],
+                    "NIT / Documento": d["NIT / Documento"],
+                    "Compras a Crédito ($)": parseFloat(d["Compras a Crédito ($)"].toFixed(2)),
+                    "Total Abonado ($)": parseFloat(d["Total Abonado ($)"].toFixed(2)),
+                    "Saldo Pendiente ($)": parseFloat(d["Saldo Pendiente ($)"].toFixed(2))
+                }));
+                downloadExcelReport(`Reporte_Cuentas_por_Pagar_${Date.now()}.xls`, excelData);
             }
         });
     }
