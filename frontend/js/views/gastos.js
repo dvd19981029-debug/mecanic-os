@@ -903,7 +903,7 @@ export function renderGastos(container) {
                     </div>
                     <div>
                         <span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Total Deuda a Proveedores</span>
-                        <h2 style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-top:0.2rem;">$ ${totalDebt.toFixed(2)}</h2>
+                        <h2 style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-top:0.2rem;" id="cxp-stat-debt">$ ${totalDebt.toFixed(2)}</h2>
                     </div>
                 </div>
                 <div class="glass-card" style="display:flex; align-items:center; gap:1rem; padding:1.25rem;">
@@ -912,14 +912,51 @@ export function renderGastos(container) {
                     </div>
                     <div>
                         <span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Facturas Pendientes</span>
-                        <h2 style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-top:0.2rem;">${countUnpaid} Facturas</h2>
+                        <h2 style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin-top:0.2rem;" id="cxp-stat-count">${countUnpaid} Facturas</h2>
                     </div>
                 </div>
             </div>
 
             <div class="glass-card">
-                <h3>Detalle de Cuentas por Pagar (Créditos)</h3>
-                <div class="table-container" style="margin-top:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+                    <h3 style="margin:0;">Detalle de Cuentas por Pagar (Créditos)</h3>
+                </div>
+
+                <!-- Control Bar de Filtros -->
+                <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem; align-items:flex-end; background:rgba(255,255,255,0.02); padding:0.85rem 1rem; border-radius:8px; border:1px solid var(--border-color);">
+                    <div style="flex:1; min-width:200px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem; font-weight:600;">Buscar N° Factura / Control / Repuesto</label>
+                        <div style="position:relative;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:0.6rem; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.8rem;"></i>
+                            <input type="text" id="cxp-search-input" placeholder="Ej: 031-111467, Filtro, etc." style="width:100%; padding:0.45rem 0.6rem 0.45rem 2rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                        </div>
+                    </div>
+
+                    <div style="min-width:220px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem; font-weight:600;">Filtrar por Proveedor</label>
+                        <select id="cxp-filter-prov" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                            <option value="">-- Todos los Proveedores --</option>
+                            ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}">${escapeHtml(p.Nombre)}</option>`).join(''))}
+                        </select>
+                    </div>
+
+                    <div style="min-width:160px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem; font-weight:600;">Estado de Deuda</label>
+                        <select id="cxp-filter-status" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                            <option value="PENDIENTE" selected>🔴 Solo Pendientes (Deuda)</option>
+                            <option value="TODOS">📋 Ver Todos</option>
+                            <option value="PAGADO">🟢 Solo Pagadas (Histórico)</option>
+                            <option value="VENCIDO">⚠️ Solo Vencidas</option>
+                        </select>
+                    </div>
+
+                    <div style="min-width:140px;">
+                        <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem; font-weight:600;">Fecha Compra</label>
+                        <input type="date" id="cxp-filter-date" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.2rem 0.5rem;">
+                    </div>
+                </div>
+
+                <div class="table-container">
                     <table>
                         <thead>
                             <tr>
@@ -932,59 +969,8 @@ export function renderGastos(container) {
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${safe(pendingPurchases.length === 0
-                                ? '<tr><td colspan="7" style="text-align:center; color:var(--text-muted)">No hay facturas pendientes de pago (Sin deudas)</td></tr>'
-                                : pendingPurchases.map(c => {
-                                    const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
-                                    let dateStr = 'N/A';
-                                    let venceStr = '';
-                                    try {
-                                        dateStr = new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV');
-                                        if (c.Fecha_Vencimiento) {
-                                            const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
-                                            const todayObj = new Date();
-                                            const todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
-                                            const formattedVence = new Date(c.Fecha_Vencimiento + 'T00:00:00').toLocaleDateString('es-SV');
-                                            
-                                            if (dueTime < todayTime) {
-                                                const diffDays = Math.ceil((todayTime - dueTime) / (1000 * 60 * 60 * 24));
-                                                venceStr = `<span style="font-size:0.75rem; color:#ef4444; font-weight:600;"><br>Vence: ${formattedVence} (Vencido hace ${diffDays}d)</span>`;
-                                            } else {
-                                                const diffDays = Math.ceil((dueTime - todayTime) / (1000 * 60 * 60 * 24));
-                                                if (diffDays === 0) {
-                                                    venceStr = `<span style="font-size:0.75rem; color:#f59e0b; font-weight:600;"><br>Vence: ${formattedVence} (Vence hoy)</span>`;
-                                                } else {
-                                                    venceStr = `<span style="font-size:0.75rem; color:#10b981; font-weight:600;"><br>Vence: ${formattedVence} (Quedan ${diffDays}d)</span>`;
-                                                }
-                                            }
-                                        } else {
-                                            venceStr = `<span style="font-size:0.75rem; color:var(--text-secondary);"><br>Vence: N/A</span>`;
-                                        }
-                                    } catch(e) {}
-                                    const itemsDetail = (c.Items || []).map(item => {
-                                        const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
-                                        const prodDesc = prod ? prod.Descripcion : item.ID_Producto;
-                                        return `• ${escapeHtml(prodDesc)} (${item.Cantidad})`;
-                                    }).join('<br>');
-                                    return `
-                                        <tr>
-                                            <td>${dateStr}${venceStr}</td>
-                                            <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
-                                            <td>
-                                                <strong>${escapeHtml(c.Num_Factura)}</strong>
-                                                ${c.Num_Control ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;" title="Número de Control">Ctrl: ${escapeHtml(c.Num_Control)}</div>` : ''}
-                                                ${itemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; border-top:1px dashed var(--border-color); padding-top:0.3rem; line-height:1.4; font-weight:normal; max-width:280px; word-break:break-word;">${itemsDetail}</div>` : ''}
-                                            </td>
-                                            <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total).toFixed(2)}</td>
-                                            <td style="font-weight:700; color:#ef4444;">$ ${parseFloat(c.Saldo_Pendiente).toFixed(2)}</td>
-                                            <td><span class="badge-tag badge-warning">CRÉDITO</span></td>
-                                            <td>
-                                                <button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.4rem 0.8rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join(''))}
+                        <tbody id="cxp-table-body">
+                            <!-- Dynamic Rows -->
                         </tbody>
                     </table>
                 </div>
@@ -1032,29 +1018,145 @@ export function renderGastos(container) {
             </div>
         `;
 
-        // Bind abono buttons
-        parent.querySelectorAll('.btn-abono-cxp').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const compId = btn.getAttribute('data-id');
-                const comp = db.compras.find(c => c.ID_Compra === compId);
-                if (comp) {
-                    activeAbonoPurchaseId = compId;
-                    const prov = db.proveedores.find(p => p.ID_Proveedor === comp.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
-                    
-                    document.getElementById('abono-modal-prov').textContent = prov.Nombre;
-                    document.getElementById('abono-modal-fact').textContent = comp.Num_Factura;
-                    document.getElementById('abono-modal-deuda').textContent = `$ ${parseFloat(comp.Saldo_Pendiente).toFixed(2)}`;
-                    
-                    const amountInput = document.getElementById('abono-amount');
-                    const roundedDeuda = parseFloat(parseFloat(comp.Saldo_Pendiente).toFixed(2));
-                    amountInput.max = roundedDeuda;
-                    amountInput.value = roundedDeuda.toFixed(2);
-                    
-                    const modal = document.getElementById('cxp-abono-modal');
-                    modal.style.display = 'flex';
+        // Render filtered table rows
+        function renderCxpFilteredRows() {
+            const tableBody = document.getElementById('cxp-table-body');
+            if (!tableBody) return;
+
+            const searchText = (document.getElementById('cxp-search-input')?.value || '').trim().toLowerCase();
+            const filterProv = document.getElementById('cxp-filter-prov')?.value || '';
+            const filterStatus = document.getElementById('cxp-filter-status')?.value || 'PENDIENTE';
+            const filterDate = document.getElementById('cxp-filter-date')?.value || '';
+
+            const todayObj = new Date();
+            const todayTime = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate()).getTime();
+
+            const filtered = (db.compras || []).filter(c => {
+                // Status filter
+                if (filterStatus === 'PENDIENTE' && c.Estado_Pago !== 'PENDIENTE') return false;
+                if (filterStatus === 'PAGADO' && c.Estado_Pago !== 'PAGADO') return false;
+                if (filterStatus === 'VENCIDO') {
+                    if (c.Estado_Pago !== 'PENDIENTE' || !c.Fecha_Vencimiento) return false;
+                    const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
+                    if (dueTime >= todayTime) return false;
                 }
+
+                // Supplier filter
+                if (filterProv && c.ID_Proveedor !== filterProv) return false;
+
+                // Date filter
+                if (filterDate && c.Fecha_Compra !== filterDate) return false;
+
+                // Search text
+                if (searchText) {
+                    const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: '' };
+                    const provName = (prov.Nombre || '').toLowerCase();
+                    const numFact = (c.Num_Factura || '').toLowerCase();
+                    const numCtrl = (c.Num_Control || '').toLowerCase();
+                    const itemsText = (c.Items || []).map(item => {
+                        const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+                        return prod ? prod.Descripcion : item.ID_Producto;
+                    }).join(' ').toLowerCase();
+
+                    const matches = provName.includes(searchText) ||
+                                    numFact.includes(searchText) ||
+                                    numCtrl.includes(searchText) ||
+                                    itemsText.includes(searchText);
+
+                    if (!matches) return false;
+                }
+
+                return true;
             });
-        });
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:2.5rem;">No se encontraron facturas o compras que coincidan con los filtros aplicados.</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = safe(filtered.map(c => {
+                const prov = db.proveedores.find(p => p.ID_Proveedor === c.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
+                let dateStr = 'N/A';
+                let venceStr = '';
+                try {
+                    dateStr = new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV');
+                    if (c.Fecha_Vencimiento) {
+                        const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
+                        const formattedVence = new Date(c.Fecha_Vencimiento + 'T00:00:00').toLocaleDateString('es-SV');
+                        
+                        if (dueTime < todayTime) {
+                            const diffDays = Math.ceil((todayTime - dueTime) / (1000 * 60 * 60 * 24));
+                            venceStr = `<span style="font-size:0.75rem; color:#ef4444; font-weight:600;"><br>Vence: ${formattedVence} (Vencido hace ${diffDays}d)</span>`;
+                        } else {
+                            const diffDays = Math.ceil((dueTime - todayTime) / (1000 * 60 * 60 * 24));
+                            if (diffDays === 0) {
+                                venceStr = `<span style="font-size:0.75rem; color:#f59e0b; font-weight:600;"><br>Vence: ${formattedVence} (Vence hoy)</span>`;
+                            } else {
+                                venceStr = `<span style="font-size:0.75rem; color:#10b981; font-weight:600;"><br>Vence: ${formattedVence} (Quedan ${diffDays}d)</span>`;
+                            }
+                        }
+                    } else {
+                        venceStr = `<span style="font-size:0.75rem; color:var(--text-secondary);"><br>Vence: N/A</span>`;
+                    }
+                } catch(e) {}
+                const itemsDetail = (c.Items || []).map(item => {
+                    const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+                    const prodDesc = prod ? prod.Descripcion : item.ID_Producto;
+                    return `• ${escapeHtml(prodDesc)} (${item.Cantidad})`;
+                }).join('<br>');
+                const isPaid = c.Estado_Pago === 'PAGADO';
+                return `
+                    <tr>
+                        <td>${dateStr}${venceStr}</td>
+                        <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
+                        <td>
+                            <strong>${escapeHtml(c.Num_Factura)}</strong>
+                            ${c.Num_Control ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;" title="Número de Control">Ctrl: ${escapeHtml(c.Num_Control)}</div>` : ''}
+                            ${itemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; border-top:1px dashed var(--border-color); padding-top:0.3rem; line-height:1.4; font-weight:normal; max-width:280px; word-break:break-word;">${itemsDetail}</div>` : ''}
+                        </td>
+                        <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total || 0).toFixed(2)}</td>
+                        <td style="font-weight:700; color:${isPaid ? 'var(--success)' : '#ef4444'};">$ ${parseFloat(c.Saldo_Pendiente || 0).toFixed(2)}</td>
+                        <td><span class="badge-tag ${isPaid ? 'badge-success' : 'badge-warning'}">${escapeHtml(c.Estado_Pago || 'PENDIENTE')}</span></td>
+                        <td>
+                            ${!isPaid ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.4rem 0.8rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : `<span style="font-size:0.75rem; color:var(--text-muted);"><i class="fa-solid fa-circle-check"></i> Pagado</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join(''));
+
+            // Re-bind abono buttons
+            parent.querySelectorAll('.btn-abono-cxp').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const compId = btn.getAttribute('data-id');
+                    const comp = db.compras.find(c => c.ID_Compra === compId);
+                    if (comp) {
+                        activeAbonoPurchaseId = compId;
+                        const prov = db.proveedores.find(p => p.ID_Proveedor === comp.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
+                        
+                        document.getElementById('abono-modal-prov').textContent = prov.Nombre;
+                        document.getElementById('abono-modal-fact').textContent = comp.Num_Factura;
+                        document.getElementById('abono-modal-deuda').textContent = `$ ${parseFloat(comp.Saldo_Pendiente).toFixed(2)}`;
+                        
+                        const amountInput = document.getElementById('abono-amount');
+                        const roundedDeuda = parseFloat(parseFloat(comp.Saldo_Pendiente).toFixed(2));
+                        amountInput.max = roundedDeuda;
+                        amountInput.value = roundedDeuda.toFixed(2);
+                        
+                        const modal = document.getElementById('cxp-abono-modal');
+                        modal.style.display = 'flex';
+                    }
+                });
+            });
+        }
+
+        // Attach filter listeners
+        document.getElementById('cxp-search-input').oninput = renderCxpFilteredRows;
+        document.getElementById('cxp-filter-prov').onchange = renderCxpFilteredRows;
+        document.getElementById('cxp-filter-status').onchange = renderCxpFilteredRows;
+        document.getElementById('cxp-filter-date').onchange = renderCxpFilteredRows;
+
+        // Initial table load
+        renderCxpFilteredRows();
 
         const closeModal = () => {
             document.getElementById('cxp-abono-modal').style.display = 'none';
