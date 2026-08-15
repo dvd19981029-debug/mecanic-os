@@ -8,6 +8,5 @@ router.post('/invalidate', dteController.invalidateDte);
 router.post('/retrieve', dteController.retrieveDte);
 router.post('/pdf', dteController.downloadDtePdf);
 router.post('/incoming-webhook', dteController.receiveIncomingDte);
-router.get('/diagnostic-firebase', dteController.diagnoseFirebase);
 
 module.exports = router;

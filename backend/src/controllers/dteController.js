@@ -564,52 +564,11 @@ async function receiveIncomingDte(req, res) {
     }
 }
 
-async function diagnoseFirebase(req, res) {
-    try {
-        const hasEnv = !!process.env.FIREBASE_SERVICE_ACCOUNT;
-        const envVal = process.env.FIREBASE_SERVICE_ACCOUNT || "";
-        const envLength = envVal.length;
-        
-        let jsonError = null;
-        let parsedKeys = [];
-        if (hasEnv) {
-            try {
-                const cleaned = envVal
-                    .replace(/[\u201c\u201d\u201e]/g, '"')
-                    .replace(/[\u2018\u2019]/g, "'")
-                    .trim();
-                const parsed = JSON.parse(cleaned);
-                parsedKeys = Object.keys(parsed);
-            } catch (e) {
-                jsonError = e.message;
-            }
-        }
-        
-        const { db, initError } = require('../config/firebaseAdmin');
-        
-        return res.json({
-            success: true,
-            hasEnv,
-            envLength,
-            startsWithBrace: envVal.startsWith('{'),
-            endsWithBrace: envVal.endsWith('}'),
-            jsonError,
-            parsedKeys,
-            isDbNull: db === null,
-            initError,
-            adminAppsLength: require('firebase-admin').getApps ? require('firebase-admin').getApps().length : 0
-        });
-    } catch (err) {
-        return res.status(500).json({ success: false, error: err.message });
-    }
-}
-
 module.exports = {
     testConnection,
     emitDte,
     invalidateDte,
     retrieveDte,
     downloadDtePdf,
-    receiveIncomingDte,
-    diagnoseFirebase
+    receiveIncomingDte
 };
