@@ -25,6 +25,125 @@ export function showToast(message, type = 'primary', duration = null) {
     }, finalDuration);
 }
 
+// Parse FacturaLlama / Ministerio de Hacienda (MH) Error Objects
+export function parseDteError(errData) {
+    if (!errData) return { title: 'Error de Transmisión', message: 'No se recibió respuesta del servidor DTE.', mhCode: '', mhStatus: '', observaciones: [] };
+    if (typeof errData === 'string') return { title: 'Error de Transmisión', message: errData, mhCode: '', mhStatus: '', observaciones: [] };
+
+    let message = '';
+    let mhCode = '';
+    let mhStatus = '';
+    let observaciones = [];
+
+    // Extract from mh object if present
+    const mhData = errData.mh?.data || errData.data || errData;
+    if (mhData && typeof mhData === 'object') {
+        if (mhData.descripcionMsg) message = mhData.descripcionMsg;
+        if (mhData.codigoMsg) mhCode = mhData.codigoMsg;
+        if (mhData.estado) mhStatus = mhData.estado;
+        if (Array.isArray(mhData.observaciones) && mhData.observaciones.length > 0) {
+            observaciones = mhData.observaciones.map(o => typeof o === 'string' ? o : JSON.stringify(o));
+        }
+    }
+
+    // Direct fallback fields
+    if (!message) {
+        message = errData.descripcionMsg || errData.message || errData.error || errData.descripcion || errData.details || errData.detalles || '';
+    }
+
+    // Deep search fallback if message is still empty
+    if (!message && typeof errData === 'object') {
+        const deepSearch = (obj) => {
+            if (!obj) return null;
+            if (typeof obj === 'string' && obj.length > 3) return obj;
+            if (typeof obj === 'object') {
+                for (const key of ['descripcionMsg', 'descripcion', 'message', 'error', 'detalles', 'details']) {
+                    if (obj[key] && typeof obj[key] === 'string') return obj[key];
+                }
+                for (const k in obj) {
+                    const res = deepSearch(obj[k]);
+                    if (res) return res;
+                }
+            }
+            return null;
+        };
+        message = deepSearch(errData) || 'Error al emitir DTE en Hacienda';
+    }
+
+    return {
+        title: mhStatus ? `DTE ${mhStatus}` : 'Rechazo / Error en DTE',
+        message: message || 'Error al emitir DTE en Hacienda',
+        mhCode: mhCode || '',
+        mhStatus: mhStatus || 'RECHAZADO',
+        observaciones: observaciones
+    };
+}
+
+// Display Interactive Modal for DTE Rejections / Errors
+export function showDteErrorModal(errData) {
+    const errInfo = parseDteError(errData);
+    
+    // Remove existing modal if open
+    const existingModal = document.getElementById('dte-error-modal');
+    if (existingModal) existingModal.remove();
+
+    const modalId = 'dte-error-modal';
+    const modalHtml = `
+        <div class="modal" id="${modalId}" style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+            <div class="modal-content glass-card" style="max-width:520px; width:92%; padding:1.75rem; border:1px solid #ef4444; border-radius:12px; background:#111827; box-shadow:0 20px 50px rgba(239,68,68,0.25); color:#f9fafb;">
+                <div style="display:flex; align-items:flex-start; gap:1rem; border-bottom:1px solid rgba(239,68,68,0.3); padding-bottom:1rem; margin-bottom:1.25rem;">
+                    <div style="width:48px; height:48px; border-radius:50%; background:rgba(239,68,68,0.2); display:flex; justify-content:center; align-items:center; color:#ef4444; font-size:1.5rem; flex-shrink:0;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                            <h3 style="margin:0; font-size:1.15rem; color:#f87171; font-weight:800;">${escapeHtml(errInfo.title)}</h3>
+                            ${errInfo.mhCode ? `<span style="background:rgba(239,68,68,0.3); color:#fca5a5; font-size:0.75rem; padding:0.15rem 0.5rem; border-radius:4px; font-weight:700;">Código MH: ${escapeHtml(errInfo.mhCode)}</span>` : ''}
+                        </div>
+                        <p style="margin:0.25rem 0 0 0; font-size:0.8rem; color:#9ca3af;">El Ministerio de Hacienda rechazó la emisión del documento electrónico.</p>
+                    </div>
+                    <button id="btn-close-dte-err-x" style="background:none; border:none; color:#9ca3af; font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">&times;</button>
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label style="display:block; font-size:0.75rem; text-transform:uppercase; color:#fca5a5; font-weight:700; margin-bottom:0.4rem;">Motivo del Rechazo / Mensaje Oficial de MH:</label>
+                    <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4); border-radius:8px; padding:1rem; color:#fecdd3; font-weight:600; font-size:0.95rem; line-height:1.4; word-break:break-word;">
+                        <i class="fa-solid fa-circle-xmark" style="color:#ef4444; margin-right:0.4rem;"></i>
+                        ${escapeHtml(errInfo.message)}
+                    </div>
+                </div>
+
+                ${errInfo.observaciones.length > 0 ? `
+                <div style="margin-bottom:1.25rem;">
+                    <label style="display:block; font-size:0.75rem; text-transform:uppercase; color:#9ca3af; font-weight:700; margin-bottom:0.4rem;">Observaciones Específicas de Validación:</label>
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.75rem 1rem; max-height:120px; overflow-y:auto; font-size:0.82rem; color:#d1d5db; line-height:1.5;">
+                        ${errInfo.observaciones.map(obs => `<div>• ${escapeHtml(obs)}</div>`).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <div style="display:flex; justify-content:flex-end; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem; margin-top:1rem;">
+                    <button id="btn-close-dte-err-btn" class="btn btn-primary" style="background:#ef4444; border:none; padding:0.6rem 1.5rem; font-weight:700; color:#fff; border-radius:6px; cursor:pointer;">
+                        <i class="fa-solid fa-check"></i> Entendido / Corregir
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const closeModal = () => {
+        const m = document.getElementById(modalId);
+        if (m) m.remove();
+    };
+
+    document.getElementById('btn-close-dte-err-x')?.addEventListener('click', closeModal);
+    document.getElementById('btn-close-dte-err-btn')?.addEventListener('click', closeModal);
+
+    showToast(`Rechazo MH: ${errInfo.message}`, "danger", 15000);
+}
+
 // Escape HTML for security
 export function escapeHtml(str) {
     if (str === null || str === undefined) return '';

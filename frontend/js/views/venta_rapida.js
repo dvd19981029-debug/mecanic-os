@@ -29,7 +29,8 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport,
-    makeSelectSearchable
+    makeSelectSearchable,
+    showDteErrorModal
 } from '../utils.js?v=80';
 
 export function renderVentaRapida(container) {
@@ -1285,9 +1286,9 @@ export function renderVentaRapida(container) {
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(errData => {
-                        return Promise.reject(new Error(errData.message || 'Error al emitir DTE en Hacienda'));
+                        return Promise.reject(errData);
                     }, () => {
-                        return Promise.reject(new Error(`Error del servidor (Código ${response.status})`));
+                        return Promise.reject({ message: `Error del servidor DTE (Código ${response.status})` });
                     });
                 }
                 return response.json();
@@ -1296,8 +1297,8 @@ export function renderVentaRapida(container) {
                 processVRSuccess(resData);
             })
             .catch(err => {
-                console.error(err);
-                showToast(err.message, "danger");
+                console.error("Venta Rápida DTE Error:", err);
+                showDteErrorModal(err);
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
             });

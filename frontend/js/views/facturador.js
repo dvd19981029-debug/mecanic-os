@@ -30,7 +30,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     safe,
-    saveDteLogToFirestore
+    saveDteLogToFirestore,
+    showDteErrorModal
 } from '../utils.js?v=69';
 import { exportBudgetPDF } from './presupuestos.js?v=88';
 
@@ -1351,10 +1352,9 @@ export function renderInvoicingWorkspace(container, presId) {
             }
             if (!response.ok) {
                 return response.json().then(errData => {
-                    const errMsg = extractErrorDetails(errData) || 'Error al emitir DTE';
-                    return Promise.reject(new Error(errMsg));
+                    return Promise.reject(errData);
                 }, () => {
-                    return Promise.reject(new Error(`Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.`));
+                    return Promise.reject({ message: `Error del proxy backend (Código ${response.status}). Verifique la URL de su servidor.` });
                 });
             }
             return response.json();
@@ -1372,17 +1372,17 @@ export function renderInvoicingWorkspace(container, presId) {
             processSuccess(resData);
         })
         .catch(err => {
-            console.error(err);
+            console.error("DTE Transmission Error:", err);
             saveDteLogToFirestore(
                 "Firma y Transmisión (Fallo)",
                 db.saas_state?.workshopData?.id || 'desconocido',
                 type.toLowerCase() === 'fe' ? 'fc' : type.toLowerCase(),
                 dtePayload,
                 500,
-                { error: err.message },
+                { error: typeof err === 'string' ? err : JSON.stringify(err) },
                 endpoint
             );
-            showToast(err.message, "danger");
+            showDteErrorModal(err);
         })
         .finally(() => {
             emitBtn.disabled = false;
