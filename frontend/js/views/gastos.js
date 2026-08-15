@@ -400,8 +400,8 @@ export function renderGastos(container) {
                         </div>
                     </div>
 
-                    <!-- Linea 2: Codigo de Generacion & Numero de Control -->
-                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <!-- Linea 2: Codigo de Generacion, Numero de Control, Forma de Pago (Contado) -->
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
                         <div class="form-group">
                             <label>Código de Generación</label>
                             <input type="text" id="pur-num-doc" required placeholder="Ej: 4B17731D-B09B-89A8-5BFD-A3646BD9D9CE" style="padding:0.6rem;">
@@ -409,6 +409,15 @@ export function renderGastos(container) {
                         <div class="form-group">
                             <label>Número de Control</label>
                             <input type="text" id="pur-num-control" placeholder="Ej: DTE-01-M001P001-000000000001509" style="padding:0.6rem;">
+                        </div>
+                        <div class="form-group" id="pur-forma-pago-group">
+                            <label>Forma de Pago (Contado)</label>
+                            <select id="pur-forma-pago" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%; font-weight:600;">
+                                <option value="EFECTIVO">💵 Efectivo (Caja Chica)</option>
+                                <option value="TRANSFERENCIA">🏦 Transferencia Bancaria</option>
+                                <option value="TARJETA">💳 Tarjeta Débito/Crédito</option>
+                                <option value="CHEQUE">📝 Cheque</option>
+                            </select>
                         </div>
                     </div>
                     
@@ -468,6 +477,18 @@ export function renderGastos(container) {
 
         makeSelectSearchable('pur-proveedor', 'Buscar y seleccionar proveedor...');
 
+        const formaPagoGroup = document.getElementById('pur-forma-pago-group');
+        const formaPagoSelect = document.getElementById('pur-forma-pago');
+
+        function onCondicionChange() {
+            const isContado = condicionSelect.value === 'CONTADO';
+            if (formaPagoGroup) {
+                formaPagoGroup.style.display = isContado ? 'block' : 'none';
+            }
+        }
+        condicionSelect.addEventListener('change', onCondicionChange);
+        onCondicionChange();
+
         // React to DTE type changes
         function onTipoDteChange() {
             const tipo = tipoDteSelect.value;
@@ -509,6 +530,7 @@ export function renderGastos(container) {
                 ivaRow.style.color = '';
                 document.getElementById('pur-summary-total').style.color = 'var(--primary)';
             }
+            onCondicionChange();
             updateTotals();
         }
 
@@ -730,6 +752,7 @@ export function renderGastos(container) {
             const numDoc = document.getElementById('pur-num-doc').value.trim();
             const numControl = (document.getElementById('pur-num-control')?.value || '').trim();
             const condicion = isNC ? 'CONTADO' : document.getElementById('pur-condicion').value;
+            const formaPago = condicion === 'CONTADO' ? (document.getElementById('pur-forma-pago')?.value || 'EFECTIVO') : 'CREDITO';
 
             // Calculations
             let sumNet = 0;
@@ -767,6 +790,7 @@ export function renderGastos(container) {
                 Monto_IVA: isNC ? -roundedIva : roundedIva,
                 Monto_Total: isNC ? -roundedTotal : roundedTotal,
                 Condicion: condicion,
+                Forma_Pago: formaPago,
                 Estado_Pago: condicion === 'CONTADO' ? 'PAGADO' : 'PENDIENTE',
                 Saldo_Pendiente: condicion === 'CONTADO' ? 0 : (isNC ? -roundedTotal : roundedTotal),
                 Items: purchaseItems.map(item => ({
@@ -816,7 +840,7 @@ export function renderGastos(container) {
                         'Fecha Gasto': date,
                         Concepto: `Nota de Crédito ${numDoc} - Reversión (${prov.Nombre})`,
                         'Monto Total': -roundedTotal,
-                        'Forma de Pago': 'EFECTIVO',
+                        'Forma de Pago': formaPago,
                         'ID Categoría Gasto': 'Nota de Crédito',
                         'Estado Pago': 'PAGADO',
                         ID_Proveedor: provId
@@ -827,7 +851,7 @@ export function renderGastos(container) {
                         'Fecha Gasto': date,
                         Concepto: `Compra ${tipeName} - ${numDoc} (${prov.Nombre})`,
                         'Monto Total': roundedTotal,
-                        'Forma de Pago': 'EFECTIVO',
+                        'Forma de Pago': formaPago,
                         'ID Categoría Gasto': 'Insumos Directos',
                         'Estado Pago': 'PAGADO',
                         ID_Proveedor: provId
@@ -1344,7 +1368,10 @@ export function renderGastos(container) {
                             <tr>
                                 <td>${escapeHtml(dte.fecha)}</td>
                                 <td><strong>${escapeHtml(dte.emisor)}</strong><br><small style="color:var(--text-muted);">${escapeHtml(dte.nitEmisor || '')}</small></td>
-                                <td><code style="background:rgba(255,255,255,0.05); padding:0.2rem 0.4rem; border-radius:4px; font-size:0.85rem;">${escapeHtml(dte.numeroDte)}</code></td>
+                                <td>
+                                    <code style="background:rgba(255,255,255,0.05); padding:0.2rem 0.4rem; border-radius:4px; font-size:0.85rem;">${escapeHtml(dte.numeroDte)}</code>
+                                    ${dte.tipoDocumento ? `<br><small style="color:var(--cyan); font-weight:500; font-size:0.75rem;">${escapeHtml(dte.tipoDocumento)}</small>` : ''}
+                                </td>
                                 <td><strong>$${parseFloat(dte.monto || 0).toFixed(2)}</strong></td>
                                 <td>${statusText}</td>
                                 <td style="text-align:right;">${actionBtn}</td>
@@ -1412,6 +1439,7 @@ export function renderGastos(container) {
                         </div>
                         <div>
                             <span style="color:var(--text-secondary);">N° DTE (Sello):</span> <code style="font-size:0.85rem;">${escapeHtml(dte.numeroDte)}</code><br>
+                            <span style="color:var(--text-secondary);">Tipo Documento:</span> <span style="font-size:0.85rem; font-weight:600; color:var(--cyan);">${escapeHtml(dte.tipoDocumento || 'DTE')}</span><br>
                             <span style="color:var(--text-secondary);">Monto Total:</span> <strong>$${parseFloat(dte.monto || 0).toFixed(2)}</strong>
                         </div>
                     </div>
