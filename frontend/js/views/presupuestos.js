@@ -4137,27 +4137,23 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
             <div style="width: 280px;">
                 <table class="totals-table">
                     <tr>
-                        <td class="total-label">Subtotal Neto</td>
-                        <td class="total-value">$ ${(subtotal - discount).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td class="total-label">IVA (13%)</td>
-                        <td class="total-value">$ ${iva.toFixed(2)}</td>
+                        <td class="total-label">Subtotal</td>
+                        <td class="total-value">$ ${(subtotal + iva).toFixed(2)}</td>
                     </tr>
                     ${percVal > 0 ? `
                         <tr>
-                            <td class="total-label">(+) IVA Percibido</td>
+                            <td class="total-label">IVA Percibido</td>
                             <td class="total-value">+ $ ${percVal.toFixed(2)}</td>
                         </tr>
                     ` : ''}
                     ${retVal > 0 ? `
                         <tr>
-                            <td class="total-label">(-) IVA Retenido</td>
+                            <td class="total-label">IVA Retenido</td>
                             <td class="total-value">- $ ${retVal.toFixed(2)}</td>
                         </tr>
                     ` : ''}
                     <tr class="grand-total-row">
-                        <td class="total-label">TOTAL</td>
+                        <td class="total-label">Total a Pagar</td>
                         <td class="total-value">$ ${grandTotal.toFixed(2)}</td>
                     </tr>
                 </table>
