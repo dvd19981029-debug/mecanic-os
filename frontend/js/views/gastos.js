@@ -55,7 +55,7 @@ export function renderGastos(container) {
         <div class="saas-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; overflow-x:auto;">
             <button class="saas-tab-btn ${activeGastosTab === 'egresos' ? 'active' : ''}" data-tab="egresos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-receipt"></i> Gastos Operativos</button>
             <button class="saas-tab-btn ${activeGastosTab === 'compras' ? 'active' : ''}" data-tab="compras" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-cart-shopping"></i> Registrar Compra</button>
-            <button class="saas-tab-btn ${activeGastosTab === 'cxp' ? 'active' : ''}" data-tab="cxp" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-invoice-dollar"></i> Cuentas por Pagar</button>
+            <button class="saas-tab-btn ${activeGastosTab === 'cxp' ? 'active' : ''}" data-tab="cxp" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-invoice-dollar"></i> Compras</button>
             <button class="saas-tab-btn ${activeGastosTab === 'proveedores' ? 'active' : ''}" data-tab="proveedores" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-truck-field"></i> Proveedores</button>
             <button class="saas-tab-btn ${activeGastosTab === 'dtes_recibidos' ? 'active' : ''}" data-tab="dtes_recibidos" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-envelope-open-text"></i> DTEs Recibidos (Gmail)</button>
             <button class="saas-tab-btn ${activeGastosTab === 'reporteria' ? 'active' : ''}" data-tab="reporteria" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-chart-line"></i> Reportería</button>
@@ -919,7 +919,7 @@ export function renderGastos(container) {
 
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
-                    <h3 style="margin:0;">Detalle de Cuentas por Pagar (Créditos)</h3>
+                    <h3 style="margin:0;">Compras</h3>
                 </div>
 
                 <!-- Control Bar de Filtros -->
