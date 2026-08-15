@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const { getFirestore } = require('firebase-admin/firestore');
 
 let db = null;
+let initError = null;
 
 try {
     let serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -25,10 +26,14 @@ try {
         console.log("Firebase Admin SDK inicializado con credenciales por defecto.");
     }
 } catch (error) {
+    initError = {
+        message: error.message,
+        stack: error.stack
+    };
     console.error("==================================================");
     console.error("❌ ERROR AL INICIALIZAR FIREBASE ADMIN SDK:");
     console.error(error.message);
     console.error("==================================================");
 }
 
-module.exports = { admin, db };
+module.exports = { admin, db, initError };

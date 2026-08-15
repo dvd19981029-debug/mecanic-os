@@ -585,7 +585,7 @@ async function diagnoseFirebase(req, res) {
             }
         }
         
-        const { db } = require('../config/firebaseAdmin');
+        const { db, initError } = require('../config/firebaseAdmin');
         
         return res.json({
             success: true,
@@ -596,6 +596,7 @@ async function diagnoseFirebase(req, res) {
             jsonError,
             parsedKeys,
             isDbNull: db === null,
+            initError,
             adminAppsLength: require('firebase-admin').getApps ? require('firebase-admin').getApps().length : 0
         });
     } catch (err) {
