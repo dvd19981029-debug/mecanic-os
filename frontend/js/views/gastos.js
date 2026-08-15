@@ -1042,7 +1042,12 @@ export function renderGastos(container) {
 
                     <!-- Footer -->
                     <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:1rem;">
-                        <div>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            ${comp.Estado_Pago === 'PENDIENTE' && abonos.length === 0 ? `
+                                <button id="btn-edit-from-modal" class="btn btn-secondary" style="background:rgba(67,97,238,0.2); border:1px solid #4361ee; color:#93c5fd; padding:0.5rem 1.25rem; font-weight:700; font-size:0.85rem; cursor:pointer;">
+                                    <i class="fa-solid fa-pen-to-square" style="color:#60a5fa;"></i> Editar Compra
+                                </button>
+                            ` : ''}
                             ${comp.Estado_Pago !== 'ANULADA' ? `
                                 <button id="btn-annul-from-modal" class="btn btn-secondary" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; padding:0.5rem 1.25rem; font-weight:700; font-size:0.85rem; cursor:pointer;">
                                     <i class="fa-solid fa-ban" style="color:#ef4444;"></i> Anular Compra
@@ -1065,6 +1070,364 @@ export function renderGastos(container) {
         document.getElementById('btn-close-comp-modal-x')?.addEventListener('click', closeModal);
         document.getElementById('btn-close-comp-modal-btn')?.addEventListener('click', closeModal);
         document.getElementById('btn-annul-from-modal')?.addEventListener('click', () => annulPurchase(comp.ID_Compra));
+        document.getElementById('btn-edit-from-modal')?.addEventListener('click', () => showEditPurchaseModal(comp));
+    }
+
+    // Modal to edit an existing pending purchase (products, quantities, unit costs, invoice number, dates)
+    function showEditPurchaseModal(comp) {
+        if (!comp) return;
+
+        const hasAbonos = (db.abonos_proveedores || []).some(a => a.ID_Compra === comp.ID_Compra);
+        if (comp.Estado_Pago !== 'PENDIENTE' || hasAbonos) {
+            showToast("Solo se pueden editar compras en estado PENDIENTE que no tengan abonos ni pagos registrados.", "warning");
+            return;
+        }
+
+        const modalId = 'edit-purchase-modal';
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) existingModal.remove();
+
+        // Local clone of items to edit
+        let editItems = (comp.Items || []).map(i => ({
+            id_producto: i.ID_Producto,
+            cant: parseFloat(i.Cantidad || 0),
+            precio_costo: parseFloat(i.Precio_Costo || 0)
+        }));
+
+        const renderEditItemsRows = () => {
+            const tbody = document.getElementById('edit-purchase-items-body');
+            if (!tbody) return;
+
+            if (editItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1rem; color:var(--text-muted);">Sin repuestos agregados a esta compra.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = safe(editItems.map((item, idx) => {
+                const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
+                const desc = prod ? prod.Descripcion : item.id_producto;
+                const subtotal = item.cant * item.precio_costo;
+                return `
+                    <tr style="border-bottom:1px solid var(--border-color);">
+                        <td style="padding:0.5rem;">
+                            <strong>${escapeHtml(desc)}</strong>
+                        </td>
+                        <td style="padding:0.5rem; text-align:center;">
+                            <input type="number" class="edit-item-qty" data-idx="${idx}" min="0.01" step="0.01" value="${item.cant}" style="width:75px; padding:0.25rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:center;">
+                        </td>
+                        <td style="padding:0.5rem; text-align:right;">
+                            <input type="number" class="edit-item-cost" data-idx="${idx}" min="0.01" step="0.01" value="${item.precio_costo.toFixed(2)}" style="width:95px; padding:0.25rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; text-align:right;">
+                        </td>
+                        <td style="padding:0.5rem; text-align:right; font-weight:700; color:var(--cyan);">
+                            $ ${subtotal.toFixed(2)}
+                        </td>
+                        <td style="padding:0.5rem; text-align:center;">
+                            <button type="button" class="btn-delete-edit-item" data-idx="${idx}" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.1rem; line-height:1;" title="Eliminar ítem">&times;</button>
+                        </td>
+                    </tr>
+                `;
+            }).join(''));
+
+            // Recalculate totals
+            let netSum = editItems.reduce((sum, i) => sum + (i.cant * i.precio_costo), 0);
+            const netAmount = parseFloat(netSum.toFixed(2));
+            const hasIva = comp.Tipo_DTE === 'CCF' || comp.Tipo_DTE === 'FAC';
+            const ivaAmount = hasIva ? parseFloat((netSum * 0.13).toFixed(2)) : 0;
+            const totalAmount = parseFloat((netAmount + ivaAmount).toFixed(2));
+
+            const netElem = document.getElementById('edit-pur-net');
+            const ivaElem = document.getElementById('edit-pur-iva');
+            const totalElem = document.getElementById('edit-pur-total');
+            if (netElem) netElem.textContent = `$ ${netAmount.toFixed(2)}`;
+            if (ivaElem) ivaElem.textContent = `$ ${ivaAmount.toFixed(2)}`;
+            if (totalElem) totalElem.textContent = `$ ${totalAmount.toFixed(2)}`;
+
+            // Attach inline edit events
+            tbody.querySelectorAll('.edit-item-qty').forEach(inp => {
+                inp.oninput = (e) => {
+                    const idx = parseInt(e.target.getAttribute('data-idx'));
+                    const val = parseFloat(e.target.value) || 0;
+                    if (editItems[idx]) editItems[idx].cant = val;
+                    renderEditItemsRows();
+                };
+            });
+            tbody.querySelectorAll('.edit-item-cost').forEach(inp => {
+                inp.oninput = (e) => {
+                    const idx = parseInt(e.target.getAttribute('data-idx'));
+                    const val = parseFloat(e.target.value) || 0;
+                    if (editItems[idx]) editItems[idx].precio_costo = val;
+                    renderEditItemsRows();
+                };
+            });
+            tbody.querySelectorAll('.btn-delete-edit-item').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    editItems.splice(idx, 1);
+                    renderEditItemsRows();
+                };
+            });
+        };
+
+        const modalHtml = `
+            <div class="modal" id="${modalId}" style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+                <div class="modal-content glass-card" style="max-width:780px; width:94%; max-height:90vh; overflow-y:auto; padding:1.75rem; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-card); color:var(--text-primary); box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; margin-bottom:1.25rem;">
+                        <h3 style="margin:0;"><i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Editar Compra Pendiente</h3>
+                        <button id="btn-close-edit-modal-x" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+
+                    <form id="form-edit-purchase" style="display:flex; flex-direction:column; gap:1.25rem;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid var(--border-color);">
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Proveedor</label>
+                                <select id="edit-pur-prov" required style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                                    ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}" ${p.ID_Proveedor === comp.ID_Proveedor ? 'selected' : ''}>${escapeHtml(p.Nombre)}</option>`).join(''))}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">N° Factura / Documento</label>
+                                <input type="text" id="edit-pur-num-doc" required value="${escapeHtml(comp.Num_Factura || '')}" style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.4rem 0.6rem;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">N° Control / DTE</label>
+                                <input type="text" id="edit-pur-num-control" value="${escapeHtml(comp.Num_Control || '')}" placeholder="Opcional" style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.4rem 0.6rem;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Fecha Compra</label>
+                                <input type="date" id="edit-pur-date" required value="${comp.Fecha_Compra || new Date().toISOString().split('T')[0]}" style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.4rem 0.6rem;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Condición de Pago</label>
+                                <select id="edit-pur-condicion" style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                                    <option value="CREDITO" ${comp.Condicion === 'CREDITO' ? 'selected' : ''}>Crédito</option>
+                                    <option value="CONTADO" ${comp.Condicion === 'CONTADO' ? 'selected' : ''}>Contado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Tipo DTE</label>
+                                <select id="edit-pur-tipo-dte" style="width:100%; height:36px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                                    <option value="CCF" ${comp.Tipo_DTE === 'CCF' ? 'selected' : ''}>Crédito Fiscal (CCF)</option>
+                                    <option value="FAC" ${comp.Tipo_DTE === 'FAC' ? 'selected' : ''}>Factura Consumidor (FAC)</option>
+                                    <option value="FSE" ${comp.Tipo_DTE === 'FSE' ? 'selected' : ''}>Factura Sujeto Excluido (FSE)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Add Product Row -->
+                        <div style="display:flex; gap:0.5rem; align-items:flex-end; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border-color);">
+                            <div style="flex:1;">
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Agregar Producto del Catálogo</label>
+                                <select id="edit-add-prod-select" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
+                                    <option value="">-- Seleccionar Repuesto / Insumo --</option>
+                                    ${safe(db.productos.map(p => `<option value="${p['ID_ Producto']}" data-cost="${p['Precio Unit'] || 0}">${escapeHtml(p.Descripcion)} ($ ${parseFloat(p['Precio Unit'] || 0).toFixed(2)})</option>`).join(''))}
+                                </select>
+                            </div>
+                            <div style="width:80px;">
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Cant.</label>
+                                <input type="number" id="edit-add-prod-qty" value="1" min="1" step="1" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.2rem 0.4rem; text-align:center;">
+                            </div>
+                            <div style="width:110px;">
+                                <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">P. Costo ($)</label>
+                                <input type="number" id="edit-add-prod-cost" step="0.01" min="0" placeholder="0.00" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem; padding:0.2rem 0.4rem; text-align:right;">
+                            </div>
+                            <button type="button" id="btn-edit-add-prod" class="btn btn-secondary" style="height:34px; padding:0 0.8rem; font-size:0.8rem; border-color:var(--primary); color:var(--primary);"><i class="fa-solid fa-plus"></i> Agregar</button>
+                        </div>
+
+                        <!-- Editable Table -->
+                        <div style="overflow-x:auto; border:1px solid var(--border-color); border-radius:8px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead>
+                                    <tr style="background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border-color); color:var(--text-secondary); text-align:left;">
+                                        <th style="padding:0.6rem;">Descripción Repuesto</th>
+                                        <th style="padding:0.6rem; text-align:center; width:95px;">Cant.</th>
+                                        <th style="padding:0.6rem; text-align:right; width:115px;">P. Costo ($)</th>
+                                        <th style="padding:0.6rem; text-align:right; width:115px;">Subtotal ($)</th>
+                                        <th style="padding:0.6rem; text-align:center; width:50px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="edit-purchase-items-body">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Totals Summary -->
+                        <div style="display:flex; justify-content:flex-end;">
+                            <div style="width:300px; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; display:flex; flex-direction:column; gap:0.4rem;">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:var(--text-secondary);">Subtotal Neto:</span>
+                                    <strong id="edit-pur-net">$ 0.00</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span style="color:var(--text-secondary);">IVA (13%):</span>
+                                    <strong id="edit-pur-iva">$ 0.00</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-color); padding-top:0.4rem; font-size:1.05rem; color:var(--primary); font-weight:800;">
+                                    <span>Total Factura / Deuda:</span>
+                                    <strong id="edit-pur-total">$ 0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-edit-purchase">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" style="padding:0.5rem 1.5rem; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const closeEditModal = () => {
+            const m = document.getElementById(modalId);
+            if (m) m.remove();
+        };
+
+        document.getElementById('btn-close-edit-modal-x')?.addEventListener('click', closeEditModal);
+        document.getElementById('btn-cancel-edit-purchase')?.addEventListener('click', closeEditModal);
+
+        // Select product change updates cost input
+        const prodSelect = document.getElementById('edit-add-prod-select');
+        const prodCostInput = document.getElementById('edit-add-prod-cost');
+        if (prodSelect && prodCostInput) {
+            prodSelect.onchange = () => {
+                const opt = prodSelect.options[prodSelect.selectedIndex];
+                const cost = opt ? parseFloat(opt.getAttribute('data-cost') || 0) : 0;
+                prodCostInput.value = cost > 0 ? cost.toFixed(2) : '';
+            };
+        }
+
+        // Add product to edit list
+        document.getElementById('btn-edit-add-prod')?.addEventListener('click', () => {
+            const pId = prodSelect.value;
+            if (!pId) {
+                showToast("Seleccione un repuesto del catálogo", "warning");
+                return;
+            }
+            const qty = parseFloat(document.getElementById('edit-add-prod-qty').value) || 1;
+            const cost = parseFloat(prodCostInput.value) || 0;
+
+            const existingIdx = editItems.findIndex(i => i.id_producto === pId);
+            if (existingIdx >= 0) {
+                editItems[existingIdx].cant += qty;
+                if (cost > 0) editItems[existingIdx].precio_costo = cost;
+            } else {
+                editItems.push({
+                    id_producto: pId,
+                    cant: qty,
+                    precio_costo: cost
+                });
+            }
+            renderEditItemsRows();
+            prodSelect.value = '';
+            prodCostInput.value = '';
+        });
+
+        // Initial items render
+        renderEditItemsRows();
+
+        // Submit form handler
+        document.getElementById('form-edit-purchase').onsubmit = (e) => {
+            e.preventDefault();
+
+            if (editItems.length === 0) {
+                showToast("La compra debe incluir al menos un repuesto o producto.", "warning");
+                return;
+            }
+
+            const newProvId = document.getElementById('edit-pur-prov').value;
+            const newNumFact = document.getElementById('edit-pur-num-doc').value.trim();
+            const newNumControl = document.getElementById('edit-pur-num-control').value.trim();
+            const newDate = document.getElementById('edit-pur-date').value;
+            const newCondicion = document.getElementById('edit-pur-condicion').value;
+            const newTipoDte = document.getElementById('edit-pur-tipo-dte').value;
+
+            const prov = db.proveedores.find(p => p.ID_Proveedor === newProvId) || { Nombre: 'Proveedor S.A.', Dias_Credito: 0 };
+
+            // 1. Revert Old Stock for items in comp.Items
+            (comp.Items || []).forEach(oldItem => {
+                const prod = db.productos.find(p => p['ID_ Producto'] === oldItem.ID_Producto);
+                if (prod && !prod.Consumible) {
+                    const oldQty = parseFloat(oldItem.Cantidad || 0);
+                    prod.Minimos = Math.max(0, (prod.Minimos || 0) - oldQty);
+                }
+            });
+
+            // 2. Apply New Stock & Cost for new items
+            let netSum = 0;
+            const newMappedItems = editItems.map(item => {
+                const qty = parseFloat(item.cant || 0);
+                const cost = parseFloat(item.precio_costo || 0);
+                netSum += qty * cost;
+
+                const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
+                if (prod && !prod.Consumible) {
+                    prod.Minimos = (prod.Minimos || 0) + qty;
+                    prod['Precio Compra'] = cost;
+
+                    // Kardex adjustment entry
+                    db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                    db['29 Movs de Inventario'].unshift({
+                        id_Mov: 'MOVIN-CS-' + Math.floor(Date.now() / 1000).toString().substring(3),
+                        id_producto: item.id_producto,
+                        descripcion: prod.Descripcion,
+                        Cant_Mov: qty,
+                        'Fecha Mov': Date.now(),
+                        Tipo: 'ENTRADA',
+                        'Valor ($)': cost,
+                        Observacion: `Edición Factura Compra ${newNumFact} (${prov.Nombre})`
+                    });
+                }
+
+                return {
+                    ID_Producto: item.id_producto,
+                    Cantidad: qty,
+                    Precio_Costo: cost
+                };
+            });
+
+            const roundedNet = parseFloat(netSum.toFixed(2));
+            const hasIva = newTipoDte === 'CCF' || newTipoDte === 'FAC';
+            const roundedIva = hasIva ? parseFloat((netSum * 0.13).toFixed(2)) : 0;
+            const roundedTotal = parseFloat((roundedNet + roundedIva).toFixed(2));
+
+            // Calculate due date for credit
+            const creditDays = parseInt(prov.Dias_Credito || 0);
+            let dueDate = newDate;
+            if (newCondicion === 'CREDITO' && creditDays > 0) {
+                const compDateObj = new Date(newDate + 'T00:00:00');
+                compDateObj.setDate(compDateObj.getDate() + creditDays);
+                const y = compDateObj.getFullYear();
+                const m = String(compDateObj.getMonth() + 1).padStart(2, '0');
+                const d = String(compDateObj.getDate()).padStart(2, '0');
+                dueDate = `${y}-${m}-${d}`;
+            }
+
+            // Update comp object
+            comp.ID_Proveedor = newProvId;
+            comp.Num_Factura = newNumFact;
+            comp.Num_Control = newNumControl;
+            comp.Fecha_Compra = newDate;
+            comp.Fecha_Vencimiento = dueDate;
+            comp.Dias_Credito = creditDays;
+            comp.Condicion = newCondicion;
+            comp.Tipo_DTE = newTipoDte;
+            comp.Monto_Neto = roundedNet;
+            comp.Monto_IVA = roundedIva;
+            comp.Monto_Total = roundedTotal;
+            comp.Saldo_Pendiente = roundedTotal;
+            comp.Items = newMappedItems;
+
+            saveDatabase(db);
+            showToast(`Compra N° ${newNumFact} actualizada con éxito. Stock e inventario ajustados en Kárdex.`, "success");
+
+            closeEditModal();
+            const detailModal = document.getElementById('purchase-detail-modal');
+            if (detailModal) detailModal.remove();
+
+            renderGastos(container);
+        };
     }
 
     // Function to annul a purchase, set status ANULADA, clear debt balance, and revert Kardex stock
@@ -1383,6 +1746,9 @@ export function renderGastos(container) {
                     balanceColor = 'var(--text-muted)';
                 }
 
+                const hasAbonos = (db.abonos_proveedores || []).some(a => a.ID_Compra === c.ID_Compra);
+                const canEdit = c.Estado_Pago === 'PENDIENTE' && !hasAbonos;
+
                 return `
                     <tr style="${isAnnulled ? 'opacity:0.6;' : ''}">
                         <td>${dateStr}${venceStr}</td>
@@ -1398,7 +1764,11 @@ export function renderGastos(container) {
                         <td>
                             <div style="display:flex; gap:0.4rem; justify-content:center; align-items:center; flex-wrap:wrap;">
                                 <button class="btn btn-secondary btn-view-purchase-detail" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px; cursor:pointer;" title="Ver desglose completo de repuestos, precios y abonos"><i class="fa-solid fa-eye" style="color:var(--cyan);"></i> Ver Detalle</button>
+
+                                ${canEdit ? `<button class="btn btn-secondary btn-edit-purchase" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(67,97,238,0.15); border:1px solid rgba(67,97,238,0.4); color:#93c5fd; border-radius:6px; cursor:pointer;" title="Editar productos, cantidades o precios de esta compra"><i class="fa-solid fa-pen-to-square" style="color:#60a5fa;"></i> Editar</button>` : ''}
+
                                 ${!isPaid && !isAnnulled ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : ''}
+
                                 ${!isAnnulled ? `<button class="btn btn-secondary btn-annul-purchase" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; cursor:pointer;" title="Anular esta compra y revertir stock en Kárdex"><i class="fa-solid fa-ban" style="color:#ef4444;"></i> Anular</button>` : `<span style="font-size:0.75rem; color:#f87171; font-weight:600;"><i class="fa-solid fa-ban"></i> Anulada</span>`}
                             </div>
                         </td>
@@ -1412,6 +1782,15 @@ export function renderGastos(container) {
                     const compId = btn.getAttribute('data-id');
                     const comp = db.compras.find(c => c.ID_Compra === compId);
                     if (comp) showPurchaseDetailModal(comp);
+                });
+            });
+
+            // Re-bind edit purchase buttons
+            parent.querySelectorAll('.btn-edit-purchase').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const compId = btn.getAttribute('data-id');
+                    const comp = db.compras.find(c => c.ID_Compra === compId);
+                    if (comp) showEditPurchaseModal(comp);
                 });
             });
 
