@@ -289,46 +289,110 @@ export function getBackendUrl(db) {
     return sanitizeBackendUrl(url);
 }
 
-// Export report data to Excel via backend
+// Export report data to Excel natively in the browser (100% Client-Side & Offline Compatible)
 export function downloadExcelReport(filename, jsonData) {
-    const db = typeof window.getDatabase === 'function' ? window.getDatabase() : null;
-    const backendUrl = getBackendUrl(db);
-    const endpoint = (backendUrl ? sanitizeBackendUrl(backendUrl) : '') + '/api/export/excel';
-    
-    showToast("Generando reporte Excel...", "info");
-    
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            filename: filename,
-            data: jsonData
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error("No se pudo generar el reporte en el servidor");
+    try {
+        if (!jsonData || !Array.isArray(jsonData) || jsonData.length === 0) {
+            showToast("No hay datos disponibles para exportar a Excel", "warning");
+            return;
         }
-        return response.blob();
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
+
+        showToast("Generando reporte Excel...", "info");
+
+        const headers = Object.keys(jsonData[0]);
+
+        const escapeXml = (str) => {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[<>&'"]/g, (c) => {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                    default: return c;
+                }
+            });
+        };
+
+        let xmlContent = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1" ss:Color="#FFFFFF" ss:FontName="Calibri"/>
+   <Interior ss:Color="#1E293B" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="Data">
+   <Font ss:FontName="Calibri"/>
+   <Alignment ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="Currency">
+   <Font ss:FontName="Calibri"/>
+   <NumberFormat ss:Format="$#,##0.00"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Reporte">
+  <Table>`;
+
+        // Column Header Row
+        xmlContent += '\n   <Row ss:Height="24">';
+        headers.forEach(h => {
+            xmlContent += `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+        });
+        xmlContent += '</Row>';
+
+        // Data Rows
+        jsonData.forEach(row => {
+            xmlContent += '\n   <Row ss:Height="20">';
+            headers.forEach(h => {
+                const val = row[h];
+                if (val === null || val === undefined) {
+                    xmlContent += `<Cell ss:StyleID="Data"><Data ss:Type="String"></Data></Cell>`;
+                } else if (typeof val === 'number') {
+                    xmlContent += `<Cell ss:StyleID="Currency"><Data ss:Type="Number">${val}</Data></Cell>`;
+                } else {
+                    xmlContent += `<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
+                }
+            });
+            xmlContent += '</Row>';
+        });
+
+        xmlContent += `
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+        const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = filename;
+
+        let cleanFilename = filename || 'Reporte.xls';
+        if (!cleanFilename.endsWith('.xls') && !cleanFilename.endsWith('.xlsx')) {
+            cleanFilename += '.xls';
+        }
+
+        a.download = cleanFilename;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-        showToast("Reporte descargado con éxito", "success");
-    })
-    .catch(err => {
-        console.error("Excel Export Error:", err);
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            a.remove();
+        }, 1000);
+
+        showToast("Reporte Excel descargado con éxito", "success");
+    } catch (err) {
+        console.error("Client Excel Export Error:", err);
         showToast("Error al exportar a Excel: " + err.message, "danger");
-    });
+    }
 }
 
 // Tagged template literal for secure HTML escaping to prevent XSS
