@@ -2075,7 +2075,7 @@ export function renderGastos(container) {
                     <select id="rep-gastos-tipo" class="form-control" style="width: 100%; padding: 0.5rem; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; height: 38px;">
                         <option value="gastos_mensuales">1. Reporte de Gastos Operativos (Egresos)</option>
                         <option value="compras_proveedor">2. Estado de Cuenta de Proveedor (Compras y Abonos)</option>
-                        <option value="cuentas_por_pagar">3. Reporte de Cuentas por Pagar (Saldos a Proveedores)</option>
+                        <option value="cuentas_por_pagar">3. Resumen de Cuentas por Pagar</option>
                     </select>
                 </div>
                 
@@ -2189,7 +2189,8 @@ export function renderGastos(container) {
 
                 const creditPurchases = db.compras.filter(c => 
                     c.ID_Proveedor === provId && 
-                    c.Condicion === 'CREDITO'
+                    c.Condicion === 'CREDITO' &&
+                    c.Estado_Pago !== 'ANULADA'
                 );
 
                 const charges = creditPurchases.map(c => ({
@@ -2454,10 +2455,11 @@ export function renderGastos(container) {
         const prov = db.proveedores.find(p => p.ID_Proveedor === provId);
         if (!prov) return;
 
-        // 1. Gather all credit purchases for this supplier
+        // 1. Gather all credit purchases for this supplier (excluding annulled)
         const creditPurchases = db.compras.filter(c => 
             c.ID_Proveedor === provId && 
-            c.Condicion === 'CREDITO'
+            c.Condicion === 'CREDITO' &&
+            c.Estado_Pago !== 'ANULADA'
         );
 
         // Map purchases to charges
@@ -2784,7 +2786,7 @@ export function renderGastos(container) {
 
                 <!-- Title Banner -->
                 <div style="background:${brandColor} !important; color:#fff !important; text-align:center; padding:6px; font-weight:bold; font-size:12px; letter-spacing:1px; margin-bottom:15px; border-radius:3px; text-transform:uppercase; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                    REPORTE GENERAL DE CUENTAS POR PAGAR (SALDOS)
+                    RESUMEN DE CUENTAS POR PAGAR
                 </div>
 
                 <div style="border: 1px solid ${brandColor} !important; border-radius: 6px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; line-height: 1.6;">
