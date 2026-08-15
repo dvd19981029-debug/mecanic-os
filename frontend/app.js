@@ -448,6 +448,8 @@ function smartRefreshView(changedCollection) {
             'proveedores': ['gastos'],
             'ingresos': ['ingresos', 'dashboard-bi'],
             'pagos_vr': ['venta-rapida'],
+            'cajas_sesiones': ['caja', 'taller-dashboard', 'dashboard-bi'],
+            'caja_movimientos': ['caja', 'taller-dashboard', 'dashboard-bi'],
         };
         
         const affectedViews = collectionViewMap[changedCollection] || [];

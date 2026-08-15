@@ -510,7 +510,9 @@ export function renderCaja(container) {
         const searchRole = roleName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const isAdmin = searchRole === "administrador" || searchRole === "admin";
 
-        const closedSessions = db.cajas_sesiones.filter(s => s.estado === 'CERRADA');
+        const closedSessions = (db.cajas_sesiones || [])
+            .filter(s => s.estado === 'CERRADA' || s.estado === 'cerrada' || !!s.fecha_cierre)
+            .sort((a, b) => (b.fecha_cierre || b.fecha_apertura || 0) - (a.fecha_cierre || a.fecha_apertura || 0));
         
         if (closedSessions.length === 0) {
             tabContent.innerHTML = html`

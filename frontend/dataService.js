@@ -25,7 +25,9 @@ const collectionConfigs = [
     { name: 'proveedores', path: 'proveedores', key: 'ID_Proveedor' },
     { name: 'compras', path: 'compras', key: 'ID_Compra' },
     { name: 'abonos_proveedores', path: 'abonos_proveedores', key: 'ID_Abono_Prov' },
-    { name: 'ingresos', path: 'ingresos', key: 'ID_Ingreso' }
+    { name: 'ingresos', path: 'ingresos', key: 'ID_Ingreso' },
+    { name: 'cajas_sesiones', path: 'cajas_sesiones', key: 'id_sesion' },
+    { name: 'caja_movimientos', path: 'caja_movimientos', key: 'id_movimiento' }
 ];
 
 const dataService = {
@@ -227,6 +229,8 @@ const dataService = {
                 };
                 changed = true;
             }
+            if (!this.cache.cajas_sesiones) { this.cache.cajas_sesiones = []; changed = true; }
+            if (!this.cache.caja_movimientos) { this.cache.caja_movimientos = []; changed = true; }
             
             // Self-healing: Deduplicate collections based on primary keys to resolve local storage inconsistencies
             collectionConfigs.forEach(config => {
@@ -272,6 +276,9 @@ const dataService = {
         this.cache.pagos_vr = this.cache['45 Pagos VR'] || this.cache.pagos_vr || [];
         this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
+        this.cache.cajas_sesiones = this.cache['31 Cortes de Caja'] || this.cache.cajas_sesiones || [];
+        this.cache['31 Cortes de Caja'] = this.cache.cajas_sesiones;
+
         // Initialize Firestore Native Offline Persistence if Firebase SDK is present
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
             try {
@@ -312,6 +319,7 @@ const dataService = {
         alignAlias('venta_rapida', '43 Venta Rapida');
         alignAlias('gastos', '46 Gastos');
         alignAlias('pagos_vr', '45 Pagos VR');
+        alignAlias('cajas_sesiones', '31 Cortes de Caja');
 
         this.cache = db;
 
