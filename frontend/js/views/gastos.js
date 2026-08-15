@@ -875,6 +875,190 @@ export function renderGastos(container) {
         renderRows();
     }
 
+    // Modal to view complete purchase details, items, unit prices, costs, and payment history
+    function showPurchaseDetailModal(comp) {
+        const prov = db.proveedores.find(p => p.ID_Proveedor === comp.ID_Proveedor) || { Nombre: 'Proveedor S.A.', NIT_DUI: '', Giro: '' };
+        const items = comp.Items || [];
+        
+        // Find abonos for this purchase
+        const abonos = (db.abonos_proveedores || []).filter(a => a.ID_Compra === comp.ID_Compra);
+        const totalAbonado = abonos.reduce((sum, a) => sum + parseFloat(a.Monto_Abono || 0), 0);
+
+        const dteTypeNames = {
+            CCF: 'Crédito Fiscal (CCF)',
+            FAC: 'Factura Consumidor (FAC)',
+            FSE: 'Factura Sujeto Excluido (FSE)',
+            NC: 'Nota de Crédito (NC)'
+        };
+
+        const modalId = 'purchase-detail-modal';
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) existingModal.remove();
+
+        let itemsTableRows = items.length > 0 ? items.map((item, idx) => {
+            const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+            const desc = prod ? prod.Descripcion : (item.ID_Producto || 'Repuesto / Insumo');
+            const code = prod ? (prod['ID_ Producto'] || prod.Codigo || '') : '';
+            const qty = parseFloat(item.Cantidad || 0);
+            const cost = parseFloat(item.Precio_Costo || 0);
+            const subtotal = qty * cost;
+            return `
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td style="padding:0.65rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">${idx + 1}</td>
+                    <td style="padding:0.65rem;">
+                        <strong style="color:var(--text-primary); font-size:0.9rem;">${escapeHtml(desc)}</strong>
+                        ${code ? `<div style="font-size:0.75rem; color:var(--text-muted);">Cód: ${escapeHtml(code)}</div>` : ''}
+                    </td>
+                    <td style="padding:0.65rem; text-align:center; font-weight:700;">${qty}</td>
+                    <td style="padding:0.65rem; text-align:right; font-weight:600;">$ ${cost.toFixed(2)}</td>
+                    <td style="padding:0.65rem; text-align:right; font-weight:700; color:var(--cyan);">$ ${subtotal.toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('') : `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1rem;">No se encontraron repuestos desglosados en esta compra.</td></tr>`;
+
+        let abonosTableRows = abonos.length > 0 ? abonos.map(a => `
+            <tr style="border-bottom:1px solid var(--border-color); font-size:0.82rem;">
+                <td style="padding:0.5rem;">${a.Fecha_Abono || 'N/A'}</td>
+                <td style="padding:0.5rem;"><span class="badge-tag badge-info">${escapeHtml(a.Forma_Pago || 'EFECTIVO')}</span></td>
+                <td style="padding:0.5rem; color:var(--text-secondary);">${escapeHtml(a.Notas || 'Abono registrado')}</td>
+                <td style="padding:0.5rem; text-align:right; font-weight:700; color:var(--success);">$ ${parseFloat(a.Monto_Abono || 0).toFixed(2)}</td>
+            </tr>
+        `).join('') : `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem; font-size:0.8rem;">No se han registrado abonos a esta compra.</td></tr>`;
+
+        const totalAmount = parseFloat(comp.Monto_Total || 0);
+        const netAmount = comp.Monto_Neto !== undefined ? parseFloat(comp.Monto_Neto) : (totalAmount / 1.13);
+        const ivaAmount = comp.Monto_IVA !== undefined ? parseFloat(comp.Monto_IVA) : (totalAmount - netAmount);
+        const pendingBalance = parseFloat(comp.Saldo_Pendiente || 0);
+
+        const modalHtml = `
+            <div class="modal" id="${modalId}" style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+                <div class="modal-content glass-card" style="max-width:780px; width:94%; max-height:90vh; overflow-y:auto; padding:1.75rem; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-card); color:var(--text-primary); box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+                    <!-- Header -->
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1.25rem;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                                <span class="badge-tag badge-primary" style="font-weight:700; font-size:0.75rem;">${dteTypeNames[comp.Tipo_DTE] || comp.Tipo_DTE || 'COMPRA'}</span>
+                                <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--text-primary);">Factura N° ${escapeHtml(comp.Num_Factura || 'S/N')}</h3>
+                                <span class="badge-tag ${comp.Estado_Pago === 'PAGADO' ? 'badge-success' : 'badge-warning'}">${escapeHtml(comp.Estado_Pago || 'PENDIENTE')}</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.3rem;">
+                                ID Compra: <code>${escapeHtml(comp.ID_Compra)}</code>
+                                ${comp.Num_Control ? ` | Ctrl: <code style="color:var(--cyan);">${escapeHtml(comp.Num_Control)}</code>` : ''}
+                            </div>
+                        </div>
+                        <button id="btn-close-comp-modal-x" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer; padding:0; line-height:1;">&times;</button>
+                    </div>
+
+                    <!-- Info Grid -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.25rem; background:rgba(255,255,255,0.02); padding:1rem; border-radius:8px; border:1px solid var(--border-color); font-size:0.85rem;">
+                        <div>
+                            <div style="color:var(--primary); font-weight:700; text-transform:uppercase; font-size:0.75rem; margin-bottom:0.4rem;"><i class="fa-solid fa-truck-field"></i> Proveedor</div>
+                            <div><strong>${escapeHtml(prov.Nombre)}</strong></div>
+                            ${prov.NIT_DUI ? `<div style="color:var(--text-secondary); font-size:0.8rem;">NIT/DUI: ${escapeHtml(prov.NIT_DUI)}</div>` : ''}
+                            ${prov.Giro ? `<div style="color:var(--text-secondary); font-size:0.8rem;">Giro: ${escapeHtml(prov.Giro)}</div>` : ''}
+                        </div>
+                        <div>
+                            <div style="color:var(--primary); font-weight:700; text-transform:uppercase; font-size:0.75rem; margin-bottom:0.4rem;"><i class="fa-solid fa-calendar-days"></i> Fechas y Forma de Pago</div>
+                            <div>Fecha Compra: <strong>${comp.Fecha_Compra || 'N/A'}</strong></div>
+                            ${comp.Fecha_Vencimiento ? `<div>Fecha Vencimiento: <strong style="color:${comp.Estado_Pago === 'PENDIENTE' ? '#f59e0b' : 'inherit'};">${comp.Fecha_Vencimiento}</strong> (${comp.Dias_Credito || 0} días crédito)</div>` : ''}
+                            <div>Condición: <strong>${escapeHtml(comp.Condicion || 'CONTADO')}</strong> | Forma de Pago: <strong>${escapeHtml(comp.Forma_Pago || 'EFECTIVO')}</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div style="margin-bottom:1.25rem;">
+                        <h4 style="margin:0 0 0.6rem 0; font-size:0.95rem; color:var(--text-primary); display:flex; align-items:center; gap:0.4rem;">
+                            <i class="fa-solid fa-boxes-stacked" style="color:var(--primary);"></i> Desglose de Repuestos e Insumos (${items.length})
+                        </h4>
+                        <div style="overflow-x:auto; border:1px solid var(--border-color); border-radius:8px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                                <thead>
+                                    <tr style="background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border-color); color:var(--text-secondary); text-align:left;">
+                                        <th style="padding:0.6rem; text-align:center; width:40px;">#</th>
+                                        <th style="padding:0.6rem;">Descripción Repuesto</th>
+                                        <th style="padding:0.6rem; text-align:center;">Cant.</th>
+                                        <th style="padding:0.6rem; text-align:right;">Precio Costo ($)</th>
+                                        <th style="padding:0.6rem; text-align:right;">Subtotal ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsTableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Financial Totals Box -->
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:1.5rem;">
+                        <div style="width:320px; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; display:flex; flex-direction:column; gap:0.4rem;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:var(--text-secondary);">Subtotal Neto:</span>
+                                <strong>$ ${netAmount.toFixed(2)}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:var(--text-secondary);">IVA Crédito Fiscal (13%):</span>
+                                <strong>$ ${ivaAmount.toFixed(2)}</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border-color); padding-top:0.4rem; font-size:1.05rem; color:var(--primary); font-weight:800;">
+                                <span>Total Factura:</span>
+                                <strong>$ ${totalAmount.toFixed(2)}</strong>
+                            </div>
+                            ${comp.Condicion === 'CREDITO' ? `
+                                <div style="display:flex; justify-content:space-between; color:var(--success); margin-top:0.2rem;">
+                                    <span>Total Abonado:</span>
+                                    <strong>$ ${totalAbonado.toFixed(2)}</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; color:${pendingBalance > 0 ? '#ef4444' : 'var(--success)'}; font-weight:800; border-top:1px dashed var(--border-color); padding-top:0.3rem;">
+                                    <span>Saldo Pendiente:</span>
+                                    <strong>$ ${pendingBalance.toFixed(2)}</strong>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Abonos History (If Credit) -->
+                    ${comp.Condicion === 'CREDITO' ? `
+                    <div style="margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.6rem 0; font-size:0.9rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.4rem;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Histórico de Abonos Realizados
+                        </h4>
+                        <div style="overflow-x:auto; border:1px solid var(--border-color); border-radius:8px;">
+                            <table style="width:100%; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border-color); color:var(--text-secondary); text-align:left; font-size:0.8rem;">
+                                        <th style="padding:0.5rem;">Fecha</th>
+                                        <th style="padding:0.5rem;">Forma Pago</th>
+                                        <th style="padding:0.5rem;">Notas</th>
+                                        <th style="padding:0.5rem; text-align:right;">Monto Abonado ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${abonosTableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Footer -->
+                    <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <button id="btn-close-comp-modal-btn" class="btn btn-secondary" style="padding:0.5rem 1.25rem;">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const closeModal = () => {
+            const m = document.getElementById(modalId);
+            if (m) m.remove();
+        };
+
+        document.getElementById('btn-close-comp-modal-x')?.addEventListener('click', closeModal);
+        document.getElementById('btn-close-comp-modal-btn')?.addEventListener('click', closeModal);
+    }
+
     // --- TAB 3: ACCOUNTS PAYABLE (CxP) ---
     function renderCxpTab(parent) {
         // Sanitize purchase balances to exact 2 decimals to fix float rounding discrepancies
@@ -1118,11 +1302,23 @@ export function renderGastos(container) {
                         <td style="font-weight:700; color:${isPaid ? 'var(--success)' : '#ef4444'};">$ ${parseFloat(c.Saldo_Pendiente || 0).toFixed(2)}</td>
                         <td><span class="badge-tag ${isPaid ? 'badge-success' : 'badge-warning'}">${escapeHtml(c.Estado_Pago || 'PENDIENTE')}</span></td>
                         <td>
-                            ${!isPaid ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.4rem 0.8rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : `<span style="font-size:0.75rem; color:var(--text-muted);"><i class="fa-solid fa-circle-check"></i> Pagado</span>`}
+                            <div style="display:flex; gap:0.4rem; justify-content:center; align-items:center; flex-wrap:wrap;">
+                                <button class="btn btn-secondary btn-view-purchase-detail" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px; cursor:pointer;" title="Ver desglose completo de repuestos, precios y abonos"><i class="fa-solid fa-eye" style="color:var(--cyan);"></i> Ver Detalle</button>
+                                ${!isPaid ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : `<span style="font-size:0.75rem; color:var(--success); font-weight:600;"><i class="fa-solid fa-circle-check"></i> Pagado</span>`}
+                            </div>
                         </td>
                     </tr>
                 `;
             }).join(''));
+
+            // Re-bind view detail buttons
+            parent.querySelectorAll('.btn-view-purchase-detail').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const compId = btn.getAttribute('data-id');
+                    const comp = db.compras.find(c => c.ID_Compra === compId);
+                    if (comp) showPurchaseDetailModal(comp);
+                });
+            });
 
             // Re-bind abono buttons
             parent.querySelectorAll('.btn-abono-cxp').forEach(btn => {
