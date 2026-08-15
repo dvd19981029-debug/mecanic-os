@@ -1791,25 +1791,27 @@ export function printDteTicket(presId) {
             <tbody>
                 ${safe(prodItems.map(item => {
                     const price = parseFloat(item.PrecioUnitario || item.price || 0);
-                    const unitPriceDisplay = preciosConIva ? (price / 1.13) : price;
+                    const unitPriceDisplay = isCCF ? (preciosConIva ? price / 1.13 : price) : (preciosConIva ? price : price * 1.13);
+                    const qty = parseInt(item.Cantidad || item.qty || 1);
                     return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
-                        <td style="text-align: center;">${item.Cantidad || item.qty}</td>
+                        <td style="text-align: center;">${qty}</td>
                         <td style="text-align: right;">$${unitPriceDisplay.toFixed(2)}</td>
-                        <td style="text-align: right;">$${(unitPriceDisplay * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
+                        <td style="text-align: right;">$${(unitPriceDisplay * qty).toFixed(2)}</td>
                     </tr>
                     `;
                 }).join(''))}
                 ${safe(laborItems.map(item => {
                     const price = parseFloat(item.PrecioUnitario || item.price || 0);
-                    const unitPriceDisplay = preciosConIva ? (price / 1.13) : price;
+                    const unitPriceDisplay = isCCF ? (preciosConIva ? price / 1.13 : price) : (preciosConIva ? price : price * 1.13);
+                    const qty = parseInt(item.Cantidad || item.qty || 1);
                     return `
                     <tr>
                         <td style="word-break: break-word;">${escapeHtml(item.Descripcion || item.desc || '')}</td>
-                        <td style="text-align: center;">${item.Cantidad || item.qty}</td>
+                        <td style="text-align: center;">${qty}</td>
                         <td style="text-align: right;">$${unitPriceDisplay.toFixed(2)}</td>
-                        <td style="text-align: right;">$${(unitPriceDisplay * parseInt(item.Cantidad || item.qty || 1)).toFixed(2)}</td>
+                        <td style="text-align: right;">$${(unitPriceDisplay * qty).toFixed(2)}</td>
                     </tr>
                     `;
                 }).join(''))}
@@ -1817,9 +1819,10 @@ export function printDteTicket(presId) {
         </table>
         <div class="double-divider"></div>
         <table class="totals-table">
+            ${isCCF ? `
             <tr>
                 <td>Subtotal Neto:</td>
-                <td class="text-right">$ ${(preciosConIva ? baseParaImpuestos : subtotal).toFixed(2)}</td>
+                <td class="text-right">$ ${baseParaImpuestos.toFixed(2)}</td>
             </tr>
             ${safe(discount > 0 ? `
             <tr>
@@ -1830,15 +1833,26 @@ export function printDteTicket(presId) {
                 <td>IVA (13%):</td>
                 <td class="text-right">$ ${iva.toFixed(2)}</td>
             </tr>
+            ` : `
+            <tr>
+                <td>Subtotal:</td>
+                <td class="text-right">$ ${subtotalConDescuento.toFixed(2)}</td>
+            </tr>
+            ${safe(discount > 0 ? `
+            <tr>
+                <td style="color: #c0392b;">Descuento:</td>
+                <td class="text-right" style="color: #c0392b;">- $ ${discount.toFixed(2)}</td>
+            </tr>` : '')}
+            `}
             ${safe(perception > 0 ? `
             <tr>
                 <td>Percepción (2%):</td>
-                <td class="text-right">$ ${perception.toFixed(2)}</td>
+                <td class="text-right">+ $ ${perception.toFixed(2)}</td>
             </tr>` : '')}
             ${safe(retention > 0 ? `
             <tr>
                 <td>Retención (1%):</td>
-                <td class="text-right">$ ${retention.toFixed(2)}</td>
+                <td class="text-right">- $ ${retention.toFixed(2)}</td>
             </tr>` : '')}
             <tr class="total-row">
                 <td>TOTAL A PAGAR:</td>
