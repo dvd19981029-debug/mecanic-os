@@ -289,94 +289,52 @@ export function getBackendUrl(db) {
     return sanitizeBackendUrl(url);
 }
 
-// Export report data to Excel natively in the browser (100% Client-Side & Offline Compatible)
+// Export report data to Excel / CSV natively in the browser (100% Client-Side & Offline Compatible)
 export function downloadExcelReport(filename, jsonData) {
     try {
         if (!jsonData || !Array.isArray(jsonData) || jsonData.length === 0) {
-            showToast("No hay datos disponibles para exportar a Excel", "warning");
+            showToast("No hay datos disponibles para exportar", "warning");
             return;
         }
 
-        showToast("Generando reporte Excel...", "info");
+        showToast("Generando reporte para Excel...", "info");
 
         const headers = Object.keys(jsonData[0]);
 
-        const escapeXml = (str) => {
-            if (str === null || str === undefined) return '';
-            return String(str).replace(/[<>&'"]/g, (c) => {
-                switch (c) {
-                    case '<': return '&lt;';
-                    case '>': return '&gt;';
-                    case '&': return '&amp;';
-                    case '\'': return '&apos;';
-                    case '"': return '&quot;';
-                    default: return c;
-                }
-            });
+        // Helper to format CSV cells cleanly and escape quotes
+        const formatCsvField = (val) => {
+            if (val === null || val === undefined) return '""';
+            let str = String(val);
+            str = str.replace(/"/g, '""');
+            return `"${str}"`;
         };
 
-        let xmlContent = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Header">
-   <Font ss:Bold="1" ss:Color="#FFFFFF" ss:FontName="Calibri"/>
-   <Interior ss:Color="#1E293B" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-  </Style>
-  <Style ss:ID="Data">
-   <Font ss:FontName="Calibri"/>
-   <Alignment ss:Vertical="Center"/>
-  </Style>
-  <Style ss:ID="Currency">
-   <Font ss:FontName="Calibri"/>
-   <NumberFormat ss:Format="$#,##0.00"/>
-   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Reporte">
-  <Table>`;
+        // Build CSV content line by line
+        let csvLines = [];
+        
+        // 1. Header row
+        csvLines.push(headers.map(formatCsvField).join(','));
 
-        // Column Header Row
-        xmlContent += '\n   <Row ss:Height="24">';
-        headers.forEach(h => {
-            xmlContent += `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
-        });
-        xmlContent += '</Row>';
-
-        // Data Rows
+        // 2. Data rows
         jsonData.forEach(row => {
-            xmlContent += '\n   <Row ss:Height="20">';
-            headers.forEach(h => {
-                const val = row[h];
-                if (val === null || val === undefined) {
-                    xmlContent += `<Cell ss:StyleID="Data"><Data ss:Type="String"></Data></Cell>`;
-                } else if (typeof val === 'number') {
-                    xmlContent += `<Cell ss:StyleID="Currency"><Data ss:Type="Number">${val}</Data></Cell>`;
-                } else {
-                    xmlContent += `<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(val)}</Data></Cell>`;
-                }
-            });
-            xmlContent += '</Row>';
+            const line = headers.map(h => formatCsvField(row[h])).join(',');
+            csvLines.push(line);
         });
 
-        xmlContent += `
-  </Table>
- </Worksheet>
-</Workbook>`;
+        const csvString = csvLines.join('\r\n');
 
-        const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        // \uFEFF is the UTF-8 Byte Order Mark (BOM) so Excel opens accents, currency and symbols perfectly
+        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
 
-        let cleanFilename = filename || 'Reporte.xls';
-        if (!cleanFilename.endsWith('.xls') && !cleanFilename.endsWith('.xlsx')) {
-            cleanFilename += '.xls';
+        // Ensure extension is .csv so Microsoft Excel opens it directly without file extension mismatch warnings
+        let cleanFilename = filename || 'Reporte.csv';
+        cleanFilename = cleanFilename.replace(/\.xlsx$/i, '.csv').replace(/\.xls$/i, '.csv');
+        if (!cleanFilename.endsWith('.csv')) {
+            cleanFilename += '.csv';
         }
 
         a.download = cleanFilename;
@@ -388,10 +346,10 @@ export function downloadExcelReport(filename, jsonData) {
             a.remove();
         }, 1000);
 
-        showToast("Reporte Excel descargado con éxito", "success");
+        showToast("Reporte descargado con éxito (abrir con Excel)", "success");
     } catch (err) {
-        console.error("Client Excel Export Error:", err);
-        showToast("Error al exportar a Excel: " + err.message, "danger");
+        console.error("Client Excel/CSV Export Error:", err);
+        showToast("Error al exportar reporte: " + err.message, "danger");
     }
 }
 
