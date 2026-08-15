@@ -596,7 +596,7 @@ async function diagnoseFirebase(req, res) {
             jsonError,
             parsedKeys,
             isDbNull: db === null,
-            adminAppsLength: require('firebase-admin').apps.length
+            adminAppsLength: require('firebase-admin').getApps ? require('firebase-admin').getApps().length : 0
         });
     } catch (err) {
         return res.status(500).json({ success: false, error: err.message });
