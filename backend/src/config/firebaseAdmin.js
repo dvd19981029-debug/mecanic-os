@@ -15,7 +15,7 @@ try {
             
         const serviceAccount = JSON.parse(serviceAccountJson);
         const app = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
+            credential: admin.cert(serviceAccount)
         });
         db = getFirestore(app);
         console.log("Firebase Admin SDK inicializado exitosamente mediante cuenta de servicio.");
