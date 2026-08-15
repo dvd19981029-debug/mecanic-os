@@ -1041,7 +1041,14 @@ export function renderGastos(container) {
                     ` : ''}
 
                     <!-- Footer -->
-                    <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:1rem;">
+                        <div>
+                            ${comp.Estado_Pago !== 'ANULADA' ? `
+                                <button id="btn-annul-from-modal" class="btn btn-secondary" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; padding:0.5rem 1.25rem; font-weight:700; font-size:0.85rem; cursor:pointer;">
+                                    <i class="fa-solid fa-ban" style="color:#ef4444;"></i> Anular Compra
+                                </button>
+                            ` : `<span style="color:#f87171; font-weight:700; font-size:0.85rem;"><i class="fa-solid fa-ban"></i> ESTA COMPRA SE ENCUENTRA ANULADA</span>`}
+                        </div>
                         <button id="btn-close-comp-modal-btn" class="btn btn-secondary" style="padding:0.5rem 1.25rem;">Cerrar</button>
                     </div>
                 </div>
@@ -1057,6 +1064,76 @@ export function renderGastos(container) {
 
         document.getElementById('btn-close-comp-modal-x')?.addEventListener('click', closeModal);
         document.getElementById('btn-close-comp-modal-btn')?.addEventListener('click', closeModal);
+        document.getElementById('btn-annul-from-modal')?.addEventListener('click', () => annulPurchase(comp.ID_Compra));
+    }
+
+    // Function to annul a purchase, set status ANULADA, clear debt balance, and revert Kardex stock
+    function annulPurchase(purchaseId) {
+        const comp = db.compras.find(c => c.ID_Compra === purchaseId);
+        if (!comp) return;
+
+        if (comp.Estado_Pago === 'ANULADA') {
+            showToast("Esta compra ya se encuentra anulada.", "warning");
+            return;
+        }
+
+        const prov = db.proveedores.find(p => p.ID_Proveedor === comp.ID_Proveedor) || { Nombre: 'Proveedor S.A.' };
+        const numDoc = comp.Num_Factura || comp.ID_Compra;
+
+        if (!confirm(`¿Está seguro de ANULAR la factura de compra N° ${numDoc} (${prov.Nombre})?\n\nEsta acción:\n1. Revertirá la cantidad ingresada de los repuestos en el Kárdex de Inventario.\n2. Pondrá el estado de la compra como ANULADA y su saldo pendiente en $0.00.`)) {
+            return;
+        }
+
+        // 1. Update purchase state and clear balance
+        comp.Estado_Pago = 'ANULADA';
+        comp.Saldo_Pendiente = 0;
+
+        // 2. Revert Stock in Inventory & Add Output movement to Kardex
+        const dteLabelMap = { CCF: 'CCF', FAC: 'Factura', FSE: 'FSE', NC: 'Nota de Crédito' };
+        const dteLabel = dteLabelMap[comp.Tipo_DTE] || comp.Tipo_DTE || 'Factura';
+
+        (comp.Items || []).forEach(item => {
+            const prod = db.productos.find(p => p['ID_ Producto'] === item.ID_Producto);
+            if (prod && !prod.Consumible) {
+                const qty = parseFloat(item.Cantidad || 0);
+                if (qty > 0) {
+                    // Revert stock (subtract quantity that was added by this purchase, max min 0)
+                    prod.Minimos = Math.max(0, (prod.Minimos || 0) - qty);
+
+                    // Register Kardex SALIDA (reversal movement)
+                    db['29 Movs de Inventario'] = db['29 Movs de Inventario'] || [];
+                    db['29 Movs de Inventario'].unshift({
+                        id_Mov: 'MOVIN-CS-' + Math.floor(Date.now() / 1000).toString().substring(3),
+                        id_producto: item.ID_Producto,
+                        descripcion: prod.Descripcion,
+                        Cant_Mov: qty,
+                        'Fecha Mov': Date.now(),
+                        Tipo: 'SALIDA',
+                        'Valor ($)': item.Precio_Costo || 0,
+                        Observacion: `Anulación Compra ${dteLabel} ${numDoc} (${prov.Nombre})`
+                    });
+                }
+            }
+        });
+
+        // 3. Mark associated gastos if any as [ANULADO]
+        if (db.gastos) {
+            db.gastos.forEach(g => {
+                if (g.Concepto && g.Concepto.includes(numDoc) && g.ID_Proveedor === comp.ID_Proveedor) {
+                    g.Concepto = `[ANULADO] ${g.Concepto}`;
+                    g['Monto Total'] = 0;
+                }
+            });
+        }
+
+        saveDatabase(db);
+        showToast(`Compra N° ${numDoc} anulada con éxito. Stock e inventario revertidos en Kárdex.`, "success");
+
+        // Close detail modal if open
+        const detailModal = document.getElementById('purchase-detail-modal');
+        if (detailModal) detailModal.remove();
+
+        renderGastos(container);
     }
 
     // --- TAB 3: ACCOUNTS PAYABLE (CxP) ---
@@ -1131,6 +1208,7 @@ export function renderGastos(container) {
                             <option value="TODOS">📋 Ver Todos</option>
                             <option value="PAGADO">🟢 Solo Pagadas (Histórico)</option>
                             <option value="VENCIDO">⚠️ Solo Vencidas</option>
+                            <option value="ANULADA">🚫 Solo Anuladas</option>
                         </select>
                     </div>
 
@@ -1219,6 +1297,7 @@ export function renderGastos(container) {
                 // Status filter
                 if (filterStatus === 'PENDIENTE' && c.Estado_Pago !== 'PENDIENTE') return false;
                 if (filterStatus === 'PAGADO' && c.Estado_Pago !== 'PAGADO') return false;
+                if (filterStatus === 'ANULADA' && c.Estado_Pago !== 'ANULADA') return false;
                 if (filterStatus === 'VENCIDO') {
                     if (c.Estado_Pago !== 'PENDIENTE' || !c.Fecha_Vencimiento) return false;
                     const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
@@ -1264,7 +1343,7 @@ export function renderGastos(container) {
                 let venceStr = '';
                 try {
                     dateStr = new Date(c.Fecha_Compra + 'T00:00:00').toLocaleDateString('es-SV');
-                    if (c.Fecha_Vencimiento) {
+                    if (c.Fecha_Vencimiento && c.Estado_Pago !== 'ANULADA') {
                         const dueTime = new Date(c.Fecha_Vencimiento + 'T00:00:00').getTime();
                         const formattedVence = new Date(c.Fecha_Vencimiento + 'T00:00:00').toLocaleDateString('es-SV');
                         
@@ -1279,6 +1358,8 @@ export function renderGastos(container) {
                                 venceStr = `<span style="font-size:0.75rem; color:#10b981; font-weight:600;"><br>Vence: ${formattedVence} (Quedan ${diffDays}d)</span>`;
                             }
                         }
+                    } else if (c.Estado_Pago === 'ANULADA') {
+                        venceStr = `<span style="font-size:0.75rem; color:#f87171;"><br>Anulada</span>`;
                     } else {
                         venceStr = `<span style="font-size:0.75rem; color:var(--text-secondary);"><br>Vence: N/A</span>`;
                     }
@@ -1289,8 +1370,21 @@ export function renderGastos(container) {
                     return `• ${escapeHtml(prodDesc)} (${item.Cantidad})`;
                 }).join('<br>');
                 const isPaid = c.Estado_Pago === 'PAGADO';
+                const isAnnulled = c.Estado_Pago === 'ANULADA';
+
+                let badgeClass = 'badge-warning';
+                let balanceColor = '#ef4444';
+                if (isPaid) {
+                    badgeClass = 'badge-success';
+                    balanceColor = 'var(--success)';
+                }
+                if (isAnnulled) {
+                    badgeClass = 'badge-danger';
+                    balanceColor = 'var(--text-muted)';
+                }
+
                 return `
-                    <tr>
+                    <tr style="${isAnnulled ? 'opacity:0.6;' : ''}">
                         <td>${dateStr}${venceStr}</td>
                         <td><strong>${escapeHtml(prov.Nombre)}</strong></td>
                         <td>
@@ -1299,12 +1393,13 @@ export function renderGastos(container) {
                             ${itemsDetail ? `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.4rem; border-top:1px dashed var(--border-color); padding-top:0.3rem; line-height:1.4; font-weight:normal; max-width:280px; word-break:break-word;">${itemsDetail}</div>` : ''}
                         </td>
                         <td style="font-weight:600;">$ ${parseFloat(c.Monto_Total || 0).toFixed(2)}</td>
-                        <td style="font-weight:700; color:${isPaid ? 'var(--success)' : '#ef4444'};">$ ${parseFloat(c.Saldo_Pendiente || 0).toFixed(2)}</td>
-                        <td><span class="badge-tag ${isPaid ? 'badge-success' : 'badge-warning'}">${escapeHtml(c.Estado_Pago || 'PENDIENTE')}</span></td>
+                        <td style="font-weight:700; color:${balanceColor};">$ ${parseFloat(c.Saldo_Pendiente || 0).toFixed(2)}</td>
+                        <td><span class="badge-tag ${badgeClass}">${escapeHtml(c.Estado_Pago || 'PENDIENTE')}</span></td>
                         <td>
                             <div style="display:flex; gap:0.4rem; justify-content:center; align-items:center; flex-wrap:wrap;">
                                 <button class="btn btn-secondary btn-view-purchase-detail" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px; cursor:pointer;" title="Ver desglose completo de repuestos, precios y abonos"><i class="fa-solid fa-eye" style="color:var(--cyan);"></i> Ver Detalle</button>
-                                ${!isPaid ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : `<span style="font-size:0.75rem; color:var(--success); font-weight:600;"><i class="fa-solid fa-circle-check"></i> Pagado</span>`}
+                                ${!isPaid && !isAnnulled ? `<button class="btn btn-primary btn-abono-cxp" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem;"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar Abono</button>` : ''}
+                                ${!isAnnulled ? `<button class="btn btn-secondary btn-annul-purchase" data-id="${c.ID_Compra}" style="padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; border-radius:6px; cursor:pointer;" title="Anular esta compra y revertir stock en Kárdex"><i class="fa-solid fa-ban" style="color:#ef4444;"></i> Anular</button>` : `<span style="font-size:0.75rem; color:#f87171; font-weight:600;"><i class="fa-solid fa-ban"></i> Anulada</span>`}
                             </div>
                         </td>
                     </tr>
@@ -1317,6 +1412,14 @@ export function renderGastos(container) {
                     const compId = btn.getAttribute('data-id');
                     const comp = db.compras.find(c => c.ID_Compra === compId);
                     if (comp) showPurchaseDetailModal(comp);
+                });
+            });
+
+            // Re-bind annul purchase buttons
+            parent.querySelectorAll('.btn-annul-purchase').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const compId = btn.getAttribute('data-id');
+                    annulPurchase(compId);
                 });
             });
 
