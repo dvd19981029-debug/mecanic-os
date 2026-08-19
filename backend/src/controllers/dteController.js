@@ -676,9 +676,10 @@ async function resendDteEmail(req, res) {
 
         // Multi-tenant resolution: buscar datos del taller específico en Firestore
         let smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-        let smtpPort = parseInt(process.env.SMTP_PORT || "465");
+        let smtpPort = parseInt(process.env.SMTP_PORT || "587");
         let smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "";
         let smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
+        smtpPass = (smtpPass || '').replace(/\s+/g, '');
         let senderName = clienteNombre ? `Facturación - ${clienteNombre}` : "Documento Tributario Electrónico";
         let replyToEmail = null;
 
@@ -695,9 +696,9 @@ async function resendDteEmail(req, res) {
                     // Si el taller especificó su propio correo en Ajustes
                     if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
                         smtpHost = wsData.smtp_config.host || "smtp.gmail.com";
-                        smtpPort = parseInt(wsData.smtp_config.port || "465");
+                        smtpPort = parseInt(wsData.smtp_config.port || "587");
                         smtpUser = wsData.smtp_config.user;
-                        smtpPass = wsData.smtp_config.pass;
+                        smtpPass = (wsData.smtp_config.pass || '').replace(/\s+/g, '');
                     }
                 }
             } catch (errWs) {
@@ -715,11 +716,15 @@ async function resendDteEmail(req, res) {
         const isGmail = smtpHost.includes('gmail') || smtpUser.endsWith('@gmail.com') || smtpUser.endsWith('@forbiddensoluciones.com');
 
         const transportConfig = isGmail ? {
-            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false, // STARTTLS is required for Render / cloud hosting
+            requireTLS: true,
             auth: {
                 user: smtpUser,
                 pass: smtpPass
             },
+            tls: { rejectUnauthorized: false },
             connectionTimeout: 10000,
             greetingTimeout: 5000,
             socketTimeout: 12000
