@@ -489,6 +489,14 @@ export function renderIssuedTab(container) {
                 dropdown.remove();
             });
         });
+
+        dropdown.querySelectorAll('.btn-send-dte-email').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                sendDteEmailToClient(btn.getAttribute('data-id'), btn.getAttribute('data-presid'));
+                dropdown.remove();
+            });
+        });
         
         dropdown.querySelectorAll('.btn-print-dte-ticket').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -655,6 +663,7 @@ export function renderIssuedTab(container) {
                     menuHtml = `
                         <a href="#presupuestos?id=${budgetId}" class="dte-dropdown-item" title="Ver Detalle Presupuesto / Factura"><i class="fa-solid fa-eye"></i> Detalle</a>
                         <button class="dte-dropdown-item btn-view-dte-pdf" data-id="${genCode}" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="dte-dropdown-item btn-send-dte-email" data-id="${genCode}" data-presid="${budgetId}" style="color: #60a5fa;" title="Reenviar DTE por correo electrónico al cliente"><i class="fa-solid fa-paper-plane"></i> Reenviar Correo</button>
                         <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${budgetId}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         <button class="dte-dropdown-item btn-query-dte" data-id="${genCode}" title="Consultar Estado en MH"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
                         <div style="border-top: 1px solid var(--border-color); margin: 0.25rem 0;"></div>
@@ -1437,6 +1446,73 @@ async function viewDtePdf(dteId) {
     } catch (err) {
         console.error(err);
         showToast("Error al obtener el PDF del DTE: " + err.message, "danger");
+    }
+}
+
+export async function sendDteEmailToClient(genCode, budgetId) {
+    try {
+        const db = getDatabase();
+        let p = (db.presupuestos || []).find(pres => pres['ID Presupuesto'] === budgetId);
+        if (!p) {
+            p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === budgetId);
+            if (!p) {
+                p = (db.ventas || []).find(v => (v.codigoGeneracion === genCode || v['ID Presupuesto'] === budgetId));
+            }
+        }
+
+        const client = (db.clientes || []).find(c => c.Codigo_Cliente === (p?.Codigo_Cliente || p?.Cliente)) || {};
+        const defaultEmail = client.Correo || p?.Correo || p?.email || '';
+
+        const recipientEmail = prompt(`Ingresa o confirma el correo del cliente para enviar el DTE:\n(Código: ${genCode || budgetId})`, defaultEmail);
+        if (!recipientEmail) return; // User cancelled
+
+        if (!recipientEmail.includes('@')) {
+            showToast("Error: Debe ingresar un correo electrónico válido.", "danger");
+            return;
+        }
+
+        showToast("Enviando correo con el DTE adjunto al cliente...", "info");
+
+        const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                       getSecureDteConfig();
+        const apiKey = dteCfg.apiKey || '';
+        const workshopUid = (db.saas_state && db.saas_state.workshopUid) || 'desconocido';
+        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+
+        if (!baseUrl) {
+            showToast("Error: URL del servidor backend no configurada.", "danger");
+            return;
+        }
+
+        const response = await fetch(`${baseUrl}/api/dte/resend-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                apiKey: apiKey,
+                workshopId: workshopUid,
+                dteId: genCode,
+                codigoGeneracion: genCode,
+                recipientEmail: recipientEmail.trim(),
+                clienteNombre: client.Nombre || p?.Nombre || 'Cliente',
+                numeroControl: p?.Num_Control || p?.selloRecepcion || genCode,
+                mhDteUrl: p?.mhDteUrl || '',
+                tipoDocumento: p?.Tipo_DTE || 'Crédito Fiscal',
+                montoTotal: p?.Total || p?.Monto_Total || ''
+            })
+        });
+
+        const resData = await response.json();
+        if (response.ok && resData.success) {
+            showToast(`✅ DTE reenviado exitosamente a ${recipientEmail.trim()}`, "success");
+        } else {
+            showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
+        }
+
+    } catch (err) {
+        console.error(err);
+        showToast("Error al reenviar el correo: " + err.message, "danger");
     }
 }
 

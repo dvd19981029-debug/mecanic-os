@@ -564,11 +564,172 @@ async function receiveIncomingDte(req, res) {
     }
 }
 
+function fetchPdfBuffer(dteId, apiKey) {
+    return new Promise((resolve, reject) => {
+        const targetUrl = `https://api.facturallama.com/dte/${dteId}/download/pdf`;
+        const options = {
+            method: 'GET',
+            headers: {
+                'X-API-Key': apiKey,
+                'X-API-Version': '1'
+            }
+        };
+
+        const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+            if (proxyRes.statusCode !== 200) {
+                return reject(new Error(`FacturaLlama HTTP ${proxyRes.statusCode}`));
+            }
+            const chunks = [];
+            proxyRes.on('data', chunk => chunks.push(chunk));
+            proxyRes.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+
+        proxyReq.on('error', reject);
+        proxyReq.end();
+    });
+}
+
+/**
+ * Reenvía un DTE por correo electrónico al cliente.
+ */
+async function resendDteEmail(req, res) {
+    try {
+        const { apiKey, dteId, recipientEmail, clienteNombre, numeroControl, codigoGeneracion, mhDteUrl, tipoDocumento, montoTotal, workshopId } = req.body;
+
+        if (!recipientEmail || !recipientEmail.includes('@')) {
+            return res.status(400).json({ success: false, message: "Debe proveer un correo electrónico válido para el envío." });
+        }
+
+        const targetDteId = dteId || codigoGeneracion;
+        if (!targetDteId) {
+            return res.status(400).json({ success: false, message: "No se especificó el código del DTE a enviar." });
+        }
+
+        const resolvedApiKey = (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('simulado_') && !apiKey.startsWith('test_sk_mecanicos_default')) 
+                                ? apiKey 
+                                : process.env.FACTURALLAMA_API_KEY;
+
+        let pdfBuffer = null;
+        if (resolvedApiKey) {
+            try {
+                pdfBuffer = await fetchPdfBuffer(targetDteId, resolvedApiKey);
+            } catch (err) {
+                console.warn("No se pudo descargar el PDF de FacturaLlama para adjuntar:", err.message);
+            }
+        }
+
+        let nodemailer;
+        try {
+            nodemailer = require('nodemailer');
+        } catch (e) {
+            return res.status(500).json({ success: false, message: "El módulo nodemailer no está disponible en el servidor." });
+        }
+
+        const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+        const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+        const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "mistercarssv@gmail.com";
+        const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
+
+        if (!smtpPass) {
+            console.warn("SMTP_PASS / GMAIL_APP_PASS no configurado en servidor.");
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            }
+        });
+
+        const docTitle = tipoDocumento || "Comprobante de Crédito Fiscal";
+        const controlNum = numeroControl || targetDteId;
+        const linkMh = mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${targetDteId}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
+
+        const htmlBody = `
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
+                <div style="background: #1e293b; padding: 24px; text-align: center; border-bottom: 2px solid #6d28d9;">
+                    <h2 style="margin: 0; color: #a78bfa; font-size: 22px;">MISTER CARS</h2>
+                    <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Documento Tributario Electrónico (DTE)</p>
+                </div>
+                
+                <div style="padding: 28px;">
+                    <p style="font-size: 16px; margin-top: 0;">Estimado(a) <strong>${clienteNombre || 'Cliente'}</strong>,</p>
+                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">
+                        Le enviamos la representación gráfica de su <strong>${docTitle}</strong> emitido por <strong>Mister Cars</strong>.
+                    </p>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 18px; border-radius: 8px; margin: 20px 0; border: 1px solid #334155;">
+                        <table style="width: 100%; font-size: 14px; color: #e2e8f0; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">N° Control:</td>
+                                <td style="padding: 6px 0; text-align: right; font-weight: bold; font-family: monospace;">${controlNum}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">Código Generación:</td>
+                                <td style="padding: 6px 0; text-align: right; font-family: monospace; font-size: 12px;">${targetDteId}</td>
+                            </tr>
+                            ${montoTotal ? `
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">Monto Total:</td>
+                                <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #4ade80; font-size: 16px;">$${parseFloat(montoTotal).toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                        </table>
+                    </div>
+
+                    <div style="text-align: center; margin: 26px 0;">
+                        <a href="${linkMh}" target="_blank" style="background: #6d28d9; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                            🔍 Consultar DTE en el Ministerio de Hacienda
+                        </a>
+                    </div>
+
+                    <p style="font-size: 12px; color: #64748b; text-align: center; margin-bottom: 0;">
+                        Este mensaje ha sido enviado por Mecanic OS a solicitud de Mister Cars.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        const mailOptions = {
+            from: `"Mister Cars DTE" <${smtpUser}>`,
+            to: recipientEmail,
+            subject: `Documento Tributario Electrónico (${controlNum}) - Mister Cars`,
+            html: htmlBody,
+            attachments: pdfBuffer ? [
+                {
+                    filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ] : []
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`DTE Email reenviado exitosamente a ${recipientEmail}:`, info.messageId);
+
+        saveDteLog("Reenvío Correo DTE", workshopId, tipoDocumento || "DTE", { recipientEmail, targetDteId }, 200, { messageId: info.messageId }, "EMAIL");
+
+        return res.json({
+            success: true,
+            message: `DTE reenviado exitosamente a ${recipientEmail}`,
+            messageId: info.messageId
+        });
+
+    } catch (err) {
+        console.error("Exception on resendDteEmail:", err);
+        return res.status(500).json({ success: false, message: "Error al enviar el correo: " + err.message });
+    }
+}
+
 module.exports = {
     testConnection,
     emitDte,
     invalidateDte,
     retrieveDte,
     downloadDtePdf,
-    receiveIncomingDte
+    receiveIncomingDte,
+    resendDteEmail
 };
