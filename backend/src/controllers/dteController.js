@@ -589,6 +589,40 @@ function fetchPdfBuffer(dteId, apiKey) {
     });
 }
 
+function fetchJsonBuffer(dteId, apiKey) {
+    return new Promise((resolve, reject) => {
+        const targetUrl = `https://api.facturallama.com/dte/${dteId}/download/json`;
+        const options = {
+            method: 'GET',
+            headers: {
+                'X-API-Key': apiKey,
+                'X-API-Version': '1'
+            }
+        };
+
+        const proxyReq = https.request(targetUrl, options, (proxyRes) => {
+            if (proxyRes.statusCode !== 200) {
+                const fallbackUrl = `https://api.facturallama.com/dte/${dteId}`;
+                const fallbackReq = https.request(fallbackUrl, options, (fRes) => {
+                    if (fRes.statusCode !== 200) return reject(new Error(`Status ${fRes.statusCode}`));
+                    const chunks = [];
+                    fRes.on('data', chunk => chunks.push(chunk));
+                    fRes.on('end', () => resolve(Buffer.concat(chunks)));
+                });
+                fallbackReq.on('error', reject);
+                fallbackReq.end();
+                return;
+            }
+            const chunks = [];
+            proxyRes.on('data', chunk => chunks.push(chunk));
+            proxyRes.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+
+        proxyReq.on('error', reject);
+        proxyReq.end();
+    });
+}
+
 /**
  * Reenvía un DTE por correo electrónico al cliente.
  */
@@ -610,11 +644,18 @@ async function resendDteEmail(req, res) {
                                 : process.env.FACTURALLAMA_API_KEY;
 
         let pdfBuffer = null;
+        let jsonBuffer = null;
+
         if (resolvedApiKey) {
             try {
                 pdfBuffer = await fetchPdfBuffer(targetDteId, resolvedApiKey);
             } catch (err) {
                 console.warn("No se pudo descargar el PDF de FacturaLlama para adjuntar:", err.message);
+            }
+            try {
+                jsonBuffer = await fetchJsonBuffer(targetDteId, resolvedApiKey);
+            } catch (err) {
+                console.warn("No se pudo descargar el JSON de FacturaLlama para adjuntar:", err.message);
             }
         }
 
@@ -722,19 +763,29 @@ async function resendDteEmail(req, res) {
             </div>
         `;
 
+        const attachmentsList = [];
+        if (pdfBuffer) {
+            attachmentsList.push({
+                filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            });
+        }
+        if (jsonBuffer) {
+            attachmentsList.push({
+                filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.json`,
+                content: jsonBuffer,
+                contentType: 'application/json'
+            });
+        }
+
         const mailOptions = {
             from: `"${senderName}" <${smtpUser}>`,
             to: recipientEmail,
             replyTo: replyToEmail || smtpUser,
             subject: `Documento Tributario Electrónico (${controlNum}) - ${senderName}`,
             html: htmlBody,
-            attachments: pdfBuffer ? [
-                {
-                    filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.pdf`,
-                    content: pdfBuffer,
-                    contentType: 'application/pdf'
-                }
-            ] : []
+            attachments: attachmentsList
         };
 
         const info = await transporter.sendMail(mailOptions);
