@@ -632,6 +632,59 @@ function fetchJsonBuffer(dteId, apiKey) {
     });
 }
 
+function postToAppsScript(targetUrl, payload) {
+    return new Promise((resolve, reject) => {
+        const dataStr = JSON.stringify(payload);
+
+        function makeRequest(currentUrl, redirectCount = 0) {
+            if (redirectCount > 5) return reject(new Error("Demasiados redireccionamientos en Google Apps Script"));
+
+            const parsedUrl = new URL(currentUrl);
+            const isHttps = parsedUrl.protocol === 'https:';
+            const client = isHttps ? https : require('http');
+
+            const options = {
+                method: redirectCount === 0 ? 'POST' : 'GET',
+                hostname: parsedUrl.hostname,
+                path: parsedUrl.pathname + parsedUrl.search,
+                headers: redirectCount === 0 ? {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(dataStr)
+                } : {}
+            };
+
+            const req = client.request(options, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    return makeRequest(res.headers.location, redirectCount + 1);
+                }
+
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            resolve(JSON.parse(body));
+                        } catch (e) {
+                            resolve({ success: true, body });
+                        }
+                    } else {
+                        reject(new Error(`Google Apps Script HTTP ${res.statusCode}: ${body}`));
+                    }
+                });
+            });
+
+            req.setTimeout(12000, () => req.destroy(new Error("Timeout conectando a Google Apps Script")));
+            req.on('error', reject);
+            if (redirectCount === 0) {
+                req.write(dataStr);
+            }
+            req.end();
+        }
+
+        makeRequest(targetUrl);
+    });
+}
+
 function sendViaResendHttpApi({ apiKey, from, to, replyTo, subject, html, pdfBuffer, jsonBuffer, controlNum }) {
     return new Promise((resolve, reject) => {
         const payload = {
@@ -797,6 +850,33 @@ async function resendDteEmail(req, res) {
                 </div>
             </div>
         `;
+
+        // 1. Prioridad A: Google Apps Script Web App (HTTPS Puerto 443 - Envío Nativo por Gmail)
+        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || process.env.APPSCRIPT_URL;
+        if (appScriptUrl && appScriptUrl.trim() !== '') {
+            try {
+                const appScriptResult = await postToAppsScript(appScriptUrl.trim(), {
+                    action: 'sendDteEmail',
+                    recipientEmail: recipientEmail,
+                    senderName: `${senderName} - DTE`,
+                    replyTo: replyToEmail || smtpUser || 'ventas@forbiddensoluciones.com',
+                    subject: `Documento Tributario Electrónico (${controlNum}) - ${senderName}`,
+                    htmlBody: htmlBody,
+                    pdfBase64: pdfBuffer ? pdfBuffer.toString('base64') : null,
+                    pdfName: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.pdf`,
+                    jsonBase64: jsonBuffer ? jsonBuffer.toString('base64') : null,
+                    jsonName: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.json`
+                });
+
+                if (appScriptResult && appScriptResult.success !== false) {
+                    console.log(`DTE enviado vía Google Apps Script a ${recipientEmail}`);
+                    saveDteLog("Reenvío Correo DTE (Apps Script)", workshopId, tipoDocumento || "DTE", { recipientEmail, targetDteId }, 200, appScriptResult, "APPSCRIPT");
+                    return res.json({ success: true, message: `DTE reenviado exitosamente a ${recipientEmail} vía Apps Script`, details: appScriptResult });
+                }
+            } catch (asErr) {
+                console.warn("Google Apps Script envio falló, intentando fallback:", asErr.message);
+            }
+        }
 
         // 1. Método A: Si se configuró RESEND_API_KEY en Render (HTTP API sobre puerto 443 - Inmune a bloqueos)
         const resendApiKey = process.env.RESEND_API_KEY;
