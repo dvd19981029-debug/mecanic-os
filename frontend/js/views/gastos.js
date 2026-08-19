@@ -2310,9 +2310,9 @@ export function renderGastos(container) {
                                             const matchedProd = db.productos.find(p => p.Descripcion && p.Descripcion.toLowerCase().includes(item.descripcion.toLowerCase()));
                                             
                                             const defaultActionVal = matchedProd ? matchedProd['ID_ Producto'] : 'create_new';
-                                            const selectedLabel = matchedProd ? 
-                                                `<strong style="color:var(--text-primary);">${escapeHtml(matchedProd.Descripcion)}</strong> <small style="color:var(--text-muted);">(Stock: ${matchedProd.Minimos || 0})</small>` :
-                                                `<span style="color:var(--primary); font-weight:600;"><i class="fa-solid fa-plus-circle"></i> + Crear como nuevo producto</span>`;
+                                            const initialDisplayText = matchedProd ? 
+                                                `${matchedProd.Descripcion} (Stock: ${matchedProd.Minimos || 0})` :
+                                                `+ Crear como nuevo producto`;
 
                                             return `
                                                 <tr class="dte-map-row" data-idx="${idx}" data-desc="${escapeHtml(item.descripcion)}" data-cant="${item.cantidad}" data-cost="${item.precioUnitario}">
@@ -2320,23 +2320,15 @@ export function renderGastos(container) {
                                                     <td>${item.cantidad}</td>
                                                     <td>$${parseFloat(item.precioUnitario).toFixed(2)}</td>
                                                     <td style="position:relative;">
-                                                        <div class="dte-prod-search-wrap" style="position:relative; width:100%;">
+                                                        <div class="dte-prod-wrap" style="position:relative; width:100%;">
                                                             <input type="hidden" class="dte-product-action-input" value="${defaultActionVal}">
-                                                            <div class="dte-prod-trigger" style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; padding:0.35rem 0.65rem; cursor:pointer; font-size:0.8rem; color:var(--text-primary); min-height:32px;">
-                                                                <span class="dte-prod-selected-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px;">
-                                                                    ${selectedLabel}
-                                                                </span>
-                                                                <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; color:var(--text-muted); margin-left:0.35rem;"></i>
+                                                            <div style="position:relative;">
+                                                                <input type="text" class="dte-prod-input" value="${escapeHtml(initialDisplayText)}" placeholder="🔍 Buscar o crear repuesto..." autocomplete="off" style="width:100%; padding:0.4rem 2rem 0.4rem 0.65rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-primary); font-size:0.82rem; height:34px; font-weight:500;">
+                                                                <i class="fa-solid fa-chevron-down" style="position:absolute; right:0.65rem; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--text-muted); pointer-events:none;"></i>
                                                             </div>
 
-                                                            <div class="dte-prod-dropdown" style="display:none; position:absolute; top:105%; right:0; background:#1e293b; border:1px solid rgba(255,255,255,0.15); border-radius:6px; box-shadow:0 10px 25px rgba(0,0,0,0.6); z-index:10000; padding:0.5rem; width:330px;">
-                                                                <div style="position:relative; margin-bottom:0.4rem;">
-                                                                    <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:0.6rem; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--text-muted);"></i>
-                                                                    <input type="text" class="dte-prod-search-input" placeholder="🔍 Buscar repuesto en inventario..." style="width:100%; padding:0.4rem 0.5rem 0.4rem 1.8rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:4px; color:var(--text-primary); font-size:0.8rem;">
-                                                                </div>
-
-                                                                <div class="dte-prod-results-list" style="max-height:190px; overflow-y:auto; display:flex; flex-direction:column; gap:2px;">
-                                                                </div>
+                                                            <div class="dte-prod-dropdown" style="display:none; position:absolute; top:105%; right:0; background:#1e293b; border:1px solid rgba(255,255,255,0.15); border-radius:6px; box-shadow:0 12px 30px rgba(0,0,0,0.7); z-index:10000; padding:0.35rem; max-height:220px; overflow-y:auto; width:330px;">
+                                                                <div class="dte-prod-results" style="display:flex; flex-direction:column; gap:2px;"></div>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -2359,49 +2351,48 @@ export function renderGastos(container) {
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        // Bind search combobox for each dte-map-row
+        // Bind product search input for each dte-map-row
         document.querySelectorAll('#apply-dte-modal .dte-map-row').forEach(row => {
-            const wrap = row.querySelector('.dte-prod-search-wrap');
+            const wrap = row.querySelector('.dte-prod-wrap');
             if (!wrap) return;
             
             const hiddenInput = wrap.querySelector('.dte-product-action-input');
-            const trigger = wrap.querySelector('.dte-prod-trigger');
-            const labelSpan = wrap.querySelector('.dte-prod-selected-label');
+            const searchInput = wrap.querySelector('.dte-prod-input');
             const dropdown = wrap.querySelector('.dte-prod-dropdown');
-            const searchInput = wrap.querySelector('.dte-prod-search-input');
-            const resultsList = wrap.querySelector('.dte-prod-results-list');
+            const resultsDiv = wrap.querySelector('.dte-prod-results');
+            const itemDesc = row.getAttribute('data-desc') || '';
 
             const renderDteProdResults = (filter = '') => {
-                resultsList.innerHTML = '';
+                resultsDiv.innerHTML = '';
                 const term = filter.toLowerCase().trim();
 
-                // 1. Always offer Special Action: Create New
+                // 1. Special Option: Create New
                 const createDiv = document.createElement('div');
-                createDiv.style.cssText = `padding:0.45rem 0.65rem; cursor:pointer; font-size:0.8rem; font-weight:600; color:#a78bfa; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:0.4rem; border-radius:4px; transition:background 0.15s;`;
+                createDiv.style.cssText = `padding:0.5rem 0.65rem; cursor:pointer; font-size:0.8rem; font-weight:600; color:#a78bfa; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:0.4rem; border-radius:4px; transition:background 0.15s;`;
                 createDiv.innerHTML = `<i class="fa-solid fa-plus-circle"></i> + Crear como nuevo producto`;
-                createDiv.addEventListener('mouseover', () => createDiv.style.background = 'rgba(167, 139, 250, 0.15)');
+                createDiv.addEventListener('mouseover', () => createDiv.style.background = 'rgba(167, 139, 250, 0.18)');
                 createDiv.addEventListener('mouseout', () => createDiv.style.background = 'transparent');
                 createDiv.addEventListener('click', (e) => {
                     e.stopPropagation();
                     hiddenInput.value = 'create_new';
-                    labelSpan.innerHTML = `<span style="color:var(--primary); font-weight:600;"><i class="fa-solid fa-plus-circle"></i> + Crear como nuevo producto</span>`;
+                    searchInput.value = '+ Crear como nuevo producto';
                     dropdown.style.display = 'none';
                 });
-                resultsList.appendChild(createDiv);
+                resultsDiv.appendChild(createDiv);
 
-                // 2. Always offer Special Action: Ignore
+                // 2. Special Option: Ignore
                 const ignoreDiv = document.createElement('div');
-                ignoreDiv.style.cssText = `padding:0.45rem 0.65rem; cursor:pointer; font-size:0.8rem; font-weight:600; color:var(--text-muted, #94a3b8); border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:0.4rem; border-radius:4px; transition:background 0.15s;`;
+                ignoreDiv.style.cssText = `padding:0.5rem 0.65rem; cursor:pointer; font-size:0.8rem; font-weight:600; color:var(--text-muted, #94a3b8); border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:0.4rem; border-radius:4px; transition:background 0.15s;`;
                 ignoreDiv.innerHTML = `<i class="fa-solid fa-ban"></i> Ignorar / No inventariar`;
                 ignoreDiv.addEventListener('mouseover', () => ignoreDiv.style.background = 'rgba(255,255,255,0.06)');
                 ignoreDiv.addEventListener('mouseout', () => ignoreDiv.style.background = 'transparent');
                 ignoreDiv.addEventListener('click', (e) => {
                     e.stopPropagation();
                     hiddenInput.value = 'ignore';
-                    labelSpan.innerHTML = `<span style="color:var(--text-muted);"><i class="fa-solid fa-ban"></i> Ignorar / No inventariar</span>`;
+                    searchInput.value = 'Ignorar / No inventariar';
                     dropdown.style.display = 'none';
                 });
-                resultsList.appendChild(ignoreDiv);
+                resultsListDiv(resultsDiv, ignoreDiv);
 
                 // 3. Filter database products
                 const filteredProds = db.productos.filter(p => 
@@ -2413,8 +2404,8 @@ export function renderGastos(container) {
                 if (filteredProds.length === 0 && term) {
                     const noRes = document.createElement('div');
                     noRes.style.cssText = `padding:0.6rem; text-align:center; font-size:0.75rem; color:var(--text-muted);`;
-                    noRes.innerHTML = `Sin coincidencias para "${escapeHtml(term)}"`;
-                    resultsList.appendChild(noRes);
+                    noRes.innerHTML = `No hay repuestos que coincidan con "${escapeHtml(term)}"`;
+                    resultsDiv.appendChild(noRes);
                     return;
                 }
 
@@ -2428,7 +2419,7 @@ export function renderGastos(container) {
                     div.innerHTML = `
                         <div style="flex:1; min-width:0; margin-right:0.5rem;">
                             <div style="font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.Descripcion)}</div>
-                            <div style="font-size:0.7rem; color:var(--text-muted);">ID: ${escapeHtml(p['ID_ Producto'])} · Stock: <strong style="color:var(--text-primary);">${p.Minimos || 0}</strong></div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">Stock: <strong style="color:var(--text-primary);">${p.Minimos || 0}</strong> · ID: ${escapeHtml(p['ID_ Producto'])}</div>
                         </div>
                         <div style="text-align:right; font-size:0.75rem; font-weight:700; color:var(--success); flex-shrink:0;">
                             $${parseFloat(p['Precio Unit'] || 0).toFixed(2)}
@@ -2438,42 +2429,48 @@ export function renderGastos(container) {
                     div.addEventListener('click', (e) => {
                         e.stopPropagation();
                         hiddenInput.value = p['ID_ Producto'];
-                        labelSpan.innerHTML = `<strong style="color:var(--text-primary);">${escapeHtml(p.Descripcion)}</strong> <small style="color:var(--text-muted);">(Stock: ${p.Minimos || 0})</small>`;
+                        searchInput.value = `${p.Descripcion} (Stock: ${p.Minimos || 0})`;
                         dropdown.style.display = 'none';
                     });
 
-                    resultsList.appendChild(div);
+                    resultsDiv.appendChild(div);
                 });
             };
 
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Close all other dte dropdowns
+            function resultsListDiv(parent, el) {
+                parent.appendChild(el);
+            }
+
+            const openDropdown = () => {
                 document.querySelectorAll('.dte-prod-dropdown').forEach(d => {
                     if (d !== dropdown) d.style.display = 'none';
                 });
+                dropdown.style.display = 'block';
+                renderDteProdResults(searchInput.value.startsWith('+') || searchInput.value.startsWith('Ignorar') ? '' : searchInput.value);
+            };
 
-                const isVisible = dropdown.style.display === 'block';
-                dropdown.style.display = isVisible ? 'none' : 'block';
-                if (!isVisible) {
-                    searchInput.value = '';
-                    renderDteProdResults('');
-                    setTimeout(() => searchInput.focus(), 50);
-                }
+            searchInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openDropdown();
+                searchInput.select();
+            });
+
+            searchInput.addEventListener('focus', () => {
+                openDropdown();
+                searchInput.select();
             });
 
             searchInput.addEventListener('input', (e) => {
                 e.stopPropagation();
+                openDropdown();
                 renderDteProdResults(searchInput.value);
             });
-
-            searchInput.addEventListener('click', (e) => e.stopPropagation());
         });
 
         // Document click to close dte dropdowns
         if (!window._dteCloseDropdownListener) {
             window._dteCloseDropdownListener = (e) => {
-                document.querySelectorAll('.dte-prod-search-wrap').forEach(wrap => {
+                document.querySelectorAll('.dte-prod-wrap').forEach(wrap => {
                     if (!wrap.contains(e.target)) {
                         const d = wrap.querySelector('.dte-prod-dropdown');
                         if (d) d.style.display = 'none';
