@@ -838,7 +838,7 @@ async function resendDteEmail(req, res) {
 
                     <div style="text-align: center; margin: 26px 0;">
                         <a href="${linkMh}" target="_blank" style="background: #6d28d9; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
-                            🔍 Consultar DTE en el Ministerio de Hacienda
+                            Consultar DTE en el Ministerio de Hacienda &rarr;
                         </a>
                     </div>
 
