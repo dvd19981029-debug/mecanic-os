@@ -1452,15 +1452,15 @@ async function viewDtePdf(dteId) {
 export async function sendDteEmailToClient(genCode, budgetId) {
     try {
         const db = getDatabase();
-        let p = (db.presupuestos || []).find(pres => pres['ID Presupuesto'] === budgetId);
+        let p = (db.presupuestos || []).find(pres => String(pres['ID Presupuesto']) === String(budgetId) || String(pres.id) === String(budgetId));
         if (!p) {
-            p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === budgetId);
+            p = (db['43 Venta Rapida'] || []).find(vr => String(vr.ID_Venta_Rapida) === String(budgetId) || String(vr.id) === String(budgetId));
             if (!p) {
-                p = (db.ventas || []).find(v => (v.codigoGeneracion === genCode || v['ID Presupuesto'] === budgetId));
+                p = (db.ventas || []).find(v => (v.codigoGeneracion === genCode || v.controlNumber === genCode || String(v['ID Presupuesto']) === String(budgetId)));
             }
         }
 
-        const client = (db.clientes || []).find(c => c.Codigo_Cliente === (p?.Codigo_Cliente || p?.Cliente)) || {};
+        const client = (db.clientes || []).find(c => String(c.Codigo_Cliente) === String(p?.Codigo_Cliente || p?.Cliente)) || {};
         const defaultEmail = client.Correo || p?.Correo || p?.email || '';
 
         const modalId = 'modal-resend-dte-email';
@@ -1468,9 +1468,10 @@ export async function sendDteEmailToClient(genCode, budgetId) {
         if (oldModal) oldModal.remove();
 
         const clientName = client.Nombre || p?.Nombre || 'Cliente';
-        const controlNum = p?.Num_Control || p?.selloRecepcion || genCode;
-        const totalAmount = (p?.Total || p?.Monto_Total) ? parseFloat(p?.Total || p?.Monto_Total).toFixed(2) : '0.00';
-        const docType = p?.Tipo_DTE || 'Crédito Fiscal';
+        const controlNum = p?.mhControlNumber || p?.Num_Control || p?.controlNumber || genCode;
+        const totalNum = p ? getBudgetGrandTotal(p, db) : 0;
+        const totalAmount = totalNum > 0 ? totalNum.toFixed(2) : ((p?.Total || p?.Monto_Total) ? parseFloat(p?.Total || p?.Monto_Total).toFixed(2) : '0.00');
+        const docType = (p?.Doc_a_Emitir === 'CREDITO FISCAL' || p?.Tipo_DTE === 'CREDITO FISCAL') ? 'Crédito Fiscal (CCF)' : 'Factura Electrónica (FE)';
 
         const modalHtml = `
             <div class="modal-backdrop" id="${modalId}" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:99999; display:flex; align-items:center; justify-content:center;">

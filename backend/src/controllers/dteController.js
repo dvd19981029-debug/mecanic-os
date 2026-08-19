@@ -777,7 +777,7 @@ async function resendDteEmail(req, res) {
         let smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "";
         let smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
         smtpPass = (smtpPass || '').replace(/\s+/g, '');
-        let senderName = clienteNombre ? `Facturación - ${clienteNombre}` : "Documento Tributario Electrónico";
+        let senderName = "Mister Cars";
         let replyToEmail = null;
 
         if (db && workshopId && workshopId !== 'desconocido') {
@@ -785,9 +785,7 @@ async function resendDteEmail(req, res) {
                 const wsDoc = await db.collection("workshops").doc(workshopId).get();
                 if (wsDoc.exists) {
                     const wsData = wsDoc.data();
-                    if (wsData.Nombre_Taller || wsData.nombre) {
-                        senderName = wsData.Nombre_Taller || wsData.nombre;
-                    }
+                    senderName = wsData.Nombre_Taller || wsData.Nombre_Comercial || wsData.nombre || wsData.nombreTaller || "Mister Cars";
                     replyToEmail = wsData.correo_notificaciones || wsData.Correo || wsData.correo || wsData.email || null;
 
                     if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
