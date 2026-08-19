@@ -1237,16 +1237,20 @@ export async function renderAdminSolicitudes(container) {
                                 </div>
                             </div>
                             
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                                <div class="form-group">
-                                    <label>Correo Electrónico</label>
-                                    <input type="email" id="edit-saas-correo" required value="${workshop.correo || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                                </div>
-                                <div class="form-group">
-                                    <label>Teléfono</label>
-                                    <input type="text" id="edit-saas-telefono" required value="${workshop.telefono || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
-                                </div>
-                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                 <div class="form-group">
+                                     <label>Correo Registro Taller</label>
+                                     <input type="email" id="edit-saas-correo" required value="${workshop.correo || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Correo Notificaciones / Máscara DTE</label>
+                                     <input type="email" id="edit-saas-correo-notificaciones" placeholder="ej. mistercarssv@gmail.com" value="${workshop.correo_notificaciones || workshop.correo || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;" title="Correo al que los clientes responderán cuando reciban DTEs">
+                                 </div>
+                                 <div class="form-group">
+                                     <label>Teléfono</label>
+                                     <input type="text" id="edit-saas-telefono" required value="${workshop.telefono || ''}" style="padding:0.5rem; font-size:0.85rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;">
+                                 </div>
+                             </div>
 
                             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
                                 <div class="form-group">
@@ -1631,6 +1635,7 @@ export async function renderAdminSolicitudes(container) {
                         workshop.nombre_comercial = document.getElementById('edit-saas-nombre-comercial').value;
                         workshop.propietario = document.getElementById('edit-saas-propietario').value;
                         workshop.correo = document.getElementById('edit-saas-correo').value;
+                        workshop.correo_notificaciones = document.getElementById('edit-saas-correo-notificaciones')?.value || workshop.correo;
                         workshop.telefono = document.getElementById('edit-saas-telefono').value;
                         workshop.tipo_persona = document.getElementById('edit-saas-tipo-persona').value;
                         workshop.clasificacion_tributaria = document.getElementById('edit-saas-clasificacion').value;

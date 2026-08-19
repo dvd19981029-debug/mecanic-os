@@ -641,7 +641,7 @@ async function resendDteEmail(req, res) {
                     if (wsData.Nombre_Taller || wsData.nombre) {
                         senderName = wsData.Nombre_Taller || wsData.nombre;
                     }
-                    replyToEmail = wsData.Correo || wsData.email || null;
+                    replyToEmail = wsData.correo_notificaciones || wsData.Correo || wsData.correo || wsData.email || null;
 
                     // Si el taller especificó su propio correo en Ajustes
                     if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
