@@ -712,7 +712,18 @@ async function resendDteEmail(req, res) {
             });
         }
 
-        const transporter = nodemailer.createTransport({
+        const isGmail = smtpHost.includes('gmail') || smtpUser.endsWith('@gmail.com') || smtpUser.endsWith('@forbiddensoluciones.com');
+
+        const transportConfig = isGmail ? {
+            service: 'gmail',
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            },
+            connectionTimeout: 10000,
+            greetingTimeout: 5000,
+            socketTimeout: 12000
+        } : {
             host: smtpHost,
             port: smtpPort,
             secure: smtpPort === 465,
@@ -720,10 +731,13 @@ async function resendDteEmail(req, res) {
                 user: smtpUser,
                 pass: smtpPass
             },
-            connectionTimeout: 7000,
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 10000,
             greetingTimeout: 5000,
-            socketTimeout: 8000
-        });
+            socketTimeout: 12000
+        };
+
+        const transporter = nodemailer.createTransport(transportConfig);
 
         const docTitle = tipoDocumento || "Comprobante de Crédito Fiscal";
         const controlNum = numeroControl || targetDteId;
