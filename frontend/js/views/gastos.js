@@ -2250,19 +2250,44 @@ export function renderGastos(container) {
                     </div>
 
                     <div style="display:flex; flex-direction:column; gap:1.25rem;">
-                        <div class="form-row" style="display:grid; grid-template-columns:1.5fr 1fr; gap:1rem;">
+                        <div class="form-row" style="display:grid; grid-template-columns:1fr 1.5fr 1fr; gap:1rem;">
                             <div class="form-group">
-                                <label>Asociar a Proveedor Local</label>
+                                <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Tipo de DTE</label>
+                                <select id="apply-dte-tipo" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
+                                    <option value="CCF" ${dte.tipoDte === '03' || (dte.tipoDocumento && dte.tipoDocumento.toLowerCase().includes('crédito')) ? 'selected' : ''}>Crédito Fiscal (CCF)</option>
+                                    <option value="FAC" ${dte.tipoDte === '01' || (dte.tipoDocumento && dte.tipoDocumento.toLowerCase().includes('factura')) ? 'selected' : ''}>Factura Consumidor (FAC)</option>
+                                    <option value="FSE" ${dte.tipoDte === '14' || (dte.tipoDocumento && dte.tipoDocumento.toLowerCase().includes('excluido')) ? 'selected' : ''}>Sujeto Excluido (FSE)</option>
+                                    <option value="NC" ${dte.tipoDte === '05' || (dte.tipoDocumento && dte.tipoDocumento.toLowerCase().includes('nota')) ? 'selected' : ''}>Nota de Crédito (NC)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Asociar a Proveedor Local</label>
                                 <select id="apply-dte-prov" required style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                     <option value="">-- Seleccionar o Crear Nuevo --</option>
                                     ${safe(db.proveedores.map(p => `<option value="${p.ID_Proveedor}" ${p.ID_Proveedor === matchedProvId ? 'selected' : ''}>${escapeHtml(p.Nombre)}</option>`).join(''))}
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Condición de Pago</label>
+                                <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Fecha del DTE</label>
+                                <input type="date" id="apply-dte-fecha" value="${dte.fecha || new Date().toISOString().split('T')[0]}" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%; padding:0 0.5rem;">
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Condición de Pago</label>
                                 <select id="apply-dte-condicion" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
                                     <option value="CONTADO" selected>Contado (Pagado ya)</option>
                                     <option value="CREDITO">Crédito (Cuenta x Pagar)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="apply-dte-forma-pago-wrapper">
+                                <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Forma de Pago (Contado)</label>
+                                <select id="apply-dte-forma-pago" style="background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px; height:38px; width:100%;">
+                                    <option value="EFECTIVO" selected>💵 Efectivo (Caja Chica)</option>
+                                    <option value="TRANSFERENCIA">🏦 Transferencia Bancaria</option>
+                                    <option value="CHEQUE">📜 Cheque</option>
+                                    <option value="TARJETA">💳 Tarjeta de Débito/Crédito</option>
                                 </select>
                             </div>
                         </div>
@@ -2315,6 +2340,17 @@ export function renderGastos(container) {
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Toggle forma de pago wrapper based on condicion
+        const condicionSelect = document.getElementById('apply-dte-condicion');
+        const formaPagoWrapper = document.getElementById('apply-dte-forma-pago-wrapper');
+        condicionSelect.addEventListener('change', () => {
+            if (condicionSelect.value === 'CONTADO') {
+                formaPagoWrapper.style.display = 'block';
+            } else {
+                formaPagoWrapper.style.display = 'none';
+            }
+        });
+
         // Close buttons
         const closeModal = () => document.getElementById(modalId).remove();
         document.getElementById('close-apply-dte-modal').addEventListener('click', closeModal);
@@ -2328,7 +2364,10 @@ export function renderGastos(container) {
             confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...`;
 
             let provId = document.getElementById('apply-dte-prov').value;
+            const tipoDte = document.getElementById('apply-dte-tipo').value;
+            const fechaCompra = document.getElementById('apply-dte-fecha').value || dte.fecha;
             const condicion = document.getElementById('apply-dte-condicion').value;
+            const formaPago = condicion === 'CONTADO' ? (document.getElementById('apply-dte-forma-pago')?.value || 'EFECTIVO') : 'CREDITO';
 
             // 1. Create supplier if it doesn't exist
             let provName = dte.emisor;
@@ -2349,6 +2388,18 @@ export function renderGastos(container) {
                 showToast(`Se creó el nuevo proveedor "${dte.emisor}" automáticamente`, "success");
             } else {
                 provName = db.proveedores.find(p => p.ID_Proveedor === provId)?.Nombre || dte.emisor;
+            }
+
+            const provObj = db.proveedores.find(p => p.ID_Proveedor === provId) || { Dias_Credito: 0 };
+            const creditDays = parseInt(provObj.Dias_Credito || 0);
+            let dueDate = fechaCompra;
+            if (condicion === 'CREDITO' && creditDays > 0) {
+                const compDateObj = new Date(fechaCompra + 'T00:00:00');
+                compDateObj.setDate(compDateObj.getDate() + creditDays);
+                const year = compDateObj.getFullYear();
+                const month = String(compDateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(compDateObj.getDate()).padStart(2, '0');
+                dueDate = `${year}-${month}-${day}`;
             }
 
             // 2. Map items and update stock
@@ -2414,15 +2465,19 @@ export function renderGastos(container) {
             const purchaseId = "COMPRA-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
             const newPurchase = {
                 ID_Compra: purchaseId,
+                Tipo_DTE: tipoDte,
                 ID_Proveedor: provId,
-                Fecha_Compra: dte.fecha,
-                Fecha_Vencimiento: dte.fecha,
-                Dias_Credito: 0,
+                Fecha_Compra: fechaCompra,
+                Fecha_Vencimiento: dueDate,
+                Dias_Credito: creditDays,
                 Num_Factura: dte.numeroDte,
+                Num_Control: dte.numeroControl || dte.numeroDte,
+                Cod_Generacion: dte.selloRecepcion || dte.numeroDte,
                 Monto_Neto: dte.monto / 1.13,
                 Monto_IVA: dte.monto - (dte.monto / 1.13),
                 Monto_Total: dte.monto,
                 Condicion: condicion,
+                Forma_Pago: formaPago,
                 Estado_Pago: condicion === 'CONTADO' ? 'PAGADO' : 'PENDIENTE',
                 Saldo_Pendiente: condicion === 'CONTADO' ? 0 : dte.monto,
                 Items: mappedItems
@@ -2433,10 +2488,10 @@ export function renderGastos(container) {
             if (condicion === 'CONTADO') {
                 db.gastos.unshift({
                     "ID Gasto": "GASTO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3),
-                    "Fecha Gasto": dte.fecha,
+                    "Fecha Gasto": fechaCompra,
                     Concepto: `Compra de Repuestos - DTE ${dte.numeroDte} (${provName})`,
                     "Monto Total": dte.monto,
-                    "Forma de Pago": "EFECTIVO",
+                    "Forma de Pago": formaPago,
                     "ID Categoría Gasto": "Insumos Directos",
                     "Estado Pago": "PAGADO",
                     ID_Proveedor: provId
