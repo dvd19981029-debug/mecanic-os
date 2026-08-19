@@ -2319,7 +2319,7 @@ export function renderGastos(container) {
                                                     <td style="font-weight:500;">${escapeHtml(item.descripcion)}</td>
                                                     <td>${item.cantidad}</td>
                                                     <td>$${parseFloat(item.precioUnitario).toFixed(2)}</td>
-                                                    <td style="position:relative;">
+                                                    <td>
                                                         <div class="dte-prod-wrap" style="position:relative; width:100%;">
                                                             <input type="hidden" class="dte-product-action-input" value="${defaultActionVal}">
                                                             <div style="position:relative;">
@@ -2327,7 +2327,7 @@ export function renderGastos(container) {
                                                                 <i class="fa-solid fa-chevron-down" style="position:absolute; right:0.65rem; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--text-muted); pointer-events:none;"></i>
                                                             </div>
 
-                                                            <div class="dte-prod-dropdown" style="display:none; position:absolute; top:105%; right:0; background:#1e293b; border:1px solid rgba(255,255,255,0.15); border-radius:6px; box-shadow:0 12px 30px rgba(0,0,0,0.7); z-index:10000; padding:0.35rem; max-height:220px; overflow-y:auto; width:330px;">
+                                                            <div class="dte-prod-dropdown" style="display:none; position:fixed; background:#1e293b; border:1px solid rgba(255,255,255,0.2); border-radius:6px; box-shadow:0 12px 35px rgba(0,0,0,0.85); z-index:999999; padding:0.35rem; max-height:220px; overflow-y:auto;">
                                                                 <div class="dte-prod-results" style="display:flex; flex-direction:column; gap:2px;"></div>
                                                             </div>
                                                         </div>
@@ -2351,6 +2351,16 @@ export function renderGastos(container) {
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        const modalEl = document.getElementById(modalId);
+        const modalCard = modalEl.querySelector('.glass-card');
+
+        // Close dropdowns when scrolling inside modal card
+        if (modalCard) {
+            modalCard.addEventListener('scroll', () => {
+                document.querySelectorAll('.dte-prod-dropdown').forEach(d => d.style.display = 'none');
+            });
+        }
+
         // Bind product search input for each dte-map-row
         document.querySelectorAll('#apply-dte-modal .dte-map-row').forEach(row => {
             const wrap = row.querySelector('.dte-prod-wrap');
@@ -2360,7 +2370,6 @@ export function renderGastos(container) {
             const searchInput = wrap.querySelector('.dte-prod-input');
             const dropdown = wrap.querySelector('.dte-prod-dropdown');
             const resultsDiv = wrap.querySelector('.dte-prod-results');
-            const itemDesc = row.getAttribute('data-desc') || '';
 
             const renderDteProdResults = (filter = '') => {
                 resultsDiv.innerHTML = '';
@@ -2392,7 +2401,7 @@ export function renderGastos(container) {
                     searchInput.value = 'Ignorar / No inventariar';
                     dropdown.style.display = 'none';
                 });
-                resultsListDiv(resultsDiv, ignoreDiv);
+                resultsDiv.appendChild(ignoreDiv);
 
                 // 3. Filter database products
                 const filteredProds = db.productos.filter(p => 
@@ -2437,15 +2446,18 @@ export function renderGastos(container) {
                 });
             };
 
-            function resultsListDiv(parent, el) {
-                parent.appendChild(el);
-            }
-
             const openDropdown = () => {
                 document.querySelectorAll('.dte-prod-dropdown').forEach(d => {
                     if (d !== dropdown) d.style.display = 'none';
                 });
+                
+                const rect = searchInput.getBoundingClientRect();
+                dropdown.style.position = 'fixed';
+                dropdown.style.top = (rect.bottom + 4) + 'px';
+                dropdown.style.left = rect.left + 'px';
+                dropdown.style.width = Math.max(rect.width, 320) + 'px';
                 dropdown.style.display = 'block';
+
                 renderDteProdResults(searchInput.value.startsWith('+') || searchInput.value.startsWith('Ignorar') ? '' : searchInput.value);
             };
 
