@@ -1567,11 +1567,15 @@ export async function sendDteEmailToClient(genCode, budgetId) {
                     return;
                 }
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
                 const response = await fetch(`${baseUrl}/api/dte/resend-email`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    signal: controller.signal,
                     body: JSON.stringify({
                         apiKey: apiKey,
                         workshopId: workshopUid,
@@ -1585,6 +1589,7 @@ export async function sendDteEmailToClient(genCode, budgetId) {
                         montoTotal: totalAmount
                     })
                 });
+                clearTimeout(timeoutId);
 
                 const resData = await response.json();
                 closeModal();

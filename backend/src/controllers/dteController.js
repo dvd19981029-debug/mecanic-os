@@ -584,6 +584,10 @@ function fetchPdfBuffer(dteId, apiKey) {
             proxyRes.on('end', () => resolve(Buffer.concat(chunks)));
         });
 
+        proxyReq.setTimeout(4000, () => {
+            proxyReq.destroy(new Error("Timeout obteniendo PDF de FacturaLlama"));
+        });
+
         proxyReq.on('error', reject);
         proxyReq.end();
     });
@@ -609,6 +613,7 @@ function fetchJsonBuffer(dteId, apiKey) {
                     fRes.on('data', chunk => chunks.push(chunk));
                     fRes.on('end', () => resolve(Buffer.concat(chunks)));
                 });
+                fallbackReq.setTimeout(3000, () => fallbackReq.destroy(new Error("Timeout JSON fallback")));
                 fallbackReq.on('error', reject);
                 fallbackReq.end();
                 return;
@@ -616,6 +621,10 @@ function fetchJsonBuffer(dteId, apiKey) {
             const chunks = [];
             proxyRes.on('data', chunk => chunks.push(chunk));
             proxyRes.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+
+        proxyReq.setTimeout(4000, () => {
+            proxyReq.destroy(new Error("Timeout obteniendo JSON de FacturaLlama"));
         });
 
         proxyReq.on('error', reject);
@@ -647,16 +656,15 @@ async function resendDteEmail(req, res) {
         let jsonBuffer = null;
 
         if (resolvedApiKey) {
-            try {
-                pdfBuffer = await fetchPdfBuffer(targetDteId, resolvedApiKey);
-            } catch (err) {
-                console.warn("No se pudo descargar el PDF de FacturaLlama para adjuntar:", err.message);
-            }
-            try {
-                jsonBuffer = await fetchJsonBuffer(targetDteId, resolvedApiKey);
-            } catch (err) {
-                console.warn("No se pudo descargar el JSON de FacturaLlama para adjuntar:", err.message);
-            }
+            const [pdfRes, jsonRes] = await Promise.allSettled([
+                fetchPdfBuffer(targetDteId, resolvedApiKey),
+                fetchJsonBuffer(targetDteId, resolvedApiKey)
+            ]);
+            if (pdfRes.status === 'fulfilled') pdfBuffer = pdfRes.value;
+            else console.warn("No se pudo obtener PDF de FacturaLlama:", pdfRes.reason?.message);
+
+            if (jsonRes.status === 'fulfilled') jsonBuffer = jsonRes.value;
+            else console.warn("No se pudo obtener JSON de FacturaLlama:", jsonRes.reason?.message);
         }
 
         let nodemailer;
@@ -700,7 +708,7 @@ async function resendDteEmail(req, res) {
         if (!smtpPass || !smtpUser) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Servicio de correo no configurado para este taller. Por favor agregue las credenciales en Ajustes." 
+                message: "Servicio de correo no configurado para este taller. Por favor agregue las credenciales GMAIL_USER / GMAIL_APP_PASS en Render." 
             });
         }
 
@@ -711,7 +719,10 @@ async function resendDteEmail(req, res) {
             auth: {
                 user: smtpUser,
                 pass: smtpPass
-            }
+            },
+            connectionTimeout: 7000,
+            greetingTimeout: 5000,
+            socketTimeout: 8000
         });
 
         const docTitle = tipoDocumento || "Comprobante de Crédito Fiscal";
