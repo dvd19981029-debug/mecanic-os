@@ -1463,56 +1463,148 @@ export async function sendDteEmailToClient(genCode, budgetId) {
         const client = (db.clientes || []).find(c => c.Codigo_Cliente === (p?.Codigo_Cliente || p?.Cliente)) || {};
         const defaultEmail = client.Correo || p?.Correo || p?.email || '';
 
-        const recipientEmail = prompt(`Ingresa o confirma el correo del cliente para enviar el DTE:\n(Código: ${genCode || budgetId})`, defaultEmail);
-        if (!recipientEmail) return; // User cancelled
+        const modalId = 'modal-resend-dte-email';
+        const oldModal = document.getElementById(modalId);
+        if (oldModal) oldModal.remove();
 
-        if (!recipientEmail.includes('@')) {
-            showToast("Error: Debe ingresar un correo electrónico válido.", "danger");
-            return;
-        }
+        const clientName = client.Nombre || p?.Nombre || 'Cliente';
+        const controlNum = p?.Num_Control || p?.selloRecepcion || genCode;
+        const totalAmount = (p?.Total || p?.Monto_Total) ? parseFloat(p?.Total || p?.Monto_Total).toFixed(2) : '0.00';
+        const docType = p?.Tipo_DTE || 'Crédito Fiscal';
 
-        showToast("Enviando correo con el DTE adjunto al cliente...", "info");
+        const modalHtml = `
+            <div class="modal-backdrop" id="${modalId}" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); z-index:99999; display:flex; align-items:center; justify-content:center;">
+                <div class="glass-card" style="width:90%; max-width:480px; padding:1.5rem; border-radius:12px; background:var(--bg-surface, #1e293b); border:1px solid rgba(255,255,255,0.15); box-shadow:0 20px 40px rgba(0,0,0,0.6); color:var(--text-primary, #f8fafc);">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-bottom:0.75rem; margin-bottom:1rem;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                            <i class="fa-solid fa-paper-plane" style="color:#60a5fa;"></i> Reenviar DTE por Correo
+                        </h3>
+                        <button type="button" id="close-resend-dte-modal" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+                    </div>
 
-        const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
-                       getSecureDteConfig();
-        const apiKey = dteCfg.apiKey || '';
-        const workshopUid = (db.saas_state && db.saas_state.workshopUid) || 'desconocido';
-        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+                    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.85rem; margin-bottom:1.25rem; font-size:0.85rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+                            <span style="color:var(--text-muted);">Cliente:</span>
+                            <strong style="color:var(--text-primary);">${escapeHtml(clientName)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+                            <span style="color:var(--text-muted);">Documento:</span>
+                            <span style="font-weight:600; color:#a78bfa;">${escapeHtml(docType)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+                            <span style="color:var(--text-muted);">N° Control:</span>
+                            <span style="font-family:monospace; font-size:0.8rem; color:var(--text-primary);">${escapeHtml(controlNum)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:var(--text-muted);">Monto Total:</span>
+                            <strong style="color:var(--success, #4ade80);">$${totalAmount}</strong>
+                        </div>
+                    </div>
 
-        if (!baseUrl) {
-            showToast("Error: URL del servidor backend no configurada.", "danger");
-            return;
-        }
+                    <form id="form-resend-dte-email">
+                        <div class="form-group" style="margin-bottom:1.25rem;">
+                            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.4rem; color:var(--text-primary);">
+                                Correo del Destinatario:
+                            </label>
+                            <div style="position:relative;">
+                                <i class="fa-solid fa-envelope" style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                                <input type="email" id="resend-target-email" required value="${escapeHtml(defaultEmail)}" placeholder="ejemplo@cliente.com" autocomplete="off" style="width:100%; padding:0.55rem 0.75rem 0.55rem 2.2rem; background:var(--bg-input, rgba(0,0,0,0.3)); border:1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius:6px; color:var(--text-primary); font-size:0.9rem;">
+                            </div>
+                            <small style="display:block; margin-top:0.35rem; color:var(--text-muted); font-size:0.75rem;">
+                                Puedes modificar este correo si el cliente solicita recibirlo en una dirección diferente.
+                            </small>
+                        </div>
 
-        const response = await fetch(`${baseUrl}/api/dte/resend-email`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                apiKey: apiKey,
-                workshopId: workshopUid,
-                dteId: genCode,
-                codigoGeneracion: genCode,
-                recipientEmail: recipientEmail.trim(),
-                clienteNombre: client.Nombre || p?.Nombre || 'Cliente',
-                numeroControl: p?.Num_Control || p?.selloRecepcion || genCode,
-                mhDteUrl: p?.mhDteUrl || '',
-                tipoDocumento: p?.Tipo_DTE || 'Crédito Fiscal',
-                montoTotal: p?.Total || p?.Monto_Total || ''
-            })
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-top:1rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-resend-dte" style="padding:0.55rem 1.1rem; font-size:0.85rem;">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btn-confirm-resend-dte" style="padding:0.55rem 1.3rem; font-size:0.85rem; background:#60a5fa; border:none; color:#0f172a; font-weight:700;">
+                                <i class="fa-solid fa-paper-plane"></i> Enviar Correo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modalEl = document.getElementById(modalId);
+        const closeModal = () => modalEl.remove();
+
+        document.getElementById('close-resend-dte-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-resend-dte').addEventListener('click', closeModal);
+
+        const emailInput = document.getElementById('resend-target-email');
+        setTimeout(() => {
+            emailInput.focus();
+            if (emailInput.value) emailInput.select();
+        }, 100);
+
+        document.getElementById('form-resend-dte-email').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const recipientEmail = emailInput.value.trim();
+            if (!recipientEmail || !recipientEmail.includes('@')) {
+                showToast("Por favor ingrese un correo electrónico válido.", "warning");
+                return;
+            }
+
+            const sendBtn = document.getElementById('btn-confirm-resend-dte');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...`;
+
+            try {
+                const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                               getSecureDteConfig();
+                const apiKey = dteCfg.apiKey || '';
+                const workshopUid = (db.saas_state && db.saas_state.workshopUid) || 'desconocido';
+                const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+
+                if (!baseUrl) {
+                    showToast("Error: URL del servidor backend no configurada.", "danger");
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Correo`;
+                    return;
+                }
+
+                const response = await fetch(`${baseUrl}/api/dte/resend-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        apiKey: apiKey,
+                        workshopId: workshopUid,
+                        dteId: genCode,
+                        codigoGeneracion: genCode,
+                        recipientEmail: recipientEmail,
+                        clienteNombre: clientName,
+                        numeroControl: controlNum,
+                        mhDteUrl: p?.mhDteUrl || '',
+                        tipoDocumento: docType,
+                        montoTotal: totalAmount
+                    })
+                });
+
+                const resData = await response.json();
+                closeModal();
+
+                if (response.ok && resData.success) {
+                    showToast(`✅ DTE enviado exitosamente a ${recipientEmail}`, "success");
+                } else {
+                    showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Error al reenviar el correo: " + err.message, "danger");
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Correo`;
+            }
         });
-
-        const resData = await response.json();
-        if (response.ok && resData.success) {
-            showToast(`✅ DTE reenviado exitosamente a ${recipientEmail.trim()}`, "success");
-        } else {
-            showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
-        }
 
     } catch (err) {
         console.error(err);
-        showToast("Error al reenviar el correo: " + err.message, "danger");
+        showToast("Error al abrir modal de reenvío: " + err.message, "danger");
     }
 }
 
