@@ -2309,10 +2309,10 @@ export function renderGastos(container) {
                                             // Try to find matching product in database by description match
                                             const matchedProd = db.productos.find(p => p.Descripcion && p.Descripcion.toLowerCase().includes(item.descripcion.toLowerCase()));
                                             
-                                            const defaultActionVal = matchedProd ? matchedProd['ID_ Producto'] : 'create_new';
+                                            const defaultActionVal = matchedProd ? matchedProd['ID_ Producto'] : '';
                                             const initialDisplayText = matchedProd ? 
-                                                `${matchedProd.Descripcion} (Stock: ${matchedProd.Minimos || 0})` :
-                                                `+ Crear como nuevo producto`;
+                                                `${matchedProd.Descripcion} (Stock: ${matchedProd.Minimos || 0})` : 
+                                                '-- Seleccionar o Buscar Repuesto --';
 
                                             return `
                                                 <tr class="dte-map-row" data-idx="${idx}" data-desc="${escapeHtml(item.descripcion)}" data-cant="${item.cantidad}" data-cost="${item.precioUnitario}">
@@ -2323,7 +2323,7 @@ export function renderGastos(container) {
                                                         <div class="dte-prod-wrap" style="position:relative; width:100%;">
                                                             <input type="hidden" class="dte-product-action-input" value="${defaultActionVal}">
                                                             <div style="position:relative;">
-                                                                <input type="text" class="dte-prod-input" value="${escapeHtml(initialDisplayText)}" placeholder="🔍 Buscar o crear repuesto..." autocomplete="off" style="width:100%; padding:0.4rem 2rem 0.4rem 0.65rem; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-primary); font-size:0.82rem; height:34px; font-weight:500;">
+                                                                <input type="text" class="dte-prod-input" value="${escapeHtml(initialDisplayText)}" placeholder="🔍 Buscar o seleccionar repuesto..." autocomplete="off" style="width:100%; padding:0.4rem 2rem 0.4rem 0.65rem; background:var(--bg-input); border:1px solid ${defaultActionVal ? 'var(--border-color)' : 'var(--warning, #eab308)'}; border-radius:4px; color:${defaultActionVal ? 'var(--text-primary)' : 'var(--warning, #eab308)'}; font-size:0.82rem; height:34px; font-weight:500;">
                                                                 <i class="fa-solid fa-chevron-down" style="position:absolute; right:0.65rem; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--text-muted); pointer-events:none;"></i>
                                                             </div>
 
@@ -2385,6 +2385,8 @@ export function renderGastos(container) {
                     e.stopPropagation();
                     hiddenInput.value = 'create_new';
                     searchInput.value = '+ Crear como nuevo producto';
+                    searchInput.style.color = 'var(--text-primary)';
+                    searchInput.style.borderColor = 'var(--border-color)';
                     dropdown.style.display = 'none';
                 });
                 resultsDiv.appendChild(createDiv);
@@ -2399,6 +2401,8 @@ export function renderGastos(container) {
                     e.stopPropagation();
                     hiddenInput.value = 'ignore';
                     searchInput.value = 'Ignorar / No inventariar';
+                    searchInput.style.color = 'var(--text-primary)';
+                    searchInput.style.borderColor = 'var(--border-color)';
                     dropdown.style.display = 'none';
                 });
                 resultsDiv.appendChild(ignoreDiv);
@@ -2439,6 +2443,8 @@ export function renderGastos(container) {
                         e.stopPropagation();
                         hiddenInput.value = p['ID_ Producto'];
                         searchInput.value = `${p.Descripcion} (Stock: ${p.Minimos || 0})`;
+                        searchInput.style.color = 'var(--text-primary)';
+                        searchInput.style.borderColor = 'var(--border-color)';
                         dropdown.style.display = 'none';
                     });
 
@@ -2458,7 +2464,9 @@ export function renderGastos(container) {
                 dropdown.style.width = Math.max(rect.width, 320) + 'px';
                 dropdown.style.display = 'block';
 
-                renderDteProdResults(searchInput.value.startsWith('+') || searchInput.value.startsWith('Ignorar') ? '' : searchInput.value);
+                const curVal = searchInput.value;
+                const isPlaceholder = curVal.includes('-- Seleccionar') || curVal.startsWith('+') || curVal.startsWith('Ignorar');
+                renderDteProdResults(isPlaceholder ? '' : curVal);
             };
 
             searchInput.addEventListener('click', (e) => {
@@ -2512,6 +2520,20 @@ export function renderGastos(container) {
         document.getElementById('btn-confirm-apply-dte').addEventListener('click', async () => {
             const confirmBtn = document.getElementById('btn-confirm-apply-dte');
             if (confirmBtn.disabled) return;
+
+            // Validate unselected items
+            const dteRows = document.querySelectorAll('.dte-map-row');
+            let unselectedCount = 0;
+            dteRows.forEach(row => {
+                const act = row.querySelector('.dte-product-action-input')?.value;
+                if (!act) unselectedCount++;
+            });
+
+            if (unselectedCount > 0) {
+                showToast(`Por favor asocie todos los repuestos de la factura (${unselectedCount} pendiente(s)). Seleccione un producto existente, "+ Crear como nuevo" o "Ignorar".`, "warning");
+                return;
+            }
+
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...`;
 
