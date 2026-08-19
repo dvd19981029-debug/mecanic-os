@@ -2141,8 +2141,10 @@ export function renderGastos(container) {
                             '<span class="badge" style="background:#22c55e; color:#fff; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:600;">Aplicado</span>';
                         
                         const actionBtn = dte.estado === 'pendiente_aplicar' ?
-                            `<button class="btn btn-primary btn-sm btn-apply-dte" data-id="${doc.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-file-import"></i> Aplicar Gasto</button>` :
+                            `<button class="btn btn-primary btn-sm btn-apply-dte" data-id="${doc.id}" style="padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-gear"></i> Procesar</button>` :
                             `<button class="btn btn-secondary btn-sm" disabled style="padding:0.35rem 0.75rem; font-size:0.8rem;"><i class="fa-solid fa-check"></i> Importado</button>`;
+
+                        const deleteBtn = `<button class="btn btn-danger btn-sm btn-delete-dte" data-id="${doc.id}" title="Eliminar DTE" style="padding:0.35rem 0.6rem; font-size:0.8rem; margin-left:0.35rem; background:#ef4444; color:#fff; border:none; border-radius:4px; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>`;
 
                         htmlContent += `
                             <tr>
@@ -2154,7 +2156,7 @@ export function renderGastos(container) {
                                 </td>
                                 <td><strong>$${parseFloat(dte.monto || 0).toFixed(2)}</strong></td>
                                 <td>${statusText}</td>
-                                <td style="text-align:right;">${actionBtn}</td>
+                                <td style="text-align:right;">${actionBtn}${deleteBtn}</td>
                             </tr>
                         `;
                     });
@@ -2167,6 +2169,29 @@ export function renderGastos(container) {
                             const matchedDoc = snapshot.docs.find(d => d.id === dteId);
                             if (matchedDoc) {
                                 openApplyDteModal(matchedDoc.data());
+                            }
+                        });
+                    });
+
+                    // Bind click to delete
+                    tbody.querySelectorAll('.btn-delete-dte').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const dteId = btn.getAttribute('data-id');
+                            const matchedDoc = snapshot.docs.find(d => d.id === dteId);
+                            if (!matchedDoc) return;
+                            const dteData = matchedDoc.data();
+                            const dteNum = dteData.numeroDte || dteId;
+                            const emisor = dteData.emisor || 'Proveedor';
+
+                            if (confirm(`¿Está seguro de eliminar este DTE recibido (${dteNum} - ${emisor}) de la bandeja?\n\nEsta acción no se puede deshacer.`)) {
+                                dbFirestore.collection("workshops").doc(workshopUid).collection("dte_recibidos").doc(dteId).delete()
+                                    .then(() => {
+                                        loadDtes();
+                                    })
+                                    .catch(err => {
+                                        console.error("Error al eliminar DTE:", err);
+                                        alert("Error al eliminar el DTE: " + err.message);
+                                    });
                             }
                         });
                     });

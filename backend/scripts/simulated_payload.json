@@ -1,0 +1,139 @@
+{
+  "workshopId": "Y6OONbVtuJgnctauRZhXwTpBXsh1",
+  "dteJson": {
+    "identificacion": {
+      "version": 3,
+      "ambiente": "01",
+      "tipoDte": "03",
+      "numeroControl": "DTE-03-S031P001-000000000021891",
+      "codigoGeneracion": "1018F923-3954-4161-AF45-50FFA8F75A22",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "tipoContingencia": null,
+      "motivoContin": null,
+      "fecEmi": "2026-08-15",
+      "horEmi": "13:49:44",
+      "tipoMoneda": "USD"
+    },
+    "documentoRelacionado": null,
+    "emisor": {
+      "nit": "06141312850038",
+      "nrc": "2410",
+      "nombre": "IMPRESSA, S.A. DE C.V.",
+      "codActividad": "45301",
+      "descActividad": "Venta de partes, piezas y accesorios nuevos para vehículos automotores",
+      "nombreComercial": "Santa Tecla ( 1000 ) ( D )",
+      "tipoEstablecimiento": "01",
+      "direccion": {
+        "departamento": "05",
+        "municipio": "28",
+        "complemento": "Barrio el Calvario, 4ta calle poniente, y 12ª avenida sur, lote C-11, Distrito de Santa Tecla"
+      },
+      "telefono": "22280183",
+      "codEstableMH": "S031",
+      "codEstable": "S031",
+      "codPuntoVentaMH": "P001",
+      "codPuntoVenta": "P001",
+      "correo": "facturasimpressa@impressarepuestos.com"
+    },
+    "receptor": {
+      "nrc": "3850993",
+      "nombre": "MISTER CARS  S A S DE C V",
+      "codActividad": "45201",
+      "descActividad": "Reparación mecánica de vehículos automotores",
+      "direccion": {
+        "departamento": "05",
+        "municipio": "28",
+        "complemento": "4A CALLE OTEZONA URBANA 6-1 DISTRITO DE SANTA TECLA"
+      },
+      "telefono": "22889428",
+      "correo": "mrcars.dte@gmail.com",
+      "nit": "05282904261010",
+      "nombreComercial": "MISTER CARS  S A S DE C V"
+    },
+    "extension": {
+      "nombEntrega": null,
+      "docuEntrega": null,
+      "nombRecibe": null,
+      "docuRecibe": null,
+      "observaciones": "(1) 42-AMP || (1) 42-BOQ",
+      "placaVehiculo": null
+    },
+    "apendice": [
+      {
+        "campo": "Vendedor",
+        "etiqueta": "Numero de Vendedor",
+        "valor": "D3"
+      },
+      {
+        "campo": "Cuenta",
+        "etiqueta": "Numero de Cuenta",
+        "valor": "4120286"
+      }
+    ],
+    "ventaTercero": null,
+    "otrosDocumentos": null,
+    "cuerpoDocumento": [
+      {
+        "ventaGravada": 17.95,
+        "ventaExenta": 0,
+        "ventaNoSuj": 0,
+        "noGravado": 0,
+        "numItem": 1,
+        "tipoItem": 1,
+        "numeroDocumento": null,
+        "cantidad": 1.0,
+        "codigo": "TYZAP0051",
+        "codTributo": null,
+        "uniMedida": 59,
+        "descripcion": "ZAPATA FRENO     (C)",
+        "precioUni": 21.35,
+        "montoDescu": 3.4,
+        "tributos": [
+          "20"
+        ],
+        "psv": 0
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 17.95,
+      "subTotalVentas": 17.95,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 3.4,
+      "tributos": [
+        {
+          "codigo": "20",
+          "descripcion": "Impuesto al Valor Agregado",
+          "valor": 2.33
+        }
+      ],
+      "subTotal": 17.95,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 20.28,
+      "totalNoGravado": 0,
+      "totalPagar": 20.28,
+      "totalLetras": "veinte dólares con veintiocho centavos",
+      "saldoFavor": 0.0,
+      "condicionOperacion": 1,
+      "pagos": [
+        {
+          "codigo": "01",
+          "montoPago": 20.28,
+          "referencia": null,
+          "plazo": null,
+          "periodo": null
+        }
+      ],
+      "numPagoElectronico": null,
+      "ivaPerci1": 0
+    },
+    "firmaElectronica": "eyJhbGciOiJSUzUxMiJ9.eyJpZGVudGlmaWNhY2lvbiI6eyJ2ZXJzaW9uIjozLCJhbWJpZW50ZSI6IjAxIiwidGlwb0R0ZSI6IjAzIiwibnVtZXJvQ29udHJvbCI6IkRURS0wMy1TMDMxUDAwMS0wMDAwMDAwMDAwMjE4OTEiLCJjb2RpZ29HZW5lcmFjaW9uIjoiMTAxOEY5MjMtMzk1NC00MTYxLUFGNDUtNTBGRkE4Rjc1QTIyIiwidGlwb01vZGVsbyI6MSwidGlwb09wZXJhY2lvbiI6MSwidGlwb0NvbnRpbmdlbmNpYSI6bnVsbCwibW90aXZvQ29udGluIjpudWxsLCJmZWNFbWkiOiIyMDI2LTA4LTE1IiwiaG9yRW1pIjoiMTM6NDk6NDQiLCJ0aXBvTW9uZWRhIjoiVVNEIn0sImRvY3VtZW50b1JlbGFjaW9uYWRvIjpudWxsLCJlbWlzb3IiOnsibml0IjoiMDYxNDEzMTI4NTAwMzgiLCJucmMiOiIyNDEwIiwibm9tYnJlIjoiSU1QUkVTU0EsIFMuQS4gREUgQy5WLiIsImNvZEFjdGl2aWRhZCI6IjQ1MzAxIiwiZGVzY0FjdGl2aWRhZCI6IlZlbnRhIGRlIHBhcnRlcywgcGllemFzIHkgYWNjZXNvcmlvcyBudWV2b3MgcGFyYSB2ZWjDrWN1bG9zIGF1dG9tb3RvcmVzIiwibm9tYnJlQ29tZXJjaWFsIjoiU2FudGEgVGVjbGEgKCAxMDAwICkgKCBEICkiLCJ0aXBvRXN0YWJsZWNpbWllbnRvIjoiMDEiLCJkaXJlY2Npb24iOnsiZGVwYXJ0YW1lbnRvIjoiMDUiLCJtdW5pY2lwaW8iOiIyOCIsImNvbXBsZW1lbnRvIjoiQmFycmlvIGVsIENhbHZhcmlvLCA0dGEgY2FsbGUgcG9uaWVudGUsIHkgMTLCqiBhdmVuaWRhIHN1ciwgbG90ZSBDLTExLCBEaXN0cml0byBkZSBTYW50YSBUZWNsYSJ9LCJ0ZWxlZm9ubyI6IjIyMjgwMTgzIiwiY29kRXN0YWJsZU1IIjoiUzAzMSIsImNvZEVzdGFibGUiOiJTMDMxIiwiY29kUHVudG9WZW50YU1IIjoiUDAwMSIsImNvZFB1bnRvVmVudGEiOiJQMDAxIiwiY29ycmVvIjoiZmFjdHVyYXNpbXByZXNzYUBpbXByZXNzYXJlcHVlc3Rvcy5jb20ifSwicmVjZXB0b3IiOnsibnJjIjoiMzg1MDk5MyIsIm5vbWJyZSI6Ik1JU1RFUiBDQVJTICBTIEEgUyBERSBDIFYiLCJjb2RBY3RpdmlkYWQiOiI0NTIwMSIsImRlc2NBY3RpdmlkYWQiOiJSZXBhcmFjacOzbiBtZWPDoW5pY2EgZGUgdmVow61jdWxvcyBhdXRvbW90b3JlcyIsImRpcmVjY2lvbiI6eyJkZXBhcnRhbWVudG8iOiIwNSIsIm11bmljaXBpbyI6IjI4IiwiY29tcGxlbWVudG8iOiI0QSBDQUxMRSBPVEVaT05BIFVSQkFOQSA2LTEgRElTVFJJVE8gREUgU0FOVEEgVEVDTEEifSwidGVsZWZvbm8iOiIyMjg4OTQyOCIsImNvcnJlbyI6Im1yY2Fycy5kdGVAZ21haWwuY29tIiwibml0IjoiMDUyODI5MDQyNjEwMTAiLCJub21icmVDb21lcmNpYWwiOiJNSVNURVIgQ0FSUyAgUyBBIFMgREUgQyBWIn0sImV4dGVuc2lvbiI6eyJub21iRW50cmVnYSI6bnVsbCwiZG9jdUVudHJlZ2EiOm51bGwsIm5vbWJSZWNpYmUiOm51bGwsImRvY3VSZWNpYmUiOm51bGwsIm9ic2VydmFjaW9uZXMiOiIoMSkgNDItQU1QIHx8ICgxKSA0Mi1CT1EiLCJwbGFjYVZlaGljdWxvIjpudWxsfSwiYXBlbmRpY2UiOlt7ImNhbXBvIjoiVmVuZGVkb3IiLCJldGlxdWV0YSI6Ik51bWVybyBkZSBWZW5kZWRvciIsInZhbG9yIjoiRDMifSx7ImNhbXBvIjoiQ3VlbnRhIiwiZXRpcXVldGEiOiJOdW1lcm8gZGUgQ3VlbnRhIiwidmFsb3IiOiI0MTIwMjg2In1dLCJ2ZW50YVRlcmNlcm8iOm51bGwsIm9ic2VydmFjaW9uZXMiOiBudWxsLCJvdHJvc0RvY3VtZW50b3MiOm51bGwsImN1ZXJwb0RvY3VtZW50byI6W3sidmVudGFHcmF2YWRhIjoxNy45NSwidmVudGFFeGVudGEiOjAsInZlbnRhTm9TdWoiOjAsIm5vR3JhdmFkbyI6MCwibnVtSXRlbSI6MSwidGlwb0l0ZW0iOjEsIm51bWVyb0RvY3VtZW50byI6bnVsbCwiY2FudGlkYWQiOjEuMCwiY29kaWdvIjoiVFlaQVAwMDUxIiwiY29kVHJpYnV0byI6bnVsbCwidW5pTWVkaWRhIjo1OSwiZGVzY3JpcGNpb24iOiJaQVBBVEEgRlJFTk8gICAgIChDKSIsInByZWNpb1VuaSI6MjEuMzUsIm1vbnRvRGVzY3UiOjMuNCwidHJpYnV0b3MiOlsiMjAiXSwicHN2IjowfV0sInJlc3VtZW4iOnt0b3RhbE5vU3VqIjowLCJ0b3RhbEV4ZW50YSI6MCwidG90YWxHcmF2YWRhIjoxNy45NSwic3ViVG90YWxWZW50YXMiOjE3.55LCJkZXNjdU5vU3VqIjowLCJkZXNjdUV4ZW50YSI6MCwiZGVzY3VHcmF2YWRhIjowLCJwb3JjZW50YWplRGVzY3VlbnRvIjowLCJ0b3RhbERlc2N1IjozLjQsInRyaWJ1dG9zIjpbeyJjb2RpZ28iOiIyMCIsImRlc2NyaXBjaW9uIjoiImp1ZXN0byBhbCBWYWxvciBBZ3JlZ2FkbyIsInZhbG9yIjoyLjMzfV0sInN1YlRvdGFsIjoxNy45NSwiaXZhU2V0ZTEiOjAsInJldGVSZW50YSI6MCwibW9udG9Ub3RhbE9wZXJhY2lvbiI6MjAuMjgsInRvdGFsTm9HcmF2YWRvIjowLCJ0b3RhbFBhZ2FyIjoyMC4yOCwidG90YWxMZXRyYXMiOiJ2ZWludGUgZMOzbGFyZXMgY29uIHZlaW50aW9jaG8gY2VudGF2b3MiLCJzYWxkb0Zhdm9yIjowLjAsImNvbmRpY2lvbk9wZXJhY2lvbiI6MSwicGFnb3MiOlt7ImNvZGlnbyI6IjAxIiwibW9udG9QYWdvIjoyMC4yOCwicmVmZXJlbmNpYSI6bnVsbCwicGxhem8iOm51bGwsInBlcmlvZG8iOm51bGx9XSwibnVtUGFnb0VsZWN0cm9uaWNvIjpudWxsLCJpdmFQZXJjaTEiOjB9fS5DOTgyQW04b1B4ZVFlMktvMmIyYXF6MHI0cDNCOWtucHNjOE41X1ltZjlOSGxOLU1LYXdrdmliYVlXanotekFYTl92NmY4bVdDQU1JNmUtaWpneC1IZDJEQ1hzQVlnaXRLZWh2dzdRQlFSUm54UU5DNGZCQ0g2ZzhabTlTa2stZURSTS1xNXNXbjFxNHVPUU5ueENaWFhNNS1KVDJSSkp4aGVYR29LLTZsdGZVcklMU3FROGVLQlFBNVhVRWxBcV9ycEhLQ1dXTnpiUXloM0ZwMFc1V19jaHdSbW1mb3EyVVZncVdWd1R5OElPbHpKNF9NV21kejZTanR3ZEgwTUJrRDhRekdEWElCV2tOejBYXzFGZzAwV0lWcGk0cElaa2dBdUFnb0dLMi04S0h3bmxCSmI2UGhzcEJPdnFLLWY1a0RCNjBnUE9OalZzVmxSRGg0U0ln",
+    "selloRecibido": "2026E485F56CC90545ADBB86403478D7B937YSDX"
+  }
+}
