@@ -3777,6 +3777,7 @@ export function exportBudgetPDF(budgetId) {
 }
 
 function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
     const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
@@ -4183,7 +4184,11 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                 <table class="totals-table">
                     <tr>
                         <td class="total-label">Subtotal</td>
-                        <td class="total-value">$ ${(subtotal + iva).toFixed(2)}</td>
+                        <td class="total-value">$ ${(subtotal - discount).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td class="total-label">(+) IVA (${(taxRate * 100).toFixed(0)}%)</td>
+                        <td class="total-value">$ ${iva.toFixed(2)}</td>
                     </tr>
                     ${percVal > 0 ? `
                         <tr>
