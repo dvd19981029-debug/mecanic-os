@@ -3154,17 +3154,45 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
     const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
     const ivaMultiplier = 1 + taxRate;
 
+    const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
+    const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
+
+    let prodDiscountPercent = 0;
+    let laborDiscountPercent = 0;
+    let isProportional = true;
+
+    if (promo) {
+        if (promo.Tipo === 'desc_mano_obra') {
+            laborDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        } else if (promo.Tipo === 'desc_productos') {
+            prodDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        }
+    }
+
+    if (isProportional) {
+        const rawTotal = (sumProd + sumLab);
+        const discountPercent = rawTotal > 0 ? (discount / rawTotal) : 0;
+        prodDiscountPercent = discountPercent;
+        laborDiscountPercent = discountPercent;
+    }
+
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin repuestos ni lubricantes cotizados</td></tr>'
         : products.map(p => {
             const unitPrice = parseFloat(p.PrecioUnitario || 0);
-            const total = unitPrice * parseInt(p.Cantidad || 1);
+            const qty = parseInt(p.Cantidad || 1);
+            const itemDisc = parseFloat(p.Descuento || 0);
+            const baseLineTotal = (unitPrice * qty) - itemDisc;
+            const linePromoDisc = baseLineTotal * prodDiscountPercent;
+            const effectiveLineTotal = baseLineTotal - linePromoDisc;
             return `
                 <tr>
-                    <td style="text-align: center; font-weight: 500;">${p.Cantidad}</td>
+                    <td style="text-align: center; font-weight: 500;">${qty}</td>
                     <td>${p.Descripcion}</td>
                     <td style="text-align: right;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style="text-align: right; font-weight: 600;">$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `;
         }).join('');
@@ -3173,13 +3201,17 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin mano de obra cotizada</td></tr>'
         : labor.map(l => {
             const unitPrice = parseFloat(l.PrecioUnitario || 0);
-            const total = unitPrice * parseInt(l.Cantidad || 1);
+            const qty = parseInt(l.Cantidad || 1);
+            const itemDisc = parseFloat(l.Descuento || 0);
+            const baseLineTotal = (unitPrice * qty) - itemDisc;
+            const linePromoDisc = baseLineTotal * laborDiscountPercent;
+            const effectiveLineTotal = baseLineTotal - linePromoDisc;
             return `
                 <tr>
-                    <td style="text-align: center; font-weight: 500;">${l.Cantidad}</td>
+                    <td style="text-align: center; font-weight: 500;">${qty}</td>
                     <td>${l.Descripcion}</td>
                     <td style="text-align: right;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style="text-align: right; font-weight: 600;">$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `;
         }).join('');
@@ -3587,20 +3619,25 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
         <!-- Totals Block -->
         <div class="totals-block">
             <table class="totals-subtable">
+                ${safe(discount > 0 ? `
                 <tr>
-                    <td class="total-label">Sumatoria Repuestos y Servicios</td>
+                    <td class="total-label">Sumatoria Bruta</td>
                     <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ${safe(discount > 0 ? `
                 <tr>
                     <td class="total-label">(-) Descuento</td>
                     <td class="total-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
                 <tr>
                     <td class="total-label">Subtotal Neto</td>
-                    <td class="total-val">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="total-val" style="font-weight: 700;">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ` : '')}
+                ` : `
+                <tr>
+                    <td class="total-label">Sumatoria Repuestos y Servicios</td>
+                    <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                `)}
                 <tr>
                     <td class="total-label">(+) IVA (${(taxRate * 100).toFixed(0)}%)</td>
                     <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
