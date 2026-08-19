@@ -865,57 +865,6 @@ async function resendDteEmail(req, res) {
             socketTimeout: 12000
         };
 
-        const transporter = nodemailer.createTransport(transportConfig);
-
-        const docTitle = tipoDocumento || "Comprobante de Crédito Fiscal";
-        const controlNum = numeroControl || targetDteId;
-        const linkMh = mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${targetDteId}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
-
-        const htmlBody = `
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
-                <div style="background: #1e293b; padding: 24px; text-align: center; border-bottom: 2px solid #6d28d9;">
-                    <h2 style="margin: 0; color: #a78bfa; font-size: 22px;">MISTER CARS</h2>
-                    <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Documento Tributario Electrónico (DTE)</p>
-                </div>
-                
-                <div style="padding: 28px;">
-                    <p style="font-size: 16px; margin-top: 0;">Estimado(a) <strong>${clienteNombre || 'Cliente'}</strong>,</p>
-                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">
-                        Le enviamos la representación gráfica de su <strong>${docTitle}</strong> emitido por <strong>Mister Cars</strong>.
-                    </p>
-
-                    <div style="background: rgba(255,255,255,0.05); padding: 18px; border-radius: 8px; margin: 20px 0; border: 1px solid #334155;">
-                        <table style="width: 100%; font-size: 14px; color: #e2e8f0; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 6px 0; color: #94a3b8;">N° Control:</td>
-                                <td style="padding: 6px 0; text-align: right; font-weight: bold; font-family: monospace;">${controlNum}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 6px 0; color: #94a3b8;">Código Generación:</td>
-                                <td style="padding: 6px 0; text-align: right; font-family: monospace; font-size: 12px;">${targetDteId}</td>
-                            </tr>
-                            ${montoTotal ? `
-                            <tr>
-                                <td style="padding: 6px 0; color: #94a3b8;">Monto Total:</td>
-                                <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #4ade80; font-size: 16px;">$${parseFloat(montoTotal).toFixed(2)}</td>
-                            </tr>
-                            ` : ''}
-                        </table>
-                    </div>
-
-                    <div style="text-align: center; margin: 26px 0;">
-                        <a href="${linkMh}" target="_blank" style="background: #6d28d9; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
-                            🔍 Consultar DTE en el Ministerio de Hacienda
-                        </a>
-                    </div>
-
-                    <p style="font-size: 12px; color: #64748b; text-align: center; margin-bottom: 0;">
-                        Este mensaje ha sido enviado por Mecanic OS a solicitud de Mister Cars.
-                    </p>
-                </div>
-            </div>
-        `;
-
         const attachmentsList = [];
         if (pdfBuffer) {
             attachmentsList.push({
