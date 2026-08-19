@@ -741,7 +741,7 @@ function sendViaResendHttpApi({ apiKey, from, to, replyTo, subject, html, pdfBuf
  */
 async function resendDteEmail(req, res) {
     try {
-        const { apiKey, dteId, recipientEmail, clienteNombre, numeroControl, codigoGeneracion, mhDteUrl, tipoDocumento, montoTotal, workshopId } = req.body;
+        const { apiKey, dteId, recipientEmail, clienteNombre, numeroControl, codigoGeneracion, mhDteUrl, tipoDocumento, montoTotal, workshopId, workshopName } = req.body;
 
         if (!recipientEmail || !recipientEmail.includes('@')) {
             return res.status(400).json({ success: false, message: "Debe proveer un correo electrónico válido para el envío." });
@@ -777,7 +777,7 @@ async function resendDteEmail(req, res) {
         let smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "";
         let smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
         smtpPass = (smtpPass || '').replace(/\s+/g, '');
-        let senderName = "Mister Cars";
+        let senderName = workshopName || "MISTER CARS, S.A.S de C.V.";
         let replyToEmail = null;
 
         if (db && workshopId && workshopId !== 'desconocido') {
@@ -785,7 +785,7 @@ async function resendDteEmail(req, res) {
                 const wsDoc = await db.collection("workshops").doc(workshopId).get();
                 if (wsDoc.exists) {
                     const wsData = wsDoc.data();
-                    senderName = wsData.Nombre_Taller || wsData.Nombre_Comercial || wsData.nombre || wsData.nombreTaller || "Mister Cars";
+                    senderName = wsData.Razon_Social || wsData.Nombre_Taller || wsData.Nombre_Comercial || wsData.nombre || workshopName || "MISTER CARS, S.A.S de C.V.";
                     replyToEmail = wsData.correo_notificaciones || wsData.Correo || wsData.correo || wsData.email || null;
 
                     if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
@@ -807,7 +807,7 @@ async function resendDteEmail(req, res) {
         const htmlBody = `
             <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
                 <div style="background: #1e293b; padding: 24px; text-align: center; border-bottom: 2px solid #6d28d9;">
-                    <h2 style="margin: 0; color: #a78bfa; font-size: 22px;">MISTER CARS</h2>
+                    <h2 style="margin: 0; color: #a78bfa; font-size: 20px; text-transform: uppercase;">${senderName}</h2>
                     <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Documento Tributario Electrónico (DTE)</p>
                 </div>
                 
