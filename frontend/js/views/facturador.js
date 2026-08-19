@@ -1568,7 +1568,7 @@ export async function sendDteEmailToClient(genCode, budgetId) {
                 }
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
 
                 const response = await fetch(`${baseUrl}/api/dte/resend-email`, {
                     method: 'POST',
@@ -1601,7 +1601,9 @@ export async function sendDteEmailToClient(genCode, budgetId) {
                 }
             } catch (err) {
                 console.error(err);
-                showToast("Error al reenviar el correo: " + err.message, "danger");
+                const isAbort = err.name === 'AbortError' || (err.message && err.message.includes('aborted'));
+                const errMsg = isAbort ? "El servidor tardó en responder al despertar. Por favor intenta enviar de nuevo." : err.message;
+                showToast("Error al reenviar el correo: " + errMsg, "danger");
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Correo`;
             }
