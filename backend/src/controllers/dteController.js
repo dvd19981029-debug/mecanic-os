@@ -632,6 +632,57 @@ function fetchJsonBuffer(dteId, apiKey) {
     });
 }
 
+function sendViaResendHttpApi({ apiKey, from, to, replyTo, subject, html, pdfBuffer, jsonBuffer, controlNum }) {
+    return new Promise((resolve, reject) => {
+        const payload = {
+            from: from || "Mecanic OS DTE <onboarding@resend.dev>",
+            to: [to],
+            reply_to: replyTo || undefined,
+            subject: subject,
+            html: html,
+            attachments: []
+        };
+
+        if (pdfBuffer) {
+            payload.attachments.push({
+                filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.pdf`,
+                content: pdfBuffer.toString('base64')
+            });
+        }
+        if (jsonBuffer) {
+            payload.attachments.push({
+                filename: `DTE_${controlNum.replace(/[^0-9A-Za-z]/g, '_')}.json`,
+                content: jsonBuffer.toString('base64')
+            });
+        }
+
+        const dataStr = JSON.stringify(payload);
+        const proxyReq = https.request('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(dataStr)
+            }
+        }, (proxyRes) => {
+            let body = '';
+            proxyRes.on('data', chunk => body += chunk);
+            proxyRes.on('end', () => {
+                if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+                    try { resolve(JSON.parse(body)); } catch (e) { resolve({ id: 'resend_ok' }); }
+                } else {
+                    reject(new Error(`Resend API HTTP ${proxyRes.statusCode}: ${body}`));
+                }
+            });
+        });
+
+        proxyReq.setTimeout(8000, () => proxyReq.destroy(new Error("Timeout en petición Resend API")));
+        proxyReq.on('error', reject);
+        proxyReq.write(dataStr);
+        proxyReq.end();
+    });
+}
+
 /**
  * Reenvía un DTE por correo electrónico al cliente.
  */
@@ -667,13 +718,6 @@ async function resendDteEmail(req, res) {
             else console.warn("No se pudo obtener JSON de FacturaLlama:", jsonRes.reason?.message);
         }
 
-        let nodemailer;
-        try {
-            nodemailer = require('nodemailer');
-        } catch (e) {
-            return res.status(500).json({ success: false, message: "El módulo nodemailer no está disponible en el servidor." });
-        }
-
         // Multi-tenant resolution: buscar datos del taller específico en Firestore
         let smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
         let smtpPort = parseInt(process.env.SMTP_PORT || "587");
@@ -693,7 +737,6 @@ async function resendDteEmail(req, res) {
                     }
                     replyToEmail = wsData.correo_notificaciones || wsData.Correo || wsData.correo || wsData.email || null;
 
-                    // Si el taller especificó su propio correo en Ajustes
                     if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
                         smtpHost = wsData.smtp_config.host || "smtp.gmail.com";
                         smtpPort = parseInt(wsData.smtp_config.port || "587");
@@ -706,11 +749,91 @@ async function resendDteEmail(req, res) {
             }
         }
 
+        const docTitle = tipoDocumento || "Comprobante de Crédito Fiscal";
+        const controlNum = numeroControl || targetDteId;
+        const linkMh = mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${targetDteId}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
+
+        const htmlBody = `
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
+                <div style="background: #1e293b; padding: 24px; text-align: center; border-bottom: 2px solid #6d28d9;">
+                    <h2 style="margin: 0; color: #a78bfa; font-size: 22px;">MISTER CARS</h2>
+                    <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Documento Tributario Electrónico (DTE)</p>
+                </div>
+                
+                <div style="padding: 28px;">
+                    <p style="font-size: 16px; margin-top: 0;">Estimado(a) <strong>${clienteNombre || 'Cliente'}</strong>,</p>
+                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">
+                        Le enviamos la representación gráfica de su <strong>${docTitle}</strong> emitido por <strong>${senderName}</strong>.
+                    </p>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 18px; border-radius: 8px; margin: 20px 0; border: 1px solid #334155;">
+                        <table style="width: 100%; font-size: 14px; color: #e2e8f0; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">N° Control:</td>
+                                <td style="padding: 6px 0; text-align: right; font-weight: bold; font-family: monospace;">${controlNum}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">Código Generación:</td>
+                                <td style="padding: 6px 0; text-align: right; font-family: monospace; font-size: 12px;">${targetDteId}</td>
+                            </tr>
+                            ${montoTotal ? `
+                            <tr>
+                                <td style="padding: 6px 0; color: #94a3b8;">Monto Total:</td>
+                                <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #4ade80; font-size: 16px;">$${parseFloat(montoTotal).toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                        </table>
+                    </div>
+
+                    <div style="text-align: center; margin: 26px 0;">
+                        <a href="${linkMh}" target="_blank" style="background: #6d28d9; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                            🔍 Consultar DTE en el Ministerio de Hacienda
+                        </a>
+                    </div>
+
+                    <p style="font-size: 12px; color: #64748b; text-align: center; margin-bottom: 0;">
+                        Este mensaje ha sido enviado por Mecanic OS a solicitud de ${senderName}.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        // 1. Método A: Si se configuró RESEND_API_KEY en Render (HTTP API sobre puerto 443 - Inmune a bloqueos)
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (resendApiKey && resendApiKey.trim() !== '') {
+            try {
+                const resendResult = await sendViaResendHttpApi({
+                    apiKey: resendApiKey,
+                    from: `"${senderName}" <onboarding@resend.dev>`,
+                    to: recipientEmail,
+                    replyTo: replyToEmail || smtpUser || undefined,
+                    subject: `Documento Tributario Electrónico (${controlNum}) - ${senderName}`,
+                    html: htmlBody,
+                    pdfBuffer,
+                    jsonBuffer,
+                    controlNum
+                });
+                console.log(`DTE enviado vía Resend HTTP API a ${recipientEmail}:`, resendResult.id);
+                saveDteLog("Reenvío Correo DTE (Resend API)", workshopId, tipoDocumento || "DTE", { recipientEmail, targetDteId }, 200, resendResult, "RESEND_API");
+                return res.json({ success: true, message: `DTE reenviado exitosamente a ${recipientEmail}`, resendId: resendResult.id });
+            } catch (resendErr) {
+                console.warn("Resend HTTP API falló, intentando SMTP fallback:", resendErr.message);
+            }
+        }
+
+        // 2. Método B: Transportador SMTP Nodemailer
         if (!smtpPass || !smtpUser) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Servicio de correo no configurado para este taller. Por favor agregue las credenciales GMAIL_USER / GMAIL_APP_PASS en Render." 
+                message: "Servicio de correo no configurado para este taller. Agregue credenciales SMTP o RESEND_API_KEY en Render." 
             });
+        }
+
+        let nodemailer;
+        try {
+            nodemailer = require('nodemailer');
+        } catch (e) {
+            return res.status(500).json({ success: false, message: "El módulo nodemailer no está disponible en el servidor." });
         }
 
         const isGmail = smtpHost.includes('gmail') || smtpUser.endsWith('@gmail.com') || smtpUser.endsWith('@forbiddensoluciones.com');
@@ -718,7 +841,7 @@ async function resendDteEmail(req, res) {
         const transportConfig = isGmail ? {
             host: 'smtp.gmail.com',
             port: 587,
-            secure: false, // STARTTLS is required for Render / cloud hosting
+            secure: false, // STARTTLS
             requireTLS: true,
             auth: {
                 user: smtpUser,
