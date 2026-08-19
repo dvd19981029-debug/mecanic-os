@@ -625,13 +625,42 @@ async function resendDteEmail(req, res) {
             return res.status(500).json({ success: false, message: "El módulo nodemailer no está disponible en el servidor." });
         }
 
-        const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-        const smtpPort = parseInt(process.env.SMTP_PORT || "465");
-        const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "mistercarssv@gmail.com";
-        const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
+        // Multi-tenant resolution: buscar datos del taller específico en Firestore
+        let smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+        let smtpPort = parseInt(process.env.SMTP_PORT || "465");
+        let smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "";
+        let smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
+        let senderName = clienteNombre ? `Facturación - ${clienteNombre}` : "Documento Tributario Electrónico";
+        let replyToEmail = null;
 
-        if (!smtpPass) {
-            console.warn("SMTP_PASS / GMAIL_APP_PASS no configurado en servidor.");
+        if (db && workshopId && workshopId !== 'desconocido') {
+            try {
+                const wsDoc = await db.collection("workshops").doc(workshopId).get();
+                if (wsDoc.exists) {
+                    const wsData = wsDoc.data();
+                    if (wsData.Nombre_Taller || wsData.nombre) {
+                        senderName = wsData.Nombre_Taller || wsData.nombre;
+                    }
+                    replyToEmail = wsData.Correo || wsData.email || null;
+
+                    // Si el taller especificó su propio correo en Ajustes
+                    if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
+                        smtpHost = wsData.smtp_config.host || "smtp.gmail.com";
+                        smtpPort = parseInt(wsData.smtp_config.port || "465");
+                        smtpUser = wsData.smtp_config.user;
+                        smtpPass = wsData.smtp_config.pass;
+                    }
+                }
+            } catch (errWs) {
+                console.warn("No se pudo obtener la configuración del taller desde Firestore:", errWs.message);
+            }
+        }
+
+        if (!smtpPass || !smtpUser) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Servicio de correo no configurado para este taller. Por favor agregue las credenciales en Ajustes." 
+            });
         }
 
         const transporter = nodemailer.createTransport({
@@ -694,9 +723,10 @@ async function resendDteEmail(req, res) {
         `;
 
         const mailOptions = {
-            from: `"Mister Cars DTE" <${smtpUser}>`,
+            from: `"${senderName}" <${smtpUser}>`,
             to: recipientEmail,
-            subject: `Documento Tributario Electrónico (${controlNum}) - Mister Cars`,
+            replyTo: replyToEmail || smtpUser,
+            subject: `Documento Tributario Electrónico (${controlNum}) - ${senderName}`,
             html: htmlBody,
             attachments: pdfBuffer ? [
                 {
