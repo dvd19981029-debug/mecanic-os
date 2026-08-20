@@ -559,7 +559,7 @@ export function renderIssuedTab(container) {
         const startTime = startVal ? new Date(startVal + 'T00:00:00').getTime() : 0;
         const endTime = endVal ? new Date(endVal + 'T23:59:59').getTime() : Infinity;
         
-        const allIssued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4);
+        const allIssued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4 || p.Estado == 5 || p.Nota_Credito);
         
         const dateFiltered = allIssued.filter(p => {
             const itemTime = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).getTime() : new Date(p.Fecha).getTime();
@@ -598,10 +598,15 @@ export function renderIssuedTab(container) {
             const grandTotal = getBudgetGrandTotal(p, db);
             
             const isAnulado = p.Estado == 4 || p.Anulado;
+            const isNc = p.Estado == 5 || p.Estado_DTE === 'REVERTIDO_NC' || p.Nota_Credito;
             const dteLabel = p.Doc_a_Emitir === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
-            const typeBadge = isAnulado 
-                ? `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); font-weight: bold; font-size: 0.75rem;">ANULADO</span>`
-                : `<span class="badge-tag badge-secondary">${dteLabel}</span>`;
+            
+            let typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span>`;
+            if (isNc) {
+                typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> NOTA DE CRÉDITO</span>`;
+            } else if (isAnulado) {
+                typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); font-weight: bold; font-size: 0.75rem;">ANULADO</span>`;
+            }
                 
             const genCode = p.controlNumber || 'MOCK-DTE-123456';
             const ctrlNum = p.mhControlNumber || p.controlNumber || 'N/A';
@@ -612,16 +617,16 @@ export function renderIssuedTab(container) {
             // Actions element
             const actionsHtml = `
                 <div style="position: relative; display: inline-block;">
-                    <button class="btn btn-secondary btn-dte-actions" data-id="${p['ID Presupuesto']}" data-anulado="${isAnulado}" data-control="${genCode}" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
+                    <button class="btn btn-secondary btn-dte-actions" data-id="${p['ID Presupuesto']}" data-anulado="${isAnulado}" data-nc="${isNc}" data-control="${genCode}" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Ver Opciones">
                         <i class="fa-solid fa-ellipsis-vertical"></i> Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
                     </button>
                 </div>
             `;
             
             const tr = document.createElement('tr');
-            if (isAnulado) {
-                tr.style.opacity = '0.75';
-                tr.style.background = 'rgba(231, 76, 60, 0.03)';
+            if (isAnulado || isNc) {
+                tr.style.opacity = '0.85';
+                tr.style.background = isNc ? 'rgba(245, 158, 11, 0.03)' : 'rgba(231, 76, 60, 0.03)';
             }
             tr.innerHTML = html`
                 <td>
@@ -650,14 +655,17 @@ export function renderIssuedTab(container) {
                 
                 const budgetId = btn.getAttribute('data-id');
                 const isAnulado = btn.getAttribute('data-anulado') === 'true';
+                const isNc = btn.getAttribute('data-nc') === 'true';
                 const genCode = btn.getAttribute('data-control');
                 
                 let menuHtml = '';
-                if (isAnulado) {
+                if (isAnulado || isNc) {
                     menuHtml = `
                         <a href="#presupuestos?id=${budgetId}" class="dte-dropdown-item" title="Ver Detalle Presupuesto"><i class="fa-solid fa-eye"></i> Detalle</a>
+                        <button class="dte-dropdown-item btn-view-dte-pdf" data-id="${genCode}" title="Ver Representación Gráfica DTE (MH)"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                         <button class="dte-dropdown-item btn-print-dte-ticket" data-id="${budgetId}" title="Imprimir Ticket"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         <button class="dte-dropdown-item btn-reemit-dte" data-id="${budgetId}" title="Clonar presupuesto para re-facturar"><i class="fa-solid fa-copy"></i> Re-emitir</button>
+                        ${safe(isNc ? `<button class="dte-dropdown-item btn-emit-nc-dte" data-id="${genCode}" data-presid="${budgetId}" style="color: #f59e0b;" title="Re-intentar o emitir Nota de Crédito en FacturaLlama"><i class="fa-solid fa-rotate-left"></i> Re-emitir NC</button>` : '')}
                     `;
                 } else {
                     menuHtml = `
@@ -2506,7 +2514,8 @@ function openInvalidateDteModal(dteId, presId) {
 
 function openEmitNcDteModal(dteId, presId) {
     const db = getDatabase();
-    const dteCfg = getSecureDteConfig();
+    const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                   getSecureDteConfig();
     
     let p = db.presupuestos.find(b => b.controlNumber === dteId || b['ID Presupuesto'] === presId);
     let isQuickSale = false;
@@ -2567,8 +2576,8 @@ function openEmitNcDteModal(dteId, presId) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Transmitiendo Nota de Crédito...';
         
-        const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
-        const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
+        const configuredUrl = dteCfg.backendUrl || getBackendUrl(db);
+        const baseUrl = sanitizeBackendUrl(configuredUrl || 'https://mecanic-os.onrender.com');
 
         // Target original document UUID
         const origDteUuid = p ? (p.codigoGeneracion || p.mhGenerationCode || p.generationCode || p.controlNumber || dteId || generateUUID()) : (dteId || generateUUID());
@@ -2757,38 +2766,8 @@ function openEmitNcDteModal(dteId, presId) {
                 saveDatabase(db);
             }
             closeModal();
-            showToast("Nota de Crédito DTE emitida con éxito. Stock devuelto a inventario y reversión financiera registrada.", "success");
+            showToast("Nota de Crédito DTE emitida con éxito en FacturaLlama y Ministerio de Hacienda.", "success");
             handleRouting();
-        }
-
-        if (isSimulated && !baseUrl) {
-            const simulatedRes = {
-                success: true,
-                simulated: true,
-                code: "00",
-                description: "Nota de Crédito DTE Simulada Exitosamente",
-                generationCode: ncPayload.id,
-                controlNumber: "DTE-05-M001P001-" + Math.floor(Math.random()*90000 + 10000),
-                receptionSeal: Math.floor(Math.random()*9000000).toString() + "-APPROVED-NC"
-            };
-            saveDteLogToFirestore(
-                "Nota de Crédito DTE (Simulado)",
-                db.saas_state?.workshopData?.id || 'desconocido',
-                "nc",
-                ncPayload,
-                200,
-                simulatedRes,
-                "MOCK / FRONTEND SIMULADO"
-            );
-            setTimeout(() => processLocalNcSuccess(simulatedRes), 1000);
-            return;
-        }
-
-        if (!baseUrl) {
-            showToast("Error: Debe configurar la URL del servidor backend en Ajustes para emitir DTEs reales.", "danger");
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Transmitir Nota de Crédito';
-            return;
         }
 
         const endpoint = `${baseUrl}/api/dte`;
