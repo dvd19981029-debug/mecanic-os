@@ -2605,6 +2605,76 @@ function openEmitNcDteModal(dteId, presId) {
             muniCode = rawMuni.substring(rawMuni.length - 2);
         }
 
+        const wsConfig = getWorkshopConfig(db);
+        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+        const prodList = isQuickSale 
+            ? (p?.productos || []) 
+            : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p?.['ID Presupuesto']);
+            
+        const laborList = isQuickSale 
+            ? [] 
+            : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === p?.['ID Presupuesto']);
+
+        const promo = (db.promociones || []).find(pr => pr.ID_Promocion === p?.ID_Promocion);
+        const totalNetBeforeDiscount = 
+            prodList.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1), 0) +
+            laborList.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
+            
+        const flatDiscountFactor = (promo && promo.Tipo === 'monto_fijo' && totalNetBeforeDiscount > 0) 
+            ? Math.max(0, 1 - parseFloat(promo.Valor || 0) / totalNetBeforeDiscount)
+            : 1;
+
+        function getNcItemDiscountedPrice(item, isLabor) {
+            const rawPrice = parseFloat(item.PrecioUnitario || item.price || 0);
+            if (!promo) return rawPrice;
+            if (promo.Tipo === 'monto_fijo') {
+                return parseFloat((rawPrice * flatDiscountFactor).toFixed(4));
+            }
+            if (isLabor && promo.Tipo === 'desc_mano_obra') {
+                return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
+            }
+            if (!isLabor && promo.Tipo === 'desc_productos') {
+                return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
+            }
+            return rawPrice;
+        }
+
+        const ncItems = [
+            ...prodList.map(item => {
+                const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
+                const dbProd = (db.productos || []).find(prod => prod['ID_ Producto'] === prodId);
+                const desc = isQuickSale ? (item.description || item.name || 'Repuesto') : (dbProd ? dbProd.Descripcion : (item.Descripcion || 'Repuesto'));
+                const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1)) || 1;
+                const rawPrice = getNcItemDiscountedPrice(item, false);
+                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                return {
+                    type: "BIENES",
+                    internalCode: String(prodId || '').trim(),
+                    description: `Ajuste/Devolución NC: ${desc}`.substring(0, 1000),
+                    quantity: qty,
+                    unitPrice: unitPrice,
+                    saleType: "GRAVADA",
+                    documentNumber: origDteUuid
+                };
+            }),
+            ...laborList.map(item => {
+                const desc = item.Descripcion || item.desc || 'Mano de Obra / Servicio';
+                const qty = parseInt(item.Cantidad || 1) || 1;
+                const rawPrice = getNcItemDiscountedPrice(item, true);
+                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+                return {
+                    type: "SERVICIOS",
+                    internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),
+                    description: `Ajuste/Devolución NC: ${desc}`.substring(0, 1000),
+                    quantity: qty,
+                    unitPrice: unitPrice,
+                    saleType: "GRAVADA",
+                    documentNumber: origDteUuid
+                };
+            })
+        ];
+
         const ncPayload = {
             id: generateUUID(),
             relatedTaxDocuments: [
@@ -2625,21 +2695,7 @@ function openEmitNcDteModal(dteId, presId) {
                     complement: rawAddress.substring(0, 200)
                 }
             },
-            items: (isQuickSale ? (p?.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p?.['ID Presupuesto'])).map(item => {
-                const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
-                const dbProd = (db.productos || []).find(prod => prod['ID_ Producto'] === prodId);
-                const desc = isQuickSale ? (item.description || item.name || 'Repuesto') : (dbProd ? dbProd.Descripcion : (item.Descripcion || 'Repuesto'));
-                const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1)) || 1;
-                const price = parseFloat(isQuickSale ? (item.price || 0) : (item.PrecioUnitario || dbProd?.['Precio Venta'] || 0)) || 0;
-                return {
-                    type: "BIENES",
-                    description: `Ajuste/Devolución NC: ${desc}`.substring(0, 1000),
-                    quantity: qty,
-                    unitPrice: price,
-                    saleType: "GRAVADA",
-                    documentNumber: origDteUuid
-                };
-            })
+            items: ncItems
         };
 
         function processLocalNcSuccess(resData = {}) {
