@@ -2684,6 +2684,18 @@ function openEmitNcDteModal(dteId, presId) {
             })
         ];
 
+        // Calculate net tax base for retention check
+        let ncBaseTaxable = 0;
+        ncItems.forEach(it => {
+            ncBaseTaxable += (parseFloat(it.unitPrice || 0) * parseInt(it.quantity || 1));
+        });
+
+        const isGranContrib = clientObj && (clientObj['Categoría Contribuyente'] === 'GRANDE' || clientObj.AplicaRetencion > 0 || (p && parseFloat(p.Retencion || 0) > 0));
+        let ncRetentionIva = 0;
+        if (isGranContrib && ncBaseTaxable >= 100.00) {
+            ncRetentionIva = parseFloat((ncBaseTaxable * 0.01).toFixed(4));
+        }
+
         const ncPayload = {
             id: generateUUID(),
             relatedTaxDocuments: [
@@ -2704,7 +2716,8 @@ function openEmitNcDteModal(dteId, presId) {
                     complement: rawAddress.substring(0, 200)
                 }
             },
-            items: ncItems
+            items: ncItems,
+            retentionIva: ncRetentionIva
         };
 
         function processLocalNcSuccess(resData = {}) {
