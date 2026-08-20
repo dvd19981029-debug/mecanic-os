@@ -2571,36 +2571,66 @@ function openEmitNcDteModal(dteId, presId) {
         const isSimulated = !dteCfg.apiKey || dteCfg.apiKey.trim() === '' || dteCfg.apiKey.startsWith('simulado_');
 
         // Target original document UUID
-        const origDteUuid = p ? (p.codigoGeneracion || p.mhGenerationCode || p.generationCode || generateUUID()) : generateUUID();
+        const origDteUuid = p ? (p.codigoGeneracion || p.mhGenerationCode || p.generationCode || p.controlNumber || dteId || generateUUID()) : (dteId || generateUUID());
 
         // Build NC Payload for FacturaLlama
-        const clientObj = isQuickSale ? null : db.clientes.find(c => c.ID_Cliente === p?.ID_Cliente);
+        const clientObj = isQuickSale 
+            ? null 
+            : (db.clientes || []).find(c => (p?.ID_Cliente && c.ID_Cliente === p.ID_Cliente) || (p?.Codigo_Cliente && c.Codigo_Cliente === p.Codigo_Cliente) || (p?.Nombre && c.Nombre === p.Nombre));
+
+        const rawName = String(clientObj?.Nombre || p?.Nombre || p?.Cliente || "Cliente General").trim();
+        const rawEmail = String(clientObj?.Correo || clientObj?.Email || p?.Correo || p?.Email || "cliente@taller.com").trim();
+        const rawAddress = String(clientObj?.Direccion || p?.Direccion || "San Salvador, El Salvador").trim();
+        
+        let docType = "DUI";
+        if (clientObj?.['Tipo Doc'] === 'NIT' || clientObj?.Tipo_Documento === 'NIT' || (clientObj?.NIT && !clientObj?.DUI && !clientObj?.['Num Doc'])) {
+            docType = "NIT";
+        }
+        const docNumRaw = String(clientObj?.NIT || clientObj?.DUI || clientObj?.['Num Doc'] || clientObj?.Num_Documento || "000000000").replace(/\D/g, "");
+
+        const rawDept = String(clientObj?.Departamento || clientObj?.Depto || "06");
+        let deptCode = rawDept;
+        if (isNaN(rawDept)) {
+            deptCode = DEPARTAMENTOS_CODES[rawDept] || 
+                       DEPARTAMENTOS_CODES[Object.keys(DEPARTAMENTOS_CODES).find(k => k.toLowerCase() === rawDept.trim().toLowerCase())] || 
+                       '06';
+        }
+
+        const rawMuni = String(clientObj?.Municipio || "14");
+        let muniCode = rawMuni;
+        if (isNaN(rawMuni)) {
+            const matchedMuniKey = Object.keys(MUNICIPIOS_CODES).find(k => k.toUpperCase() === rawMuni.trim().toUpperCase());
+            muniCode = matchedMuniKey ? MUNICIPIOS_CODES[matchedMuniKey] : '14';
+        } else if (rawMuni.length >= 4) {
+            muniCode = rawMuni.substring(rawMuni.length - 2);
+        }
+
         const ncPayload = {
             id: generateUUID(),
             relatedTaxDocuments: [
                 { id: origDteUuid }
             ],
             recipient: {
-                name: (clientObj ? clientObj.Nombre : p?.Cliente || p?.Nombre || "Cliente General").substring(0, 150),
-                email: (clientObj ? clientObj.Email : p?.Email || "cliente@taller.com").substring(0, 100),
-                economicActivity: clientObj?.Codigo_Actividad || "62020",
-                nrc: clientObj?.NRC || "12345678",
+                name: rawName.substring(0, 150),
+                email: rawEmail.substring(0, 100),
+                economicActivity: String(clientObj?.Codigo_Actividad || clientObj?.Giro || "45201").replace(/\D/g, "").slice(0, 5) || "45201",
+                nrc: String(clientObj?.NRC || "12345678").replace(/\D/g, "").slice(0, 8),
                 identificationDocument: {
-                    type: (clientObj?.DUI ? "DUI" : "NIT"),
-                    number: (clientObj?.DUI || clientObj?.NIT || "000000000").replace(/-/g, "")
+                    type: docType,
+                    number: docNumRaw || "000000000"
                 },
                 address: {
-                    department: clientObj?.Departamento || "06",
-                    municipality: clientObj?.Municipio || "14",
-                    complement: (clientObj?.Direccion || "San Salvador, El Salvador").substring(0, 200)
+                    department: deptCode,
+                    municipality: muniCode,
+                    complement: rawAddress.substring(0, 200)
                 }
             },
             items: (isQuickSale ? (p?.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === p?.['ID Presupuesto'])).map(item => {
                 const prodId = isQuickSale ? item.id : item['ID_Producto DPP'];
-                const dbProd = db.productos.find(prod => prod['ID_ Producto'] === prodId);
-                const desc = isQuickSale ? (item.description || item.name || 'Repuesto') : (dbProd ? dbProd.Descripcion : 'Repuesto');
-                const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1));
-                const price = parseFloat(isQuickSale ? (item.price || 0) : (item.PrecioUnitario || dbProd?.['Precio Venta'] || 0));
+                const dbProd = (db.productos || []).find(prod => prod['ID_ Producto'] === prodId);
+                const desc = isQuickSale ? (item.description || item.name || 'Repuesto') : (dbProd ? dbProd.Descripcion : (item.Descripcion || 'Repuesto'));
+                const qty = parseInt(isQuickSale ? (item.qty || 1) : (item.Cantidad || 1)) || 1;
+                const price = parseFloat(isQuickSale ? (item.price || 0) : (item.PrecioUnitario || dbProd?.['Precio Venta'] || 0)) || 0;
                 return {
                     type: "BIENES",
                     description: `Ajuste/Devolución NC: ${desc}`.substring(0, 1000),
