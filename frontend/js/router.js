@@ -101,6 +101,17 @@ export function handleRouting() {
                             showToast("¡Tu solicitud ha sido aprobada! Procediendo a la firma de términos.", "success");
                             window.location.hash = 'terminos';
                             handleRouting();
+                        } else if (updatedRequest.status === 'active' || updatedRequest.status === 'aprobado') {
+                            if (window.saasLandingUnsubscribe) {
+                                window.saasLandingUnsubscribe();
+                                window.saasLandingUnsubscribe = null;
+                            }
+                            db.saas_state.status = 'active';
+                            db.saas_state.workshopData = updatedRequest;
+                            db.saas_state.termsSigned = true;
+                            saveDatabase(db);
+                            window.location.hash = 'taller-dashboard';
+                            handleRouting();
                         } else if (updatedRequest.status === 'rechazado') {
                             if (window.saasLandingUnsubscribe) {
                                 window.saasLandingUnsubscribe();
