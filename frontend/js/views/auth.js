@@ -16,8 +16,9 @@ import {
     setupOfficialCatalogsSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
-    calculateElSalvadorPeriodPayroll
-} from '../../app.js?v=69';
+    calculateElSalvadorPeriodPayroll,
+    performUnifiedLogin
+} from '../../app.js';
 import {
     showToast,
     escapeHtml,

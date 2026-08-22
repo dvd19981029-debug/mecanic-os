@@ -1152,6 +1152,7 @@ export {
     html,
     safe,
     initSecureDteConfig,
+    performUnifiedLogin,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
 };
