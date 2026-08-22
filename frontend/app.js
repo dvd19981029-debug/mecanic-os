@@ -313,8 +313,16 @@ function initFirebaseAuthListener() {
     try {
         firebase.auth().onAuthStateChanged(async (user) => {
             if (user && !user.isAnonymous) {
-                // --- Dueño del taller autenticado con Firebase ---
+                // --- Dueño del taller o SuperAdmin autenticado con Firebase ---
                 currentFirebaseUser = user;
+
+                // Si es una cuenta de SuperAdmin de Mecanic OS, no aplica la validación de taller individual
+                const authorizedAdmins = ['dvd19981029@gmail.com', 'amejia2998@gmail.com'];
+                if (user.email && authorizedAdmins.includes(user.email.toLowerCase())) {
+                    console.log("Mecanic OS: SuperAdmin conectado.");
+                    updateCloudStatusUI(true, "active");
+                    return;
+                }
                 
                 // Verificar si es un taller activo o si es una solicitud pendiente/huérfana
                 if (typeof dbFirestore !== 'undefined' && dbFirestore) {
