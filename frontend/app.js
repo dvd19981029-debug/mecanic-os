@@ -787,7 +787,27 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             db.saas_state.workshopData.uid = ownerUid;
             db.saas_state.workshopData.correo = email;
             db.saas_state.termsSigned = true;
-            saveDatabase(db);
+
+            // Ensure a default Administrator technician profile exists
+            if (!db.tecnicos || db.tecnicos.length === 0) {
+                const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
+                const defaultAdminTech = {
+                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                    Nombre_Completo: ownerName,
+                    Email: email,
+                    Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',
+                    Especialidad: 'Gerente General',
+                    Nivel_Acceso: 'Administrador',
+                    Salario_Base: 1500,
+                    Contraseña: await hashPassword("1234"),
+                    Incapacidades: [],
+                    Vacaciones: [],
+                    Bonos: []
+                };
+                db.tecnicos = [defaultAdminTech];
+            }
+
+            await saveDatabase(db);
             
             // Do not set active user directly, let them select their profile from the lock screen (streaming-style)
             setActiveUser(null);

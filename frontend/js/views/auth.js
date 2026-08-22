@@ -187,6 +187,26 @@ export function renderLockScreen(container) {
 
     const isFirebaseAuthed = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
 
+    // Auto-seed owner profile if active workshop has empty tecnicos array
+    if ((!db.tecnicos || db.tecnicos.length === 0) && (saas.status === 'active' || isFirebaseAuthed)) {
+        const ownerName = (saas.workshopData && saas.workshopData.propietario) || (saas.workshopData && saas.workshopData.nombre) || 'Administrador';
+        const defaultAdminTech = {
+            Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+            Nombre_Completo: ownerName,
+            Email: (saas.workshopData && saas.workshopData.correo) || '',
+            Telefono: (saas.workshopData && saas.workshopData.telefono) || '',
+            Especialidad: 'Gerente General',
+            Nivel_Acceso: 'Administrador',
+            Salario_Base: 1500,
+            Contraseña: '', // Will accept 1234 or empty on initial login
+            Incapacidades: [],
+            Vacaciones: [],
+            Bonos: []
+        };
+        db.tecnicos = [defaultAdminTech];
+        saveDatabase(db);
+    }
+
     if (db.tecnicos && db.tecnicos.length > 0) {
         showProfiles();
     } else if (isFirebaseAuthed && saas.status === 'active') {
