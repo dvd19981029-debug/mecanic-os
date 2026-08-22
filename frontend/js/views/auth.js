@@ -397,6 +397,8 @@ export function renderSaaSAdminLogin(container) {
             e.preventDefault();
             const email = document.getElementById('saas-admin-email').value.trim();
             const pass = document.getElementById('saas-admin-pass').value;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const origHtml = submitBtn.innerHTML;
             
             if (typeof firebase === 'undefined') {
                 showToast("Firebase no inicializado", "error");
@@ -409,15 +411,10 @@ export function renderSaaSAdminLogin(container) {
                 return;
             }
             
-            // Permitir contraseña maestra 'SuperAdminOS' directamente
-            if (pass === 'SuperAdminOS') {
-                sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
-                showToast("Acceso concedido como Super Administrador", "success");
-                handleRouting();
-                return;
-            }
-            
-            // Iniciar sesión con la cuenta de administrador oficial en Firebase Auth
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Autenticando...';
+
+            // Iniciar sesión oficial en Firebase Auth
             firebase.auth().signInWithEmailAndPassword(email, pass)
                 .then(() => {
                     sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
@@ -425,8 +422,17 @@ export function renderSaaSAdminLogin(container) {
                     handleRouting();
                 })
                 .catch((error) => {
+                    // Fallback para 'SuperAdminOS'
+                    if (pass === 'SuperAdminOS') {
+                        sessionStorage.setItem('mecanic_os_saas_admin_auth', 'true');
+                        showToast("Acceso concedido localmente. Para sincronizar solicitudes en vivo, inicia sesión con Google.", "warning");
+                        handleRouting();
+                        return;
+                    }
                     console.error("Error de login de SuperAdmin:", error);
-                    showToast("Contraseña de administrador incorrecta", "error");
+                    showToast("Contraseña incorrecta. Puedes ingresar con la contraseña de tu cuenta de Firebase o con el botón 'Iniciar Sesión con Google'.", "error");
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origHtml;
                     const passInput = document.getElementById('saas-admin-pass');
                     if (passInput) {
                         passInput.value = '';
