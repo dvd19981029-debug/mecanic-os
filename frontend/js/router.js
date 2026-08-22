@@ -81,20 +81,7 @@ export function handleRouting() {
     try {
         const db = window.getDatabase();
         
-        // Auto-activate SaaS status if firebase user is authenticated as owner
-        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
-            const fUser = firebase.auth().currentUser;
-            if (!db.saas_state || db.saas_state.status !== 'active') {
-                db.saas_state = db.saas_state || {};
-                db.saas_state.status = 'active';
-                db.saas_state.workshopData = db.saas_state.workshopData || {};
-                db.saas_state.workshopData.uid = fUser.uid;
-                db.saas_state.workshopData.correo = fUser.email;
-                db.saas_state.termsSigned = true;
-                saveDatabase(db);
-            }
-        }
-        
+        // SaaS status handler
         const saas = db.saas_state || { status: 'guest' };
         
         // 1. Reactive Status Listener for Pending Guest Solicitud

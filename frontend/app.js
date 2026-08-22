@@ -315,6 +315,51 @@ function initFirebaseAuthListener() {
             if (user && !user.isAnonymous) {
                 // --- Dueño del taller autenticado con Firebase ---
                 currentFirebaseUser = user;
+                
+                // Verificar si es un taller activo o si es una solicitud pendiente/huérfana
+                if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                    try {
+                        const reqDoc = await dbFirestore.collection("saas_requests").doc(user.uid).get();
+                        if (reqDoc.exists) {
+                            const reqData = reqDoc.data();
+                            if (reqData.status === 'pendiente') {
+                                await firebase.auth().signOut();
+                                const db = getDatabase();
+                                db.saas_state = { status: 'pending', workshopData: reqData, termsSigned: false };
+                                saveDatabase(db);
+                                showToast("Tu solicitud de taller está pendiente de aprobación por el Administrador.", "info");
+                                window.location.hash = 'landing';
+                                handleRouting();
+                                return;
+                            } else if (reqData.status === 'approved_terms_pending') {
+                                const db = getDatabase();
+                                db.saas_state = { status: 'approved_terms_pending', workshopData: reqData, termsSigned: false };
+                                saveDatabase(db);
+                                showToast("¡Tu solicitud fue aprobada! Firma los términos para activar tu taller.", "success");
+                                window.location.hash = 'terminos';
+                                handleRouting();
+                                return;
+                            }
+                        } else {
+                            // No tiene saas_requests. Revisar si ya tiene taller configurado
+                            const wsSnap = await dbFirestore.collection("workshops").doc(user.uid).collection("config").doc("general").get().catch(() => null);
+                            if (!wsSnap || !wsSnap.exists) {
+                                console.warn("Usuario huérfano detectado en onAuthStateChanged:", user.uid);
+                                await firebase.auth().signOut();
+                                const db = getDatabase();
+                                db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                                saveDatabase(db);
+                                showToast("Registro incompleto. Por favor completa los datos de tu taller en la página de registro.", "warning");
+                                window.location.hash = 'registro';
+                                handleRouting();
+                                return;
+                            }
+                        }
+                    } catch (checkErr) {
+                        console.warn("Error verificando saas_requests en onAuthStateChanged:", checkErr);
+                    }
+                }
+
                 // Guardar UID del taller para que empleados puedan conectarse
                 localStorage.setItem('mecanic_os_workshop_uid', user.uid);
                 updateCloudStatusUI(true, "active");

@@ -189,15 +189,35 @@ export function renderLockScreen(container) {
 
     if (db.tecnicos && db.tecnicos.length > 0) {
         showProfiles();
-    } else if (isFirebaseAuthed) {
+    } else if (isFirebaseAuthed && saas.status === 'active') {
         // Authenticated to Firebase but still syncing/loading technicians
         container.innerHTML = html`
             <div style="max-width: 450px; margin: 8rem auto; padding: 3rem; text-align: center; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
                 <div style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0;">Sincronizando Taller</h2>
                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Cargando los perfiles de empleados desde la nube...</p>
+                <div style="margin-top: 2rem;">
+                    <button id="btn-lock-sync-disconnect" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.5rem 1rem;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Cancelar / Desconectar</button>
+                </div>
             </div>
         `;
+        
+        const syncDisconnectBtn = container.querySelector('#btn-lock-sync-disconnect');
+        if (syncDisconnectBtn) {
+            syncDisconnectBtn.addEventListener('click', () => {
+                db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                db.config_taller = null;
+                saveDatabase(db);
+                setActiveUser(null);
+                localStorage.removeItem('mecanic_os_workshop_uid');
+                dataService.disconnect();
+                if (typeof firebase !== 'undefined') {
+                    firebase.auth().signOut().catch(() => {});
+                }
+                window.location.hash = 'landing';
+                handleRouting();
+            });
+        }
     } else {
         // Not authenticated at all, show login form
         container.innerHTML = html`
