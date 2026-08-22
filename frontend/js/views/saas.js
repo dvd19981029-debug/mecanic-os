@@ -220,7 +220,7 @@ export async function renderRegistroSaaS(container) {
         </div>
     `;
 
-    // Bind file upload to base64 preview
+    // Bind file upload to base64 preview with automatic canvas compression (<50KB)
     setTimeout(() => {
         const logoInput = document.getElementById('reg-taller-logo');
         if (logoInput) {
@@ -229,14 +229,39 @@ export async function renderRegistroSaaS(container) {
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (readerEvent) => {
-                        const base64 = readerEvent.target.result;
-                        window.saasSelectedLogoBase64 = base64;
-                        const previewImg = document.getElementById('reg-logo-preview');
-                        const previewContainer = document.getElementById('reg-logo-preview-container');
-                        if (previewImg && previewContainer) {
-                            previewImg.src = base64;
-                            previewContainer.style.display = 'block';
-                        }
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const maxDim = 250;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                }
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+                            window.saasSelectedLogoBase64 = compressedBase64;
+                            
+                            const previewImg = document.getElementById('reg-logo-preview');
+                            const previewContainer = document.getElementById('reg-logo-preview-container');
+                            if (previewImg && previewContainer) {
+                                previewImg.src = compressedBase64;
+                                previewContainer.style.display = 'block';
+                            }
+                        };
+                        img.src = readerEvent.target.result;
                     };
                     reader.readAsDataURL(file);
                 }
@@ -329,7 +354,7 @@ export async function renderRegistroSaaS(container) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando taller...';
 
-        const registerRequest = async (uid) => {
+        const registerRequest = async (uid, isRecovery = false) => {
             const requestData = {
                 id: uid,
                 nombre: document.getElementById('reg-taller-nombre').value,
@@ -386,11 +411,20 @@ export async function renderRegistroSaaS(container) {
                     signedAt: null
                 };
                 saveDatabase(currentDb);
-                showToast("¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
+                showToast(isRecovery ? "¡Solicitud recuperada y enviada con éxito! Está pendiente de aprobación por el Administrador." : "¡Taller registrado con éxito! Tu solicitud está pendiente de aprobación por el Administrador.", "success");
                 window.location.hash = 'landing';
                 handleRouting();
             } catch (err) {
                 console.error("Error al registrar el taller:", err);
+                // Si la creación de la solicitud falló y tenemos el usuario recién creado, intentamos rollback
+                if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && !isRecovery) {
+                    try {
+                        await firebase.auth().currentUser.delete();
+                        console.log("Rollback exitoso: usuario de Firebase Auth eliminado tras fallo en Firestore.");
+                    } catch (delErr) {
+                        console.warn("No se pudo hacer rollback en Firebase Auth:", delErr);
+                    }
+                }
                 showToast("Error al guardar la solicitud: " + err.message, "error");
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = origHtml;
@@ -400,17 +434,63 @@ export async function renderRegistroSaaS(container) {
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
             firebase.auth().createUserWithEmailAndPassword(email, pass)
                 .then((userCredential) => {
-                    registerRequest(userCredential.user.uid);
+                    registerRequest(userCredential.user.uid, false);
                 })
-                .catch((error) => {
+                .catch(async (error) => {
                     console.error("Error al crear usuario en Firebase Auth:", error);
+                    
+                    // AUTO-RECUPERACIÓN: Si el usuario ya existe en Firebase Auth (registro previo incompleto)
+                    if (error.code === 'auth/email-already-in-use') {
+                        try {
+                            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando solicitud existente...';
+                            const cred = await firebase.auth().signInWithEmailAndPassword(email, pass);
+                            const uid = cred.user.uid;
+                            
+                            // Verificar si ya existe solicitud en Firestore
+                            let existingReq = null;
+                            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                                const docSnap = await dbFirestore.collection("saas_requests").doc(uid).get();
+                                if (docSnap.exists) {
+                                    existingReq = docSnap.data();
+                                }
+                            }
+                            
+                            if (existingReq) {
+                                await firebase.auth().signOut();
+                                if (existingReq.status === 'pendiente') {
+                                    showToast("Tu solicitud ya fue recibida anteriormente y está pendiente de aprobación por el Administrador.", "info");
+                                } else if (existingReq.status === 'approved_terms_pending') {
+                                    showToast("Tu solicitud ya fue aprobada. Inicia sesión para firmar los términos.", "success");
+                                } else {
+                                    showToast("Tu taller ya está registrado. Por favor inicia sesión.", "info");
+                                }
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = origHtml;
+                                window.location.hash = 'landing';
+                                handleRouting();
+                                return;
+                            } else {
+                                // Es un registro incompleto/huérfano: creamos su solicitud en Firestore
+                                console.log("Cuenta huérfana detectada. Creando solicitud en Firestore...");
+                                await registerRequest(uid, true);
+                                return;
+                            }
+                        } catch (recovErr) {
+                            console.error("Fallo en auto-recuperación de cuenta existente:", recovErr);
+                            showToast("Este correo ya está registrado con otra contraseña. Si es tu cuenta, inicia sesión o usa la contraseña con la que te registraste.", "warning");
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = origHtml;
+                            return;
+                        }
+                    }
+                    
                     showToast(`Error al crear la cuenta: ${error.message}`, "error");
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = origHtml;
                 });
         } else {
             const mockUid = 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-            registerRequest(mockUid);
+            registerRequest(mockUid, false);
         }
     });
 }

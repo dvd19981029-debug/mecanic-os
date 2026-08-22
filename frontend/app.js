@@ -655,35 +655,97 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
         saveDatabase(db);
     }
 
-    const proceedAsAdmin = () => {
-        firebase.auth().signInWithEmailAndPassword(email, pass)
-            .then((userCredential) => {
-                const ownerUid = userCredential.user.uid;
-                localStorage.setItem('mecanic_os_workshop_uid', ownerUid);
-                sessionStorage.setItem('mecanic_os_session_key', hashedPass);
-                
-                dataService.startSync(ownerUid, false); // false = admin mode
-                
-                const db = getDatabase();
-                db.saas_state = db.saas_state || {};
-                db.saas_state.status = 'active';
-                db.saas_state.workshopData = db.saas_state.workshopData || {};
-                db.saas_state.workshopData.uid = ownerUid;
-                db.saas_state.workshopData.correo = email;
-                db.saas_state.termsSigned = true;
-                saveDatabase(db);
-                
-                // Do not set active user directly, let them select their profile from the lock screen (streaming-style)
-                setActiveUser(null);
-                
-                showToast("Taller conectado correctamente", "success");
-                if (typeof onComplete === 'function') onComplete(true);
-            })
-            .catch((error) => {
-                console.error("Error al iniciar sesión como admin:", error);
-                showToast("Usuario o contraseña incorrectos", "error");
-                if (typeof onComplete === 'function') onComplete(false);
-            });
+    const proceedAsAdmin = async () => {
+        try {
+            const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
+            const ownerUid = userCredential.user.uid;
+            
+            // Check if this account belongs to a pending or approved SaaS request before activating
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    const reqDoc = await dbFirestore.collection("saas_requests").doc(ownerUid).get();
+                    if (reqDoc.exists) {
+                        const reqData = reqDoc.data();
+                        if (reqData.status === 'pendiente') {
+                            await firebase.auth().signOut();
+                            const db = getDatabase();
+                            db.saas_state = {
+                                status: 'pending',
+                                workshopData: reqData,
+                                termsSigned: false
+                            };
+                            saveDatabase(db);
+                            showToast("Tu solicitud de taller está pendiente de aprobación por el Administrador.", "info");
+                            window.location.hash = 'landing';
+                            handleRouting();
+                            if (typeof onComplete === 'function') onComplete(false);
+                            return;
+                        } else if (reqData.status === 'approved_terms_pending') {
+                            const db = getDatabase();
+                            db.saas_state = {
+                                status: 'approved_terms_pending',
+                                workshopData: reqData,
+                                termsSigned: false
+                            };
+                            saveDatabase(db);
+                            showToast("¡Tu solicitud fue aprobada! Por favor firma los términos y condiciones.", "success");
+                            window.location.hash = 'terminos';
+                            handleRouting();
+                            if (typeof onComplete === 'function') onComplete(true);
+                            return;
+                        } else if (reqData.status === 'rechazado') {
+                            await firebase.auth().signOut();
+                            const db = getDatabase();
+                            db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                            saveDatabase(db);
+                            showToast("Tu solicitud de taller fue rechazada por el Administrador.", "error");
+                            window.location.hash = 'landing';
+                            handleRouting();
+                            if (typeof onComplete === 'function') onComplete(false);
+                            return;
+                        }
+                    } else {
+                        // User exists in Firebase Auth but has NO document in saas_requests or workshops
+                        // Check if workshop exists in /workshops/{ownerUid} (an existing active workshop)
+                        const wsSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("config").doc("general").get().catch(() => null);
+                        if (!wsSnap || !wsSnap.exists) {
+                            console.warn("Usuario huérfano detectado en login:", ownerUid);
+                            showToast("Registro incompleto. Por favor completa los datos de tu taller en la página de registro.", "warning");
+                            window.location.hash = 'registro';
+                            handleRouting();
+                            if (typeof onComplete === 'function') onComplete(false);
+                            return;
+                        }
+                    }
+                } catch (chkErr) {
+                    console.warn("No se pudo verificar saas_requests (continuando con login estándar):", chkErr);
+                }
+            }
+
+            localStorage.setItem('mecanic_os_workshop_uid', ownerUid);
+            sessionStorage.setItem('mecanic_os_session_key', hashedPass);
+            
+            dataService.startSync(ownerUid, false); // false = admin mode
+            
+            const db = getDatabase();
+            db.saas_state = db.saas_state || {};
+            db.saas_state.status = 'active';
+            db.saas_state.workshopData = db.saas_state.workshopData || {};
+            db.saas_state.workshopData.uid = ownerUid;
+            db.saas_state.workshopData.correo = email;
+            db.saas_state.termsSigned = true;
+            saveDatabase(db);
+            
+            // Do not set active user directly, let them select their profile from the lock screen (streaming-style)
+            setActiveUser(null);
+            
+            showToast("Taller conectado correctamente", "success");
+            if (typeof onComplete === 'function') onComplete(true);
+        } catch (error) {
+            console.error("Error al iniciar sesión como admin:", error);
+            showToast("Usuario o contraseña incorrectos", "error");
+            if (typeof onComplete === 'function') onComplete(false);
+        }
     };
 
     // 1. Check local database first (extremely robust, supports offline, case-insensitive and bypasses index issues)
