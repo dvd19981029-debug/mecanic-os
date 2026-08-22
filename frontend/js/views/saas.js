@@ -991,14 +991,17 @@ export async function renderAdminSolicitudes(container) {
     // Wire up central requests listener
     if (typeof dbFirestore !== 'undefined' && dbFirestore && !window.saasRequestsListenerWired) {
         window.saasRequestsListenerWired = true;
-        dataService.saas.listenRequests((requests) => {
-            if (window.location.hash !== '#admin-solicitudes') return;
-            const isEditing = window.saasEditWorkshopId || window.saasPayWorkshopId || window.saasConfigWorkshopId || window.saasViewWorkshopDetailsId || window.saasAddWorkshopForm || window.saasViewReceiptPaymentId || window.saasAddPlanForm || window.saasAddCouponForm || window.saasEditPlanId;
-            if (!isEditing) {
-                renderAdminSolicitudes(container);
-            }
-        });
-        return;
+        try {
+            dataService.saas.listenRequests((requests) => {
+                if (window.location.hash !== '#admin-solicitudes') return;
+                const isEditing = window.saasEditWorkshopId || window.saasPayWorkshopId || window.saasConfigWorkshopId || window.saasViewWorkshopDetailsId || window.saasAddWorkshopForm || window.saasViewReceiptPaymentId || window.saasAddPlanForm || window.saasAddCouponForm || window.saasEditPlanId;
+                if (!isEditing) {
+                    renderAdminSolicitudes(container);
+                }
+            });
+        } catch (lErr) {
+            console.warn("Could not wire saasRequestsListener:", lErr);
+        }
     }
     
     // Load and sync central SaaS config from /saas_metrics/config
