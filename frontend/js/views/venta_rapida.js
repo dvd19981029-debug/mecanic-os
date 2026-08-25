@@ -855,7 +855,7 @@ export function renderVentaRapida(container) {
                 <td>${dateStr}</td>
                 <td>${escapeHtml(vr.Nombre)}</td>
                 <td><span class="badge-tag badge-secondary">${docLabel}</span></td>
-                <td><strong>$ ${vr.total.toFixed(2)}</strong></td>
+                <td><strong>$ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</strong></td>
                 <td><strong style="font-size:0.85rem; color:var(--text-primary);">${escapeHtml(userDisplayName)}</strong></td>
                 <td>
                     <div style="display:flex; gap:0.4rem; align-items:center;">
@@ -956,7 +956,7 @@ export function renderVentaRapida(container) {
                     <strong style="font-family:monospace; font-size:0.8rem;">${escapeHtml(vr.mhControlNumber || vr.controlNumber || 'N/A')}</strong>
                     ${safe(vr.controlNumber ? `<div style="font-size:0.65rem; color:var(--text-muted);">Gen: ${vr.controlNumber.substring(0,8)}...</div>` : '')}
                 </td>
-                <td><strong>$ ${vr.total.toFixed(2)}</strong></td>
+                <td><strong>$ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</strong></td>
                 <td>
                     <div style="display:flex; gap:0.5rem;">
                         <button class="btn btn-secondary btn-print-pos-ticket" data-id="${vr.ID_Venta_Rapida}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-receipt"></i> Ticket</button>
@@ -997,7 +997,7 @@ export function renderVentaRapida(container) {
                 <p>Venta Rápida: <strong>${vrId}</strong></p>
                 <p>Cliente: <strong>${client.Nombre}</strong></p>
                 <p>Documento a Emitir: <strong style="color:var(--primary);">${vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)'}</strong></p>
-                <p>Total a Facturar: <strong style="color:var(--cyan);">$ ${vr.total.toFixed(2)}</strong></p>
+                <p>Total a Facturar: <strong style="color:var(--cyan);">$ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</strong></p>
             </div>
             
             <div class="form-group" style="margin-top:0.5rem;">
@@ -1232,7 +1232,7 @@ export function renderVentaRapida(container) {
                             <p style="margin-bottom: 0.3rem;"><strong>DTE Emitido:</strong> ${type === 'CCF' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)'}</p>
                             <p style="margin-bottom: 0.3rem;"><strong>Código de Generación (UUID):</strong> <code style="color:var(--cyan); word-break:break-all;">${genCode}</code></p>
                             <p style="margin-bottom: 0.3rem;"><strong>Número de Control MH:</strong> <strong style="color:var(--success);">${ctrlNum}</strong></p>
-                            <p style="margin-bottom: 0;"><strong>Monto Total:</strong> $ ${vr.total.toFixed(2)}</p>
+                            <p style="margin-bottom: 0;"><strong>Monto Total:</strong> $ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</p>
                         </div>
                         
                         <div style="display:flex; gap:0.75rem;">
