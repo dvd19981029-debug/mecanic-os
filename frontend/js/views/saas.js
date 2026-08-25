@@ -1180,14 +1180,14 @@ export async function renderAdminSolicitudes(container) {
                                 <div class="form-group">
                                     <label style="font-size:0.75rem; margin-bottom:0.25rem;">Cambiar Plan</label>
                                     <select id="detail-saas-plan" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
-                                        <option value="Basic" ${workshop.plan === 'Basic' ? 'selected' : ''}>Basic ($45/mes)</option>
-                                        <option value="Pro" ${workshop.plan === 'Pro' ? 'selected' : ''}>Pro ($75/mes)</option>
-                                        <option value="Enterprise" ${workshop.plan === 'Enterprise' ? 'selected' : ''}>Enterprise ($120/mes)</option>
+                                        <option value="Licencia Mensual" ${workshop.plan === 'Licencia Mensual' ? 'selected' : ''}>Licencia Mensual ($50.00/mes)</option>
+                                        <option value="Licencia Vitalicia" ${workshop.plan === 'Licencia Vitalicia' ? 'selected' : ''}>Licencia Vitalicia ($19.99/mes)</option>
+                                        <option value="Personalizado" ${workshop.plan !== 'Licencia Mensual' && workshop.plan !== 'Licencia Vitalicia' ? 'selected' : ''}>Personalizado</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label style="font-size:0.75rem; margin-bottom:0.25rem;">Ajustar Cuota ($)</label>
-                                    <input type="number" step="0.01" id="detail-saas-price" value="${workshop.precio_mensual || 75.00}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
+                                    <label style="font-size:0.75rem; margin-bottom:0.25rem;">Ajustar Cuota Mensual ($)</label>
+                                    <input type="number" step="0.01" id="detail-saas-price" value="${workshop.precio_mensual || 50.00}" style="padding:0.4rem; font-size:0.8rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:32px; width:100%;">
                                 </div>
                                 <div class="form-group">
                                     <label style="font-size:0.75rem; margin-bottom:0.25rem;">Próxima Renovación</label>
@@ -1579,6 +1579,19 @@ export async function renderAdminSolicitudes(container) {
                         }).catch(() => {
                             showToast("Error al copiar enlace", "error");
                         });
+                    });
+                }
+
+                // Auto update price on plan dropdown change
+                const detailPlanSelect = document.getElementById('detail-saas-plan');
+                const detailPriceInput = document.getElementById('detail-saas-price');
+                if (detailPlanSelect && detailPriceInput) {
+                    detailPlanSelect.addEventListener('change', () => {
+                        if (detailPlanSelect.value === 'Licencia Mensual') {
+                            detailPriceInput.value = '50.00';
+                        } else if (detailPlanSelect.value === 'Licencia Vitalicia') {
+                            detailPriceInput.value = '19.99';
+                        }
                     });
                 }
 
