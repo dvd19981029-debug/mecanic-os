@@ -4051,35 +4051,27 @@ if (window.saasViewReceiptPaymentId) {
 export function renderTerminosSaaS(container) {
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
-    const isApprovalMode = saas.status === 'approved_terms_pending' && saas.workshopData;
+    
+    if (saas.status !== 'approved_terms_pending' || !saas.workshopData) {
+        window.location.hash = 'landing';
+        handleRouting();
+        return;
+    }
     
     container.innerHTML = html`
-        <div style="max-width:850px; margin:3rem auto; padding:2rem 1.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+        <div style="max-width:750px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
+            <div style="text-align:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
+                <div style="font-size: 3rem; color: var(--success); margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i></div>
+                <h2 style="font-family:'Outfit', sans-serif; font-size:1.85rem; font-weight:800; color:var(--text-primary);">¡Registro Aprobado con Éxito!</h2>
+                <p style="color:var(--text-secondary); font-size:0.95rem; margin-top:0.5rem;">
+                    La solicitud para el taller <strong>${escapeHtml(saas.workshopData.nombre)}</strong> fue aprobada.
+                </p>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                    Para activar la plataforma y comenzar a operar, por favor revisa y firma los Términos y Condiciones.
+                </p>
+            </div>
             
-            ${safe(isApprovalMode ? `
-                <div style="text-align:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
-                    <div style="font-size: 3rem; color: var(--success); margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i></div>
-                    <h2 style="font-family:'Outfit', sans-serif; font-size:1.85rem; font-weight:800; color:var(--text-primary);">¡Registro Aprobado con Éxito!</h2>
-                    <p style="color:var(--text-secondary); font-size:0.95rem; margin-top:0.5rem;">
-                        La solicitud para el taller <strong>${escapeHtml(saas.workshopData.nombre)}</strong> fue aprobada.
-                    </p>
-                    <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
-                        Para activar la plataforma y comenzar a operar, por favor revisa y firma los Términos y Condiciones.
-                    </p>
-                </div>
-            ` : `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem; flex-wrap:wrap; gap:1rem;">
-                    <div style="display:flex; align-items:center; gap:0.6rem;">
-                        <i class="fa-solid fa-file-contract" style="color:var(--primary); font-size:1.6rem;"></i>
-                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:800; color:var(--text-primary); margin:0;">Términos y Condiciones de Uso</h2>
-                    </div>
-                    <a href="#landing" class="btn btn-secondary" style="font-size:0.85rem; padding:0.45rem 1rem; border-radius:6px; display:inline-flex; align-items:center; gap:0.4rem; text-decoration:none;">
-                        <i class="fa-solid fa-arrow-left"></i> Volver al Inicio
-                    </a>
-                </div>
-            `)}
-            
-            <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:6px; padding:1.5rem; max-height:${isApprovalMode ? '280px' : '600px'}; overflow-y:scroll; font-size:0.85rem; line-height:1.65; color:var(--text-secondary); margin-bottom:1.5rem; font-family:'Courier New', monospace; white-space:pre-wrap; text-align:left;">TÉRMINOS Y CONDICIONES DE USO
+            <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:6px; padding:1.5rem; max-height:280px; overflow-y:scroll; font-size:0.8rem; line-height:1.6; color:var(--text-secondary); margin-bottom:1.5rem; font-family:'Courier New', monospace; white-space:pre-wrap; text-align:left;">TÉRMINOS Y CONDICIONES DE USO
 MECANIC OS
 Fecha de Última Actualización: 27 de Octubre de 2025
 
@@ -4143,26 +4135,24 @@ Para soporte o consultas legales:
 
 FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
             
-            ${safe(isApprovalMode ? `
-                <form id="saas-terms-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                    <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                        <input type="checkbox" id="terms-accept" required style="width:20px; height:20px; cursor:pointer;">
-                        <label for="terms-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído, comprendo y acepto los Términos y Condiciones de Uso</label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
-                        <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Firma Digital (Escribe tu Nombre Completo como Representante Legal)</label>
-                        <input type="text" id="terms-signature-name" required placeholder="Ej: ${saas.workshopData.propietario}" style="padding:0.6rem; font-family:'Courier New', monospace; font-size:1.1rem; font-weight:bold; letter-spacing:0.05em; text-align:center;">
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary" style="padding:0.8rem; font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-signature"></i> Firmar y Activar Plataforma</button>
-                </form>
-            ` : '')}
+            <form id="saas-terms-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                    <input type="checkbox" id="terms-accept" required style="width:20px; height:20px; cursor:pointer;">
+                    <label for="terms-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído, comprendo y acepto los Términos y Condiciones de Uso</label>
+                </div>
+                
+                <div class="form-group">
+                    <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
+                    <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
+                </div>
+                
+                <div class="form-group">
+                    <label>Firma Digital (Escribe tu Nombre Completo como Representante Legal)</label>
+                    <input type="text" id="terms-signature-name" required placeholder="Ej: ${escapeHtml(saas.workshopData.propietario)}" style="padding:0.6rem; font-family:'Courier New', monospace; font-size:1.1rem; font-weight:bold; letter-spacing:0.05em; text-align:center;">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="padding:0.8rem; font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-signature"></i> Firmar y Activar Plataforma</button>
+            </form>
         </div>
     `;
     

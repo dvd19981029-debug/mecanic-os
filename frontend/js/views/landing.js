@@ -519,7 +519,7 @@ export function renderLanding(container) {
                         © ${new Date().getFullYear()} Mecanic OS. Todos los derechos reservados. Desarrollado para El Salvador.
                     </div>
                     <div style="display: flex; gap: 1rem; align-items: center;">
-                        <a href="#terminos" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.85rem; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s;">
+                        <a href="#terminos-condiciones" style="color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.85rem; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s;">
                             <i class="fa-solid fa-file-contract"></i> Términos y Condiciones
                         </a>
                     </div>

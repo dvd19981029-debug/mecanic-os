@@ -4,7 +4,7 @@
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
 import { renderConfiguracion } from './views/configuracion.js?v=82';
-import { renderLanding } from './views/landing.js?v=72';
+import { renderLanding } from './views/landing.js?v=73';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
 import { renderVehiculos } from './views/vehiculos.js';
 import { renderRevision21 } from './views/revision21.js?v=77';
@@ -28,7 +28,8 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=98';
+} from './views/saas.js?v=99';
+import { renderTerminosPublicos } from './views/terminos_publicos.js?v=1';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
@@ -64,6 +65,7 @@ const routes = {
     'landing': renderLanding,
     'registro': renderRegistroSaaS,
     'terminos': renderTerminosSaaS,
+    'terminos-condiciones': renderTerminosPublicos,
     'suspended': renderSuspendedSaaS,
     'lock-screen': renderLockScreen,
     'pago-suscripcion': renderPagoSuscripcionSaaS,
