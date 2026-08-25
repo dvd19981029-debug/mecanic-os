@@ -4309,17 +4309,8 @@ export function initUserSwitcher() {
         const existingForm = document.getElementById('switcher-password-form');
         if (existingForm) existingForm.remove();
         
-        const rawTecnicos = db.tecnicos || [];
-        const seenKeys = new Set();
-        const uniqueTecnicos = rawTecnicos.filter(t => {
-            const key = (t.Email || t.Tecnico_ID || t.Nombre_Completo || '').toLowerCase().trim();
-            if (!key) return true;
-            if (seenKeys.has(key)) return false;
-            seenKeys.add(key);
-            return true;
-        });
-
-        uniqueTecnicos.forEach(t => {
+        const tecnicos = db.tecnicos || [];
+        tecnicos.forEach(t => {
             const card = document.createElement('div');
             card.className = 'user-card';
             const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";

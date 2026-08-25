@@ -28,12 +28,12 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=100';
+} from './views/saas.js?v=101';
 import { renderTerminosPublicos } from './views/terminos_publicos.js?v=3';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=70';
+} from './views/auth.js?v=71';
 
 import {
     getActiveUser,

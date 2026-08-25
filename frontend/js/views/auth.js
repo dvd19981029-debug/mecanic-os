@@ -185,14 +185,14 @@ export function renderLockScreen(container) {
         });
     }
 
-    // Deduplicate tecnicos array in memory to clean up any past duplicate auto-seeds
+    // Deduplicate tecnicos array ONLY by unique Tecnico_ID if an exact same ID was loaded twice
     if (db.tecnicos && Array.isArray(db.tecnicos)) {
-        const seenKeys = new Set();
+        const seenIds = new Set();
         db.tecnicos = db.tecnicos.filter(t => {
-            const key = (t.Email || t.Tecnico_ID || t.Nombre_Completo || '').toLowerCase().trim();
-            if (!key) return true;
-            if (seenKeys.has(key)) return false;
-            seenKeys.add(key);
+            const id = (t.Tecnico_ID || '').trim();
+            if (!id) return true;
+            if (seenIds.has(id)) return false;
+            seenIds.add(id);
             return true;
         });
     }
