@@ -4,7 +4,7 @@
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
 import { renderConfiguracion } from './views/configuracion.js?v=82';
-import { renderLanding } from './views/landing.js?v=74';
+import { renderLanding } from './views/landing.js?v=75';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
 import { renderVehiculos } from './views/vehiculos.js';
 import { renderRevision21 } from './views/revision21.js?v=77';
@@ -29,7 +29,7 @@ import {
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
 } from './views/saas.js?v=99';
-import { renderTerminosPublicos } from './views/terminos_publicos.js?v=1';
+import { renderTerminosPublicos } from './views/terminos_publicos.js?v=2';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
