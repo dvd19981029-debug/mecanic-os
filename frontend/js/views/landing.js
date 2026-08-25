@@ -48,9 +48,9 @@ export function renderLanding(container) {
     if (saas.status === 'active') {
         const workshopName = (saas.workshopData && saas.workshopData.nombre) || 'Mecanic OS';
         topButtonsHTML = `
-            <div style="display:flex; gap:0.75rem; align-items:center;">
-                <a href="#taller-dashboard" class="btn btn-primary" style="font-size:0.85rem; font-weight:700; padding:0.55rem 1.4rem; border-radius:50px; display:inline-flex; align-items:center; gap:0.4rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
-                    <i class="fa-solid fa-gauge-high"></i> Abrir Mi Panel
+            <div class="landing-header-btns" style="display:flex; gap:0.5rem; align-items:center;">
+                <a href="#taller-dashboard" class="btn btn-primary" style="font-size:0.8rem; font-weight:700; padding:0.45rem 1rem; border-radius:50px; display:inline-flex; align-items:center; gap:0.35rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); white-space:nowrap;">
+                    <i class="fa-solid fa-gauge-high"></i> <span class="nav-btn-text">Mi Panel</span>
                 </a>
             </div>
         `;
@@ -67,23 +67,23 @@ export function renderLanding(container) {
         `;
     } else {
         topButtonsHTML = `
-            <div style="display:flex; gap:0.85rem; align-items:center;">
-                <a href="#lock-screen" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; padding:0.55rem 1.2rem; border-radius:50px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+            <div class="landing-header-btns" style="display:flex; gap:0.4rem; align-items:center;">
+                <a href="#lock-screen" class="landing-nav-link" style="color:var(--text-primary); text-decoration:none; font-size:0.78rem; font-weight:600; padding:0.45rem 0.8rem; border-radius:50px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> <span>Entrar</span>
                 </a>
-                <a href="#registro" class="btn btn-primary" style="font-size:0.85rem; font-weight:700; padding:0.55rem 1.3rem; border-radius:50px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
-                    <i class="fa-solid fa-rocket"></i> Registrar Taller
+                <a href="#registro" class="btn btn-primary landing-nav-reg" style="font-size:0.78rem; font-weight:700; padding:0.45rem 0.95rem; border-radius:50px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
+                    <i class="fa-solid fa-rocket"></i> <span>Registrar</span>
                 </a>
             </div>
         `;
         
         actionButtonsHTML = `
-            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2.5rem;">
-                <a href="#registro" class="btn btn-primary" style="padding:1rem 2.5rem; font-size:1.15rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius:12px; display:inline-flex; align-items:center; gap:0.5rem;">
+            <div class="hero-actions-container" style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:2.5rem;">
+                <a href="#registro" class="btn btn-primary hero-btn-main" style="padding:0.9rem 2rem; font-size:1.05rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;">
                     <i class="fa-solid fa-rocket"></i> Empezar Prueba Gratuita
                 </a>
-                <a href="#lock-screen" class="btn btn-secondary" style="padding:1rem 2.2rem; font-size:1.15rem; font-weight:600; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; gap:0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
-                    <i class="fa-solid fa-right-to-bracket"></i> Acceso a Taller Conectado
+                <a href="#lock-screen" class="btn btn-secondary hero-btn-sec" style="padding:0.9rem 1.8rem; font-size:1.05rem; font-weight:600; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
+                    <i class="fa-solid fa-right-to-bracket"></i> Acceso a Taller
                 </a>
             </div>
         `;
@@ -92,11 +92,59 @@ export function renderLanding(container) {
     container.innerHTML = html`
         <div class="landing-page-wrapper" style="overflow-y: auto; height: 100vh; background: var(--bg-base); color: var(--text-primary); scroll-behavior: smooth;">
             
+            <style>
+                @media (max-width: 640px) {
+                    .landing-top-nav {
+                        padding: 0.65rem 0.85rem !important;
+                    }
+                    .landing-logo span {
+                        font-size: 1.3rem !important;
+                    }
+                    .landing-logo i {
+                        font-size: 1.2rem !important;
+                    }
+                    .landing-header-btns a {
+                        padding: 0.35rem 0.65rem !important;
+                        font-size: 0.72rem !important;
+                    }
+                    .landing-hero {
+                        padding: 3rem 1rem 2.5rem 1rem !important;
+                    }
+                    .hero-actions-container {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 0.75rem !important;
+                        max-width: 320px !important;
+                        margin: 2rem auto 0 auto !important;
+                    }
+                    .hero-btn-main, .hero-btn-sec {
+                        width: 100% !important;
+                        padding: 0.85rem 1.25rem !important;
+                        font-size: 0.95rem !important;
+                    }
+                    .landing-stats-grid {
+                        grid-template-columns: 1fr !important;
+                        gap: 1.25rem !important;
+                        padding: 1.25rem 1rem !important;
+                        margin-top: 3rem !important;
+                    }
+                    .landing-stats-grid > div {
+                        border: none !important;
+                        border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+                        padding-bottom: 1rem !important;
+                    }
+                    .landing-stats-grid > div:last-child {
+                        border-bottom: none !important;
+                        padding-bottom: 0 !important;
+                    }
+                }
+            </style>
+
             <!-- TOP NAVBAR -->
-            <header style="position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(10, 13, 22, 0.85); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1rem 2rem;">
-                <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fa-solid fa-gears" style="color:var(--primary); font-size: 1.6rem;"></i>
+            <header class="landing-top-nav" style="position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(10, 13, 22, 0.85); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.85rem 1.5rem;">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                    <div class="logo landing-logo" style="font-size:1.6rem; font-weight:800; font-family:'Outfit', sans-serif; display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;">
+                        <i class="fa-solid fa-gears" style="color:var(--primary); font-size: 1.4rem;"></i>
                         <span>Mecanic<span style="color: var(--primary);">OS</span></span>
                     </div>
 
@@ -105,37 +153,37 @@ export function renderLanding(container) {
             </header>
 
             <!-- HERO SECTION -->
-            <section class="landing-hero" style="position:relative; overflow:hidden; padding: 5rem 1.5rem 4rem 1.5rem; text-align:center; background: radial-gradient(circle at 50% 10%, rgba(99, 102, 241, 0.2) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%);">
+            <section class="landing-hero" style="position:relative; overflow:hidden; padding: 4.5rem 1.5rem 3.5rem 1.5rem; text-align:center; background: radial-gradient(circle at 50% 10%, rgba(99, 102, 241, 0.2) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%);">
                 
                 <!-- BADGE PILOTO -->
-                <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); padding: 0.4rem 1.2rem; border-radius: 50px; margin-bottom: 2rem;">
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success);"></span>
-                    <span style="font-size: 0.85rem; font-weight: 600; color: #c7d2fe; letter-spacing: 0.3px;">Diseñado para Talleres Mecánicos en El Salvador</span>
+                <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); padding: 0.35rem 1rem; border-radius: 50px; margin-bottom: 1.75rem; max-width: 95%;">
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); flex-shrink: 0;"></span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #c7d2fe; letter-spacing: 0.2px;">Diseñado para Talleres en El Salvador</span>
                 </div>
                 
-                <h1 style="font-family:'Outfit', sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight:800; line-height:1.15; max-width:900px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <h1 style="font-family:'Outfit', sans-serif; font-size: clamp(2.1rem, 5vw, 3.8rem); font-weight:800; line-height:1.18; max-width:900px; margin: 0 auto 1.25rem auto; background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                     El Sistema Operativo Todo-en-Uno para tu Taller Automotriz
                 </h1>
                 
-                <p style="color:var(--text-secondary); font-size: clamp(1.05rem, 2vw, 1.25rem); max-width:760px; margin: 0 auto 2.5rem auto; line-height:1.6;">
+                <p style="color:var(--text-secondary); font-size: clamp(0.95rem, 2vw, 1.2rem); max-width:760px; margin: 0 auto 2rem auto; line-height:1.6;">
                     Controla recepción vehicular, presupuestos con semáforo, inventario con kárdex, facturación electrónica DTE certificada por Hacienda y planilla de ley en una sola plataforma en la nube.
                 </p>
                 
                 ${safe(actionButtonsHTML)}
 
                 <!-- STATS STRIP -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 4.5rem auto 0 auto; padding: 1.75rem 2rem; background: rgba(21, 26, 48, 0.7); border: 1px solid var(--border-color); border-radius: 16px; backdrop-filter: blur(10px);">
+                <div class="landing-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 4rem auto 0 auto; padding: 1.5rem 1.75rem; background: rgba(21, 26, 48, 0.7); border: 1px solid var(--border-color); border-radius: 16px; backdrop-filter: blur(10px);">
                     <div style="text-align: center;">
-                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--primary);">100% DTE</div>
-                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Hacienda El Salvador (MH)</div>
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--primary);">100% DTE</div>
+                        <div style="color: var(--text-secondary); font-size: 0.82rem; margin-top: 0.25rem;">Hacienda El Salvador (MH)</div>
                     </div>
                     <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06);">
-                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--success);">&lt; 3 Seg</div>
-                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Emisión & Firma de Facturas</div>
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--success);">&lt; 3 Seg</div>
+                        <div style="color: var(--text-secondary); font-size: 0.82rem; margin-top: 0.25rem;">Emisión & Firma de Facturas</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--cyan);">21 Puntos</div>
-                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Diagnóstico Digital en Móvil</div>
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: var(--cyan);">21 Puntos</div>
+                        <div style="color: var(--text-secondary); font-size: 0.82rem; margin-top: 0.25rem;">Diagnóstico Digital en Móvil</div>
                     </div>
                 </div>
             </section>
