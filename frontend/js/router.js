@@ -239,7 +239,7 @@ export function handleRouting() {
         }
         
         // Rutas públicas y de onboarding (incluye la pantalla de bloqueo)
-        const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'];
+        const publicSaasRoutes = ['landing', 'registro', 'admin-solicitudes', 'terminos', 'terminos-condiciones', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'];
         
         // Force Lock Screen if active workshop but no employee session, AND trying to access operational views
         if (saas.status === 'active' && !getActiveUser() && !publicSaasRoutes.includes(routeName)) {
@@ -315,7 +315,7 @@ export function handleRouting() {
             }
         }
         
-        const isFullScreenRoute = ['landing', 'registro', 'terminos', 'admin-solicitudes', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'].includes(routeName);
+        const isFullScreenRoute = ['landing', 'registro', 'terminos', 'terminos-condiciones', 'admin-solicitudes', 'suspended', 'lock-screen', 'pago-suscripcion', 'pago-suscripcion-wompi-callback'].includes(routeName);
         const sidebarEl = document.getElementById('app-sidebar');
         const headerEl = document.querySelector('.top-header');
         const appContainer = document.querySelector('.app-container');
