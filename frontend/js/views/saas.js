@@ -184,25 +184,9 @@ export async function renderRegistroSaaS(container) {
                     </div>
                 </div>
 
-                <!-- 5. ACCESO Y PLAN -->
+                <!-- 5. CUENTA DE ACCESO -->
                 <div style="border-top:1px solid var(--border-color); padding-top:1.25rem;">
-                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Plan de Suscripción y Cuenta</h3>
-                    <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                        <div class="form-group">
-                            <label>Plan Comercial</label>
-                            <select id="reg-taller-plan" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height: 38px;">
-                                ${safe(plans.map(p => `<option value="${p.nombre}" data-price="${p.precio}">${p.nombre} ($${p.precio}/mes)</option>`).join(''))}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Código de Cupón (Opcional)</label>
-                            <div style="display:flex; gap:0.5rem;">
-                                <input type="text" id="reg-taller-cupon" placeholder="Ej: BIENVENIDO50" style="padding:0.6rem; flex:1; text-transform:uppercase;">
-                                <button type="button" id="btn-apply-coupon" class="btn btn-secondary" style="padding:0.6rem;">Aplicar</button>
-                            </div>
-                            <div id="coupon-message" style="font-size:0.75rem; margin-top:0.25rem;"></div>
-                        </div>
-                    </div>
+                    <h3 style="font-size:1.1rem; color:var(--primary); border-left:3px solid var(--primary); padding-left:0.5rem; margin-bottom:1rem; font-weight:700;">Cuenta del Administrador</h3>
                     <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                         <div class="form-group">
                             <label>Nombre Completo del Administrador</label>
@@ -210,7 +194,7 @@ export async function renderRegistroSaaS(container) {
                         </div>
                         <div class="form-group">
                             <label>Contraseña de Acceso</label>
-                            <input type="password" id="reg-prop-pass" required placeholder="Mínimo 4 caracteres" style="padding:0.6rem;">
+                            <input type="password" id="reg-prop-pass" required minlength="4" placeholder="Mínimo 4 caracteres" style="padding:0.6rem;">
                         </div>
                     </div>
                 </div>
@@ -270,61 +254,6 @@ export async function renderRegistroSaaS(container) {
         setupMunicipiosSelect('reg-taller-departamento', 'reg-taller-municipio', 'La Libertad Oeste');
     }, 50);
     
-    // Bind dynamic coupon checking
-    let selectedCoupon = null;
-    
-    const applyBtn = document.getElementById('btn-apply-coupon');
-    const couponInput = document.getElementById('reg-taller-cupon');
-    const planSelect = document.getElementById('reg-taller-plan');
-    const msgDiv = document.getElementById('coupon-message');
-    
-    function updatePriceDisplay() {
-        if (!planSelect) return;
-        const planOption = planSelect.options[planSelect.selectedIndex];
-        if (!planOption) return;
-        const originalPrice = parseFloat(planOption.getAttribute('data-price'));
-        let finalPrice = originalPrice;
-        
-        if (selectedCoupon) {
-            if (selectedCoupon.tipo === 'porcentaje') {
-                finalPrice = originalPrice * (1 - selectedCoupon.valor / 100);
-            } else if (selectedCoupon.tipo === 'fijo') {
-                finalPrice = Math.max(0, originalPrice - selectedCoupon.valor);
-            }
-            msgDiv.innerHTML = html`<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Cupón "${selectedCoupon.codigo}" aplicado (${selectedCoupon.descripcion}). Cuota: <strong>$${finalPrice.toFixed(2)}/mes</strong> (Antes $${originalPrice.toFixed(2)})</span>`;
-        } else {
-            msgDiv.innerHTML = html`<span style="color:var(--text-secondary);">Cuota estándar: $${originalPrice.toFixed(2)}/mes</span>`;
-        }
-    }
-    
-    if (applyBtn && couponInput) {
-        applyBtn.addEventListener('click', () => {
-            const code = couponInput.value.trim().toUpperCase();
-            if (!code) {
-                selectedCoupon = null;
-                updatePriceDisplay();
-                return;
-            }
-            
-            const coupon = (coupons || []).find(c => c.codigo === code && c.activo);
-            
-            if (coupon) {
-                selectedCoupon = coupon;
-                showToast("¡Cupón promocional aplicado!", "success");
-            } else {
-                selectedCoupon = null;
-                showToast("Cupón inválido o expirado", "error");
-                msgDiv.innerHTML = html`<span style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Código inválido o expirado</span>`;
-                return;
-            }
-            updatePriceDisplay();
-        });
-        
-        planSelect.addEventListener('change', updatePriceDisplay);
-        // Initial load
-        updatePriceDisplay();
-    }
-    
     const form = document.getElementById('saas-register-form');
     form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -332,22 +261,6 @@ export async function renderRegistroSaaS(container) {
         const currentDb = getDatabase();
         const email = document.getElementById('reg-taller-correo').value;
         const pass = document.getElementById('reg-prop-pass').value;
-        
-        // Calculate dynamic pricing
-        const planName = planSelect.value;
-        const targetPlan = (plans || []).find(p => p.nombre === planName);
-        const originalPrice = targetPlan ? targetPlan.precio : 75.00;
-        let finalPrice = originalPrice;
-        let couponApplied = null;
-        
-        if (selectedCoupon) {
-            couponApplied = selectedCoupon.codigo;
-            if (selectedCoupon.tipo === 'porcentaje') {
-                finalPrice = originalPrice * (1 - selectedCoupon.valor / 100);
-            } else if (selectedCoupon.tipo === 'fijo') {
-                finalPrice = Math.max(0, originalPrice - selectedCoupon.valor);
-            }
-        }
         
         const submitBtn = form.querySelector('button[type="submit"]');
         const origHtml = submitBtn.innerHTML;
@@ -382,9 +295,9 @@ export async function renderRegistroSaaS(container) {
                 propietario: document.getElementById('reg-prop-nombre').value,
                 status: 'pendiente',
                 createdAt: Date.now(),
-                plan: planName,
-                precio_mensual: finalPrice,
-                cupon_usado: couponApplied,
+                plan: 'Por Asignar (SuperAdmin)',
+                precio_mensual: 0,
+                cupon_usado: null,
                 suscripcion_status: 'demo',
                 proximo_pago: Date.now() + 7 * 24 * 60 * 60 * 1000,
                 dte_config: {
