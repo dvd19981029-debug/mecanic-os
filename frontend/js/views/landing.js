@@ -7,19 +7,20 @@ export function renderLanding(container) {
     
     // Vista si la solicitud del taller está en estado de revisión
     if (saas.status === 'pending') {
+        const workshopName = (saas.workshopData && saas.workshopData.nombre) || 'Nuevo Taller';
         container.innerHTML = html`
-            <div class="saas-container" style="max-width: 650px; margin: 6rem auto; text-align: center; padding: 3rem 2rem; background: var(--bg-card); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+            <div class="saas-container" style="max-width: 650px; margin: 4rem auto; text-align: center; padding: 3rem 2rem; background: var(--bg-card); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
                 <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem auto; background: rgba(245, 158, 11, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--warning); font-size: 2.5rem; border: 1px solid rgba(245, 158, 11, 0.3);">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 1rem;">Solicitud en Revisión</h2>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; font-size: 1.05rem;">
-                    Tu solicitud para registrar el taller <strong style="color: #fff;">${(saas.workshopData && saas.workshopData.nombre) || 'Nuevo Taller'}</strong> está siendo validada por el equipo de administración de Mecanic OS.<br><br>
-                    Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada para que puedas firmar los términos y comenzar a facturar.
+                    Tu solicitud para registrar el taller <strong style="color: #fff;">${escapeHtml(workshopName)}</strong> está siendo validada por el equipo de administración de Mecanic OS.<br><br>
+                    Te notificaremos una vez que tu cuenta sea aprobada para que puedas firmar los términos y comenzar a facturar.
                 </p>
-                <div style="display:flex; flex-direction:column; gap:1rem; align-items:center;">
-                    <button id="btn-reset-saas-guest" class="btn btn-secondary" style="font-size:0.9rem; padding: 0.6rem 1.25rem;">
-                        <i class="fa-solid fa-rotate-left"></i> Cancelar Solicitud y Volver al Inicio
+                <div style="display:flex; justify-content:center; margin-top:1rem;">
+                    <button id="btn-reset-saas-guest" class="btn btn-primary" style="font-size:0.95rem; font-weight:700; padding: 0.75rem 2rem; border-radius: 8px; display:inline-flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <i class="fa-solid fa-house"></i> Regresar al Inicio
                     </button>
                 </div>
             </div>
@@ -28,15 +29,10 @@ export function renderLanding(container) {
         const resetPendingBtn = document.getElementById('btn-reset-saas-guest');
         if (resetPendingBtn) {
             resetPendingBtn.addEventListener('click', () => {
-                if (confirm("¿Deseas cancelar la solicitud y volver al estado inicial?")) {
-                    db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
-                    if (db.solicitudes_registro) {
-                        db.solicitudes_registro = db.solicitudes_registro.filter(s => s.id !== (saas.workshopData && saas.workshopData.id));
-                    }
-                    saveDatabase(db);
-                    window.location.hash = 'landing';
-                    if (typeof handleRouting === 'function') handleRouting();
-                }
+                db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                saveDatabase(db);
+                window.location.hash = 'landing';
+                if (typeof handleRouting === 'function') handleRouting();
             });
         }
         return;
