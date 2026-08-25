@@ -185,15 +185,29 @@ export function renderLockScreen(container) {
         });
     }
 
+    // Deduplicate tecnicos array in memory to clean up any past duplicate auto-seeds
+    if (db.tecnicos && Array.isArray(db.tecnicos)) {
+        const seenKeys = new Set();
+        db.tecnicos = db.tecnicos.filter(t => {
+            const key = (t.Email || t.Tecnico_ID || t.Nombre_Completo || '').toLowerCase().trim();
+            if (!key) return true;
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+        });
+    }
+
     const isFirebaseAuthed = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
 
-    // Auto-seed owner profile if active workshop has empty tecnicos array
+    // Auto-seed owner profile ONLY if active workshop has completely empty tecnicos array
     if ((!db.tecnicos || db.tecnicos.length === 0) && (saas.status === 'active' || isFirebaseAuthed)) {
         const ownerName = (saas.workshopData && saas.workshopData.propietario) || (saas.workshopData && saas.workshopData.nombre) || 'Administrador';
+        const ownerEmail = (saas.workshopData && saas.workshopData.correo) || '';
+        const ownerUid = (saas.workshopData && saas.workshopData.uid) || 'ADMIN';
         const defaultAdminTech = {
-            Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+            Tecnico_ID: 'TECH-OWNER-' + ownerUid.slice(0, 10),
             Nombre_Completo: ownerName,
-            Email: (saas.workshopData && saas.workshopData.correo) || '',
+            Email: ownerEmail,
             Telefono: (saas.workshopData && saas.workshopData.telefono) || '',
             Especialidad: 'Gerente General',
             Nivel_Acceso: 'Administrador',
