@@ -327,87 +327,117 @@ export function renderLanding(container) {
             </section>
 
             <!-- PLANES DE SUSCRIPCIÓN -->
-            <section id="planes" style="padding: 5rem 1.5rem; max-width: 1150px; margin: 0 auto;">
+            <section id="planes" style="padding: 5rem 1.5rem; max-width: 1100px; margin: 0 auto;">
                 <div style="text-align: center; margin-bottom: 3.5rem;">
-                    <span style="color: var(--primary); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Planes Transparentes</span>
+                    <span style="color: var(--primary); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Modalidades de Inversión</span>
                     <h2 style="font-family:'Outfit', sans-serif; font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 800; margin-top: 0.5rem;">
-                        Elige el plan ideal para la escala de tu taller
+                        Elige la modalidad que mejor se adapte a tu taller
                     </h2>
-                    <p style="color: var(--text-secondary); max-width: 550px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
-                        Sin contratos forzosos. Cancela o cambia de plan en cualquier momento.
+                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
+                        Transparencia total sin costos ocultos. Ambos planes incluyen todas las funcionalidades del sistema y conexión directa con Hacienda.
                     </p>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; align-items: stretch;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; align-items: stretch;">
                     
-                    <!-- Plan 1: Basic -->
-                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(21, 26, 48, 0.6);">
+                    <!-- Opción A: Licencia Mensual -->
+                    <div class="glass-card" style="padding: 2.5rem 2rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(21, 26, 48, 0.7); border: 1px solid var(--border-color); position: relative;">
                         <div>
-                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Básico</h3>
-                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">Para talleres mecánicos pequeños o independientes que inician su digitalización.</p>
-                            <div style="margin: 1.5rem 0;">
-                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$45</span>
-                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
+                            <div style="display: inline-block; background: rgba(99, 102, 241, 0.15); color: var(--primary); font-size: 0.75rem; font-weight: 800; padding: 0.3rem 1rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">
+                                OPCIÓN A
                             </div>
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; color: #fff;">Licencia Mensual</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.75rem; line-height: 1.5;">
+                                <em>Ideal si buscan una inversión inicial baja y flexibilidad operativa total.</em>
+                            </p>
+
+                            <!-- Tabla de Inversión -->
+                            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; margin-bottom: 2rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+                                    <div>
+                                        <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">Pago Inicial (Único)</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Costo de Implementación</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-family:'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; color: #fff;">$100.00</span>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">+ IVA</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: rgba(99, 102, 241, 0.08);">
+                                    <div>
+                                        <div style="font-weight: 700; color: var(--primary); font-size: 0.95rem;">Pago Recurrente</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Mensualidad (Sistema + Factura Electrónica)</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-family:'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--primary);">$50.00</span>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">+ IVA / mes</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #cbd5e1;">
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Hasta 3 Usuarios simultáneos</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Gestión de Clientes y Flotas</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Recepción & Presupuestos estándar</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Tablero Kanban de Reparaciones</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Sincronización en la nube</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Sistema Operativo Mecanic OS completo</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Facturación Electrónica DTE (MH El Salvador)</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Recepción con Hoja de Ingreso y 21 Puntos</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Inventario, Kárdex y Control de Caja</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Soporte y Actualizaciones continuas en la nube</li>
                             </ul>
                         </div>
-                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 600; padding: 0.8rem;">
-                            Elegir Básico
+
+                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.9rem; font-size: 1rem; border-radius: 10px;">
+                            Seleccionar Licencia Mensual
                         </a>
                     </div>
 
-                    <!-- Plan 2: Pro (Destacado) -->
-                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(180deg, rgba(99, 102, 241, 0.15) 0%, rgba(21, 26, 48, 0.9) 100%); border: 2px solid var(--primary); box-shadow: 0 15px 35px rgba(99, 102, 241, 0.25); position: relative;">
-                        <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; font-size: 0.75rem; font-weight: 800; padding: 0.3rem 1.2rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            MÁS POPULAR • INCLUYE DTE
+                    <!-- Opción B: Licencia Vitalicia (Pago Único) -->
+                    <div class="glass-card" style="padding: 2.5rem 2rem; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(21, 26, 48, 0.95) 100%); border: 2px solid var(--success); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.2); position: relative;">
+                        <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--success); color: #fff; font-size: 0.75rem; font-weight: 800; padding: 0.35rem 1.4rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+                            RECOMENDADA • SÉ DUEÑO DEL SOFTWARE
                         </div>
                         <div>
-                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Pro</h3>
-                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">El favorito de talleres en crecimiento que requieren Facturación DTE e inventario.</p>
-                            <div style="margin: 1.5rem 0;">
-                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$75</span>
-                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
+                            <div style="display: inline-block; background: rgba(16, 185, 129, 0.2); color: var(--success); font-size: 0.75rem; font-weight: 800; padding: 0.3rem 1rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">
+                                OPCIÓN B
                             </div>
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; color: #fff;">Licencia Vitalicia (Pago Único)</h3>
+                            <p style="color: #e2e8f0; font-size: 0.9rem; margin-bottom: 1.75rem; line-height: 1.5;">
+                                <em>La mejor opción para ser dueños de la licencia, pagando mensualmente solo el servicio de facturación y nube.</em>
+                            </p>
+
+                            <!-- Tabla de Inversión -->
+                            <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; overflow: hidden; margin-bottom: 2rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                                    <div>
+                                        <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">Pago Inicial (Pago Único)</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Costo de Licencia e Implementación</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-family:'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--success);">$600.00</span>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">+ IVA</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: rgba(16, 185, 129, 0.1);">
+                                    <div>
+                                        <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">Pago Recurrente Mínimo</div>
+                                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Mantenimiento Mensual (Factura Electrónica + Cloud)</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-family:'Outfit', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--cyan);">$19.99</span>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">+ IVA / mes</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #fff;">
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> <strong>Hasta 10 Usuarios</strong> con perfiles</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> <strong>Facturación DTE MH Ilimitada</strong></li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Diagnóstico Digital 21 Puntos</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Control de Inventario & Kárdex</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Venta Rápida POS Mostrador</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Caja Diaria y Arqueo de Billetes</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> <strong>Propiedad permanente</strong> de la licencia del software</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> <strong>Ahorro masivo recurrente</strong> ($19.99/mes vs $50/mes)</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Servidor en la Nube y Base de Datos Firebase incluida</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Conexión Directa con Ministerio de Hacienda (DTE ilimitados)</li>
+                                <li style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Todos los módulos: Taller, Nómina, Kárdex, BI y Caja</li>
                             </ul>
                         </div>
-                        <a href="#registro" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.9rem; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);">
-                            Comenzar con Pro
-                        </a>
-                    </div>
 
-                    <!-- Plan 3: Enterprise -->
-                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(21, 26, 48, 0.6);">
-                        <div>
-                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Enterprise</h3>
-                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">Para empresas automotrices grandes, concesionarios o cadenas multisucursal.</p>
-                            <div style="margin: 1.5rem 0;">
-                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$120</span>
-                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
-                            </div>
-                            <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #cbd5e1;">
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> <strong>Usuarios Ilimitados</strong></li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Todo lo incluido en Plan Pro</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Módulo Completo de Nómina & ISR</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Cálculo Automatizado de Comisiones</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Inteligencia de Negocios (BI) Avanzada</li>
-                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Soporte Prioritario 24/7 y Onboarding</li>
-                            </ul>
-                        </div>
-                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 600; padding: 0.8rem;">
-                            Elegir Enterprise
+                        <a href="#registro" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.95rem; font-size: 1rem; border-radius: 10px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); background: var(--success);">
+                            <i class="fa-solid fa-rocket"></i> Adquirir Licencia Vitalicia
                         </a>
                     </div>
 

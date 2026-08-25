@@ -145,9 +145,8 @@ const dataService = {
         };
 
         const defaultPlans = [
-            { id: 'plan-basic', nombre: 'Basic', precio: 45.00, descripcion: 'Ideal para talleres pequeños o independientes', max_usuarios: 3, features: ['Gestión de clientes y vehículos', 'Presupuestos estándar', 'Kanban básico'] },
-            { id: 'plan-pro', nombre: 'Pro', precio: 75.00, descripcion: 'Recomendado para talleres en crecimiento con DTE', max_usuarios: 10, features: ['Todo lo de Basic', 'Facturador DTE (MH El Salvador)', 'Control de Inventario y Kárdex', 'Punto de Venta (POS)', 'Reportes BI básicos'] },
-            { id: 'plan-enterprise', nombre: 'Enterprise', precio: 120.00, descripcion: 'Para talleres grandes o redes de sucursales', max_usuarios: 99, features: ['Todo lo de Pro', 'Base de Datos dedicada (Firebase)', 'Soporte Premium 24/7', 'Planilla y Salarios avanzados', 'API de integración externa'] }
+            { id: 'plan-mensual', nombre: 'Licencia Mensual', precio: 50.00, implementacion: 100.00, descripcion: 'Inversión inicial baja ($100 implementación + $50/mes)', max_usuarios: 99, features: ['Sistema Mecanic OS completo', 'Facturación DTE MH El Salvador', 'Inspección 21 Puntos & Recepción', 'Inventario, Kárdex & Caja', 'Planilla Legal & BI'] },
+            { id: 'plan-vitalicio', nombre: 'Licencia Vitalicia', precio: 19.99, implementacion: 600.00, descripcion: 'Dueño de la licencia ($600 pago único + $19.99/mes cloud/DTE)', max_usuarios: 99, features: ['Propiedad permanente del Software', 'Mantenimiento mensual reducido ($19.99/mes)', 'Servidor en la Nube y Base de Datos Firebase', 'Facturación DTE MH Ilimitada', 'Todos los módulos incluidos'] }
         ];
 
         const defaultCoupons = [
