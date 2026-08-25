@@ -4167,132 +4167,134 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
     `;
     
     const form = document.getElementById('saas-terms-form');
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const sigName = document.getElementById('terms-signature-name').value;
-        const accepted = document.getElementById('terms-accept').checked;
-        const enteredPass = document.getElementById('terms-access-password').value;
-        
-        if (!accepted) {
-            alert("Debe aceptar los términos y condiciones marcando la casilla correspondiente.");
-            return;
-        }
-
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const origHtml = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando sesión y activando...';
-
-        const email = saas.workshopData.correo;
-
-        const proceedWithLocalActivation = async (uid) => {
-            db.saas_state = {
-                status: 'active',
-                workshopData: { ...saas.workshopData, status: 'active', uid },
-                termsSigned: true,
-                signatureName: sigName,
-                signedAt: Date.now()
-            };
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
             
-            db.config_taller = {
-                nombre: saas.workshopData.nombre,
-                alias: saas.workshopData.alias || '',
-                nombre_comercial: saas.workshopData.nombre_comercial || '',
-                giro: saas.workshopData.giro,
-                direccion: saas.workshopData.direccion,
-                telefono: saas.workshopData.telefono,
-                correo: saas.workshopData.correo,
-                nit: saas.workshopData.nit,
-                nrc: saas.workshopData.nrc,
-                logoText: saas.workshopData.logoText || 'MecanicOS',
-                logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
-                tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
-                clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
-                sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
-                tipo_documento: saas.workshopData.tipo_documento || 'NIT',
-                num_documento: saas.workshopData.num_documento || '',
-                actividad_economica: saas.workshopData.actividad_economica || saas.workshopData.giro,
-                pais: saas.workshopData.pais || 'El Salvador',
-                departamento: saas.workshopData.departamento || '',
-                municipio: saas.workshopData.municipio || '',
-                logo: saas.workshopData.logo || ''
-            };
+            const sigName = document.getElementById('terms-signature-name').value;
+            const accepted = document.getElementById('terms-accept').checked;
+            const enteredPass = document.getElementById('terms-access-password').value;
             
-            const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
-            if (!exists) {
-                const newTech = {
-                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
-                    Nombre_Completo: saas.workshopData.propietario,
-                    Email: saas.workshopData.correo,
-                    Telefono: saas.workshopData.telefono,
-                    Especialidad: 'Gerente General',
-                    Nivel_Acceso: 'Administrador',
-                    Salario_Base: 1500,
-                    Contraseña: await hashPassword("1234"), // default PIN is "1234" hashed
-                    Incapacidades: [],
-                    Vacaciones: [],
-                    Bonos: []
+            if (!accepted) {
+                alert("Debe aceptar los términos y condiciones marcando la casilla correspondiente.");
+                return;
+            }
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const origHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando sesión y activando...';
+
+            const email = saas.workshopData.correo;
+
+            const proceedWithLocalActivation = async (uid) => {
+                db.saas_state = {
+                    status: 'active',
+                    workshopData: { ...saas.workshopData, status: 'active', uid },
+                    termsSigned: true,
+                    signatureName: sigName,
+                    signedAt: Date.now()
                 };
-                db.tecnicos.push(newTech);
-                setActiveUser(newTech);
-            }
-            
-            if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
-                dataService.activeUserUid = uid;
-            }
-            
-            await saveDatabase(db);
-            
-            if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
-                try {
-                    await dataService.migrateLocalDataToCloud(uid);
-                } catch (migrationErr) {
-                    console.error("Migration error during activation (continuing):", migrationErr);
+                
+                db.config_taller = {
+                    nombre: saas.workshopData.nombre,
+                    alias: saas.workshopData.alias || '',
+                    nombre_comercial: saas.workshopData.nombre_comercial || '',
+                    giro: saas.workshopData.giro,
+                    direccion: saas.workshopData.direccion,
+                    telefono: saas.workshopData.telefono,
+                    correo: saas.workshopData.correo,
+                    nit: saas.workshopData.nit,
+                    nrc: saas.workshopData.nrc,
+                    logoText: saas.workshopData.logoText || 'MecanicOS',
+                    logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
+                    tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
+                    clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
+                    sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
+                    tipo_documento: saas.workshopData.tipo_documento || 'NIT',
+                    num_documento: saas.workshopData.num_documento || '',
+                    actividad_economica: saas.workshopData.actividad_economica || saas.workshopData.giro,
+                    pais: saas.workshopData.pais || 'El Salvador',
+                    departamento: saas.workshopData.departamento || '',
+                    municipio: saas.workshopData.municipio || '',
+                    logo: saas.workshopData.logo || ''
+                };
+                
+                const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());
+                if (!exists) {
+                    const newTech = {
+                        Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                        Nombre_Completo: saas.workshopData.propietario,
+                        Email: saas.workshopData.correo,
+                        Telefono: saas.workshopData.telefono,
+                        Especialidad: 'Gerente General',
+                        Nivel_Acceso: 'Administrador',
+                        Salario_Base: 1500,
+                        Contraseña: await hashPassword("1234"), // default PIN is "1234" hashed
+                        Incapacidades: [],
+                        Vacaciones: [],
+                        Bonos: []
+                    };
+                    db.tecnicos.push(newTech);
+                    setActiveUser(newTech);
                 }
-                dataService.startSync(uid);
-            }
-            
-            updateSidebarBrand();
-            updateUserUI();
-            
-            showToast("¡Plataforma Activada! Tu PIN de acceso es '1234'. Cámbialo en Ajustes.", "success");
-            window.location.hash = 'taller-dashboard';
-            handleRouting();
-        };
-
-        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-            firebase.auth().signInWithEmailAndPassword(email, enteredPass)
-                .then(async (userCredential) => {
-                    const user = userCredential.user;
+                
+                if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+                    dataService.activeUserUid = uid;
+                }
+                
+                await saveDatabase(db);
+                
+                if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
                     try {
-                        const hashedEntered = await hashPassword(enteredPass);
-                        sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
-                        await window.initSecureDteConfig();
-                        await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
-                            termsSigned: true,
-                            signatureName: sigName,
-                            signedAt: Date.now(),
-                            uid: user.uid,
-                            status: 'active'
-                        });
-                        await proceedWithLocalActivation(user.uid);
-                    } catch (err) {
-                        console.error("Error updating request status:", err);
-                        await proceedWithLocalActivation(user.uid);
+                        await dataService.migrateLocalDataToCloud(uid);
+                    } catch (migrationErr) {
+                        console.error("Migration error during activation (continuing):", migrationErr);
                     }
-                })
-                .catch((error) => {
-                    console.error("Firebase auth login error:", error);
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = origHtml;
-                    showToast(`Error al iniciar sesión: ${error.message}`, "error");
-                });
-        } else {
-            const mockUid = 'local_' + Date.now();
-            proceedWithLocalActivation(mockUid);
-        }
-    });
+                    dataService.startSync(uid);
+                }
+                
+                updateSidebarBrand();
+                updateUserUI();
+                
+                showToast("¡Plataforma Activada! Tu PIN de acceso es '1234'. Cámbialo en Ajustes.", "success");
+                window.location.hash = 'taller-dashboard';
+                handleRouting();
+            };
+
+            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+                firebase.auth().signInWithEmailAndPassword(email, enteredPass)
+                    .then(async (userCredential) => {
+                        const user = userCredential.user;
+                        try {
+                            const hashedEntered = await hashPassword(enteredPass);
+                            sessionStorage.setItem('mecanic_os_session_key', hashedEntered);
+                            await window.initSecureDteConfig();
+                            await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
+                                termsSigned: true,
+                                signatureName: sigName,
+                                signedAt: Date.now(),
+                                uid: user.uid,
+                                status: 'active'
+                            });
+                            await proceedWithLocalActivation(user.uid);
+                        } catch (err) {
+                            console.error("Error updating request status:", err);
+                            await proceedWithLocalActivation(user.uid);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Firebase auth login error:", error);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origHtml;
+                        showToast(`Error al iniciar sesión: ${error.message}`, "error");
+                    });
+            } else {
+                const mockUid = 'local_' + Date.now();
+                proceedWithLocalActivation(mockUid);
+            }
+        });
+    }
 }
 
 // ----------------------------------------------------
