@@ -34,6 +34,14 @@ const DEFAULT_INGRESO_CONFIG = {
     ]
 };
 
+function getEffectiveIngresoConfig(db) {
+    const raw = (db && db.ingreso_config) || {};
+    return {
+        pilotos: Array.isArray(raw.pilotos) && raw.pilotos.length > 0 ? raw.pilotos : DEFAULT_INGRESO_CONFIG.pilotos,
+        checklist: Array.isArray(raw.checklist) && raw.checklist.length > 0 ? raw.checklist : DEFAULT_INGRESO_CONFIG.checklist
+    };
+}
+
 export function renderIngresos(container) {
     const hash = window.location.hash || '';
     const params = new URLSearchParams(hash.includes('?') ? hash.substring(hash.indexOf('?')) : '');
@@ -222,7 +230,7 @@ function renderDetails(container, id) {
     const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === ing.ID_Vehiculo) || {};
     const client = db.clientes.find(c => c.Codigo_Cliente === ing.Codigo_Cliente) || {};
     const dateStr = new Date(ing.Fecha_Ingreso).toLocaleString('es-SV');
-    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
+    const config = getEffectiveIngresoConfig(db);
 
     container.innerHTML = html`
         <div class="view-header" style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
@@ -324,7 +332,7 @@ function renderEditor(container, editId) {
     const isEdit = !!editId;
     let ing = null;
 
-    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
+    const config = getEffectiveIngresoConfig(db);
 
     if (isEdit) {
         ing = db.ingresos.find(i => i.ID_Ingreso === editId);
@@ -767,7 +775,7 @@ function printIngresoPDF(ing) {
         return;
     }
 
-    const config = db.ingreso_config || DEFAULT_INGRESO_CONFIG;
+    const config = getEffectiveIngresoConfig(db);
 
     const checklistRows = Object.keys(ing.Checklist || {}).map(k => {
         const val = ing.Checklist[k];
