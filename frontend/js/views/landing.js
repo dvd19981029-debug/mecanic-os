@@ -1,34 +1,44 @@
 import { saveDatabase, setActiveUser } from '../../app.js?v=69';
-import { showToast, html, safe } from '../utils.js?v=69';
+import { showToast, html, safe, escapeHtml } from '../utils.js?v=69';
 
 export function renderLanding(container) {
-    const db = window.getDatabase();
-    const saas = db.saas_state || { status: 'guest' };
+    const db = window.getDatabase ? window.getDatabase() : {};
+    const saas = (db && db.saas_state) || { status: 'guest' };
     
+    // Vista si la solicitud del taller está en estado de revisión
     if (saas.status === 'pending') {
         container.innerHTML = html`
-            <div class="saas-container" style="max-width: 700px; margin: 6rem auto; text-align: center; padding: 3rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-                <div style="font-size: 4rem; color: var(--warning); margin-bottom: 1.5rem;"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 700; margin-bottom: 1rem;">Solicitud Pendiente de Revisión</h2>
+            <div class="saas-container" style="max-width: 650px; margin: 6rem auto; text-align: center; padding: 3rem 2rem; background: var(--bg-card); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+                <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem auto; background: rgba(245, 158, 11, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--warning); font-size: 2.5rem; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <h2 style="font-family:'Outfit', sans-serif; font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 1rem;">Solicitud en Revisión</h2>
                 <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; font-size: 1.05rem;">
-                    Tu solicitud para registrar el taller <strong>${(saas.workshopData && saas.workshopData.nombre) || 'nuevo'}</strong> está siendo evaluada por nuestro equipo de administración de Mecanic OS.<br>
-                    Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada.
+                    Tu solicitud para registrar el taller <strong style="color: #fff;">${(saas.workshopData && saas.workshopData.nombre) || 'Nuevo Taller'}</strong> está siendo validada por el equipo de administración de Mecanic OS.<br><br>
+                    Te notificaremos por correo electrónico una vez que tu cuenta sea aprobada para que puedas firmar los términos y comenzar a facturar.
                 </p>
                 <div style="display:flex; flex-direction:column; gap:1rem; align-items:center;">
-                    <button id="btn-reset-saas-guest" class="btn btn-secondary" style="font-size:0.85rem;"><i class="fa-solid fa-rotate-left"></i> Cancelar Solicitud y Volver a Intentar</button>
+                    <button id="btn-reset-saas-guest" class="btn btn-secondary" style="font-size:0.9rem; padding: 0.6rem 1.25rem;">
+                        <i class="fa-solid fa-rotate-left"></i> Cancelar Solicitud y Volver al Inicio
+                    </button>
                 </div>
             </div>
         `;
         
-        document.getElementById('btn-reset-saas-guest').addEventListener('click', () => {
-            if (confirm("¿Deseas cancelar la solicitud y volver al estado inicial?")) {
-                db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
-                db.solicitudes_registro = db.solicitudes_registro.filter(s => s.id !== (saas.workshopData && saas.workshopData.id));
-                saveDatabase(db);
-                window.location.hash = 'landing';
-                handleRouting();
-            }
-        });
+        const resetPendingBtn = document.getElementById('btn-reset-saas-guest');
+        if (resetPendingBtn) {
+            resetPendingBtn.addEventListener('click', () => {
+                if (confirm("¿Deseas cancelar la solicitud y volver al estado inicial?")) {
+                    db.saas_state = { status: 'guest', workshopData: null, termsSigned: false };
+                    if (db.solicitudes_registro) {
+                        db.solicitudes_registro = db.solicitudes_registro.filter(s => s.id !== (saas.workshopData && saas.workshopData.id));
+                    }
+                    saveDatabase(db);
+                    window.location.hash = 'landing';
+                    if (typeof handleRouting === 'function') handleRouting();
+                }
+            });
+        }
         return;
     }
 
@@ -39,113 +49,408 @@ export function renderLanding(container) {
         const workshopName = (saas.workshopData && saas.workshopData.nombre) || 'Mecanic OS';
         topButtonsHTML = `
             <div style="display:flex; gap:0.75rem; align-items:center;">
-                <a href="#taller-dashboard" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); padding:0.5rem 1.2rem; border-radius:50px;"><i class="fa-solid fa-right-to-bracket"></i> Acceder</a>
+                <a href="#taller-dashboard" class="btn btn-primary" style="font-size:0.85rem; font-weight:700; padding:0.55rem 1.4rem; border-radius:50px; display:inline-flex; align-items:center; gap:0.4rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
+                    <i class="fa-solid fa-gauge-high"></i> Abrir Mi Panel
+                </a>
             </div>
         `;
         
         actionButtonsHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:1.25rem; margin-top:2rem;">
-                <a href="#taller-dashboard" class="btn btn-primary" style="padding:1rem 2.5rem; font-size:1.15rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-right-to-bracket"></i> Ingresar a ${workshopName}</a>
-                <button id="btn-landing-reset" style="background:none; border:none; color:var(--text-secondary); text-decoration:underline; font-size:0.85rem; cursor:pointer; margin-top:0.5rem;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar taller / Usar otra cuenta</button>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:1.25rem; margin-top:2.5rem;">
+                <a href="#taller-dashboard" class="btn btn-primary" style="padding:1.1rem 2.8rem; font-size:1.2rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Ingresar a ${escapeHtml(workshopName)}
+                </a>
+                <button id="btn-landing-reset" style="background:none; border:none; color:var(--text-secondary); text-decoration:underline; font-size:0.85rem; cursor:pointer; margin-top:0.25rem;">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Desconectar taller de esta PC / Usar otra cuenta
+                </button>
             </div>
         `;
     } else {
         topButtonsHTML = `
-            <div style="display:flex; gap:0.75rem; align-items:center;">
-                <a href="#lock-screen" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</a>
+            <div style="display:flex; gap:0.85rem; align-items:center;">
+                <a href="#lock-screen" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; padding:0.55rem 1.2rem; border-radius:50px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                </a>
+                <a href="#registro" class="btn btn-primary" style="font-size:0.85rem; font-weight:700; padding:0.55rem 1.3rem; border-radius:50px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);">
+                    <i class="fa-solid fa-rocket"></i> Registrar Taller
+                </a>
             </div>
         `;
         
         actionButtonsHTML = `
-            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
-                <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
-                <a href="#lock-screen" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</a>
+            <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2.5rem;">
+                <a href="#registro" class="btn btn-primary" style="padding:1rem 2.5rem; font-size:1.15rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius:12px; display:inline-flex; align-items:center; gap:0.5rem;">
+                    <i class="fa-solid fa-rocket"></i> Empezar Prueba Gratuita
+                </a>
+                <a href="#lock-screen" class="btn btn-secondary" style="padding:1rem 2.2rem; font-size:1.15rem; font-weight:600; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; gap:0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
+                    <i class="fa-solid fa-right-to-bracket"></i> Acceso a Taller Conectado
+                </a>
             </div>
         `;
     }
     
     container.innerHTML = html`
-        <div class="landing-hero" style="position:relative; overflow:hidden; padding: 6rem 2rem; text-align:center; background: radial-gradient(circle at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%);">
-            <div style="display:flex; justify-content:space-between; max-width:1100px; margin:-4rem auto 4rem auto; align-items:center;">
-                <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; color:var(--text-primary);">
-                    <i class="fa-solid fa-gears logo-icon" style="color:var(--primary);"></i> Mecanic<span>OS</span>
-                </div>
-                ${safe(topButtonsHTML)}
-            </div>
+        <div class="landing-page-wrapper" style="overflow-y: auto; height: 100vh; background: var(--bg-base); color: var(--text-primary); scroll-behavior: smooth;">
             
-            <h1 style="font-family:'Outfit', sans-serif; font-size:3.5rem; font-weight:800; line-height:1.15; max-width:800px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #fff 30%, var(--primary-glow) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">El Sistema Operativo Premium para tu Taller Automotriz</h1>
-            <p style="color:var(--text-secondary); font-size:1.2rem; max-width:650px; margin: 0 auto 2.5rem auto; line-height:1.6;">
-                Mecanic OS automatiza tu taller de punta a punta: desde la recepción de vehículos con inspección digital hasta la facturación electrónica DTE (Ministerio de Hacienda) y la planilla de salarios.
-            </p>
-            ${safe(actionButtonsHTML)}
-        </div>
-        
-        <div style="max-width:1100px; margin:0 auto 6rem auto; padding:0 2rem;">
-            <h2 style="font-family:'Outfit', sans-serif; text-align:center; font-size:2rem; font-weight:700; margin-bottom:3rem;">Características Todo-en-Uno</h2>
-            <div class="landing-features-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:2rem;">
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--primary); margin-bottom:1rem;"><i class="fa-solid fa-clipboard-check"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Recepción y Diagnóstico 21 Puntos</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Registra ingresos, kilometraje y evalúa el vehículo con un semáforo interactivo (Verde, Amarillo, Rojo) desde cualquier celular o tablet en el patio del taller.</p>
+            <!-- TOP NAVBAR -->
+            <header style="position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(10, 13, 22, 0.85); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1rem 2rem;">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="logo" style="font-size:1.8rem; font-weight:800; font-family:'Outfit', sans-serif; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-gears" style="color:var(--primary); font-size: 1.6rem;"></i>
+                        <span>Mecanic<span style="color: var(--primary);">OS</span></span>
+                    </div>
+
+                    ${safe(topButtonsHTML)}
                 </div>
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--success); margin-bottom:1rem;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Facturación Electrónica DTE</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Integración nativa con Hacienda de El Salvador (Facturas y Créditos Fiscales). Firma digital automática y emisión de ticket fiscal térmico.</p>
+            </header>
+
+            <!-- HERO SECTION -->
+            <section class="landing-hero" style="position:relative; overflow:hidden; padding: 5rem 1.5rem 4rem 1.5rem; text-align:center; background: radial-gradient(circle at 50% 10%, rgba(99, 102, 241, 0.2) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%);">
+                
+                <!-- BADGE PILOTO -->
+                <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); padding: 0.4rem 1.2rem; border-radius: 50px; margin-bottom: 2rem;">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success);"></span>
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #c7d2fe; letter-spacing: 0.3px;">Diseñado para Talleres Mecánicos en El Salvador</span>
                 </div>
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--cyan); margin-bottom:1rem;"><i class="fa-solid fa-calculator"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Planilla y Nómina de Ley</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Cálculos exactos conforme a leyes salvadoreñas (Deducciones ISSS, AFP, ISR tramos mensuales/quincenales e INSAFORP) con boletas imprimibles.</p>
+                
+                <h1 style="font-family:'Outfit', sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight:800; line-height:1.15; max-width:900px; margin: 0 auto 1.5rem auto; background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    El Sistema Operativo Todo-en-Uno para tu Taller Automotriz
+                </h1>
+                
+                <p style="color:var(--text-secondary); font-size: clamp(1.05rem, 2vw, 1.25rem); max-width:760px; margin: 0 auto 2.5rem auto; line-height:1.6;">
+                    Controla recepción vehicular, presupuestos con semáforo, inventario con kárdex, facturación electrónica DTE certificada por Hacienda y planilla de ley en una sola plataforma en la nube.
+                </p>
+                
+                ${safe(actionButtonsHTML)}
+
+                <!-- STATS STRIP -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; max-width: 1000px; margin: 4.5rem auto 0 auto; padding: 1.75rem 2rem; background: rgba(21, 26, 48, 0.7); border: 1px solid var(--border-color); border-radius: 16px; backdrop-filter: blur(10px);">
+                    <div style="text-align: center;">
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--primary);">100% DTE</div>
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Hacienda El Salvador (MH)</div>
+                    </div>
+                    <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06);">
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--success);">&lt; 3 Seg</div>
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Emisión & Firma de Facturas</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; color: var(--cyan);">21 Puntos</div>
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Diagnóstico Digital en Móvil</div>
+                    </div>
                 </div>
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--warning); margin-bottom:1rem;"><i class="fa-solid fa-cubes-stacked"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Control Visual del Taller</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Monitorea la carga laboral de tus técnicos. Sigue el progreso de las reparaciones de los vehículos en tiempo real de acuerdo al estado del presupuesto.</p>
+            </section>
+
+            <!-- PROBLEMAS QUE RESUELVE -->
+            <section id="soluciones" style="padding: 5rem 1.5rem; max-width: 1200px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 3.5rem;">
+                    <span style="color: var(--primary); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Problemas Reales, Soluciones Claras</span>
+                    <h2 style="font-family:'Outfit', sans-serif; font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 800; margin-top: 0.5rem;">
+                        ¿Por qué los talleres eligen Mecanic OS?
+                    </h2>
                 </div>
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--primary); margin-bottom:1rem;"><i class="fa-solid fa-chart-pie"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">BI y Estadísticas Financieras</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Visualiza gráficos interactivos de ventas, gastos, abonos recibidos, utilidad neta e indicadores ejecutivos en tiempo real para la toma de decisiones.</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                    <div class="glass-card" style="padding: 2rem; border-radius: 14px; border: 1px solid rgba(239, 68, 68, 0.2); background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, rgba(21, 26, 48, 0.6) 100%);">
+                        <div style="color: var(--danger); font-size: 1.8rem; margin-bottom: 1rem;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem; color: #fff;">Sin Mecanic OS (El Caos Típico)</h3>
+                        <ul style="list-style: none; padding: 0; margin: 0; color: var(--text-secondary); font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-xmark" style="color: var(--danger); margin-top: 3px;"></i> Hojas de papel perdidas, reclamos de rayones no documentados.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-xmark" style="color: var(--danger); margin-top: 3px;"></i> Facturar en el portal de Hacienda es lento y se digitan datos dos veces.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-xmark" style="color: var(--danger); margin-top: 3px;"></i> No se sabe con certeza qué repuestos hay en stock ni cuánto se le debe pagar a cada mecánico.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-xmark" style="color: var(--danger); margin-top: 3px;"></i> Descuadre de caja al cierre del día.</li>
+                        </ul>
+                    </div>
+
+                    <div class="glass-card" style="padding: 2rem; border-radius: 14px; border: 1px solid rgba(16, 185, 129, 0.3); background: linear-gradient(180deg, rgba(16, 185, 129, 0.06) 0%, rgba(21, 26, 48, 0.8) 100%); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.1);">
+                        <div style="color: var(--success); font-size: 1.8rem; margin-bottom: 1rem;"><i class="fa-solid fa-circle-check"></i></div>
+                        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem; color: #fff;">Con Mecanic OS (Control Total)</h3>
+                        <ul style="list-style: none; padding: 0; margin: 0; color: #e2e8f0; font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-check" style="color: var(--success); margin-top: 3px;"></i> Ingreso digital con fotos de inventario, nivel de gasolina y firma del cliente en pantalla.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-check" style="color: var(--success); margin-top: 3px;"></i> Facturación Electrónica en 1 clic que liquida el presupuesto y emite DTE con QR oficial.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-check" style="color: var(--success); margin-top: 3px;"></i> Kárdex automatizado, alerta de stock mínimo y cálculo exacto de comisiones y nómina legal.</li>
+                            <li style="display: flex; gap: 0.5rem; align-items: flex-start;"><i class="fa-solid fa-check" style="color: var(--success); margin-top: 3px;"></i> Control de apertura y corte de caja diario con registro ciego de billetes.</li>
+                        </ul>
+                    </div>
                 </div>
-                <div class="glass-card" style="padding:2rem; border-radius:12px;">
-                    <div style="font-size:2rem; color:var(--danger); margin-bottom:1rem;"><i class="fa-solid fa-users-gear"></i></div>
-                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.25rem; font-weight:600; margin-bottom:0.75rem;">Flotas y Expediente del Auto</h3>
-                    <p style="color:var(--text-secondary); line-height:1.5; font-size:0.9rem;">Administra datos de clientes, flota de vehículos e historial médico completo de intervenciones, servicios y repuestos instalados por auto.</p>
+            </section>
+
+            <!-- MÓDULOS DEL SISTEMA -->
+            <section id="modulos" style="padding: 4rem 1.5rem; background: rgba(15, 19, 34, 0.6); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                <div style="max-width: 1200px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 3.5rem;">
+                        <span style="color: var(--cyan); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Módulos Integrados</span>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 800; margin-top: 0.5rem;">
+                            Todo lo que necesitas para operar tu taller
+                        </h2>
+                        <p style="color: var(--text-secondary); max-width: 600px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
+                            Diseñado específicamente para el flujo real de trabajo: Patio ➔ Taller ➔ Caja ➔ Contabilidad.
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                        
+                        <!-- Card 1 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(99, 102, 241, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(99, 102, 241, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-file-signature"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Recepción & Hoja de Ingreso</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Registra datos del vehículo, inventario físico de accesorios, kilometraje, nivel de combustible y firma digital de conformidad del cliente al recibir el auto.
+                            </p>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(16, 185, 129, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Inspección 21 Puntos</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Diagnóstico visual interactivo por semáforo (Verde, Amarillo, Rojo) de frenos, suspensión, fluidos, luces y llantas para entregar un reporte profesional al cliente.
+                            </p>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(6, 182, 212, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(6, 182, 212, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--cyan); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Presupuestos y Cotizaciones</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Generador de presupuestos con cálculo automático de repuestos, mano de obra, descuentos, promociones, IVA y retenciones. Exportación e impresión limpia.
+                            </p>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(245, 158, 11, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(245, 158, 11, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--warning); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-cubes-stacked"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Control Visual de Taller (Kanban)</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Tablero para seguir el estado de cada vehículo (En Espera, En Reparación, Esperando Repuestos, Terminado) y asignar técnicos responsables.
+                            </p>
+                        </div>
+
+                        <!-- Card 5 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(16, 185, 129, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Facturador DTE & Venta Rápida</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Emisión de Facturas Electrónicas (FE) y Crédito Fiscal (CCF) con transmisión al Ministerio de Hacienda en tiempo real, descarga de JSON firmado y ticket térmico.
+                            </p>
+                        </div>
+
+                        <!-- Card 6 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(168, 85, 247, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(168, 85, 247, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-cash-register"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Caja Diaria & Cuentas x Cobrar</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Apertura con saldo base, control de cobros en efectivo/tarjeta/transferencia, arqueo de billetes y seguimiento de créditos otorgados a clientes con abonos.
+                            </p>
+                        </div>
+
+                        <!-- Card 7 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(99, 102, 241, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(99, 102, 241, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-boxes-stacked"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Inventario & Kárdex</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Catálogo de repuestos, costos, precios de venta, control de existencias mínimas y registro automático de entradas por compra y salidas por facturación.
+                            </p>
+                        </div>
+
+                        <!-- Card 8 -->
+                        <div class="glass-card" style="padding: 1.75rem; border-radius: 14px; transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-4px)'; this.style.borderColor='rgba(6, 182, 212, 0.4)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--border-color)';">
+                            <div style="width: 48px; height: 48px; background: rgba(6, 182, 212, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--cyan); font-size: 1.4rem; margin-bottom: 1.25rem;">
+                                <i class="fa-solid fa-users-gear"></i>
+                            </div>
+                            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Planilla Legal SV & Comisiones</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                Cálculo exacto de retenciones de ley de El Salvador (ISSS, AFP, ISR por tramos) y pago de comisiones porcentuales a mecánicos por trabajo terminado.
+                            </p>
+                        </div>
+
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- SECCIÓN DTE HACIENDA -->
+            <section id="dte-hacienda" style="padding: 5rem 1.5rem; max-width: 1100px; margin: 0 auto;">
+                <div class="glass-card" style="padding: 3rem 2.5rem; border-radius: 20px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(16, 185, 129, 0.3); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem; align-items: center;">
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(16, 185, 129, 0.15); padding: 0.35rem 1rem; border-radius: 50px; color: var(--success); font-weight: 700; font-size: 0.8rem; margin-bottom: 1rem;">
+                            <i class="fa-solid fa-shield-check"></i> Cumplimiento Tributario
+                        </div>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem;">
+                            Facturación Electrónica DTE Lista para Usar
+                        </h2>
+                        <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                            Olvídate de multas o sistemas complicados. Mecanic OS se conecta de forma directa con la API del Ministerio de Hacienda de El Salvador para firmar y validar tus DTEs en segundos.
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem; color: #e2e8f0;">
+                            <div style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Factura Electrónica (DTE-01) y Crédito Fiscal (DTE-03)</div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Validación automática de NIT / DUI y Número de Registro (NRC)</div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Generación automática de Código de Generación (UUID) y Sello de Recepción</div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;"><i class="fa-solid fa-check-double" style="color: var(--success);"></i> Impresión en tickets térmicos de 80mm/58mm con Código QR fiscal</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(15, 19, 34, 0.9); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.75rem; box-shadow: 0 15px 35px rgba(0,0,0,0.5);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                            <span style="font-weight: 700; color: #fff; font-size: 0.9rem;"><i class="fa-solid fa-receipt" style="color: var(--primary);"></i> Vista Previa Ticket Fiscal</span>
+                            <span class="badge-tag badge-success" style="font-size: 0.7rem;">MH APROBADO</span>
+                        </div>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+                            <div style="text-align: center; color: #fff; font-weight: bold; margin-bottom: 0.5rem;">AUTO SERVICIO EXPRESS, S.A. DE C.V.</div>
+                            <div style="text-align: center; font-size: 0.75rem;">NIT: 0614-220190-102-1 | NRC: 245100-2</div>
+                            <div style="text-align: center; font-size: 0.75rem; margin-bottom: 0.5rem;">DTE-03-M001P001-00001048</div>
+                            <div style="border-top: 1px dashed rgba(255,255,255,0.15); margin: 0.5rem 0;"></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Cambio Aceite Sintético 5W30</span><span>$ 45.00</span></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Filtro de Aceite Original</span><span>$ 8.50</span></div>
+                            <div style="display: flex; justify-content: space-between;"><span>Mano de Obra Servicio</span><span>$ 15.00</span></div>
+                            <div style="border-top: 1px dashed rgba(255,255,255,0.15); margin: 0.5rem 0;"></div>
+                            <div style="display: flex; justify-content: space-between; color: #fff; font-weight: bold; font-size: 0.9rem;"><span>TOTAL A PAGAR:</span><span style="color: var(--cyan);">$ 68.50</span></div>
+                            <div style="text-align: center; margin-top: 1rem; color: var(--success); font-size: 0.75rem;">
+                                <i class="fa-solid fa-qrcode" style="font-size: 2rem; display: block; margin-bottom: 0.25rem; color: #fff;"></i>
+                                Sello MH: 2026B748-APROBADO
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PLANES DE SUSCRIPCIÓN -->
+            <section id="planes" style="padding: 5rem 1.5rem; max-width: 1150px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 3.5rem;">
+                    <span style="color: var(--primary); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Planes Transparentes</span>
+                    <h2 style="font-family:'Outfit', sans-serif; font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 800; margin-top: 0.5rem;">
+                        Elige el plan ideal para la escala de tu taller
+                    </h2>
+                    <p style="color: var(--text-secondary); max-width: 550px; margin: 0.5rem auto 0 auto; font-size: 0.95rem;">
+                        Sin contratos forzosos. Cancela o cambia de plan en cualquier momento.
+                    </p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; align-items: stretch;">
+                    
+                    <!-- Plan 1: Basic -->
+                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(21, 26, 48, 0.6);">
+                        <div>
+                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Básico</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">Para talleres mecánicos pequeños o independientes que inician su digitalización.</p>
+                            <div style="margin: 1.5rem 0;">
+                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$45</span>
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
+                            </div>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #cbd5e1;">
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Hasta 3 Usuarios simultáneos</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Gestión de Clientes y Flotas</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Recepción & Presupuestos estándar</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Tablero Kanban de Reparaciones</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--primary);"></i> Sincronización en la nube</li>
+                            </ul>
+                        </div>
+                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 600; padding: 0.8rem;">
+                            Elegir Básico
+                        </a>
+                    </div>
+
+                    <!-- Plan 2: Pro (Destacado) -->
+                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(180deg, rgba(99, 102, 241, 0.15) 0%, rgba(21, 26, 48, 0.9) 100%); border: 2px solid var(--primary); box-shadow: 0 15px 35px rgba(99, 102, 241, 0.25); position: relative;">
+                        <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; font-size: 0.75rem; font-weight: 800; padding: 0.3rem 1.2rem; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            MÁS POPULAR • INCLUYE DTE
+                        </div>
+                        <div>
+                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Pro</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">El favorito de talleres en crecimiento que requieren Facturación DTE e inventario.</p>
+                            <div style="margin: 1.5rem 0;">
+                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$75</span>
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
+                            </div>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #fff;">
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> <strong>Hasta 10 Usuarios</strong> con perfiles</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> <strong>Facturación DTE MH Ilimitada</strong></li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Diagnóstico Digital 21 Puntos</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Control de Inventario & Kárdex</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Venta Rápida POS Mostrador</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--success);"></i> Caja Diaria y Arqueo de Billetes</li>
+                            </ul>
+                        </div>
+                        <a href="#registro" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.9rem; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);">
+                            Comenzar con Pro
+                        </a>
+                    </div>
+
+                    <!-- Plan 3: Enterprise -->
+                    <div class="glass-card" style="padding: 2.25rem 2rem; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; background: rgba(21, 26, 48, 0.6);">
+                        <div>
+                            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Plan Enterprise</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; min-height: 40px;">Para empresas automotrices grandes, concesionarios o cadenas multisucursal.</p>
+                            <div style="margin: 1.5rem 0;">
+                                <span style="font-family:'Outfit', sans-serif; font-size: 2.8rem; font-weight: 800; color: #fff;">$120</span>
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;"> / mes</span>
+                            </div>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 2rem 0; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem; color: #cbd5e1;">
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> <strong>Usuarios Ilimitados</strong></li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Todo lo incluido en Plan Pro</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Módulo Completo de Nómina & ISR</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Cálculo Automatizado de Comisiones</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Inteligencia de Negocios (BI) Avanzada</li>
+                                <li style="display: flex; gap: 0.5rem;"><i class="fa-solid fa-check" style="color: var(--cyan);"></i> Soporte Prioritario 24/7 y Onboarding</li>
+                            </ul>
+                        </div>
+                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 600; padding: 0.8rem;">
+                            Elegir Enterprise
+                        </a>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- CALL TO ACTION FINAL -->
+            <section style="padding: 5rem 1.5rem; text-align: center; background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);">
+                <div style="max-width: 750px; margin: 0 auto;">
+                    <h2 style="font-family:'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin-bottom: 1rem;">
+                        Transforma la gestión de tu taller hoy mismo
+                    </h2>
+                    <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+                        Únete a los talleres mecánicos que ya modernizaron su operación, ahorran horas en trámites de Hacienda y aumentaron su rentabilidad con Mecanic OS.
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                        <a href="#registro" class="btn btn-primary" style="padding: 1rem 2.8rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);">
+                            <i class="fa-solid fa-rocket"></i> Registrar Mi Taller Ahora
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FOOTER -->
+            <footer style="border-top: 1px solid var(--border-color); padding: 3rem 1.5rem; background: rgba(10, 13, 22, 0.95); font-size: 0.85rem; color: var(--text-muted);">
+                <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-family:'Outfit', sans-serif; font-size: 1.2rem; font-weight: 700; color: #fff;">
+                        <i class="fa-solid fa-gears" style="color: var(--primary);"></i> Mecanic OS
+                    </div>
+                    <div>
+                        © ${new Date().getFullYear()} Mecanic OS. Todos los derechos reservados. Desarrollado para El Salvador.
+                    </div>
+                    <div style="display: flex; gap: 1.5rem;">
+                        <a href="#terminos" style="color: var(--text-secondary); text-decoration: none;">Términos de Servicio</a>
+                        <a href="#admin-solicitudes" style="color: var(--text-secondary); text-decoration: none;">Acceso Admin</a>
+                    </div>
+                </div>
+            </footer>
+
         </div>
     `;
 
-    // Bind listeners
-    const topLoginBtn = document.getElementById('btn-landing-top-login');
-    if (topLoginBtn) {
-        topLoginBtn.addEventListener('click', () => {
-            if (typeof firebase !== 'undefined' && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
-                window.location.hash = 'taller-dashboard';
-                handleRouting();
-            } else {
-                document.getElementById('firebase-auth-modal').classList.add('active');
-                const loginTab = document.getElementById('fb-tab-login');
-                if (loginTab) loginTab.click();
-            }
-        });
-    }
-
-    const loginBtn = document.getElementById('btn-landing-login');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            if (typeof firebase !== 'undefined' && firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) {
-                window.location.hash = 'taller-dashboard';
-                handleRouting();
-            } else {
-                document.getElementById('firebase-auth-modal').classList.add('active');
-                const loginTab = document.getElementById('fb-tab-login');
-                if (loginTab) loginTab.click();
-            }
-        });
-    }
-
+    // Botón de desconexión si ya está logueado en la landing
     const resetBtn = document.getElementById('btn-landing-reset');
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
@@ -171,7 +476,7 @@ export function renderLanding(container) {
                 
                 showToast("Taller desconectado con éxito", "info");
                 window.location.hash = 'landing';
-                handleRouting();
+                if (typeof handleRouting === 'function') handleRouting();
             }
         });
     }
