@@ -29,7 +29,7 @@ import {
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
 } from './views/saas.js?v=99';
-import { renderTerminosPublicos } from './views/terminos_publicos.js?v=2';
+import { renderTerminosPublicos } from './views/terminos_publicos.js?v=3';
 import {
     renderLockScreen,
     renderSaaSAdminLogin

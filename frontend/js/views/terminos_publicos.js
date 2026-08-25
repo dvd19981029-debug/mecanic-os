@@ -1,6 +1,7 @@
 /**
  * Mecanic OS - Centro Legal: Términos y Condiciones & Política de Privacidad
  * Adaptado y blindado conforme al marco legal de la República de El Salvador:
+ * - Exoneración integral por Bugs, Errores de Software, Fórmulas, Descuadres y Lucro Cesante ("AS IS")
  * - Código Tributario y Normativa de Facturación Electrónica (DTE / DGII - Ministerio de Hacienda)
  * - Ley de Protección al Consumidor (Defensoría del Consumidor)
  * - Ley de Comercio Electrónico y Ley de Firma Electrónica
@@ -34,7 +35,7 @@ export function renderTerminosPublicos(container) {
                 <!-- SELECTOR DE PESTAÑAS LEGALES -->
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.03); padding: 0.4rem; border-radius: 10px; border: 1px solid var(--border-color);">
                     <button id="legal-tab-terms" class="btn btn-primary" style="flex: 1; padding: 0.65rem 1rem; font-size: 0.88rem; font-weight: 700; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
-                        <i class="fa-solid fa-file-contract"></i> 1. Términos y Condiciones de Uso
+                        <i class="fa-solid fa-file-contract"></i> 1. Términos, Licenciamiento y Exoneración de Responsabilidad
                     </button>
                     <button id="legal-tab-privacy" class="btn btn-secondary" style="flex: 1; padding: 0.65rem 1rem; font-size: 0.88rem; font-weight: 700; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; background: transparent; border: none; color: var(--text-secondary);">
                         <i class="fa-solid fa-shield-halved"></i> 2. Política de Privacidad & Protección de Datos
@@ -42,7 +43,7 @@ export function renderTerminosPublicos(container) {
                 </div>
 
                 <!-- CONTENEDOR 1: TERMINOS Y CONDICIONES -->
-                <div id="legal-content-terms" style="display: block; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 10px; padding: 2.25rem 2rem; max-height: 65vh; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); font-family: 'Inter', sans-serif; white-space: pre-wrap; text-align: left;">TÉRMINOS Y CONDICIONES GENERALES DE USO Y LICENCIAMIENTO
+                <div id="legal-content-terms" style="display: block; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 10px; padding: 2.25rem 2rem; max-height: 65vh; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); font-family: 'Inter', sans-serif; white-space: pre-wrap; text-align: left;">TÉRMINOS Y CONDICIONES GENERALES DE USO, LICENCIAMIENTO Y EXONERACIÓN DE RESPONSABILIDAD
 PLATAFORMA MECANIC OS (EL SALVADOR)
 Última actualización: 25 de Agosto de 2026
 
@@ -75,41 +76,55 @@ El software provee herramientas tecnológicas para la automatización de tallere
 10. Control de Compras a Proveedores y Gastos Operativos.
 11. Estimador de Planilla Laboral de Ley (ISSS, AFP, Renta ISR) y Liquidación de Comisiones.
 
-3. DESLINDE ESPECÍFICO Y LÍMITES DE RESPONSABILIDAD EN MATERIA TRIBUTARIA (DTE / MH)
-3.1. Rol de Intermediación Tecnológica:
+3. EXONERACIÓN INTEGRAL DE RESPONSABILIDAD POR BUGS, ERRORES DE SOFTWARE Y PROVISIÓN "TAL CUAL" (AS IS)
+3.1. Provisión en Estado Actual ("AS IS" y "AS AVAILABLE"):
+EL CLIENTE reconoce y acepta expresamente que el software, por su propia naturaleza tecnológica, es susceptible a fallas, interrupciones, incompatibilidades de navegador, errores de codificación (bugs) o caídas fortuitas. LA PLATAFORMA se provee "TAL CUAL" y "SEGÚN DISPONIBILIDAD", sin garantías explícitas o implícitas de infalibilidad absoluta, funcionamiento ininterrumpido o libre de defectos.
+3.2. Deber de Verificación y Control del Taller:
+LA PLATAFORMA es una herramienta de auxilio operativo y cálculo automatizado. EL TALLER, sus contadores, cajeros y administradores tienen la obligación indelegable de revisar y verificar la coherencia de todos los números, presupuestos, cortes de caja, montos facturados, retenciones (1%), percepciones (2%), inventarios y saldos antes de emitir documentos formales o liquidar pagos a terceros o empleados.
+3.3. Exclusión Total de Lucro Cesante y Daños Consecuenciales:
+EN NINGÚN CASO FORBIDDEN SOLUCIONES S.A. DE C.V., SUS ACCIONISTAS, DIRECTORES, DESARROLLADORES O EMPLEADOS SERÁN RESPONSABLES ANTE EL CLIENTE O TERCEROS POR:
+a) Daños directos, indirectos, incidentales, punitivos, especiales o consecuenciales.
+b) Pérdida de ganancias, lucro cesante, interrupción de operaciones comerciales o pérdida de oportunidades de negocio.
+c) Errores en cálculos de kárdex, descuadres en cortes de caja o discrepancias en estimaciones de salarios/comisiones.
+d) Pérdida, corrupción o alteración de datos locales, fallos de conexión o caídas en la red de internet del usuario.
+3.4. Límite Máximo Indemnizatorio:
+En el supuesto no consentido de que un tribunal competente de la República de El Salvador declare alguna responsabilidad a cargo del PROVEEDOR, la responsabilidad total agregada y máxima quedará expresamente limitada al monto efectivamente pagado por EL TALLER durante el último mes de suscripción del servicio o el equivalente a una mensualidad ordinaria básica.
+
+4. DESLINDE ESPECÍFICO Y LÍMITES EN MATERIA TRIBUTARIA (DTE / MH)
+4.1. Rol de Intermediación Tecnológica:
 LA PLATAFORMA actúa exclusivamente como un canal y puente tecnológico para estructurar, firmar digitalmente y transmitir comprobantes tributarios electrónicos hacia los servidores de la DGII / Ministerio de Hacienda.
-3.2. Responsabilidad Exclusiva del Emisor:
+4.2. Responsabilidad Exclusiva del Emisor Tributario:
 EL TALLER es el único y exclusivo obligado y responsable ante el Ministerio de Hacienda y las autoridades fiscales por:
 a) La veracidad, exactitud y legitimidad de los datos fiscales, montos, precios, clasificación tributaria, NIT, NRC y actividades económicas declaradas.
 b) La custodia, confidencialidad y validez de sus credenciales criptográficas de emisor DTE (Llave privada, contraseña y API Key proporcionadas por el Ministerio de Hacienda).
 c) Las obligaciones de pago de impuestos derivados de sus ventas (IVA, Pago a Cuenta, Renta, Retenciones y Percepciones).
-3.3. Exclusión por Caídas del Ente Recaudador:
+4.3. Exclusión por Caídas del Ente Recaudador o Fallos de Transmisión:
 FORBIDDEN SOLUCIONES no se hace responsable por demoras, rechazos, caídas temporales de servidores o fallas originadas directamente en la infraestructura del Ministerio de Hacienda de El Salvador o en proveedores externos de conectividad e internet.
 
-4. DELIMITACIÓN Y RESPONSABILIDAD EN VEHÍCULOS Y RECEPCIÓN
-4.1. Recepción y Custodia de Bienes:
+5. DELIMITACIÓN Y RESPONSABILIDAD EN VEHÍCULOS Y RECEPCIÓN
+5.1. Recepción y Custodia de Bienes:
 La recepción, inspección visual de 21 puntos, hoja de inventario físico y levantamiento de rayones o daños preexistentes en los vehículos automotores constituyen una relación directa y contractual entre EL TALLER y el propietario del automotor.
-4.2. Exclusión de Responsabilidad Mecánica:
+5.2. Exclusión de Responsabilidad Mecánica:
 FORBIDDEN SOLUCIONES no asume responsabilidad alguna por garantías mecánicas, fallas en reparaciones, pérdidas materiales, sustracciones o accidentes ocurridos dentro o fuera de las instalaciones del taller usuario de LA PLATAFORMA.
 
-5. OBLIGACIONES DE PAGO Y DISPONIBILIDAD DEL SERVICIO
-5.1. Cuotas de Suscripción / Mantenimiento:
+6. OBLIGACIONES DE PAGO Y DISPONIBILIDAD DEL SERVICIO
+6.1. Cuotas de Suscripción / Mantenimiento:
 El acceso continuo a LA PLATAFORMA está condicionado al pago puntual de la tarifa pactada (mensual, anual o mantenimiento de licencia vitalicia).
-5.2. Suspensión por Mora:
+6.2. Suspensión por Mora:
 En caso de falta de pago, el acceso a las funciones operativas del software podrá ser suspendido automáticamente previa notificación electrónica. El Taller dispondrá de un período de 30 días calendario para regularizar su cuenta o solicitar la exportación de sus datos históricos.
-5.3. No Reembolsos:
+6.3. No Reembolsos:
 Las tarifas canceladas por el uso de la licencia y consumo de infraestructura no son sujetas a reembolso, salvo fallas directas comprobadas atribuibles de manera exclusiva y negligente al PROVEEDOR.
 
-6. SEGURIDAD Y CREDENCIALES DE ACCESO
+7. SEGURIDAD Y CREDENCIALES DE ACCESO
 Cada usuario, mecánico o administrador del taller es responsable de la confidencialidad de su PIN y contraseña. Todas las transacciones, anulaciones, movimientos de caja o emisiones fiscales efectuadas con las credenciales de un usuario se presumirán realizadas por el titular de las mismas.
 
-7. PROPIEDAD INTELECTUAL Y PROHIBICIÓN DE INGENIERÍA INVERSA
+8. PROPIEDAD INTELECTUAL Y PROHIBICIÓN DE INGENIERÍA INVERSA
 Queda estrictamente prohibido al CLIENTE, sus empleados o terceros:
 a) Intentar descompilar, realizar ingeniería inversa, copiar, replicar o comercializar el código fuente, la arquitectura o la interfaz gráfica de Mecanic OS.
 b) Utilizar LA PLATAFORMA para el desarrollo de un software competidor.
 La infracción a esta cláusula dará lugar a las acciones civiles y penales pertinentes ante los tribunales de la República de El Salvador.
 
-8. JURISDICCIÓN Y SOLUCIÓN DE CONTROVERSIAS
+9. JURISDICCIÓN Y SOLUCIÓN DE CONTROVERSIAS
 Para cualquier divergencia o controversia derivada de la interpretación o ejecución de estos Términos, las partes fijan como domicilio especial la ciudad de San Salvador, sometiéndose expresamente a la jurisdicción de sus tribunales competentes y a la legislación de la República de El Salvador.</div>
 
                 <!-- CONTENEDOR 2: POLITICA DE PRIVACIDAD -->
@@ -157,7 +172,7 @@ Para cualquier requerimiento, consulta o ejercicio de derechos sobre datos perso
                 <!-- FOOTER DE ACCIONES -->
                 <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
-                        <i class="fa-solid fa-lock" style="color: var(--success);"></i> Plataforma Blindada y Certificada para El Salvador
+                        <i class="fa-solid fa-shield-check" style="color: var(--success);"></i> Plataforma Blindada y Certificada para El Salvador
                     </div>
                     <a href="#landing" class="btn btn-primary" style="padding: 0.65rem 2rem; font-size: 0.9rem; font-weight: 700; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
                         <i class="fa-solid fa-arrow-left"></i> Volver a Mecanic OS
