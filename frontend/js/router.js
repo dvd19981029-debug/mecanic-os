@@ -3,7 +3,7 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=81';
+import { renderConfiguracion } from './views/configuracion.js?v=82';
 import { renderLanding } from './views/landing.js?v=69';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=91';
 import { renderVehiculos } from './views/vehiculos.js';

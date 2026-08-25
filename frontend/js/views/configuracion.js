@@ -3042,6 +3042,8 @@ function renderChecklistConfig(container, db) {
             }
         });
     });
+}
+
 function renderMarcasModelosConfig(container, db) {
     db.marcas_vehiculos = db.marcas_vehiculos || [];
     db.modelos_vehiculos = db.modelos_vehiculos || [];
