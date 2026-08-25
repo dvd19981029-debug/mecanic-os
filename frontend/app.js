@@ -1198,6 +1198,63 @@ function setActiveUser(user) {
 
 
 
+// Helper: Setup Brands & Models dependent selectors with quick add capability
+function setupMarcasModelosSelect(marcaInputId, modeloInputId, initialMarca = '', initialModelo = '') {
+    const db = typeof getDatabase === 'function' ? getDatabase() : window.db;
+    const marcaEl = document.getElementById(marcaInputId);
+    const modeloEl = document.getElementById(modeloInputId);
+    if (!marcaEl || !modeloEl) return;
+
+    const marcas = (db && db.marcas_vehiculos) ? db.marcas_vehiculos : [];
+    const modelos = (db && db.modelos_vehiculos) ? db.modelos_vehiculos : [];
+
+    // Create or find datalist for Marcas
+    let marcasList = document.getElementById(marcaInputId + '-list');
+    if (!marcasList) {
+        marcasList = document.createElement('datalist');
+        marcasList.id = marcaInputId + '-list';
+        document.body.appendChild(marcasList);
+    }
+    marcasList.innerHTML = marcas.map(m => `<option value="${m.nombre}"></option>`).join('');
+    marcaEl.setAttribute('list', marcasList.id);
+
+    // Create or find datalist for Modelos
+    let modelosList = document.getElementById(modeloInputId + '-list');
+    if (!modelosList) {
+        modelosList = document.createElement('datalist');
+        modelosList.id = modeloInputId + '-list';
+        document.body.appendChild(modelosList);
+    }
+    modeloEl.setAttribute('list', modelosList.id);
+
+    function updateModelosList() {
+        const selectedMarcaName = marcaEl.value.trim().toLowerCase();
+        const foundMarca = marcas.find(m => m.nombre.toLowerCase() === selectedMarcaName);
+        
+        let filteredModelos = [];
+        if (foundMarca) {
+            filteredModelos = modelos.filter(mod => mod.marca_id === foundMarca.id || mod.marca_nombre?.toLowerCase() === selectedMarcaName);
+        } else if (selectedMarcaName) {
+            filteredModelos = modelos.filter(mod => mod.marca_nombre?.toLowerCase() === selectedMarcaName);
+        } else {
+            filteredModelos = modelos;
+        }
+
+        modelosList.innerHTML = filteredModelos.map(mod => `<option value="${mod.nombre}"></option>`).join('');
+    }
+
+    marcaEl.addEventListener('input', updateModelosList);
+    marcaEl.addEventListener('change', updateModelosList);
+
+    if (initialMarca) {
+        marcaEl.value = initialMarca;
+    }
+    updateModelosList();
+    if (initialModelo) {
+        modeloEl.value = initialModelo;
+    }
+}
+
 export {
     getDatabase,
     getActiveUser,
@@ -1215,6 +1272,7 @@ export {
     getWorkshopConfig,
     setupMunicipiosSelect,
     setupOfficialCatalogsSelect,
+    setupMarcasModelosSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,

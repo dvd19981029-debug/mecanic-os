@@ -1,7 +1,8 @@
 import {
     getDatabase,
     saveDatabase,
-    getActiveUser
+    getActiveUser,
+    setupMarcasModelosSelect
 } from '../../app.js';
 import {
     showToast,
@@ -453,13 +454,13 @@ export function renderVehiculos(container) {
         document.getElementById('edit-v-key').value = key;
         document.getElementById('edit-v-placa').value = placa;
         document.getElementById('edit-v-equipo').value = nEquipoVal;
-        document.getElementById('edit-v-marca').value = veh.Marca || '';
-        document.getElementById('edit-v-modelo').value = veh.Modelo || '';
         document.getElementById('edit-v-year').value = veh.Año || veh.Anio || '';
         document.getElementById('edit-v-color').value = veh.Color || '';
         document.getElementById('edit-v-tipo').value = veh.Tipo || 'Automóvil';
         document.getElementById('edit-v-vin').value = veh.VIN || veh.Chasis || veh.N_Chasis || veh.Nª_VIN || '';
         document.getElementById('edit-v-motor').value = veh.Motor || veh.N_Motor || veh.Nª_Motor || '';
+
+        setupMarcasModelosSelect('edit-v-marca', 'edit-v-modelo', veh.Marca || '', veh.Modelo || '');
 
         const clientSel = document.getElementById('edit-v-cliente');
         const currClientId = veh.ID_Cliente || veh.Cliente_ID || veh.Cliente || veh.Codigo_Cliente || (client ? (client.ID_Cliente || client.Codigo_Cliente) : '');
@@ -734,6 +735,35 @@ export function renderVehiculos(container) {
             const newVin = document.getElementById('edit-v-vin').value.trim();
             const newMotor = document.getElementById('edit-v-motor').value.trim();
             const newClientId = document.getElementById('edit-v-cliente').value;
+
+            // Auto-register brand / model if new
+            if (newMarca) {
+                db.marcas_vehiculos = db.marcas_vehiculos || [];
+                db.modelos_vehiculos = db.modelos_vehiculos || [];
+                let foundMarca = db.marcas_vehiculos.find(m => m.nombre.toLowerCase() === newMarca.toLowerCase());
+                if (!foundMarca) {
+                    foundMarca = {
+                        id: 'marca-' + newMarca.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                        nombre: newMarca,
+                        activa: true
+                    };
+                    db.marcas_vehiculos.push(foundMarca);
+                }
+                if (newModelo) {
+                    let foundModelo = db.modelos_vehiculos.find(m => 
+                        (m.marca_id === foundMarca.id || m.marca_nombre?.toLowerCase() === foundMarca.nombre.toLowerCase()) && 
+                        m.nombre.toLowerCase() === newModelo.toLowerCase()
+                    );
+                    if (!foundModelo) {
+                        db.modelos_vehiculos.push({
+                            id: 'mod-' + Math.random().toString(36).substring(2, 9),
+                            marca_id: foundMarca.id,
+                            marca_nombre: foundMarca.nombre,
+                            nombre: newModelo
+                        });
+                    }
+                }
+            }
 
             // Update target in memory
             target.Placas = newPlaca;

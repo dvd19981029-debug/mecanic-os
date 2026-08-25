@@ -27,7 +27,9 @@ const collectionConfigs = [
     { name: 'abonos_proveedores', path: 'abonos_proveedores', key: 'ID_Abono_Prov' },
     { name: 'ingresos', path: 'ingresos', key: 'ID_Ingreso' },
     { name: 'cajas_sesiones', path: 'cajas_sesiones', key: 'id_sesion' },
-    { name: 'caja_movimientos', path: 'caja_movimientos', key: 'id_movimiento' }
+    { name: 'caja_movimientos', path: 'caja_movimientos', key: 'id_movimiento' },
+    { name: 'marcas_vehiculos', path: 'marcas_vehiculos', key: 'id' },
+    { name: 'modelos_vehiculos', path: 'modelos_vehiculos', key: 'id' }
 ];
 
 const dataService = {
@@ -230,6 +232,97 @@ const dataService = {
             }
             if (!this.cache.cajas_sesiones) { this.cache.cajas_sesiones = []; changed = true; }
             if (!this.cache.caja_movimientos) { this.cache.caja_movimientos = []; changed = true; }
+            
+            const defaultMarcas = [
+                { id: 'marca-toyota', nombre: 'Toyota', activa: true },
+                { id: 'marca-nissan', nombre: 'Nissan', activa: true },
+                { id: 'marca-hyundai', nombre: 'Hyundai', activa: true },
+                { id: 'marca-kia', nombre: 'Kia', activa: true },
+                { id: 'marca-honda', nombre: 'Honda', activa: true },
+                { id: 'marca-mitsubishi', nombre: 'Mitsubishi', activa: true },
+                { id: 'marca-mazda', nombre: 'Mazda', activa: true },
+                { id: 'marca-ford', nombre: 'Ford', activa: true },
+                { id: 'marca-chevrolet', nombre: 'Chevrolet', activa: true },
+                { id: 'marca-isuzu', nombre: 'Isuzu', activa: true },
+                { id: 'marca-suzuki', nombre: 'Suzuki', activa: true },
+                { id: 'marca-hino', nombre: 'Hino', activa: true },
+                { id: 'marca-freightliner', nombre: 'Freightliner', activa: true },
+                { id: 'marca-international', nombre: 'International', activa: true },
+                { id: 'marca-volkswagen', nombre: 'Volkswagen', activa: true },
+                { id: 'marca-jeep', nombre: 'Jeep', activa: true },
+                { id: 'marca-bmw', nombre: 'BMW', activa: true },
+                { id: 'marca-mercedes', nombre: 'Mercedes-Benz', activa: true }
+            ];
+
+            const defaultModelos = [
+                // Toyota
+                { id: 'mod-toy-hilux', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Hilux' },
+                { id: 'mod-toy-corolla', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Corolla' },
+                { id: 'mod-toy-yaris', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Yaris' },
+                { id: 'mod-toy-rav4', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'RAV4' },
+                { id: 'mod-toy-4runner', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: '4Runner' },
+                { id: 'mod-toy-prado', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Land Cruiser Prado' },
+                { id: 'mod-toy-hiace', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Hiace' },
+                { id: 'mod-toy-tacoma', marca_id: 'marca-toyota', marca_nombre: 'Toyota', nombre: 'Tacoma' },
+                // Nissan
+                { id: 'mod-nis-frontier', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Frontier / NP300' },
+                { id: 'mod-nis-sentra', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Sentra' },
+                { id: 'mod-nis-versa', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Versa' },
+                { id: 'mod-nis-rogue', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Rogue / X-Trail' },
+                { id: 'mod-nis-kicks', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Kicks' },
+                { id: 'mod-nis-urvan', marca_id: 'marca-nissan', marca_nombre: 'Nissan', nombre: 'Urvan' },
+                // Hyundai
+                { id: 'mod-hyu-elantra', marca_id: 'marca-hyundai', marca_nombre: 'Hyundai', nombre: 'Elantra' },
+                { id: 'mod-hyu-accent', marca_id: 'marca-hyundai', marca_nombre: 'Hyundai', nombre: 'Accent' },
+                { id: 'mod-hyu-tucson', marca_id: 'marca-hyundai', marca_nombre: 'Hyundai', nombre: 'Tucson' },
+                { id: 'mod-hyu-santafe', marca_id: 'marca-hyundai', marca_nombre: 'Hyundai', nombre: 'Santa Fe' },
+                { id: 'mod-hyu-h100', marca_id: 'marca-hyundai', marca_nombre: 'Hyundai', nombre: 'H-100 / Porter' },
+                // Kia
+                { id: 'mod-kia-rio', marca_id: 'marca-kia', marca_nombre: 'Kia', nombre: 'Rio' },
+                { id: 'mod-kia-forte', marca_id: 'marca-kia', marca_nombre: 'Kia', nombre: 'Forte / Cerato' },
+                { id: 'mod-kia-sportage', marca_id: 'marca-kia', marca_nombre: 'Kia', nombre: 'Sportage' },
+                { id: 'mod-kia-sorento', marca_id: 'marca-kia', marca_nombre: 'Kia', nombre: 'Sorento' },
+                { id: 'mod-kia-k2700', marca_id: 'marca-kia', marca_nombre: 'Kia', nombre: 'K2700 / Bongo' },
+                // Honda
+                { id: 'mod-hon-civic', marca_id: 'marca-honda', marca_nombre: 'Honda', nombre: 'Civic' },
+                { id: 'mod-hon-crv', marca_id: 'marca-honda', marca_nombre: 'Honda', nombre: 'CR-V' },
+                { id: 'mod-hon-accord', marca_id: 'marca-honda', marca_nombre: 'Honda', nombre: 'Accord' },
+                { id: 'mod-hon-hrv', marca_id: 'marca-honda', marca_nombre: 'Honda', nombre: 'HR-V' },
+                // Mitsubishi
+                { id: 'mod-mit-l200', marca_id: 'marca-mitsubishi', marca_nombre: 'Mitsubishi', nombre: 'L200 / Sportero' },
+                { id: 'mod-mit-montero', marca_id: 'marca-mitsubishi', marca_nombre: 'Mitsubishi', nombre: 'Montero Sport' },
+                { id: 'mod-mit-outlander', marca_id: 'marca-mitsubishi', marca_nombre: 'Mitsubishi', nombre: 'Outlander' },
+                { id: 'mod-mit-canter', marca_id: 'marca-mitsubishi', marca_nombre: 'Mitsubishi', nombre: 'Fuso Canter' },
+                // Mazda
+                { id: 'mod-maz-mazda3', marca_id: 'marca-mazda', marca_nombre: 'Mazda', nombre: 'Mazda 3' },
+                { id: 'mod-maz-cx5', marca_id: 'marca-mazda', marca_nombre: 'Mazda', nombre: 'CX-5' },
+                { id: 'mod-maz-bt50', marca_id: 'marca-mazda', marca_nombre: 'Mazda', nombre: 'BT-50' },
+                // Ford
+                { id: 'mod-for-ranger', marca_id: 'marca-ford', marca_nombre: 'Ford', nombre: 'Ranger' },
+                { id: 'mod-for-f150', marca_id: 'marca-ford', marca_nombre: 'Ford', nombre: 'F-150' },
+                { id: 'mod-for-explorer', marca_id: 'marca-ford', marca_nombre: 'Ford', nombre: 'Explorer' },
+                { id: 'mod-for-escape', marca_id: 'marca-ford', marca_nombre: 'Ford', nombre: 'Escape' },
+                // Chevrolet
+                { id: 'mod-che-colorado', marca_id: 'marca-chevrolet', marca_nombre: 'Chevrolet', nombre: 'Colorado / S10' },
+                { id: 'mod-che-silverado', marca_id: 'marca-chevrolet', marca_nombre: 'Chevrolet', nombre: 'Silverado' },
+                { id: 'mod-che-spark', marca_id: 'marca-chevrolet', marca_nombre: 'Chevrolet', nombre: 'Spark' },
+                { id: 'mod-che-trax', marca_id: 'marca-chevrolet', marca_nombre: 'Chevrolet', nombre: 'Trax / Tracker' },
+                // Isuzu
+                { id: 'mod-isu-dmax', marca_id: 'marca-isuzu', marca_nombre: 'Isuzu', nombre: 'D-Max' },
+                { id: 'mod-isu-npr', marca_id: 'marca-isuzu', marca_nombre: 'Isuzu', nombre: 'NPR / NQR' },
+                // Pesados / Otros
+                { id: 'mod-hin-500', marca_id: 'marca-hino', marca_nombre: 'Hino', nombre: 'Serie 300 / 500' },
+                { id: 'mod-fre-cascadia', marca_id: 'marca-freightliner', marca_nombre: 'Freightliner', nombre: 'Cascadia / M2' }
+            ];
+
+            if (!this.cache.marcas_vehiculos || this.cache.marcas_vehiculos.length === 0) {
+                this.cache.marcas_vehiculos = defaultMarcas;
+                changed = true;
+            }
+            if (!this.cache.modelos_vehiculos || this.cache.modelos_vehiculos.length === 0) {
+                this.cache.modelos_vehiculos = defaultModelos;
+                changed = true;
+            }
             
             // Self-healing: Deduplicate collections based on primary keys to resolve local storage inconsistencies
             collectionConfigs.forEach(config => {

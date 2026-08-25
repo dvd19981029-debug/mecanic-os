@@ -449,6 +449,7 @@ export function renderConfiguracion(container, queryParams) {
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
             <div class="saas-tabs-container" style="margin-bottom: 0.5rem;">
                 <button class="saas-tab-btn ${activeConfigTab === 'taller' ? 'active' : ''}" data-tab="taller"><i class="fa-solid fa-sliders"></i> Taller y Roles</button>
+                <button class="saas-tab-btn ${activeConfigTab === 'vehiculos_catalogo' ? 'active' : ''}" data-tab="vehiculos_catalogo"><i class="fa-solid fa-car"></i> Marcas y Modelos</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'empleados' ? 'active' : ''}" data-tab="empleados"><i class="fa-solid fa-users-gear"></i> Empleados</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'productos' ? 'active' : ''}" data-tab="productos"><i class="fa-solid fa-boxes-stacked"></i> Repuestos / Productos</button>
                 <button class="saas-tab-btn ${activeConfigTab === 'servicios' ? 'active' : ''}" data-tab="servicios"><i class="fa-solid fa-screwdriver-wrench"></i> Servicios / Mano de Obra</button>
@@ -2434,6 +2435,8 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('promocion-modal').classList.remove('active');
             renderConfiguracion(container);
         });
+    } else if (activeConfigTab === 'vehiculos_catalogo') {
+        renderMarcasModelosConfig(tabContentArea, db);
     } else if (activeConfigTab === 'checklist') {
         renderChecklistConfig(tabContentArea, db);
     }
@@ -3039,6 +3042,336 @@ function renderChecklistConfig(container, db) {
             }
         });
     });
+function renderMarcasModelosConfig(container, db) {
+    db.marcas_vehiculos = db.marcas_vehiculos || [];
+    db.modelos_vehiculos = db.modelos_vehiculos || [];
+
+    let selectedMarcaId = db.marcas_vehiculos.length > 0 ? db.marcas_vehiculos[0].id : null;
+    let marcaSearch = '';
+    let modeloSearch = '';
+
+    function renderView() {
+        const filteredMarcas = db.marcas_vehiculos.filter(m => 
+            !marcaSearch || m.nombre.toLowerCase().includes(marcaSearch.toLowerCase())
+        );
+
+        const currentMarca = db.marcas_vehiculos.find(m => m.id === selectedMarcaId);
+        
+        let filteredModelos = [];
+        if (currentMarca) {
+            filteredModelos = db.modelos_vehiculos.filter(mod => 
+                (mod.marca_id === currentMarca.id || mod.marca_nombre?.toLowerCase() === currentMarca.nombre.toLowerCase()) &&
+                (!modeloSearch || mod.nombre.toLowerCase().includes(modeloSearch.toLowerCase()))
+            );
+        }
+
+        container.innerHTML = html`
+            <div style="display:grid; grid-template-columns: 1fr 1.3fr; gap:1.5rem; align-items:start;">
+                
+                <!-- Left Panel: Marcas -->
+                <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <h3 style="color:var(--primary); margin:0; font-size:1.15rem;"><i class="fa-solid fa-car-side"></i> Marcas de Vehículos</h3>
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin:0.2rem 0 0 0;">${db.marcas_vehiculos.length} marcas registradas</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-marca" style="padding:0.4rem 0.75rem; font-size:0.8rem;"><i class="fa-solid fa-plus"></i> Nueva Marca</button>
+                    </div>
+
+                    <div style="margin-bottom:0.25rem;">
+                        <input type="text" id="marca-search-input" value="${escapeHtml(marcaSearch)}" placeholder="Buscar marca..." style="width:100%; padding:0.5rem 0.75rem; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); font-size:0.85rem;">
+                    </div>
+
+                    <div style="max-height:480px; overflow-y:auto; display:flex; flex-direction:column; gap:0.4rem; padding-right:0.25rem;">
+                        ${safe(filteredMarcas.length === 0 ? '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">No se encontraron marcas</div>' : filteredMarcas.map(m => {
+                            const isSelected = m.id === selectedMarcaId;
+                            const modCount = db.modelos_vehiculos.filter(mod => mod.marca_id === m.id || mod.marca_nombre?.toLowerCase() === m.nombre.toLowerCase()).length;
+                            return `
+                                <div class="marca-item-card" data-id="${m.id}" style="display:flex; justify-content:space-between; align-items:center; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}; background:${isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)'}; cursor:pointer; transition:all 0.15s ease;">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <i class="fa-solid fa-tag" style="color:${isSelected ? 'var(--primary)' : 'var(--text-muted)'}; font-size:0.85rem;"></i>
+                                        <strong style="color:var(--text-primary); font-size:0.9rem;">${escapeHtml(m.nombre)}</strong>
+                                        <span class="badge" style="font-size:0.7rem; padding:0.1rem 0.4rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-secondary);">${modCount} modelos</span>
+                                    </div>
+                                    <div style="display:flex; gap:0.25rem;">
+                                        <button class="btn btn-secondary btn-edit-marca" data-id="${m.id}" data-nombre="${escapeHtml(m.nombre)}" style="padding:0.25rem 0.45rem; font-size:0.75rem;" title="Editar Marca"><i class="fa-solid fa-pen"></i></button>
+                                        <button class="btn btn-secondary btn-delete-marca" data-id="${m.id}" data-nombre="${escapeHtml(m.nombre)}" style="padding:0.25rem 0.45rem; font-size:0.75rem; color:var(--danger);" title="Eliminar Marca"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join(''))}
+                    </div>
+                </div>
+
+                <!-- Right Panel: Modelos de la Marca Seleccionada -->
+                <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <h3 style="color:var(--primary); margin:0; font-size:1.15rem;">
+                                <i class="fa-solid fa-list"></i> Modelos: <span style="color:var(--text-primary);">${currentMarca ? escapeHtml(currentMarca.nombre) : 'Seleccione una marca'}</span>
+                            </h3>
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin:0.2rem 0 0 0;">${filteredModelos.length} modelos en esta marca</p>
+                        </div>
+                        ${safe(currentMarca ? `<button class="btn btn-primary" id="btn-add-modelo" style="padding:0.4rem 0.75rem; font-size:0.8rem;"><i class="fa-solid fa-plus"></i> Nuevo Modelo</button>` : '')}
+                    </div>
+
+                    ${safe(currentMarca ? `
+                        <div style="margin-bottom:0.25rem;">
+                            <input type="text" id="modelo-search-input" value="${escapeHtml(modeloSearch)}" placeholder="Buscar modelo de ${escapeHtml(currentMarca.nombre)}..." style="width:100%; padding:0.5rem 0.75rem; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); font-size:0.85rem;">
+                        </div>
+
+                        <div style="max-height:480px; overflow-y:auto; display:flex; flex-direction:column; gap:0.4rem; padding-right:0.25rem;">
+                            ${safe(filteredModelos.length === 0 ? '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:2rem 0;">No hay modelos registrados para esta marca. Haz clic en "+ Nuevo Modelo" para agregar uno.</div>' : filteredModelos.map(mod => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <i class="fa-solid fa-car" style="color:var(--text-secondary); font-size:0.85rem;"></i>
+                                        <strong style="color:var(--text-primary); font-size:0.9rem;">${escapeHtml(mod.nombre)}</strong>
+                                    </div>
+                                    <div style="display:flex; gap:0.25rem;">
+                                        <button class="btn btn-secondary btn-edit-modelo" data-id="${mod.id}" data-nombre="${escapeHtml(mod.nombre)}" style="padding:0.25rem 0.45rem; font-size:0.75rem;" title="Editar Modelo"><i class="fa-solid fa-pen"></i></button>
+                                        <button class="btn btn-secondary btn-delete-modelo" data-id="${mod.id}" data-nombre="${escapeHtml(mod.nombre)}" style="padding:0.25rem 0.45rem; font-size:0.75rem; color:var(--danger);" title="Eliminar Modelo"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            `).join(''))}
+                        </div>
+                    ` : '<div style="color:var(--text-muted); padding:3rem 0; text-align:center;">Selecciona una marca del panel izquierdo para ver sus modelos.</div>')}
+                </div>
+            </div>
+
+            <!-- Modal: Marca -->
+            <div id="modal-marca" class="modal">
+                <div class="modal-content glass-card" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h3 id="modal-marca-title" style="margin:0; font-size:1.15rem; color:var(--text-primary);">Nueva Marca</h3>
+                        <button class="close-modal-btn" id="close-modal-marca">&times;</button>
+                    </div>
+                    <form id="form-marca" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                        <input type="hidden" id="marca-edit-id">
+                        <div class="form-group">
+                            <label style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Nombre de la Marca *</label>
+                            <input type="text" id="marca-nombre-input" required placeholder="Ej: Toyota, Nissan, Hyundai..." style="width:100%; padding:0.6rem; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); font-weight:600;">
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-marca">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Marca</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal: Modelo -->
+            <div id="modal-modelo" class="modal">
+                <div class="modal-content glass-card" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h3 id="modal-modelo-title" style="margin:0; font-size:1.15rem; color:var(--text-primary);">Nuevo Modelo</h3>
+                        <button class="close-modal-btn" id="close-modal-modelo">&times;</button>
+                    </div>
+                    <form id="form-modelo" style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+                        <input type="hidden" id="modelo-edit-id">
+                        <div class="form-group">
+                            <label style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Marca Perteneciente</label>
+                            <input type="text" id="modelo-marca-display" readonly value="${currentMarca ? escapeHtml(currentMarca.nombre) : ''}" style="width:100%; padding:0.6rem; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-secondary); font-weight:600;">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.35rem; display:block;">Nombre del Modelo *</label>
+                            <input type="text" id="modelo-nombre-input" required placeholder="Ej: Hilux, Corolla, Civic..." style="width:100%; padding:0.6rem; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); font-weight:600;">
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:0.5rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-modelo">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Modelo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        // Search Listeners
+        const mSearchInput = container.querySelector('#marca-search-input');
+        if (mSearchInput) {
+            mSearchInput.addEventListener('input', (e) => {
+                marcaSearch = e.target.value;
+                renderView();
+            });
+        }
+
+        const modSearchInput = container.querySelector('#modelo-search-input');
+        if (modSearchInput) {
+            modSearchInput.addEventListener('input', (e) => {
+                modeloSearch = e.target.value;
+                renderView();
+            });
+        }
+
+        // Click Marca Item to Select
+        container.querySelectorAll('.marca-item-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                selectedMarcaId = card.getAttribute('data-id');
+                modeloSearch = '';
+                renderView();
+            });
+        });
+
+        // Add Marca Modal
+        const btnAddMarca = container.querySelector('#btn-add-marca');
+        const modalMarca = container.querySelector('#modal-marca');
+        if (btnAddMarca && modalMarca) {
+            btnAddMarca.addEventListener('click', () => {
+                container.querySelector('#modal-marca-title').textContent = 'Nueva Marca de Vehículo';
+                container.querySelector('#marca-edit-id').value = '';
+                container.querySelector('#marca-nombre-input').value = '';
+                modalMarca.classList.add('active');
+            });
+            container.querySelector('#close-modal-marca').onclick = () => modalMarca.classList.remove('active');
+            container.querySelector('#btn-cancel-marca').onclick = () => modalMarca.classList.remove('active');
+        }
+
+        // Submit Marca Form
+        const formMarca = container.querySelector('#form-marca');
+        if (formMarca) {
+            formMarca.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const editId = container.querySelector('#marca-edit-id').value;
+                const nombre = container.querySelector('#marca-nombre-input').value.trim();
+                if (!nombre) return;
+
+                if (editId) {
+                    const m = db.marcas_vehiculos.find(x => x.id === editId);
+                    if (m) {
+                        const oldNombre = m.nombre;
+                        m.nombre = nombre;
+                        // Update related models
+                        db.modelos_vehiculos.forEach(mod => {
+                            if (mod.marca_id === editId || mod.marca_nombre?.toLowerCase() === oldNombre.toLowerCase()) {
+                                mod.marca_nombre = nombre;
+                            }
+                        });
+                        showToast("Marca actualizada", "success");
+                    }
+                } else {
+                    const newId = 'marca-' + nombre.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                    if (db.marcas_vehiculos.some(x => x.nombre.toLowerCase() === nombre.toLowerCase())) {
+                        showToast("Ya existe una marca con este nombre", "warning");
+                        return;
+                    }
+                    db.marcas_vehiculos.push({ id: newId, nombre: nombre, activa: true });
+                    selectedMarcaId = newId;
+                    showToast("Marca creada con éxito", "success");
+                }
+                saveDatabase(db);
+                modalMarca.classList.remove('active');
+                renderView();
+            });
+        }
+
+        // Edit Marca Buttons
+        container.querySelectorAll('.btn-edit-marca').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const nombre = btn.getAttribute('data-nombre');
+                container.querySelector('#modal-marca-title').textContent = 'Editar Marca';
+                container.querySelector('#marca-edit-id').value = id;
+                container.querySelector('#marca-nombre-input').value = nombre;
+                modalMarca.classList.add('active');
+            });
+        });
+
+        // Delete Marca Buttons
+        container.querySelectorAll('.btn-delete-marca').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const nombre = btn.getAttribute('data-nombre');
+                if (confirm(`¿Eliminar la marca "${nombre}" y todos sus modelos asociados?`)) {
+                    db.marcas_vehiculos = db.marcas_vehiculos.filter(x => x.id !== id);
+                    db.modelos_vehiculos = db.modelos_vehiculos.filter(mod => mod.marca_id !== id && mod.marca_nombre?.toLowerCase() !== nombre.toLowerCase());
+                    if (selectedMarcaId === id) {
+                        selectedMarcaId = db.marcas_vehiculos.length > 0 ? db.marcas_vehiculos[0].id : null;
+                    }
+                    saveDatabase(db);
+                    showToast("Marca y modelos eliminados", "success");
+                    renderView();
+                }
+            });
+        });
+
+        // Add Modelo Modal
+        const btnAddModelo = container.querySelector('#btn-add-modelo');
+        const modalModelo = container.querySelector('#modal-modelo');
+        if (btnAddModelo && modalModelo) {
+            btnAddModelo.addEventListener('click', () => {
+                container.querySelector('#modal-modelo-title').textContent = `Nuevo Modelo para ${currentMarca.nombre}`;
+                container.querySelector('#modelo-edit-id').value = '';
+                container.querySelector('#modelo-nombre-input').value = '';
+                modalModelo.classList.add('active');
+            });
+            container.querySelector('#close-modal-modelo').onclick = () => modalModelo.classList.remove('active');
+            container.querySelector('#btn-cancel-modelo').onclick = () => modalModelo.classList.remove('active');
+        }
+
+        // Submit Modelo Form
+        const formModelo = container.querySelector('#form-modelo');
+        if (formModelo) {
+            formModelo.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const editId = container.querySelector('#modelo-edit-id').value;
+                const nombre = container.querySelector('#modelo-nombre-input').value.trim();
+                if (!nombre || !currentMarca) return;
+
+                if (editId) {
+                    const mod = db.modelos_vehiculos.find(x => x.id === editId);
+                    if (mod) {
+                        mod.nombre = nombre;
+                        showToast("Modelo actualizado", "success");
+                    }
+                } else {
+                    if (db.modelos_vehiculos.some(mod => (mod.marca_id === currentMarca.id || mod.marca_nombre?.toLowerCase() === currentMarca.nombre.toLowerCase()) && mod.nombre.toLowerCase() === nombre.toLowerCase())) {
+                        showToast("Este modelo ya existe en la marca seleccionada", "warning");
+                        return;
+                    }
+                    db.modelos_vehiculos.push({
+                        id: 'mod-' + Math.random().toString(36).substring(2, 9),
+                        marca_id: currentMarca.id,
+                        marca_nombre: currentMarca.nombre,
+                        nombre: nombre
+                    });
+                    showToast("Modelo agregado con éxito", "success");
+                }
+                saveDatabase(db);
+                modalModelo.classList.remove('active');
+                renderView();
+            });
+        }
+
+        // Edit Modelo Buttons
+        container.querySelectorAll('.btn-edit-modelo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = btn.getAttribute('data-id');
+                const nombre = btn.getAttribute('data-nombre');
+                container.querySelector('#modal-modelo-title').textContent = 'Editar Modelo';
+                container.querySelector('#modelo-edit-id').value = id;
+                container.querySelector('#modelo-nombre-input').value = nombre;
+                modalModelo.classList.add('active');
+            });
+        });
+
+        // Delete Modelo Buttons
+        container.querySelectorAll('.btn-delete-modelo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = btn.getAttribute('data-id');
+                const nombre = btn.getAttribute('data-nombre');
+                if (confirm(`¿Eliminar el modelo "${nombre}"?`)) {
+                    db.modelos_vehiculos = db.modelos_vehiculos.filter(x => x.id !== id);
+                    saveDatabase(db);
+                    showToast("Modelo eliminado", "success");
+                    renderView();
+                }
+            });
+        });
+    }
+
+    renderView();
 }
 
 export { activeConfigTab };

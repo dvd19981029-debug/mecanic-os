@@ -14,6 +14,7 @@ import {
     getSecureDteConfig,
     setupMunicipiosSelect,
     setupOfficialCatalogsSelect,
+    setupMarcasModelosSelect,
     getGirosOptionsHtml,
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll
@@ -771,6 +772,7 @@ export function renderClientesVehiculos(container, queryParams) {
 
         document.getElementById('add-vehicle-trigger-btn').addEventListener('click', () => {
             document.getElementById('vehicle-client-code').value = client.Codigo_Cliente;
+            setupMarcasModelosSelect('new-veh-marca', 'new-veh-modelo');
             document.getElementById('add-vehicle-modal').classList.add('active');
         });
         
@@ -1546,6 +1548,40 @@ export function renderClientesVehiculos(container, queryParams) {
         });
     }
     
+    // Helper to auto-save brand & model if new
+    function ensureBrandAndModelExist(marcaName, modeloName) {
+        if (!marcaName) return;
+        db.marcas_vehiculos = db.marcas_vehiculos || [];
+        db.modelos_vehiculos = db.modelos_vehiculos || [];
+
+        const normalizedMarca = marcaName.trim();
+        let foundMarca = db.marcas_vehiculos.find(m => m.nombre.toLowerCase() === normalizedMarca.toLowerCase());
+        if (!foundMarca) {
+            foundMarca = {
+                id: 'marca-' + normalizedMarca.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                nombre: normalizedMarca,
+                activa: true
+            };
+            db.marcas_vehiculos.push(foundMarca);
+        }
+
+        if (modeloName) {
+            const normalizedModelo = modeloName.trim();
+            const foundModelo = db.modelos_vehiculos.find(m => 
+                (m.marca_id === foundMarca.id || m.marca_nombre?.toLowerCase() === foundMarca.nombre.toLowerCase()) && 
+                m.nombre.toLowerCase() === normalizedModelo.toLowerCase()
+            );
+            if (!foundModelo) {
+                db.modelos_vehiculos.push({
+                    id: 'mod-' + Math.random().toString(36).substring(2, 9),
+                    marca_id: foundMarca.id,
+                    marca_nombre: foundMarca.nombre,
+                    nombre: normalizedModelo
+                });
+            }
+        }
+    }
+
     // Handle Add Vehicle Submit
     document.getElementById('add-vehicle-form').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1554,8 +1590,8 @@ export function renderClientesVehiculos(container, queryParams) {
         const newVehId = "VEHICULO-CS-" + Math.floor(Date.now() / 1000).toString().substring(3);
         
         const placa = document.getElementById('new-veh-placa').value.toUpperCase();
-        const marca = document.getElementById('new-veh-marca').value.toUpperCase();
-        const modelo = document.getElementById('new-veh-modelo').value.toUpperCase();
+        const marca = document.getElementById('new-veh-marca').value.trim();
+        const modelo = document.getElementById('new-veh-modelo').value.trim();
         const year = document.getElementById('new-veh-year').value;
         const color = document.getElementById('new-veh-color').value.toUpperCase();
         const odo = document.getElementById('new-veh-odo').value;
@@ -1563,6 +1599,8 @@ export function renderClientesVehiculos(container, queryParams) {
         const vin = document.getElementById('new-veh-vin').value.toUpperCase();
         const equipo = document.getElementById('new-veh-equipo') ? document.getElementById('new-veh-equipo').value.trim().toUpperCase() : '';
         
+        ensureBrandAndModelExist(marca, modelo);
+
         const newVehicle = {
             ID_Vehiculo: newVehId,
             Codigo_Cliente: clientCode,
@@ -1677,10 +1715,14 @@ export function renderClientesVehiculos(container, queryParams) {
         
         const oldPlaca = vehicle.Placas;
         const newPlaca = document.getElementById('edit-veh-placa').value.toUpperCase().trim();
+        const newMarca = document.getElementById('edit-veh-marca').value.trim();
+        const newModelo = document.getElementById('edit-veh-modelo').value.trim();
         
+        ensureBrandAndModelExist(newMarca, newModelo);
+
         vehicle.Placas = newPlaca;
-        vehicle.Marca = document.getElementById('edit-veh-marca').value.toUpperCase().trim();
-        vehicle.Modelo = document.getElementById('edit-veh-modelo').value.toUpperCase().trim();
+        vehicle.Marca = newMarca;
+        vehicle.Modelo = newModelo;
         vehicle.Año = document.getElementById('edit-veh-year').value;
         vehicle.Color = document.getElementById('edit-veh-color').value.toUpperCase().trim();
         vehicle.Odometro = document.getElementById('edit-veh-odo').value.trim();
@@ -1718,8 +1760,6 @@ export function renderClientesVehiculos(container, queryParams) {
         
         document.getElementById('edit-veh-id').value = vehicle.ID_Vehiculo || vehicle.Placas;
         document.getElementById('edit-veh-placa').value = vehicle.Placas || '';
-        document.getElementById('edit-veh-marca').value = vehicle.Marca || '';
-        document.getElementById('edit-veh-modelo').value = vehicle.Modelo || '';
         document.getElementById('edit-veh-year').value = vehicle.Año || '';
         document.getElementById('edit-veh-color').value = vehicle.Color || '';
         document.getElementById('edit-veh-odo').value = vehicle.Odometro || '';
@@ -1729,6 +1769,7 @@ export function renderClientesVehiculos(container, queryParams) {
             document.getElementById('edit-veh-equipo').value = vehicle.N_Equipo || '';
         }
         
+        setupMarcasModelosSelect('edit-veh-marca', 'edit-veh-modelo', vehicle.Marca || '', vehicle.Modelo || '');
         document.getElementById('edit-vehicle-modal').classList.add('active');
     };
 
