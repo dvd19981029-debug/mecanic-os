@@ -520,7 +520,6 @@ export function renderLanding(container) {
                     </div>
                     <div style="display: flex; gap: 1.5rem;">
                         <a href="#terminos" style="color: var(--text-secondary); text-decoration: none;">Términos de Servicio</a>
-                        <a href="#admin-solicitudes" style="color: var(--text-secondary); text-decoration: none;">Acceso Admin</a>
                     </div>
                 </div>
             </footer>
