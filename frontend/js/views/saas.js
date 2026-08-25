@@ -4051,187 +4051,118 @@ if (window.saasViewReceiptPaymentId) {
 export function renderTerminosSaaS(container) {
     const db = getDatabase();
     const saas = db.saas_state || { status: 'guest' };
-    
-    if (saas.status !== 'approved_terms_pending') {
-        window.location.hash = 'landing';
-        handleRouting();
-        return;
-    }
+    const isApprovalMode = saas.status === 'approved_terms_pending' && saas.workshopData;
     
     container.innerHTML = html`
-        <div style="max-width:750px; margin:4rem auto; padding:2.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px;">
-            <div style="text-align:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
-                <div style="font-size: 3rem; color: var(--success); margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i></div>
-                <h2 style="font-family:'Outfit', sans-serif; font-size:1.85rem; font-weight:800; color:var(--text-primary);">¡Registro Aprobado con Éxito!</h2>
-                <p style="color:var(--text-secondary); font-size:0.95rem; margin-top:0.5rem;">
-                    La solicitud para el taller <strong>${saas.workshopData.nombre}</strong> fue aprobada.
-                </p>
-                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
-                    Para activar la plataforma y comenzar a operar, por favor revisa y firma los Términos y Condiciones.
-                </p>
-            </div>
+        <div style="max-width:850px; margin:3rem auto; padding:2rem 1.5rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
             
-            <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:6px; padding:1.5rem; max-height:280px; overflow-y:scroll; font-size:0.8rem; line-height:1.6; color:var(--text-secondary); margin-bottom:1.5rem; font-family:'Courier New', monospace; white-space:pre-wrap; text-align:left;">TÉRMINOS Y CONDICIONES DE USO
+            ${safe(isApprovalMode ? `
+                <div style="text-align:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1.5rem;">
+                    <div style="font-size: 3rem; color: var(--success); margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-check"></i></div>
+                    <h2 style="font-family:'Outfit', sans-serif; font-size:1.85rem; font-weight:800; color:var(--text-primary);">¡Registro Aprobado con Éxito!</h2>
+                    <p style="color:var(--text-secondary); font-size:0.95rem; margin-top:0.5rem;">
+                        La solicitud para el taller <strong>${escapeHtml(saas.workshopData.nombre)}</strong> fue aprobada.
+                    </p>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                        Para activar la plataforma y comenzar a operar, por favor revisa y firma los Términos y Condiciones.
+                    </p>
+                </div>
+            ` : `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem; flex-wrap:wrap; gap:1rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <i class="fa-solid fa-file-contract" style="color:var(--primary); font-size:1.6rem;"></i>
+                        <h2 style="font-family:'Outfit', sans-serif; font-size:1.5rem; font-weight:800; color:var(--text-primary); margin:0;">Términos y Condiciones de Uso</h2>
+                    </div>
+                    <a href="#landing" class="btn btn-secondary" style="font-size:0.85rem; padding:0.45rem 1rem; border-radius:6px; display:inline-flex; align-items:center; gap:0.4rem; text-decoration:none;">
+                        <i class="fa-solid fa-arrow-left"></i> Volver al Inicio
+                    </a>
+                </div>
+            `)}
+            
+            <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:6px; padding:1.5rem; max-height:${isApprovalMode ? '280px' : '600px'}; overflow-y:scroll; font-size:0.85rem; line-height:1.65; color:var(--text-secondary); margin-bottom:1.5rem; font-family:'Courier New', monospace; white-space:pre-wrap; text-align:left;">TÉRMINOS Y CONDICIONES DE USO
 MECANIC OS
 Fecha de Última Actualización: 27 de Octubre de 2025
 
-IMPORTANTE: Lea detenidamente estos Términos y Condiciones de Uso (en adelante, los "Términos") antes de utilizar la aplicación móvil MECANIC OS (en adelante, la "App"). Estos Términos constituyen un acuerdo legal vinculante entre usted (en adelante, el "Usuario") y David Antonio Mejía Ramírez (en adelante, el "Proveedor"), con domicilio legal en Res las Margaritas, Senda los Caobos # 13 Santa Tecla La libertad.
+IMPORTANTE: Lea detenidamente estos Términos y Condiciones de Uso (en adelante, los "Términos") antes de utilizar la aplicación y plataforma MECANIC OS (en adelante, la "Plataforma"). Estos Términos constituyen un acuerdo legal vinculante entre usted (en adelante, el "Usuario" o "Taller") y Forbidden Soluciones S.A. de C.V. (en adelante, el "Proveedor"), con domicilio legal en El Salvador.
 
-Al acceder o utilizar la App, usted acepta quedar obligado por estos Términos y por nuestra Política de Privacidad. Si no está de acuerdo con alguna parte de estos Términos, no debe utilizar la App.
+Al acceder o utilizar la Plataforma, usted acepta quedar obligado por estos Términos y por nuestra Política de Privacidad. Si no está de acuerdo con alguna parte de estos Términos, no debe utilizar la Plataforma.
 
 1. DEFINICIONES
-● App o Aplicación: Se refiere a la aplicación móvil MECANIC OS, creada mediante la plataforma AppSheet y operada por el Proveedor.
-● Usuario: Cualquier persona natural o jurídica que accede, descarga o utiliza la App.
-● Contenido del Usuario: Datos, imágenes, archivos, texto o cualquier información que el Usuario ingrese o cargue a la App.
-● Servicio: Las funcionalidades, operaciones y la información proporcionada al Usuario a través de la App.
+● Plataforma o Sistema: Se refiere al software en la nube MECANIC OS operado por el Proveedor para la gestión operativa, administrativa y tributaria de talleres mecánicos.
+● Usuario / Taller: Cualquier persona natural o jurídica que contrata, accede o utiliza la Plataforma.
+● Contenido del Usuario: Datos de clientes, vehículos, repuestos, órdenes de trabajo, fotografías y comprobantes fiscales que el Taller ingresa al sistema.
+● Servicio: Las funcionalidades, operaciones, almacenamiento y transmisión de DTE certificada ante el Ministerio de Hacienda proporcionada a través de la Plataforma.
 
 2. OBJETO DEL SERVICIO
-La App tiene como finalidad la gestión integral de las operaciones de talleres y centros de servicio automotriz, incluyendo (pero no limitándose a) los siguientes módulos:
-1. Clientes
-2. Productos (gestión de márgenes y tarifas)
-3. Inventario
-4. Movimientos de Inventario
-5. Revisión de Vehículos (con soporte para imágenes y videos)
-6. Presupuestos
-7. Compras y Ventas
-8. Base de Datos de Cambios de Aceite
-9. Mano de Obra
-10. Módulo de Fidelización
-11. Dashboard (visualización de ventas y cumplimiento de objetivos)
-12. Opciones de Inversión.
+Mecanic OS tiene como finalidad la gestión integral de las operaciones de talleres y centros de servicio automotriz, incluyendo:
+1. Catálogo de Clientes y Flota de Vehículos
+2. Recepción Digital con Hoja de Ingreso, Inventario y Firma de Cliente en Pantalla
+3. Hoja de Diagnóstico Visual e Inspección 21 Puntos por Semáforo
+4. Presupuestos y Cotizaciones con cálculo de IVA (13%), Retención (1%) y Percepción (2%)
+5. Control Operativo de Trabajos y Tablero Kanban en Tiempo Real
+6. Facturación Electrónica DTE (Facturas, Créditos Fiscales, Sujetos Excluidos) con firma digital y transmisión directa a Hacienda
+7. Punto de Venta (POS) y Venta Rápida de Mostrador
+8. Control de Caja Diaria, Cortes Ciegos y Arqueo
+9. Kárdex Automatizado e Inventario de Repuestos
+10. Control de Gastos y Compras a Proveedores
+11. Planilla Laboral de Ley (ISSS, AFP, Renta ISR) y Liquidación de Comisiones a Mecánicos
 
-El acceso al Servicio está sujeto a.
-
-3. USO Y ACCESO A LA APP
-3.1. Requisitos de Edad:
-Al aceptar estos Términos, el Usuario declara ser mayor de dieciocho (18) años de edad y tener plena capacidad legal para obligarse. Si el Usuario es menor de edad, debe abstenerse de utilizar la App.
-
+3. USO Y ACCESO A LA PLATAFORMA
+3.1. Requisitos Legales:
+El Usuario declara ser mayor de dieciocho (18) años de edad y tener plena capacidad legal para representar comercialmente al taller.
 3.2. Cuentas y Contraseñas:
-El Usuario es responsable de mantener la confidencialidad de sus credenciales de acceso y de toda actividad que se realice bajo su cuenta. El Proveedor no será responsable por pérdidas o daños que resulten del incumplimiento de esta obligación.
-
+El Usuario es responsable de mantener la confidencialidad de sus credenciales de acceso. El Proveedor no será responsable por pérdidas que resulten del mal manejo de contraseñas.
 3.3. Uso Aceptable:
-El Usuario se compromete a no utilizar la App para fines ilegales o no autorizados. Esto incluye, pero no se limita a:
-a) Violar cualquier ley local, nacional o internacional, incluyendo la Ley de Protección al Consumidor y la legislación sobre protección de datos de El Salvador.
-b) Intentar obtener acceso no autorizado a otros sistemas o redes de la plataforma AppSheet o del Proveedor.
-c) Cargar contenido difamatorio, obsceno o que viole derechos de propiedad intelectual de terceros.
+El Usuario se compromete a no utilizar la Plataforma para fines ilícitos ni transmitir información falsa ante las autoridades tributarias.
 
-4. PROPIEDAD INTELLECTUAL Y LICENCIA DE USO
+4. PROPIEDAD INTELECTUAL Y LICENCIA DE USO
 4.1. Propiedad del Proveedor:
-El diseño, la interfaz (UI/UX), la arquitectura, el código base, las bases de datos, las plantillas y los flujos de trabajo de la App pertenecen exclusivamente a Forbidden Soluciones S.A. de C.V.
-
+El diseño, código fuente, interfaz gráfica, arquitectura y base de datos de Mecanic OS pertenecen exclusivamente a Forbidden Soluciones S.A. de C.V.
 4.2. Licencia de Uso:
-La App y sus funcionalidades son desarrolladas y entregadas bajo un modelo de licencia de uso no exclusivo. En ningún caso se entenderá que el Usuario adquiere derechos de propiedad intelectual, ni sobre el software base, ni sobre las personalizaciones realizadas.
+La Plataforma se otorga bajo licencia de uso intransferible y no exclusiva.
+4.3. Propiedad de la Información del Taller:
+El Taller conserva en todo momento la propiedad exclusiva de sus datos de clientes, vehículos y facturación.
 
-4.3. Propiedad del Contenido del Usuario:
-El Usuario únicamente conserva la propiedad de su Contenido de Usuario (los datos que ingrese a través de la App), pero otorga al Proveedor una licencia para usar, almacenar y procesar dicho Contenido con el único fin de prestar el Servicio.
+5. FACTURACIÓN ELECTRÓNICA DTE (EL SALVADOR)
+El sistema cumple con los lineamientos técnicos de la Dirección General de Impuestos Internos (DGII) del Ministerio de Hacienda de El Salvador. El Taller es el único responsable de la veracidad de los datos fiscales ingresados y de sus credenciales de emisor DTE (llaves criptográficas y contraseñas de Hacienda).
 
-5. RESTRICCIONES Y TÉRMINOS ESPECÍFICOS DE APPSHEET
-5.1. Naturaleza de la Plataforma:
-La App es una aplicación construida y desplegada a través de la plataforma AppSheet (de Google Cloud). El Usuario reconoce que el funcionamiento de la App depende de los términos de servicio y la infraestructura de AppSheet y de Google.
+6. CONDICIONES ECONÓMICAS Y PLANES
+Los servicios de suscripción o licencias vitalicias se rigen por las tarifas vigentes acordadas al momento de la contratación o activación de la cuenta.
 
-5.2. Suspensión del Servicio:
-El Proveedor se reserva el derecho de suspender, temporal o permanentemente, el acceso del Usuario a la App sin previo aviso si incumple gravemente estos Términos, o si la cuenta del Usuario pone en riesgo la seguridad o la integridad de la plataforma AppSheet.
+7. PROTECCIÓN DE DATOS Y CONFIDENCIALIDAD
+Forbidden Soluciones S.A. de C.V. garantiza la estricta confidencialidad de los datos comerciales y de clientes ingresados por el Taller, aplicando protocolos de cifrado y aislamiento seguro entre talleres.
 
-5.3. Actualizaciones y No Exclusividad de Funcionalidades:
-El Proveedor se compromete a la constante actualización y optimización del Servicio. El Usuario reconoce y acepta explícitamente que las optimizaciones, mejoras o personalizaciones desarrolladas para esta App podrán ser utilizadas en otros proyectos. Dichas mejoras no constituyen propiedad exclusiva del Usuario ni generarán derechos de compensación, salvo acuerdo escrito en contrario. El uso de la App no otorga al Usuario derechos exclusivos sobre ninguna funcionalidad, diseño o mejora.
+8. LEY APLICABLE Y JURISDICCIÓN
+Estos Términos se rigen e interpretan conforme a las leyes de la República de El Salvador.
 
-6. PROTECCIÓN DE DATOS PERSONALES Y DERECHOS ARCO-POL
-6.1. Responsable del Tratamiento:
-Forbidden Soluciones S.A. de C.V. actúa como responsable del tratamiento de los datos personales recopilados en la App.
-
-6.2. Recopilación de Datos:
-El Proveedor recopilará los datos personales que el Usuario ingrese en la App con la finalidad de prestar el Servicio.
-
-6.3. Consentimiento Expreso (El Salvador):
-En cumplimiento del marco normativo sobre la protección de datos personales en El Salvador, el Usuario otorga su consentimiento expreso, libre e informado para el tratamiento de sus datos personales. El tratamiento de datos sensibles (si aplica) requerirá un consentimiento específico adicional.
-
-6.4. Derechos ARCO-POL:
-El Proveedor garantiza al Usuario el ejercicio de sus derechos de:
-● Acceso (A): Conocer qué datos personales tenemos.
-● Rectificación (R): Solicitar la corrección de datos erróneos o incompletos.
-● Cancelación/Eliminación (C/O): Solicitar la supresión de datos innecesarios.
-● Oposición (P): Oponerse al tratamiento de datos para ciertos fines (ej. marketing).
-● Portabilidad (O): Solicitar la transferencia de sus datos a otro responsable.
-● Olvido (L): Solicitar la supresión de datos publicados en el entorno electrónico.
-
-Para ejercer estos derechos, el Usuario deberá enviar una solicitud al correo electrónico: ventas@forbiddensoluciones.com.
-
-6.5. Política de Privacidad:
-La recopilación, uso y almacenamiento de los datos personales del Usuario se rigen por nuestra Política de Privacidad, la cual forma parte integral de estos Términos.
-
-7. CONDICIONES ECONÓMICAS Y PAGO
-7.1. Pago Oportuno:
-Los servicios de licencia y uso de la App están sujetos al pago oportuno según lo acordado contractualmente en el documento de servicio suscrito por las partes.
-
-7.2. Incumplimiento de Pago:
-El incumplimiento de pago faculta al Proveedor a suspender el acceso a la App, el Servicio y los datos asociados, sin necesidad de notificación previa.
-
-7.3. No Reembolsabilidad:
-Los pagos realizados por la licencia de uso no son reembolsables, salvo error de cobro atribuible directamente al Proveedor.
-
-8. SOPORTE TÉCNICO Y MANTENIMIENTO
-8.1. Alcance del Soporte:
-El soporte técnico provisto por el Proveedor se limita a la corrección de errores (bugs) que impidan el correcto funcionamiento de las funcionalidades existentes en la App y a la asistencia para el uso del sistema.
-
-8.2. Exclusiones:
-El soporte no incluye la realización de modificaciones, ampliaciones, integraciones con sistemas de terceros, o desarrollos adicionales. Cualquier requerimiento que exceda el soporte básico será considerado como desarrollo adicional y será cotizado y acordado por separado.
-
-9. EXCLUSIÓN Y LIMITACIÓN DE RESPONSABILIDAD
-El Servicio se proporciona "tal cual" y "según disponibilidad". El Proveedor no garantiza que la App esté libre de errores, que la información sea siempre exacta, o que la App funcione sin interrupciones. El Proveedor no será responsable por daños indirectos, incidentales, especiales o consecuentes que resulten del uso o la imposibilidad de usar la App, incluyendo, sin limitación, pérdidas de información, lucro cesante, interrupciones comerciales o daños a la reputación, excepto cuando la ley salvadoreña, especialmente la Ley de Protección al Consumidor, establezca lo contrario de forma imperativa.
-
-10. MODIFICACIONES DE LOS TÉRMINOS
-El Proveedor se reserva el derecho de modificar estos Términos en cualquier momento. Notificaremos a los Usuarios sobre cambios sustanciales mediante correo electrónico con al menos siete (7) días hábiles de antelación. El uso continuado de la App después de la entrada en vigor de las modificaciones constituye la aceptación de los nuevos Términos.
-
-11. TERMINACIÓN Y CANCELACIÓN DEL SERVICIO
-11.1. Terminación por Incumplimiento: El Proveedor podrá suspender o cancelar el acceso a la App y al Servicio de forma inmediata y sin responsabilidad si el Usuario incumple con sus obligaciones de pago, realiza un uso indebido o viola gravemente cualquiera de las cláusulas de estos Términos.
-
-11.2. Fin del Servicio y Datos:
-Al finalizar el servicio (por cualquier causa), el Usuario tendrá un plazo de 30 días para solicitar una copia de su Contenido de Usuario (datos). En ningún caso el Usuario tendrá derecho a solicitar el código fuente, la arquitectura, ni los archivos del sistema de la App, ya que estos son propiedad exclusiva del Proveedor.
-
-12. DISPOSICIONES ADICIONALES
-12.1. Confidencialidad:
-El Usuario se compromete a no divulgar, reproducir o utilizar para fines ajenos, información técnica, procesos, métodos o la estructura interna del sistema de la App, aun después de finalizar la relación comercial.
-
-12.2. Fuerza Mayor:
-El Proveedor no será responsable por fallas, demoras o interrupciones derivadas de eventos fuera de su control razonable, incluyendo, pero no limitado a, fallos en la infraestructura de AppSheet o Google Cloud, cortes de energía eléctrica, desastres naturales o interrupciones de servicios de telecomunicaciones.
-
-12.3. Prohibición de Uso Indebido y No Competencia:
-El Usuario no podrá descompilar, aplicar ingeniería inversa, copiar, reproducir o desarrollar sistemas, software o aplicaciones similares basados en la App o en sus funcionalidades, sin la previa autorización escrita del Proveedor.
-
-13. LEY APLICABLE Y JURISDICCIÓN
-13.1. Ley Aplicable:
-Estos Términos y su interpretación se rigen exclusivamente por las leyes de la República de El Salvador, sin dar efecto a ningún principio de conflicto de leyes.
-
-13.2. Jurisdicción y Resolución de Controversias:
-Las partes acuerdan que cualquier controversia será resuelta preferentemente mediante negociación directa. En caso de no llegar a acuerdo, las partes se someten a los tribunales competentes de San Salvador en El Salvador, renunciando expresamente a cualquier otro fuero que pudiera corresponderles.
-
-14. INFORMACIÓN DE CONTACTO
-Para cualquier pregunta o comunicación relacionada con estos Términos y Condiciones, por favor contáctenos a:
-Nombre: Forbidden Soluciones S.A. de C.V.
-Correo Electrónico: ventas@forbiddensoluciones.com
-Teléfono: 7815-0614
-Dirección: Res las Margaritas, Senda los Caobos # 13 Santa Tecla La libertad.
+9. CONTACTO Y SOPORTE
+Para soporte o consultas legales:
+● Empresa: Forbidden Soluciones S.A. de C.V.
+● Correo: soporte@forbiddensoluciones.com / ventas@forbiddensoluciones.com
+● País: El Salvador
 
 FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
             
-            <form id="saas-terms-form" style="display:flex; flex-direction:column; gap:1.25rem;">
-                <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                    <input type="checkbox" id="terms-accept" required style="width:20px; height:20px; cursor:pointer;">
-                    <label for="terms-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído, comprendo y acepto los Términos y Condiciones de Uso</label>
-                </div>
-                
-                <div class="form-group">
-                    <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
-                    <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
-                </div>
-                
-                <div class="form-group">
-                    <label>Firma Digital (Escribe tu Nombre Completo como Representante Legal)</label>
-                    <input type="text" id="terms-signature-name" required placeholder="Ej: ${saas.workshopData.propietario}" style="padding:0.6rem; font-family:'Courier New', monospace; font-size:1.1rem; font-weight:bold; letter-spacing:0.05em; text-align:center;">
-                </div>
-                
-                <button type="submit" class="btn btn-primary" style="padding:0.8rem; font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-signature"></i> Firmar y Activar Plataforma</button>
-            </form>
+            ${safe(isApprovalMode ? `
+                <form id="saas-terms-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+                    <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                        <input type="checkbox" id="terms-accept" required style="width:20px; height:20px; cursor:pointer;">
+                        <label for="terms-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído, comprendo y acepto los Términos y Condiciones de Uso</label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
+                        <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Firma Digital (Escribe tu Nombre Completo como Representante Legal)</label>
+                        <input type="text" id="terms-signature-name" required placeholder="Ej: ${saas.workshopData.propietario}" style="padding:0.6rem; font-family:'Courier New', monospace; font-size:1.1rem; font-weight:bold; letter-spacing:0.05em; text-align:center;">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="padding:0.8rem; font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-signature"></i> Firmar y Activar Plataforma</button>
+                </form>
+            ` : '')}
         </div>
     `;
     
