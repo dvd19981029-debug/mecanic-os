@@ -349,8 +349,8 @@ function initFirebaseAuthListener() {
                                 return;
                             }
                         } else {
-                            // No tiene saas_requests. Revisar si ya tiene taller configurado
-                            const wsSnap = await dbFirestore.collection("workshops").doc(user.uid).collection("config").doc("general").get().catch(() => null);
+                            // No tiene saas_requests. Revisar si ya tiene taller configurado en /workshops/{uid}
+                            const wsSnap = await dbFirestore.collection("workshops").doc(user.uid).get().catch(() => null);
                             if (!wsSnap || !wsSnap.exists) {
                                 console.warn("Usuario huérfano detectado en onAuthStateChanged:", user.uid);
                                 await firebase.auth().signOut();
@@ -758,9 +758,9 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                             return;
                         }
                     } else {
-                        // User exists in Firebase Auth but has NO document in saas_requests or workshops
+                        // User exists in Firebase Auth but has NO document in saas_requests
                         // Check if workshop exists in /workshops/{ownerUid} (an existing active workshop)
-                        const wsSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("config").doc("general").get().catch(() => null);
+                        const wsSnap = await dbFirestore.collection("workshops").doc(ownerUid).get().catch(() => null);
                         if (!wsSnap || !wsSnap.exists) {
                             console.warn("Usuario huérfano detectado en login:", ownerUid);
                             showToast("Registro incompleto. Por favor completa los datos de tu taller en la página de registro.", "warning");

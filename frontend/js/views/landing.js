@@ -52,14 +52,14 @@ export function renderLanding(container) {
     } else {
         topButtonsHTML = `
             <div style="display:flex; gap:0.75rem; align-items:center;">
-                <button id="btn-landing-top-login" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
+                <a href="#lock-screen" style="color:var(--text-primary); text-decoration:none; font-size:0.85rem; font-weight:600; background:var(--primary); border:none; padding:0.5rem 1.2rem; border-radius:50px; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</a>
             </div>
         `;
         
         actionButtonsHTML = `
             <div style="display:flex; justify-content:center; gap:1.25rem; flex-wrap:wrap; margin-top:2rem;">
                 <a href="#registro" class="btn btn-primary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none; box-shadow:0 10px 20px rgba(99, 102, 241, 0.3);"><i class="fa-solid fa-rocket"></i> Registrar mi Taller</a>
-                <button id="btn-landing-login" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; cursor:pointer;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</button>
+                <a href="#lock-screen" class="btn btn-secondary" style="padding:0.9rem 2.2rem; font-size:1.1rem; text-decoration:none;"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión / Conectar Taller</a>
             </div>
         `;
     }
