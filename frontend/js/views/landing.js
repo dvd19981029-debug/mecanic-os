@@ -1,6 +1,5 @@
 import { saveDatabase, setActiveUser } from '../../app.js?v=69';
 import { showToast, html, safe, escapeHtml } from '../utils.js?v=69';
-import { dataService } from '../../dataService.js?v=69';
 
 export function renderLanding(container) {
     const db = window.getDatabase ? window.getDatabase() : {};
@@ -8,8 +7,9 @@ export function renderLanding(container) {
 
     // Telemetría: Registrar visita a la Landing de forma no bloqueante
     try {
-        if (dataService && dataService.saas && typeof dataService.saas.logAnalyticsEvent === 'function') {
-            dataService.saas.logAnalyticsEvent('page_view', {
+        const ds = window.dataService || (typeof dataService !== 'undefined' ? dataService : null);
+        if (ds && ds.saas && typeof ds.saas.logAnalyticsEvent === 'function') {
+            ds.saas.logAnalyticsEvent('page_view', {
                 target: 'landing_view',
                 label: 'Visita a Landing Page'
             });
@@ -546,10 +546,11 @@ export function renderLanding(container) {
     if (landingWrapper) {
         landingWrapper.addEventListener('click', (ev) => {
             const trackTarget = ev.target.closest('[data-track-cta]');
-            if (trackTarget && dataService && dataService.saas && typeof dataService.saas.logAnalyticsEvent === 'function') {
+            const ds = window.dataService || (typeof dataService !== 'undefined' ? dataService : null);
+            if (trackTarget && ds && ds.saas && typeof ds.saas.logAnalyticsEvent === 'function') {
                 const targetKey = trackTarget.getAttribute('data-track-cta');
                 const labelText = trackTarget.textContent.trim().replace(/\s+/g, ' ');
-                dataService.saas.logAnalyticsEvent('cta_click', {
+                ds.saas.logAnalyticsEvent('cta_click', {
                     target: targetKey,
                     label: labelText
                 });
