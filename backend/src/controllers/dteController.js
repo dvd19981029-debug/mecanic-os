@@ -643,6 +643,7 @@ function postToAppsScript(targetUrl, payload) {
             const isHttps = parsedUrl.protocol === 'https:';
             const client = isHttps ? https : require('http');
 
+            // Google Apps Script redirects with 302 to a temporary exec URL which accepts GET
             const options = {
                 method: redirectCount === 0 ? 'POST' : 'GET',
                 hostname: parsedUrl.hostname,
@@ -654,8 +655,12 @@ function postToAppsScript(targetUrl, payload) {
             };
 
             const req = client.request(options, (res) => {
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    return makeRequest(res.headers.location, redirectCount + 1);
+                if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303 || res.statusCode === 307 || res.statusCode === 308) && res.headers.location) {
+                    let nextLocation = res.headers.location;
+                    if (!nextLocation.startsWith('http')) {
+                        nextLocation = new URL(nextLocation, currentUrl).href;
+                    }
+                    return makeRequest(nextLocation, redirectCount + 1);
                 }
 
                 let body = '';
@@ -673,7 +678,7 @@ function postToAppsScript(targetUrl, payload) {
                 });
             });
 
-            req.setTimeout(12000, () => req.destroy(new Error("Timeout conectando a Google Apps Script")));
+            req.setTimeout(25000, () => req.destroy(new Error("Timeout conectando a Google Apps Script")));
             req.on('error', reject);
             if (redirectCount === 0) {
                 req.write(dataStr);
@@ -850,7 +855,9 @@ async function resendDteEmail(req, res) {
         `;
 
         // 1. Prioridad A: Google Apps Script Web App (HTTPS Puerto 443 - Envío Nativo por Gmail)
-        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || process.env.APPSCRIPT_URL;
+        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || 
+                             process.env.APPSCRIPT_URL || 
+                             "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
         if (appScriptUrl && appScriptUrl.trim() !== '') {
             try {
                 const appScriptResult = await postToAppsScript(appScriptUrl.trim(), {
