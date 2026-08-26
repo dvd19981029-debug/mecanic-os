@@ -3974,7 +3974,7 @@ export function openSendBudgetEmailModal(budgetId) {
                 }
 
                 // Fallback Directo de Emergencia vía Google Apps Script (Puerto 443 HTTPS desde el navegador)
-                const appsScriptUrl = "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
+                const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxgj9nPnoG-N-CkxnNExYVz_x405uxBkoxTXY8hwsQVNz4sGsei9wcEGIpQkHVLcvwXXw/exec";
                 const cleanPhone = (workshopPhone || '').replace(/[^0-9]/g, '');
                 const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('503') ? cleanPhone : '503' + cleanPhone}?text=${encodeURIComponent(`Hola, recibí el presupuesto ${budgetId} para mi vehículo. Me gustaría consultar detalles.`)}` : '';
 

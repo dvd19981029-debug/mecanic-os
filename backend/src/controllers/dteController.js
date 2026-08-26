@@ -857,7 +857,7 @@ async function resendDteEmail(req, res) {
         // 1. Prioridad A: Google Apps Script Web App (HTTPS Puerto 443 - Envío Nativo por Gmail)
         const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || 
                              process.env.APPSCRIPT_URL || 
-                             "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
+                             "https://script.google.com/macros/s/AKfycbxgj9nPnoG-N-CkxnNExYVz_x405uxBkoxTXY8hwsQVNz4sGsei9wcEGIpQkHVLcvwXXw/exec";
         if (appScriptUrl && appScriptUrl.trim() !== '') {
             try {
                 const appScriptResult = await postToAppsScript(appScriptUrl.trim(), {
@@ -1156,7 +1156,7 @@ async function sendBudgetEmail(req, res) {
         // 1. Canal Prioritario A: Google Apps Script Web App (Puerto 443 HTTPS - Inmune a bloqueos)
         const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || 
                              process.env.APPSCRIPT_URL || 
-                             "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
+                             "https://script.google.com/macros/s/AKfycbxgj9nPnoG-N-CkxnNExYVz_x405uxBkoxTXY8hwsQVNz4sGsei9wcEGIpQkHVLcvwXXw/exec";
 
         if (appScriptUrl && appScriptUrl.trim() !== '') {
             try {
