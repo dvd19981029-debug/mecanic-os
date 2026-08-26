@@ -1146,8 +1146,11 @@ async function sendBudgetEmail(req, res) {
 
         const subject = `📋 Presupuesto de Reparación [${budgetId}] - ${senderName}`;
 
-        // 1. Canal Prioritario A: Google Apps Script Web App
-        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || process.env.APPSCRIPT_URL;
+        // 1. Canal Prioritario A: Google Apps Script Web App (Puerto 443 HTTPS - Inmune a bloqueos)
+        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || 
+                             process.env.APPSCRIPT_URL || 
+                             "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
+
         if (appScriptUrl && appScriptUrl.trim() !== '') {
             try {
                 const appScriptResult = await postToAppsScript(appScriptUrl.trim(), {
@@ -1193,11 +1196,11 @@ async function sendBudgetEmail(req, res) {
             }
         }
 
-        // 3. Canal C: Nodemailer SMTP
+        // 3. Canal C: Nodemailer SMTP (con soporte 465 SSL y 587 STARTTLS)
         if (!smtpPass || !smtpUser) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Servicio de correo no configurado para este taller. Agregue credenciales SMTP o APPSCRIPT_SENDER_URL." 
+                message: "Servicio de correo no configurado en este taller. Configure credenciales SMTP o APPSCRIPT_SENDER_URL." 
             });
         }
 
@@ -1210,20 +1213,21 @@ async function sendBudgetEmail(req, res) {
 
         const isGmail = smtpHost.includes('gmail') || smtpUser.endsWith('@gmail.com') || smtpUser.endsWith('@forbiddensoluciones.com');
         const transportConfig = isGmail ? {
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            requireTLS: true,
+            service: 'gmail',
             auth: { user: smtpUser, pass: smtpPass },
             tls: { rejectUnauthorized: false },
-            connectionTimeout: 10000
+            connectionTimeout: 8000,
+            greetingTimeout: 4000,
+            socketTimeout: 10000
         } : {
             host: smtpHost,
             port: smtpPort,
             secure: smtpPort === 465,
             auth: { user: smtpUser, pass: smtpPass },
             tls: { rejectUnauthorized: false },
-            connectionTimeout: 10000
+            connectionTimeout: 8000,
+            greetingTimeout: 4000,
+            socketTimeout: 10000
         };
 
         const transporter = nodemailer.createTransport(transportConfig);
