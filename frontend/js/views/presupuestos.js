@@ -3987,7 +3987,7 @@ export function openSendBudgetEmailModal(budgetId) {
                             <p style="margin: 4px 0;"><strong>N° Presupuesto:</strong> ${escapeHtml(budgetId)}</p>
                             <p style="margin: 4px 0; color: #4ade80; font-size: 18px;"><strong>Monto Total:</strong> $${escapeHtml(totalAmount)}</p>
                         </div>
-                        ${waLink ? `<p><a href="${waLink}" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">💬 Contactar al Taller por WhatsApp</a></p>` : ''}
+                        ${waLink ? `<p><a href="${waLink}" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">Aprobar o Consultar por WhatsApp &rarr;</a></p>` : ''}
                         <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">${escapeHtml(workshopName)} ${workshopAddress ? '• ' + escapeHtml(workshopAddress) : ''} ${workshopPhone ? '• Tel: ' + escapeHtml(workshopPhone) : ''}</p>
                     </div>
                 `;
@@ -4001,7 +4001,7 @@ export function openSendBudgetEmailModal(budgetId) {
                         recipientEmail: recipientEmail,
                         senderName: `${workshopName} - Presupuestos`,
                         replyTo: 'ventas@forbiddensoluciones.com',
-                        subject: `📋 Presupuesto de Reparación [${budgetId}] - ${workshopName}`,
+                        subject: `Presupuesto de Reparacion [${budgetId}] - ${workshopName}`,
                         htmlBody: directHtml,
                         pdfHtml: rendered ? rendered.html : null,
                         pdfName: `Presupuesto_${budgetId.replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`

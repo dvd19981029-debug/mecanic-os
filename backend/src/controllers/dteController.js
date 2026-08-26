@@ -1123,8 +1123,8 @@ async function sendBudgetEmail(req, res) {
                     ` : ''}
 
                     <div style="background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 24px;">
-                        <span style="color: #34d399; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
-                            📎 El presupuesto detallado en PDF viene adjunto a este correo electrónico.
+                        <span style="color: #34d399; font-size: 13px; font-weight: 500;">
+                            [PDF Adjunto] El presupuesto detallado viene adjunto a este correo electr&oacute;nico.
                         </span>
                     </div>
 
@@ -1132,7 +1132,7 @@ async function sendBudgetEmail(req, res) {
                     ${waLink ? `
                     <div style="text-align: center; margin: 26px 0;">
                         <a href="${waLink}" target="_blank" style="background: #10b981; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 15px; display: inline-block; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
-                            💬 Aprobar o Consultar por WhatsApp &rarr;
+                            Aprobar o Consultar por WhatsApp &rarr;
                         </a>
                     </div>
                     ` : ''}
@@ -1145,13 +1145,13 @@ async function sendBudgetEmail(req, res) {
                     </div>
 
                     <p style="font-size: 11px; color: #475569; text-align: center; margin-top: 16px; margin-bottom: 0;">
-                        Generado y enviado a través de Mecanic OS a solicitud de ${senderName}.
+                        Generado y enviado a trav&eacute;s de Mecanic OS a solicitud de ${senderName}.
                     </p>
                 </div>
             </div>
         `;
 
-        const subject = `📋 Presupuesto de Reparación [${budgetId}] - ${senderName}`;
+        const subject = `Presupuesto de Reparación [${budgetId}] - ${senderName}`;
 
         // 1. Canal Prioritario A: Google Apps Script Web App (Puerto 443 HTTPS - Inmune a bloqueos)
         const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || 
