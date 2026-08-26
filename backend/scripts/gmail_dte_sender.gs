@@ -15,11 +15,11 @@ function doPost(e) {
     
     var contents = JSON.parse(e.postData.contents);
     
-    if (contents.action === "sendDteEmail") {
+    if (contents.action === "sendDteEmail" || contents.action === "sendBudgetEmail") {
       var recipient = contents.recipientEmail;
-      var subject = contents.subject || "Documento Tributario Electrónico";
+      var subject = contents.subject || (contents.action === "sendBudgetEmail" ? "Presupuesto de Reparación" : "Documento Tributario Electrónico");
       var htmlBody = contents.htmlBody;
-      var senderName = contents.senderName || "Mister Cars - DTE";
+      var senderName = contents.senderName || (contents.action === "sendBudgetEmail" ? "Mister Cars - Presupuestos" : "Mister Cars - DTE");
       var replyTo = contents.replyTo || "ventas@forbiddensoluciones.com";
       
       var attachments = [];
@@ -28,7 +28,7 @@ function doPost(e) {
         attachments.push(Utilities.newBlob(
           Utilities.base64Decode(contents.pdfBase64), 
           'application/pdf', 
-          contents.pdfName || 'DTE.pdf'
+          contents.pdfName || (contents.action === "sendBudgetEmail" ? 'Presupuesto.pdf' : 'DTE.pdf')
         ));
       }
       
