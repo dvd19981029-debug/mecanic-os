@@ -231,6 +231,7 @@ export function renderPresupuestos(container, queryParams) {
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${safe(actionText)}</a>
                         <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>
                         <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
                         ${safe(deleteBtnHtml)}
                     </div>
@@ -245,6 +246,15 @@ export function renderPresupuestos(container, queryParams) {
                 e.preventDefault();
                 const id = btn.getAttribute('data-id');
                 exportBudgetPDF(id);
+            });
+        });
+
+        // Bind send budget email buttons
+        rowsContainer.querySelectorAll('.btn-send-budget-email-row').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = btn.getAttribute('data-id');
+                openSendBudgetEmailModal(id);
             });
         });
 
@@ -797,6 +807,7 @@ export function renderBudgetEditor(container, budget) {
                         <button class="btn btn-warning" id="reopen-work-btn" style="background: #f59e0b; color: white; border: none;"><i class="fa-solid fa-wrench"></i> Reabrir Reparación</button>
                     ` : '')}
                     ${safe((!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : '')}
+                    ${safe(!isNew ? `<button class="btn btn-secondary" id="send-budget-email-editor-btn" type="button" style="color: #60a5fa;"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>` : '')}
                     ${safe(!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : '')}
                     <button class="btn btn-secondary" onclick="window.location.hash='${
                         (budget.Estado == 3 || budget.Estado == 5) ? '#facturador' : 
@@ -1868,6 +1879,12 @@ export function renderBudgetEditor(container, budget) {
                 showToast("Presupuesto recuperado al estado inicial (Borrador) y listo para editar o aprobar.", "success");
                 window.location.hash = '#presupuestos';
             }
+        });
+    }
+
+    if (document.getElementById('send-budget-email-editor-btn')) {
+        document.getElementById('send-budget-email-editor-btn').addEventListener('click', () => {
+            openSendBudgetEmailModal(budget['ID Presupuesto']);
         });
     }
 
@@ -3648,19 +3665,17 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
 // ----------------------------------------------------
 
 
-export function exportBudgetPDF(budgetId) {
+export function getBudgetFullHtml(budgetId) {
     const db = getDatabase();
     const ws = getWorkshopConfig(db);
     const budget = db.presupuestos.find(p => p['ID Presupuesto'] === budgetId);
-    if (!budget) {
-        showToast("Error: Presupuesto no encontrado", "danger");
-        return;
-    }
+    if (!budget) return null;
 
     const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { 
         Nombre: budget.Nombre, 
         'Telefono 1 ': budget['Telefono 1 '] || '', 
-        Direccion: budget.Direccion || '' 
+        Direccion: budget.Direccion || '',
+        Correo: budget.Correo || budget.Email || ''
     };
     
     const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === budget.ID_Vehiculo) || { 
@@ -3734,12 +3749,6 @@ export function exportBudgetPDF(budgetId) {
     }
     discount = finalDiscount;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
-        return;
-    }
-
     const format = ws.formato_presupuesto || 'moderno_facturallama';
     let pdfHTML = '';
 
@@ -3753,8 +3762,222 @@ export function exportBudgetPDF(budgetId) {
         pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     }
 
-    printWindow.document.write(pdfHTML);
+    return {
+        html: pdfHTML,
+        budget,
+        client,
+        vehicle,
+        subtotal: (subtotal - discount),
+        iva,
+        grandTotal,
+        discount
+    };
+}
+
+export function exportBudgetPDF(budgetId) {
+    const rendered = getBudgetFullHtml(budgetId);
+    if (!rendered || !rendered.html) {
+        showToast("Error: Presupuesto no encontrado", "danger");
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
+        return;
+    }
+
+    printWindow.document.write(rendered.html);
     printWindow.document.close();
+}
+
+/**
+ * Modal interactivo para enviar el Presupuesto / Cotización por correo al cliente.
+ * Precarga el correo guardado en la ficha del cliente y permite editarlo.
+ */
+export function openSendBudgetEmailModal(budgetId) {
+    try {
+        const db = getDatabase();
+        const budget = db.presupuestos.find(p => p['ID Presupuesto'] === budgetId);
+        if (!budget) {
+            showToast("Error: Presupuesto no encontrado.", "danger");
+            return;
+        }
+
+        const client = db.clientes.find(c => c.Codigo_Cliente === (budget.Codigo_Cliente || budget.Cliente)) || {
+            Nombre: budget.Nombre || 'Cliente',
+            Correo: budget.Correo || budget.Email || ''
+        };
+
+        const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === budget.ID_Vehiculo) || {
+            Placas: budget.Placas || 'N/A',
+            Marca: 'Vehículo',
+            Modelo: ''
+        };
+
+        const defaultEmail = client.Correo || client.Email || client.correo || budget.Correo || budget.Email || '';
+        const clientName = client.Nombre || budget.Nombre || 'Cliente';
+        const vehiculoStr = `${vehicle.Marca || ''} ${vehicle.Modelo || ''} (${vehicle.Placas || 'N/A'})`.trim();
+        
+        const rendered = getBudgetFullHtml(budgetId);
+        const grandTotalNum = rendered ? rendered.grandTotal : getBudgetGrandTotal(budget, db);
+        const totalAmount = grandTotalNum > 0 ? grandTotalNum.toFixed(2) : (budget.Total ? parseFloat(budget.Total).toFixed(2) : '0.00');
+        const modalId = `modal-send-budget-email-${Date.now()}`;
+
+        const modalHtml = `
+            <div class="modal-backdrop" id="${modalId}" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); backdrop-filter:blur(5px); z-index:99999; display:flex; align-items:center; justify-content:center;">
+                <div class="glass-card" style="width:90%; max-width:490px; padding:1.6rem; border-radius:14px; background:var(--bg-surface, #1e293b); border:1px solid rgba(255,255,255,0.15); box-shadow:0 20px 45px rgba(0,0,0,0.6); color:var(--text-primary, #f8fafc);">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-bottom:0.8rem; margin-bottom:1.1rem;">
+                        <h3 style="margin:0; font-size:1.15rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem; font-weight:700;">
+                            <i class="fa-solid fa-paper-plane" style="color:#60a5fa;"></i> Enviar Presupuesto por Correo
+                        </h3>
+                        <button type="button" id="close-send-budget-modal" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; line-height:1;">&times;</button>
+                    </div>
+
+                    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:1.25rem; font-size:0.85rem; line-height:1.5;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                            <span style="color:var(--text-muted);">Cliente:</span>
+                            <strong style="color:var(--text-primary);">${escapeHtml(clientName)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                            <span style="color:var(--text-muted);">N° Presupuesto:</span>
+                            <span style="font-weight:700; font-family:monospace; color:#60a5fa;">${escapeHtml(budgetId)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                            <span style="color:var(--text-muted);">Vehículo / Placa:</span>
+                            <span style="font-weight:600; color:var(--text-primary);">${escapeHtml(vehiculoStr)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.4rem; margin-top:0.4rem;">
+                            <span style="color:var(--text-muted);">Monto Total:</span>
+                            <strong style="color:var(--success, #4ade80); font-size:1.05rem;">$${totalAmount}</strong>
+                        </div>
+                    </div>
+
+                    <form id="form-send-budget-email">
+                        <div class="form-group" style="margin-bottom:1.25rem;">
+                            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.4rem; color:var(--text-primary);">
+                                Correo Electrónico del Cliente:
+                            </label>
+                            <div style="position:relative;">
+                                <i class="fa-solid fa-envelope" style="position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                                <input type="email" id="budget-recipient-email" required value="${escapeHtml(defaultEmail)}" placeholder="ejemplo@cliente.com" autocomplete="off" style="width:100%; padding:0.6rem 0.75rem 0.6rem 2.3rem; background:var(--bg-input, rgba(0,0,0,0.3)); border:1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius:6px; color:var(--text-primary); font-size:0.9rem; box-sizing:border-box;">
+                            </div>
+                            <small style="display:block; margin-top:0.35rem; color:var(--text-muted); font-size:0.75rem;">
+                                Puedes escribir o corregir el correo si el cliente desea recibirlo en otra dirección.
+                            </small>
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-top:1.1rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-send-budget" style="padding:0.55rem 1.1rem; font-size:0.85rem;">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btn-confirm-send-budget" style="padding:0.55rem 1.4rem; font-size:0.85rem; background:#3b82f6; border:none; color:#ffffff; font-weight:700; display:inline-flex; align-items:center; gap:0.4rem;">
+                                <i class="fa-solid fa-paper-plane"></i> Enviar Presupuesto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modalEl = document.getElementById(modalId);
+        const closeModal = () => modalEl.remove();
+
+        document.getElementById('close-send-budget-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-send-budget').addEventListener('click', closeModal);
+
+        const emailInput = document.getElementById('budget-recipient-email');
+        setTimeout(() => {
+            emailInput.focus();
+            if (emailInput.value) emailInput.select();
+        }, 100);
+
+        document.getElementById('form-send-budget-email').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const recipientEmail = emailInput.value.trim();
+            if (!recipientEmail || !recipientEmail.includes('@')) {
+                showToast("Por favor ingrese un correo electrónico válido.", "warning");
+                return;
+            }
+
+            const sendBtn = document.getElementById('btn-confirm-send-budget');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...`;
+
+            try {
+                const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
+                               getSecureDteConfig();
+                const workshopUid = (db.saas_state && db.saas_state.workshopUid) || 'desconocido';
+                const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+
+                if (!baseUrl) {
+                    showToast("Error: URL del servidor backend no configurada.", "danger");
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Presupuesto`;
+                    return;
+                }
+
+                const wsConfig = getWorkshopConfig(db);
+                const workshopName = (db.ajustes && (db.ajustes.Razon_Social || db.ajustes.Nombre_Taller || db.ajustes.Nombre_Comercial)) ||
+                                     (db.saas_state && db.saas_state.workshopData && (db.saas_state.workshopData.Razon_Social || db.saas_state.workshopData.Nombre_Taller)) ||
+                                     wsConfig.nombreTaller || 'Taller Automotriz';
+                const workshopPhone = wsConfig.telefono || (db.ajustes && db.ajustes.Telefono) || '';
+                const workshopAddress = wsConfig.direccion || (db.ajustes && db.ajustes.Direccion) || '';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+                const response = await fetch(`${baseUrl}/api/dte/send-budget-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        workshopId: workshopUid,
+                        workshopName: workshopName,
+                        workshopPhone: workshopPhone,
+                        workshopAddress: workshopAddress,
+                        budgetId: budgetId,
+                        recipientEmail: recipientEmail,
+                        clienteNombre: clientName,
+                        vehiculoInfo: vehiculoStr,
+                        montoTotal: totalAmount,
+                        subtotal: rendered ? rendered.subtotal : null,
+                        iva: rendered ? rendered.iva : null,
+                        observaciones: budget.Observaciones || budget[' Observaciones'] || ''
+                    })
+                });
+                clearTimeout(timeoutId);
+
+                const resData = await response.json();
+                closeModal();
+
+                if (response.ok && resData.success) {
+                    showToast(`✅ Presupuesto enviado exitosamente a ${recipientEmail}`, "success");
+                    // Guardar correo en la ficha del cliente si no tenía
+                    if (!client.Correo && !client.Email) {
+                        client.Correo = recipientEmail;
+                        saveDatabase(db);
+                    }
+                } else {
+                    showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
+                }
+            } catch (err) {
+                console.error(err);
+                const isAbort = err.name === 'AbortError' || (err.message && err.message.includes('aborted'));
+                const errMsg = isAbort ? "El servidor tardó en responder al despertar. Por favor intenta enviar de nuevo." : err.message;
+                showToast("Error al enviar presupuesto por correo: " + errMsg, "danger");
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Presupuesto`;
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        showToast("Error al abrir modal de envío: " + err.message, "danger");
+    }
 }
 
 function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {

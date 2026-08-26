@@ -985,6 +985,283 @@ async function resendDteEmail(req, res) {
     }
 }
 
+/**
+ * Envía un Presupuesto / Cotización en PDF por correo electrónico al cliente.
+ * 100% Multi-Tenant: Aísla el remitente, datos del taller, logo y teléfono de WhatsApp.
+ */
+async function sendBudgetEmail(req, res) {
+    try {
+        const {
+            recipientEmail,
+            clienteNombre,
+            budgetId,
+            vehiculoInfo,
+            montoTotal,
+            subtotal,
+            iva,
+            pdfBase64,
+            workshopId,
+            workshopName,
+            workshopPhone,
+            workshopAddress,
+            observaciones
+        } = req.body;
+
+        if (!recipientEmail || !recipientEmail.includes('@')) {
+            return res.status(400).json({ success: false, message: "Debe proveer un correo electrónico válido para el envío." });
+        }
+
+        if (!budgetId) {
+            return res.status(400).json({ success: false, message: "No se especificó el ID del presupuesto a enviar." });
+        }
+
+        // Multi-tenant resolution: buscar datos del taller específico en Firestore
+        let smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+        let smtpPort = parseInt(process.env.SMTP_PORT || "587");
+        let smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || "";
+        let smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS || "";
+        smtpPass = (smtpPass || '').replace(/\s+/g, '');
+        
+        let senderName = workshopName || "Taller Automotriz";
+        let senderPhone = workshopPhone || "";
+        let senderAddress = workshopAddress || "";
+        let senderLogo = null;
+        let replyToEmail = null;
+
+        if (db && workshopId && workshopId !== 'desconocido') {
+            try {
+                const wsDoc = await db.collection("workshops").doc(workshopId).get();
+                if (wsDoc.exists) {
+                    const wsData = wsDoc.data();
+                    senderName = wsData.Nombre_Comercial || wsData.Razon_Social || wsData.Nombre_Taller || wsData.nombre || senderName;
+                    senderPhone = wsData.telefono || wsData.Telefono || senderPhone;
+                    senderAddress = wsData.direccion || wsData.Direccion || senderAddress;
+                    senderLogo = wsData.logo || wsData.Logo || null;
+                    replyToEmail = wsData.correo_notificaciones || wsData.Correo || wsData.correo || wsData.email || null;
+
+                    if (wsData.smtp_config && wsData.smtp_config.user && wsData.smtp_config.pass) {
+                        smtpHost = wsData.smtp_config.host || "smtp.gmail.com";
+                        smtpPort = parseInt(wsData.smtp_config.port || "587");
+                        smtpUser = wsData.smtp_config.user;
+                        smtpPass = (wsData.smtp_config.pass || '').replace(/\s+/g, '');
+                    }
+                }
+            } catch (errWs) {
+                console.warn("No se pudo obtener la configuración del taller desde Firestore:", errWs.message);
+            }
+        }
+
+        // Clean phone for WhatsApp button
+        const cleanPhone = (senderPhone || '').replace(/[^0-9]/g, '');
+        const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('503') ? cleanPhone : '503' + cleanPhone}?text=${encodeURIComponent(`Hola, recibí el presupuesto ${budgetId} para mi vehículo. Me gustaría consultar detalles.`)}` : null;
+
+        const vehiculoText = vehiculoInfo || "Vehículo en Taller";
+        const totalFormatted = montoTotal ? parseFloat(montoTotal).toFixed(2) : '0.00';
+        const pdfFileName = `Presupuesto_${budgetId.replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`;
+        const pdfBuffer = pdfBase64 ? Buffer.from(pdfBase64, 'base64') : null;
+
+        const htmlBody = `
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 620px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                <!-- Header con Branding del Taller -->
+                <div style="background: #1e293b; padding: 26px 24px; text-align: center; border-bottom: 2px solid #3b82f6;">
+                    ${senderLogo ? `
+                        <div style="margin-bottom: 12px;">
+                            <img src="${senderLogo}" alt="${senderName}" style="max-height: 60px; max-width: 220px; object-fit: contain;">
+                        </div>
+                    ` : ''}
+                    <h2 style="margin: 0; color: #60a5fa; font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${senderName}</h2>
+                    <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Presupuesto de Mantenimiento & Reparación Automotriz</p>
+                </div>
+                
+                <div style="padding: 30px 24px;">
+                    <p style="font-size: 16px; margin-top: 0; color: #f8fafc;">Estimado(a) <strong>${clienteNombre || 'Cliente'}</strong>,</p>
+                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin-bottom: 22px;">
+                        <strong>${senderName}</strong> ha preparado la cotización de los trabajos y repuestos requeridos para su vehículo. A continuación le presentamos el resumen económico:
+                    </p>
+
+                    <!-- Tarjeta de Resumen -->
+                    <div style="background: rgba(255,255,255,0.04); padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #334155;">
+                        <table style="width: 100%; font-size: 14px; color: #e2e8f0; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 7px 0; color: #94a3b8; width: 40%;">N° Presupuesto:</td>
+                                <td style="padding: 7px 0; text-align: right; font-weight: bold; font-family: monospace; color: #60a5fa;">${budgetId}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 7px 0; color: #94a3b8;">Vehículo / Placa:</td>
+                                <td style="padding: 7px 0; text-align: right; font-weight: bold;">${vehiculoText}</td>
+                            </tr>
+                            ${subtotal ? `
+                            <tr>
+                                <td style="padding: 7px 0; color: #94a3b8;">Subtotal:</td>
+                                <td style="padding: 7px 0; text-align: right; color: #cbd5e1;">$${parseFloat(subtotal).toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                            ${iva ? `
+                            <tr>
+                                <td style="padding: 7px 0; color: #94a3b8;">IVA (13%):</td>
+                                <td style="padding: 7px 0; text-align: right; color: #cbd5e1;">$${parseFloat(iva).toFixed(2)}</td>
+                            </tr>
+                            ` : ''}
+                            <tr style="border-top: 1px solid #475569;">
+                                <td style="padding: 10px 0 4px 0; color: #ffffff; font-weight: 700; font-size: 15px;">Monto Total Estimado:</td>
+                                <td style="padding: 10px 0 4px 0; text-align: right; font-weight: 800; color: #4ade80; font-size: 20px;">$${totalFormatted}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    ${observaciones && observaciones.trim() !== '' && observaciones !== 'Ninguna.' ? `
+                    <div style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px; font-size: 13px; color: #93c5fd;">
+                        <strong>Observaciones:</strong> ${observaciones}
+                    </div>
+                    ` : ''}
+
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 24px;">
+                        <span style="color: #34d399; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                            📎 El presupuesto detallado en PDF viene adjunto a este correo electrónico.
+                        </span>
+                    </div>
+
+                    <!-- Botón de Contacto / WhatsApp -->
+                    ${waLink ? `
+                    <div style="text-align: center; margin: 26px 0;">
+                        <a href="${waLink}" target="_blank" style="background: #10b981; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 15px; display: inline-block; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+                            💬 Aprobar o Consultar por WhatsApp &rarr;
+                        </a>
+                    </div>
+                    ` : ''}
+
+                    <!-- Footer Taller -->
+                    <div style="border-top: 1px solid #334155; padding-top: 16px; margin-top: 24px; font-size: 12px; color: #64748b; text-align: center; line-height: 1.5;">
+                        <strong style="color: #94a3b8;">${senderName}</strong><br>
+                        ${senderAddress ? `${senderAddress}<br>` : ''}
+                        ${senderPhone ? `Tel: ${senderPhone}` : ''}
+                    </div>
+
+                    <p style="font-size: 11px; color: #475569; text-align: center; margin-top: 16px; margin-bottom: 0;">
+                        Generado y enviado a través de Mecanic OS a solicitud de ${senderName}.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        const subject = `📋 Presupuesto de Reparación [${budgetId}] - ${senderName}`;
+
+        // 1. Canal Prioritario A: Google Apps Script Web App
+        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL || process.env.APPSCRIPT_URL;
+        if (appScriptUrl && appScriptUrl.trim() !== '') {
+            try {
+                const appScriptResult = await postToAppsScript(appScriptUrl.trim(), {
+                    action: 'sendBudgetEmail',
+                    recipientEmail: recipientEmail,
+                    senderName: `${senderName} - Presupuestos`,
+                    replyTo: replyToEmail || smtpUser || 'ventas@forbiddensoluciones.com',
+                    subject: subject,
+                    htmlBody: htmlBody,
+                    pdfBase64: pdfBase64 || null,
+                    pdfName: pdfFileName
+                });
+
+                if (appScriptResult && appScriptResult.success !== false) {
+                    console.log(`Presupuesto ${budgetId} enviado vía Google Apps Script a ${recipientEmail}`);
+                    saveDteLog("Envío Correo Presupuesto (Apps Script)", workshopId, "PRESUPUESTO", { recipientEmail, budgetId }, 200, appScriptResult, "APPSCRIPT");
+                    return res.json({ success: true, message: `Presupuesto enviado exitosamente a ${recipientEmail}`, details: appScriptResult });
+                }
+            } catch (asErr) {
+                console.warn("Google Apps Script envio de presupuesto falló, intentando fallback:", asErr.message);
+            }
+        }
+
+        // 2. Canal B: Resend HTTP API
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (resendApiKey && resendApiKey.trim() !== '') {
+            try {
+                const resendResult = await sendViaResendHttpApi({
+                    apiKey: resendApiKey,
+                    from: `"${senderName}" <onboarding@resend.dev>`,
+                    to: recipientEmail,
+                    replyTo: replyToEmail || smtpUser || undefined,
+                    subject: subject,
+                    html: htmlBody,
+                    pdfBuffer: pdfBuffer,
+                    controlNum: budgetId
+                });
+                console.log(`Presupuesto ${budgetId} enviado vía Resend API a ${recipientEmail}:`, resendResult.id);
+                saveDteLog("Envío Correo Presupuesto (Resend API)", workshopId, "PRESUPUESTO", { recipientEmail, budgetId }, 200, resendResult, "RESEND_API");
+                return res.json({ success: true, message: `Presupuesto enviado exitosamente a ${recipientEmail}`, resendId: resendResult.id });
+            } catch (resendErr) {
+                console.warn("Resend API falló para presupuesto, intentando SMTP fallback:", resendErr.message);
+            }
+        }
+
+        // 3. Canal C: Nodemailer SMTP
+        if (!smtpPass || !smtpUser) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Servicio de correo no configurado para este taller. Agregue credenciales SMTP o APPSCRIPT_SENDER_URL." 
+            });
+        }
+
+        let nodemailer;
+        try {
+            nodemailer = require('nodemailer');
+        } catch (e) {
+            return res.status(500).json({ success: false, message: "El módulo nodemailer no está disponible." });
+        }
+
+        const isGmail = smtpHost.includes('gmail') || smtpUser.endsWith('@gmail.com') || smtpUser.endsWith('@forbiddensoluciones.com');
+        const transportConfig = isGmail ? {
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            auth: { user: smtpUser, pass: smtpPass },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 10000
+        } : {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: { user: smtpUser, pass: smtpPass },
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 10000
+        };
+
+        const transporter = nodemailer.createTransport(transportConfig);
+        const attachmentsList = [];
+        if (pdfBuffer) {
+            attachmentsList.push({
+                filename: pdfFileName,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            });
+        }
+
+        const mailOptions = {
+            from: `"${senderName}" <${smtpUser}>`,
+            to: recipientEmail,
+            replyTo: replyToEmail || smtpUser,
+            subject: subject,
+            html: htmlBody,
+            attachments: attachmentsList
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`Presupuesto ${budgetId} enviado por SMTP a ${recipientEmail}:`, info.messageId);
+
+        saveDteLog("Envío Correo Presupuesto (SMTP)", workshopId, "PRESUPUESTO", { recipientEmail, budgetId }, 200, { messageId: info.messageId }, "EMAIL");
+
+        return res.json({
+            success: true,
+            message: `Presupuesto enviado exitosamente a ${recipientEmail}`,
+            messageId: info.messageId
+        });
+
+    } catch (err) {
+        console.error("Exception on sendBudgetEmail:", err);
+        return res.status(500).json({ success: false, message: "Error al enviar el presupuesto por correo: " + err.message });
+    }
+}
+
 module.exports = {
     testConnection,
     emitDte,
@@ -992,5 +1269,6 @@ module.exports = {
     retrieveDte,
     downloadDtePdf,
     receiveIncomingDte,
-    resendDteEmail
+    resendDteEmail,
+    sendBudgetEmail
 };
