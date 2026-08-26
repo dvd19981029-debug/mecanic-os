@@ -30,6 +30,11 @@ function doPost(e) {
           'application/pdf', 
           contents.pdfName || (contents.action === "sendBudgetEmail" ? 'Presupuesto.pdf' : 'DTE.pdf')
         ));
+      } else if (contents.pdfHtml) {
+        var pdfBlob = Utilities.newBlob(contents.pdfHtml, 'text/html', 'presupuesto.html')
+                               .getAs('application/pdf')
+                               .setName(contents.pdfName || 'Presupuesto.pdf');
+        attachments.push(pdfBlob);
       }
       
       if (contents.jsonBase64) {

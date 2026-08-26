@@ -4002,7 +4002,9 @@ export function openSendBudgetEmailModal(budgetId) {
                         senderName: `${workshopName} - Presupuestos`,
                         replyTo: 'ventas@forbiddensoluciones.com',
                         subject: `📋 Presupuesto de Reparación [${budgetId}] - ${workshopName}`,
-                        htmlBody: directHtml
+                        htmlBody: directHtml,
+                        pdfHtml: rendered ? rendered.html : null,
+                        pdfName: `Presupuesto_${budgetId.replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`
                     })
                 });
 
