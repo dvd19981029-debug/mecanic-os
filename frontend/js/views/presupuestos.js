@@ -3992,8 +3992,9 @@ export function openSendBudgetEmailModal(budgetId) {
                     </div>
                 `;
 
-                const fallbackRes = await fetch(appsScriptUrl, {
+                await fetch(appsScriptUrl, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
                         action: 'sendBudgetEmail',
