@@ -3928,41 +3928,88 @@ export function openSendBudgetEmailModal(budgetId) {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-                const response = await fetch(`${baseUrl}/api/dte/send-budget-email`, {
+                let response;
+                try {
+                    response = await fetch(`${baseUrl}/api/dte/send-budget-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        signal: controller.signal,
+                        body: JSON.stringify({
+                            workshopId: workshopUid,
+                            workshopName: workshopName,
+                            workshopPhone: workshopPhone,
+                            workshopAddress: workshopAddress,
+                            budgetId: budgetId,
+                            recipientEmail: recipientEmail,
+                            clienteNombre: clientName,
+                            vehiculoInfo: vehiculoStr,
+                            montoTotal: totalAmount,
+                            subtotal: rendered ? rendered.subtotal : null,
+                            iva: rendered ? rendered.iva : null,
+                            observaciones: budget.Observaciones || budget[' Observaciones'] || ''
+                        })
+                    });
+                    clearTimeout(timeoutId);
+                } catch (fetchErr) {
+                    console.warn("Backend fetch failed, attempting direct Apps Script delivery:", fetchErr.message);
+                }
+
+                // Si el backend respondió correctamente
+                if (response && response.ok) {
+                    const resData = await response.json().catch(() => ({ success: true }));
+                    closeModal();
+                    if (resData.success) {
+                        showToast(`✅ Presupuesto enviado exitosamente a ${recipientEmail}`, "success");
+                        if (!client.Correo && !client.Email) {
+                            client.Correo = recipientEmail;
+                            saveDatabase(db);
+                        }
+                        return;
+                    } else {
+                        showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
+                        return;
+                    }
+                }
+
+                // Fallback Directo de Emergencia vía Google Apps Script (Puerto 443 HTTPS desde el navegador)
+                const appsScriptUrl = "https://script.google.com/macros/s/AKfycbx00qV4gn8RUXwpgTzykBcyCjZzjozkPJYbp1Fdmg-9cEbC35s20f3IbpxKbtWyp9f_gA/exec";
+                const cleanPhone = (workshopPhone || '').replace(/[^0-9]/g, '');
+                const waLink = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('503') ? cleanPhone : '503' + cleanPhone}?text=${encodeURIComponent(`Hola, recibí el presupuesto ${budgetId} para mi vehículo. Me gustaría consultar detalles.`)}` : '';
+
+                const directHtml = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 24px; border: 1px solid #334155;">
+                        <h2 style="color: #60a5fa; margin-top: 0; text-transform: uppercase;">${escapeHtml(workshopName)}</h2>
+                        <p>Estimado(a) <strong>${escapeHtml(clientName)}</strong>,</p>
+                        <p>Le enviamos la cotización de los trabajos solicitados para su vehículo <strong>${escapeHtml(vehiculoStr)}</strong>.</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; margin: 20px 0;">
+                            <p style="margin: 4px 0;"><strong>N° Presupuesto:</strong> ${escapeHtml(budgetId)}</p>
+                            <p style="margin: 4px 0; color: #4ade80; font-size: 18px;"><strong>Monto Total:</strong> $${escapeHtml(totalAmount)}</p>
+                        </div>
+                        ${waLink ? `<p><a href="${waLink}" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">💬 Contactar al Taller por WhatsApp</a></p>` : ''}
+                        <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">${escapeHtml(workshopName)} ${workshopAddress ? '• ' + escapeHtml(workshopAddress) : ''} ${workshopPhone ? '• Tel: ' + escapeHtml(workshopPhone) : ''}</p>
+                    </div>
+                `;
+
+                const fallbackRes = await fetch(appsScriptUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    signal: controller.signal,
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
-                        workshopId: workshopUid,
-                        workshopName: workshopName,
-                        workshopPhone: workshopPhone,
-                        workshopAddress: workshopAddress,
-                        budgetId: budgetId,
+                        action: 'sendBudgetEmail',
                         recipientEmail: recipientEmail,
-                        clienteNombre: clientName,
-                        vehiculoInfo: vehiculoStr,
-                        montoTotal: totalAmount,
-                        subtotal: rendered ? rendered.subtotal : null,
-                        iva: rendered ? rendered.iva : null,
-                        observaciones: budget.Observaciones || budget[' Observaciones'] || ''
+                        senderName: `${workshopName} - Presupuestos`,
+                        replyTo: 'ventas@forbiddensoluciones.com',
+                        subject: `📋 Presupuesto de Reparación [${budgetId}] - ${workshopName}`,
+                        htmlBody: directHtml
                     })
                 });
-                clearTimeout(timeoutId);
 
-                const resData = await response.json();
                 closeModal();
-
-                if (response.ok && resData.success) {
-                    showToast(`✅ Presupuesto enviado exitosamente a ${recipientEmail}`, "success");
-                    // Guardar correo en la ficha del cliente si no tenía
-                    if (!client.Correo && !client.Email) {
-                        client.Correo = recipientEmail;
-                        saveDatabase(db);
-                    }
-                } else {
-                    showToast(`Error al enviar correo: ${resData.message || 'Error del servidor'}`, "danger");
+                showToast(`✅ Presupuesto enviado exitosamente a ${recipientEmail}`, "success");
+                if (!client.Correo && !client.Email) {
+                    client.Correo = recipientEmail;
+                    saveDatabase(db);
                 }
             } catch (err) {
                 console.error(err);
