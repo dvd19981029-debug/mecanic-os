@@ -1084,6 +1084,129 @@ const dataService = {
                 callback(dataService.cache.solicitudes_registro || []);
                 return () => {};
             }
+        },
+
+        // --- LANDING PAGE ANALYTICS & TELEMETRY ---
+        async logAnalyticsEvent(eventType, eventData = {}) {
+            try {
+                // Get or generate persistent anonymous session ID
+                let sessionId = sessionStorage.getItem('mecanic_os_session_id');
+                if (!sessionId) {
+                    sessionId = 'sess_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+                    sessionStorage.setItem('mecanic_os_session_id', sessionId);
+                }
+
+                // Detect device type cleanly
+                const ua = navigator.userAgent || '';
+                let device = 'Desktop';
+                if (/mobile|android|iphone|ipad|ipod/i.test(ua)) {
+                    device = /ipad|tablet/i.test(ua) ? 'Tablet' : 'Móvil';
+                } else if (/macintosh|mac os x/i.test(ua)) {
+                    device = 'Mac / PC';
+                }
+
+                const eventId = 'ev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+                const payload = {
+                    id: eventId,
+                    type: eventType, // 'page_view', 'cta_click', 'pricing_click', 'whatsapp_click', 'demo_click'
+                    target: eventData.target || 'general',
+                    label: eventData.label || eventType,
+                    device: device,
+                    screen: `${window.innerWidth}x${window.innerHeight}`,
+                    referrer: document.referrer ? (new URL(document.referrer, window.location.origin).hostname || 'Directo') : 'Directo',
+                    timestamp: Date.now(),
+                    dateStr: new Date().toISOString().split('T')[0],
+                    sessionId: sessionId,
+                    ...eventData
+                };
+
+                // 1. Guardar en Firestore central (no bloqueante)
+                if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                    dbFirestore.collection("saas_analytics").doc(eventId).set(payload)
+                        .catch(err => console.warn("Analytics async set failed:", err));
+                }
+
+                // 2. Guardar en caché local para contingencia
+                if (!dataService.cache.saas_analytics) dataService.cache.saas_analytics = [];
+                dataService.cache.saas_analytics.unshift(payload);
+                if (dataService.cache.saas_analytics.length > 200) {
+                    dataService.cache.saas_analytics = dataService.cache.saas_analytics.slice(0, 200);
+                }
+                dataService.setStorageItem('mecanic_os_db', dataService.cache).catch(() => {});
+
+                return payload;
+            } catch (telemetryErr) {
+                console.warn("Telemetry non-fatal error:", telemetryErr);
+                return null;
+            }
+        },
+
+        async getAnalyticsSummary(timeframe = 'all') {
+            let events = [];
+            
+            // Intentar leer desde Firestore
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    let query = dbFirestore.collection("saas_analytics").orderBy("timestamp", "desc").limit(300);
+                    const snap = await query.get();
+                    snap.forEach(doc => {
+                        events.push(doc.data());
+                    });
+                } catch (e) {
+                    console.warn("Analytics cloud read fallback to local cache:", e);
+                }
+            }
+
+            // Fallback a caché local si Firestore no trajo datos o offline
+            if (events.length === 0 && dataService.cache.saas_analytics) {
+                events = [...dataService.cache.saas_analytics];
+            }
+
+            // Filtrar por marco de tiempo
+            const now = Date.now();
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (timeframe === 'today') {
+                events = events.filter(e => e.dateStr === todayStr);
+            } else if (timeframe === '7d') {
+                const limit7d = now - 7 * 24 * 60 * 60 * 1000;
+                events = events.filter(e => e.timestamp >= limit7d);
+            }
+
+            // Cálculos y agregaciones
+            const totalViews = events.filter(e => e.type === 'page_view').length;
+            const uniqueSessions = new Set(events.map(e => e.sessionId)).size;
+            const totalClicks = events.filter(e => e.type !== 'page_view').length;
+            
+            // Clics por intención
+            const pricingMonthlyClicks = events.filter(e => e.target === 'pricing_monthly').length;
+            const pricingLifetimeClicks = events.filter(e => e.target === 'pricing_lifetime').length;
+            const registerClicks = events.filter(e => e.target === 'register_cta').length;
+            const loginClicks = events.filter(e => e.target === 'login_cta').length;
+            const whatsappClicks = events.filter(e => e.target === 'whatsapp_cta').length;
+
+            // Distribución de dispositivos
+            const devices = events.reduce((acc, e) => {
+                const dev = e.device || 'Desktop';
+                acc[dev] = (acc[dev] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Tasa de conversión (visitas -> intención de registro)
+            const conversionRate = totalViews > 0 ? ((registerClicks / totalViews) * 100).toFixed(1) : '0.0';
+
+            return {
+                totalViews,
+                uniqueSessions,
+                totalClicks,
+                conversionRate,
+                pricingMonthlyClicks,
+                pricingLifetimeClicks,
+                registerClicks,
+                loginClicks,
+                whatsappClicks,
+                devices,
+                recentEvents: events.slice(0, 30)
+            };
         }
     }
 };

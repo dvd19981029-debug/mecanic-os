@@ -2520,6 +2520,7 @@ if (window.saasViewReceiptPaymentId) {
                 <button class="saas-tab-btn ${activeTab === 'pay' ? 'active' : ''}" onclick="window.switchSaaSTab('pay')"><i class="fa-solid fa-receipt"></i> Historial de Cobros</button>
                 <button class="saas-tab-btn ${activeTab === 'plans-coupons' ? 'active' : ''}" onclick="window.switchSaaSTab('plans-coupons')"><i class="fa-solid fa-gears"></i> Configuración, Planes & Cupones</button>
                 <button class="saas-tab-btn ${activeTab === 'metrics' ? 'active' : ''}" onclick="window.switchSaaSTab('metrics')"><i class="fa-solid fa-chart-line"></i> Métricas SaaS</button>
+                <button class="saas-tab-btn ${activeTab === 'landing-analytics' ? 'active' : ''}" onclick="window.switchSaaSTab('landing-analytics')"><i class="fa-solid fa-chart-pie"></i> Analíticas Landing</button>
                 <button class="saas-tab-btn ${activeTab === 'dte-logs' ? 'active' : ''}" onclick="window.switchSaaSTab('dte-logs')"><i class="fa-solid fa-server"></i> Logs Servidor (DTE)</button>
             </div>
             
@@ -2530,6 +2531,7 @@ if (window.saasViewReceiptPaymentId) {
                 ${safe(activeTab === 'pay' ? renderPaymentsTab() : '')}
                 ${safe(activeTab === 'plans-coupons' ? renderPlansCouponsTab() : '')}
                 ${safe(activeTab === 'metrics' ? renderMetricsTab() : '')}
+                ${safe(activeTab === 'landing-analytics' ? renderLandingAnalyticsTab() : '')}
                 ${safe(activeTab === 'dte-logs' ? renderDteLogsTab() : '')}
             </div>
         </div>
@@ -3557,6 +3559,184 @@ if (window.saasViewReceiptPaymentId) {
                             `;
                         }).join(''))}
                     </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderLandingAnalyticsTab() {
+        const timeFrame = window.saasAnalyticsTimeframe || 'all';
+
+        setTimeout(async () => {
+            const summaryContainer = document.getElementById('saas-analytics-content');
+            if (!summaryContainer) return;
+
+            try {
+                const data = await dataService.saas.getAnalyticsSummary(window.saasAnalyticsTimeframe || 'all');
+                
+                const formatTime = (ts) => {
+                    const d = new Date(ts);
+                    return d.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) + ' (' + d.toLocaleDateString('es-SV') + ')';
+                };
+
+                const targetBadge = (t) => {
+                    if (t === 'pricing_lifetime') return '<span class="badge" style="background:rgba(16, 185, 129, 0.2); color:var(--success); border:1px solid rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-gem"></i> Vitalicia $600</span>';
+                    if (t === 'pricing_monthly') return '<span class="badge" style="background:rgba(99, 102, 241, 0.2); color:var(--primary); border:1px solid rgba(99, 102, 241, 0.4);"><i class="fa-solid fa-calendar"></i> Mensual $50</span>';
+                    if (t === 'register_cta') return '<span class="badge" style="background:rgba(245, 158, 11, 0.2); color:var(--warning); border:1px solid rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rocket"></i> Clic Registro</span>';
+                    if (t === 'login_cta') return '<span class="badge" style="background:rgba(255, 255, 255, 0.08); color:var(--text-primary); border:1px solid var(--border-color);"><i class="fa-solid fa-right-to-bracket"></i> Login</span>';
+                    if (t === 'landing_view') return '<span class="badge" style="background:rgba(6, 182, 212, 0.2); color:var(--cyan); border:1px solid rgba(6, 182, 212, 0.4);"><i class="fa-solid fa-eye"></i> Vista Landing</span>';
+                    return `<span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted);">${escapeHtml(t)}</span>`;
+                };
+
+                summaryContainer.innerHTML = `
+                    <!-- Metric Cards -->
+                    <div class="saas-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                        <div class="metric-card-saas primary">
+                            <span class="metric-label"><i class="fa-solid fa-eye"></i> Visitas a la Landing</span>
+                            <div class="metric-val">${data.totalViews}</div>
+                            <small style="color:var(--text-muted); font-size:0.75rem;">${data.uniqueSessions} visitantes únicos</small>
+                        </div>
+                        <div class="metric-card-saas success">
+                            <span class="metric-label"><i class="fa-solid fa-gem"></i> Clics en Vitalicia ($600)</span>
+                            <div class="metric-val">${data.pricingLifetimeClicks}</div>
+                            <small style="color:var(--text-muted); font-size:0.75rem;">Interés de compra definitiva</small>
+                        </div>
+                        <div class="metric-card-saas warning">
+                            <span class="metric-label"><i class="fa-solid fa-calendar"></i> Clics en Mensual ($50)</span>
+                            <div class="metric-val">${data.pricingMonthlyClicks}</div>
+                            <small style="color:var(--text-muted); font-size:0.75rem;">Interés de suscripción mensual</small>
+                        </div>
+                        <div class="metric-card-saas danger">
+                            <span class="metric-label"><i class="fa-solid fa-bolt"></i> Conversión a Registro</span>
+                            <div class="metric-val">${data.conversionRate}%</div>
+                            <small style="color:var(--text-muted); font-size:0.75rem;">${data.registerClicks} clics en botones de registro</small>
+                        </div>
+                    </div>
+
+                    <!-- Distribución & Interacción -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+                        <!-- Preferencia de Planes -->
+                        <div class="glass-card" style="padding:1.5rem;">
+                            <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1.25rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-scale-balanced" style="color:var(--primary);"></i> Interés Comercial: Vitalicia vs Mensual
+                            </h3>
+                            <div style="display:flex; flex-direction:column; gap:1.25rem;">
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.4rem;">
+                                        <span style="font-weight:700; color:var(--success);"><i class="fa-solid fa-gem"></i> Licencia Vitalicia ($600 Pago Único)</span>
+                                        <strong>${data.pricingLifetimeClicks} clics</strong>
+                                    </div>
+                                    <div style="height:10px; background:rgba(255,255,255,0.05); border-radius:5px; overflow:hidden;">
+                                        <div style="width:${(data.pricingLifetimeClicks + data.pricingMonthlyClicks) > 0 ? ((data.pricingLifetimeClicks / (data.pricingLifetimeClicks + data.pricingMonthlyClicks)) * 100) : 0}%; height:100%; background:var(--success); border-radius:5px;"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.4rem;">
+                                        <span style="font-weight:700; color:var(--primary);"><i class="fa-solid fa-calendar"></i> Licencia Mensual ($50/mes)</span>
+                                        <strong>${data.pricingMonthlyClicks} clics</strong>
+                                    </div>
+                                    <div style="height:10px; background:rgba(255,255,255,0.05); border-radius:5px; overflow:hidden;">
+                                        <div style="width:${(data.pricingLifetimeClicks + data.pricingMonthlyClicks) > 0 ? ((data.pricingMonthlyClicks / (data.pricingLifetimeClicks + data.pricingMonthlyClicks)) * 100) : 0}%; height:100%; background:var(--primary); border-radius:5px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dispositivos de los Prospectos -->
+                        <div class="glass-card" style="padding:1.5rem;">
+                            <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1.25rem; color:var(--text-primary); display:flex; align-items:center; gap:0.5rem;">
+                                <i class="fa-solid fa-mobile-screen-button" style="color:var(--cyan);"></i> Dispositivos de Visitantes
+                            </h3>
+                            <div style="display:flex; flex-direction:column; gap:1rem;">
+                                ${Object.entries(data.devices).length === 0 ? '<p style="color:var(--text-muted); font-size:0.85rem;">Esperando visitas...</p>' : Object.entries(data.devices).map(([dev, count]) => {
+                                    const totalD = Object.values(data.devices).reduce((a, b) => a + b, 0);
+                                    const pct = totalD > 0 ? ((count / totalD) * 100).toFixed(0) : 0;
+                                    const icon = dev === 'Móvil' ? 'fa-mobile-screen' : (dev === 'Tablet' ? 'fa-tablet-screen-button' : 'fa-laptop');
+                                    return `
+                                        <div>
+                                            <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.3rem;">
+                                                <span><i class="fa-solid ${icon}" style="margin-right:0.4rem; color:var(--cyan);"></i> ${dev}</span>
+                                                <strong>${count} (${pct}%)</strong>
+                                            </div>
+                                            <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
+                                                <div style="width:${pct}%; height:100%; background:var(--cyan); border-radius:3px;"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log en Vivo de Actividad -->
+                    <div class="glass-card" style="padding:1.5rem;">
+                        <h3 style="font-family:'Outfit', sans-serif; font-size:1.1rem; margin-bottom:1rem; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+                            <span><i class="fa-solid fa-satellite-dish" style="color:var(--warning);"></i> Registro de Actividad Reciente</span>
+                            <small style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Últimos 30 eventos</small>
+                        </h3>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                                        <th style="padding:0.6rem 0.5rem;">Hora / Fecha</th>
+                                        <th style="padding:0.6rem 0.5rem;">Evento / Acción</th>
+                                        <th style="padding:0.6rem 0.5rem;">Detalle del Clic</th>
+                                        <th style="padding:0.6rem 0.5rem;">Dispositivo</th>
+                                        <th style="padding:0.6rem 0.5rem;">Pantalla</th>
+                                        <th style="padding:0.6rem 0.5rem;">Origen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.recentEvents.length === 0 ? `
+                                        <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">No hay eventos de telemetría registrados en este período.</td></tr>
+                                    ` : data.recentEvents.map(ev => `
+                                        <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+                                            <td style="padding:0.6rem 0.5rem; color:var(--text-secondary); white-space:nowrap;">${formatTime(ev.timestamp)}</td>
+                                            <td style="padding:0.6rem 0.5rem;">${targetBadge(ev.target || ev.type)}</td>
+                                            <td style="padding:0.6rem 0.5rem; font-weight:600; color:var(--text-primary);">${escapeHtml(ev.label || ev.type)}</td>
+                                            <td style="padding:0.6rem 0.5rem; color:var(--text-secondary);"><i class="fa-solid ${ev.device === 'Móvil' ? 'fa-mobile-screen' : 'fa-desktop'}" style="margin-right:0.3rem;"></i> ${ev.device}</td>
+                                            <td style="padding:0.6rem 0.5rem; font-family:monospace; color:var(--text-muted);">${ev.screen || 'N/D'}</td>
+                                            <td style="padding:0.6rem 0.5rem; color:var(--text-muted);">${escapeHtml(ev.referrer || 'Directo')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                console.error("Error loading landing analytics summary:", err);
+                summaryContainer.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--danger);">Error cargando analíticas: ${err.message}</div>`;
+            }
+        }, 50);
+
+        window.setAnalyticsTimeframe = function(tf) {
+            window.saasAnalyticsTimeframe = tf;
+            renderAdminSolicitudes(container);
+        };
+
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                <div>
+                    <h3 style="font-family:'Outfit', sans-serif; font-size:1.3rem; color:var(--text-primary); margin:0;">
+                        <i class="fa-solid fa-chart-pie" style="color:var(--primary);"></i> Analíticas & Telemetría de la Landing Page
+                    </h3>
+                    <p style="color:var(--text-secondary); font-size:0.85rem; margin:0.25rem 0 0 0;">
+                        Monitorea cuántos prospectos visitan la página, qué botones presionan y su preferencia entre planes.
+                    </p>
+                </div>
+                <div style="display:flex; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.25rem; border-radius:8px; border:1px solid var(--border-color);">
+                    <button class="btn btn-secondary" onclick="window.setAnalyticsTimeframe('today')" style="font-size:0.75rem; padding:0.35rem 0.75rem; ${timeFrame === 'today' ? 'background:var(--primary); color:#fff;' : ''}">Hoy</button>
+                    <button class="btn btn-secondary" onclick="window.setAnalyticsTimeframe('7d')" style="font-size:0.75rem; padding:0.35rem 0.75rem; ${timeFrame === '7d' ? 'background:var(--primary); color:#fff;' : ''}">Últimos 7 Días</button>
+                    <button class="btn btn-secondary" onclick="window.setAnalyticsTimeframe('all')" style="font-size:0.75rem; padding:0.35rem 0.75rem; ${timeFrame === 'all' ? 'background:var(--primary); color:#fff;' : ''}">Histórico Completo</button>
+                </div>
+            </div>
+
+            <div id="saas-analytics-content">
+                <div style="text-align:center; padding:3rem; color:var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; margin-bottom:1rem; color:var(--primary);"></i><br>
+                    Cargando métricas de telemetría en tiempo real...
                 </div>
             </div>
         `;

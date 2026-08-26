@@ -1,9 +1,22 @@
 import { saveDatabase, setActiveUser } from '../../app.js?v=69';
 import { showToast, html, safe, escapeHtml } from '../utils.js?v=69';
+import { dataService } from '../../dataService.js?v=69';
 
 export function renderLanding(container) {
     const db = window.getDatabase ? window.getDatabase() : {};
     const saas = (db && db.saas_state) || { status: 'guest' };
+
+    // Telemetría: Registrar visita a la Landing de forma no bloqueante
+    try {
+        if (dataService && dataService.saas && typeof dataService.saas.logAnalyticsEvent === 'function') {
+            dataService.saas.logAnalyticsEvent('page_view', {
+                target: 'landing_view',
+                label: 'Visita a Landing Page'
+            });
+        }
+    } catch (e) {
+        console.warn("Landing view telemetry skipped:", e);
+    }
     
     // Vista si la solicitud del taller está en estado de revisión
     if (saas.status === 'pending') {
@@ -45,7 +58,7 @@ export function renderLanding(container) {
         const workshopName = (saas.workshopData && saas.workshopData.nombre) || 'Mecanic OS';
         topButtonsHTML = `
             <div class="landing-header-btns" style="display:flex; gap:0.5rem; align-items:center;">
-                <a href="#taller-dashboard" class="btn btn-primary" style="font-size:0.8rem; font-weight:700; padding:0.45rem 1rem; border-radius:50px; display:inline-flex; align-items:center; gap:0.35rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); white-space:nowrap;">
+                <a href="#taller-dashboard" data-track-cta="panel_access" class="btn btn-primary" style="font-size:0.8rem; font-weight:700; padding:0.45rem 1rem; border-radius:50px; display:inline-flex; align-items:center; gap:0.35rem; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); white-space:nowrap;">
                     <i class="fa-solid fa-gauge-high"></i> <span class="nav-btn-text">Mi Panel</span>
                 </a>
             </div>
@@ -53,7 +66,7 @@ export function renderLanding(container) {
         
         actionButtonsHTML = `
             <div style="display:flex; flex-direction:column; align-items:center; gap:1.25rem; margin-top:2.5rem;">
-                <a href="#taller-dashboard" class="btn btn-primary" style="padding:1.1rem 2.8rem; font-size:1.2rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem;">
+                <a href="#taller-dashboard" data-track-cta="panel_access" class="btn btn-primary" style="padding:1.1rem 2.8rem; font-size:1.2rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem;">
                     <i class="fa-solid fa-right-to-bracket"></i> Ingresar a ${escapeHtml(workshopName)}
                 </a>
                 <button id="btn-landing-reset" style="background:none; border:none; color:var(--text-secondary); text-decoration:underline; font-size:0.85rem; cursor:pointer; margin-top:0.25rem;">
@@ -64,10 +77,10 @@ export function renderLanding(container) {
     } else {
         topButtonsHTML = `
             <div class="landing-header-btns" style="display:flex; gap:0.4rem; align-items:center;">
-                <a href="#lock-screen" class="landing-nav-link" style="color:var(--text-primary); text-decoration:none; font-size:0.78rem; font-weight:600; padding:0.45rem 0.8rem; border-radius:50px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
+                <a href="#lock-screen" data-track-cta="login_cta" class="landing-nav-link" style="color:var(--text-primary); text-decoration:none; font-size:0.78rem; font-weight:600; padding:0.45rem 0.8rem; border-radius:50px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
                     <i class="fa-solid fa-right-to-bracket"></i> <span>Entrar</span>
                 </a>
-                <a href="#registro" class="btn btn-primary landing-nav-reg" style="font-size:0.78rem; font-weight:700; padding:0.45rem 0.95rem; border-radius:50px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
+                <a href="#registro" data-track-cta="register_cta" class="btn btn-primary landing-nav-reg" style="font-size:0.78rem; font-weight:700; padding:0.45rem 0.95rem; border-radius:50px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35); white-space:nowrap; display:inline-flex; align-items:center; gap:0.3rem;">
                     <i class="fa-solid fa-rocket"></i> <span>Registrar</span>
                 </a>
             </div>
@@ -75,10 +88,10 @@ export function renderLanding(container) {
         
         actionButtonsHTML = `
             <div class="hero-actions-container" style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:2.5rem;">
-                <a href="#registro" class="btn btn-primary hero-btn-main" style="padding:0.9rem 2rem; font-size:1.05rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;">
+                <a href="#registro" data-track-cta="register_cta" class="btn btn-primary hero-btn-main" style="padding:0.9rem 2rem; font-size:1.05rem; font-weight:700; text-decoration:none; box-shadow:0 12px 28px rgba(99, 102, 241, 0.4); border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;">
                     <i class="fa-solid fa-rocket"></i> Empezar Prueba Gratuita
                 </a>
-                <a href="#lock-screen" class="btn btn-secondary hero-btn-sec" style="padding:0.9rem 1.8rem; font-size:1.05rem; font-weight:600; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
+                <a href="#lock-screen" data-track-cta="login_cta" class="btn btn-secondary hero-btn-sec" style="padding:0.9rem 1.8rem; font-size:1.05rem; font-weight:600; text-decoration:none; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);">
                     <i class="fa-solid fa-right-to-bracket"></i> Acceso a Taller
                 </a>
             </div>
@@ -428,7 +441,7 @@ export function renderLanding(container) {
                             </ul>
                         </div>
 
-                        <a href="#registro" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.9rem; font-size: 1rem; border-radius: 10px;">
+                        <a href="#registro" data-track-cta="pricing_monthly" class="btn btn-secondary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.9rem; font-size: 1rem; border-radius: 10px;">
                             Seleccionar Licencia Mensual
                         </a>
                     </div>
@@ -480,7 +493,7 @@ export function renderLanding(container) {
                             </ul>
                         </div>
 
-                        <a href="#registro" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.95rem; font-size: 1rem; border-radius: 10px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); background: var(--success);">
+                        <a href="#registro" data-track-cta="pricing_lifetime" class="btn btn-primary" style="width: 100%; justify-content: center; font-weight: 700; padding: 0.95rem; font-size: 1rem; border-radius: 10px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); background: var(--success);">
                             <i class="fa-solid fa-rocket"></i> Adquirir Licencia Vitalicia
                         </a>
                     </div>
@@ -498,7 +511,7 @@ export function renderLanding(container) {
                         Únete a los talleres mecánicos que ya modernizaron su operación, ahorran horas en trámites de Hacienda y aumentaron su rentabilidad con Mecanic OS.
                     </p>
                     <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-                        <a href="#registro" class="btn btn-primary" style="padding: 1rem 2.8rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);">
+                        <a href="#registro" data-track-cta="register_cta" class="btn btn-primary" style="padding: 1rem 2.8rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);">
                             <i class="fa-solid fa-rocket"></i> Registrar Mi Taller Ahora
                         </a>
                     </div>
@@ -527,6 +540,22 @@ export function renderLanding(container) {
 
         </div>
     `;
+
+    // Delegación de eventos para tracking de clics en la Landing Page
+    const landingWrapper = container.querySelector('.landing-page-wrapper');
+    if (landingWrapper) {
+        landingWrapper.addEventListener('click', (ev) => {
+            const trackTarget = ev.target.closest('[data-track-cta]');
+            if (trackTarget && dataService && dataService.saas && typeof dataService.saas.logAnalyticsEvent === 'function') {
+                const targetKey = trackTarget.getAttribute('data-track-cta');
+                const labelText = trackTarget.textContent.trim().replace(/\s+/g, ' ');
+                dataService.saas.logAnalyticsEvent('cta_click', {
+                    target: targetKey,
+                    label: labelText
+                });
+            }
+        });
+    }
 
     // Botón de desconexión si ya está logueado en la landing
     const resetBtn = document.getElementById('btn-landing-reset');
