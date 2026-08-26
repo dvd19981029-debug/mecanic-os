@@ -1096,12 +1096,17 @@ const dataService = {
                     sessionStorage.setItem('mecanic_os_session_id', sessionId);
                 }
 
-                // Detect device type cleanly
-                const ua = navigator.userAgent || '';
-                let device = 'Desktop';
-                if (/mobile|android|iphone|ipad|ipod/i.test(ua)) {
-                    device = /ipad|tablet/i.test(ua) ? 'Tablet' : 'Móvil';
-                } else if (/macintosh|mac os x/i.test(ua)) {
+                // Detect device type cleanly (prioritizing mobile & touch devices)
+                const ua = (navigator.userAgent || '').toLowerCase();
+                const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+                const isMobileScreen = window.innerWidth <= 768;
+                let device = 'Mac / PC';
+
+                if (/android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua) || (isMobileScreen && isTouch)) {
+                    device = 'Móvil';
+                } else if (/ipad|tablet/i.test(ua) || (isTouch && window.innerWidth <= 1024)) {
+                    device = 'Tablet';
+                } else if (/macintosh|mac os x|windows|linux/i.test(ua)) {
                     device = 'Mac / PC';
                 }
 
