@@ -3953,6 +3953,7 @@ export function openSendBudgetEmailModal(budgetId) {
                             montoTotal: totalAmount,
                             subtotal: rendered ? rendered.subtotal : null,
                             iva: rendered ? rendered.iva : null,
+                            pdfHtml: rendered ? rendered.html : null,
                             observaciones: budget.Observaciones || budget[' Observaciones'] || ''
                         })
                     });

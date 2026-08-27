@@ -1007,6 +1007,7 @@ async function sendBudgetEmail(req, res) {
             subtotal,
             iva,
             pdfBase64,
+            pdfHtml,
             workshopId,
             workshopName,
             workshopPhone,
@@ -1168,6 +1169,7 @@ async function sendBudgetEmail(req, res) {
                     subject: subject,
                     htmlBody: htmlBody,
                     pdfBase64: pdfBase64 || null,
+                    pdfHtml: pdfHtml || null,
                     pdfName: pdfFileName
                 });
 
