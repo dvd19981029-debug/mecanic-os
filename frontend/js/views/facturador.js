@@ -1579,8 +1579,13 @@ export async function sendDteEmailToClient(genCode, budgetId) {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-                const workshopName = (db.ajustes && (db.ajustes.Razon_Social || db.ajustes.Nombre_Taller || db.ajustes.Nombre_Comercial)) ||
-                                     (db.saas_state && db.saas_state.workshopData && (db.saas_state.workshopData.Razon_Social || db.saas_state.workshopData.Nombre_Taller)) ||
+                const wsConfig = getWorkshopConfig(db);
+                const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre || db.config_taller.alias)) ||
+                                     wsConfig.nombre_comercial ||
+                                     wsConfig.nombre ||
+                                     wsConfig.alias ||
+                                     (db.ajustes && (db.ajustes.Razon_Social || db.ajustes.Nombre_Taller || db.ajustes.Nombre_Comercial)) ||
+                                     (db.saas_state && db.saas_state.workshopData && (db.saas_state.workshopData.Nombre_Comercial || db.saas_state.workshopData.Razon_Social || db.saas_state.workshopData.Nombre_Taller)) ||
                                      'MISTER CARS, S.A.S de C.V.';
 
                 const response = await fetch(`${baseUrl}/api/dte/resend-email`, {

@@ -3919,9 +3919,14 @@ export function openSendBudgetEmailModal(budgetId) {
                 }
 
                 const wsConfig = getWorkshopConfig(db);
-                const workshopName = (db.ajustes && (db.ajustes.Razon_Social || db.ajustes.Nombre_Taller || db.ajustes.Nombre_Comercial)) ||
-                                     (db.saas_state && db.saas_state.workshopData && (db.saas_state.workshopData.Razon_Social || db.saas_state.workshopData.Nombre_Taller)) ||
-                                     wsConfig.nombreTaller || 'Taller Automotriz';
+                const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre || db.config_taller.alias)) ||
+                                     wsConfig.nombre_comercial ||
+                                     wsConfig.nombre ||
+                                     wsConfig.alias ||
+                                     wsConfig.nombreTaller ||
+                                     (db.ajustes && (db.ajustes.Razon_Social || db.ajustes.Nombre_Taller || db.ajustes.Nombre_Comercial)) ||
+                                     (db.saas_state && db.saas_state.workshopData && (db.saas_state.workshopData.Nombre_Comercial || db.saas_state.workshopData.Razon_Social || db.saas_state.workshopData.Nombre_Taller)) ||
+                                     'MISTER CARS';
                 const workshopPhone = wsConfig.telefono || (db.ajustes && db.ajustes.Telefono) || '';
                 const workshopAddress = wsConfig.direccion || (db.ajustes && db.ajustes.Direccion) || '';
 
@@ -3981,14 +3986,23 @@ export function openSendBudgetEmailModal(budgetId) {
                 const directHtml = `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 24px; border: 1px solid #334155;">
                         <h2 style="color: #60a5fa; margin-top: 0; text-transform: uppercase;">${escapeHtml(workshopName)}</h2>
-                        <p>Estimado(a) <strong>${escapeHtml(clientName)}</strong>,</p>
-                        <p>Le enviamos la cotización de los trabajos solicitados para su vehículo <strong>${escapeHtml(vehiculoStr)}</strong>.</p>
-                        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; margin: 20px 0;">
-                            <p style="margin: 4px 0;"><strong>N° Presupuesto:</strong> ${escapeHtml(budgetId)}</p>
+                        <p style="font-size: 15px;">Estimado(a) <strong>${escapeHtml(clientName)}</strong>,</p>
+                        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">
+                            El taller <strong>${escapeHtml(workshopName)}</strong> le ha enviado la cotizaci&oacute;n de reparaci&oacute;n y mantenimiento para su veh&iacute;culo <strong>${escapeHtml(vehiculoStr)}</strong>.
+                        </p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #334155;">
+                            <p style="margin: 4px 0;"><strong>N° Presupuesto:</strong> <span style="color:#60a5fa; font-family:monospace;">${escapeHtml(budgetId)}</span></p>
                             <p style="margin: 4px 0; color: #4ade80; font-size: 18px;"><strong>Monto Total:</strong> $${escapeHtml(totalAmount)}</p>
                         </div>
-                        ${waLink ? `<p><a href="${waLink}" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">Aprobar o Consultar por WhatsApp &rarr;</a></p>` : ''}
-                        <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">${escapeHtml(workshopName)} ${workshopAddress ? '• ' + escapeHtml(workshopAddress) : ''} ${workshopPhone ? '• Tel: ' + escapeHtml(workshopPhone) : ''}</p>
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 20px;">
+                            <span style="color: #34d399; font-size: 13px;">[PDF Adjunto] El presupuesto detallado viene adjunto a este correo electr&oacute;nico.</span>
+                        </div>
+                        ${waLink ? `<p style="text-align:center;"><a href="${waLink}" style="background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; font-size: 14px;">Aprobar o Consultar por WhatsApp &rarr;</a></p>` : ''}
+                        <p style="font-size: 12px; color: #94a3b8; margin-top: 20px; text-align:center; border-top: 1px solid #334155; padding-top: 15px;">
+                            <strong>${escapeHtml(workshopName)}</strong><br>
+                            ${workshopAddress ? escapeHtml(workshopAddress) + '<br>' : ''}
+                            ${workshopPhone ? 'Tel: ' + escapeHtml(workshopPhone) : ''}
+                        </p>
                     </div>
                 `;
 
