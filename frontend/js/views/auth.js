@@ -43,7 +43,33 @@ export function renderLockScreen(container) {
     setActiveUser(null);
 
     function showProfiles() {
-        const tecnicos = db.tecnicos || [];
+        const rawTecnicos = db.tecnicos || [];
+        const allProfiles = [...rawTecnicos];
+        const ownerName = (saas.workshopData && (saas.workshopData.propietario || saas.workshopData.nombre)) || '';
+        
+        if (ownerName && !ownerName.toLowerCase().includes('mister cars')) {
+            const ownerExists = allProfiles.some(t => 
+                (t.Nombre_Completo || '').trim().toLowerCase() === ownerName.trim().toLowerCase() ||
+                (t.Tecnico_ID || '').includes('TECH-OWNER')
+            );
+            if (!ownerExists) {
+                allProfiles.unshift({
+                    Tecnico_ID: 'TECH-OWNER-' + ((saas.workshopData && saas.workshopData.uid) || 'OWNER').slice(0, 10),
+                    Nombre_Completo: ownerName.toUpperCase(),
+                    Email: (saas.workshopData && saas.workshopData.correo) || '',
+                    Telefono: (saas.workshopData && saas.workshopData.telefono) || '',
+                    Especialidad: 'Gerente General',
+                    Nivel_Acceso: 'Administrador',
+                    Salario_Base: 1500,
+                    Contraseña: '',
+                    Incapacidades: [],
+                    Vacaciones: [],
+                    Bonos: []
+                });
+            }
+        }
+
+        const tecnicos = allProfiles;
         container.innerHTML = html`
             <div style="max-width: 1200px; margin: 4rem auto; padding: 2.5rem; text-align: center;">
                 <div style="margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
@@ -57,8 +83,9 @@ export function renderLockScreen(container) {
                 <div id="lock-profiles-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1.25rem; justify-content: center; max-width: 1200px; margin: 0 auto;">
                     ${safe(tecnicos.map(t => {
                         const avatar = t.Foto_Perfil || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100";
+                        const techUniqueId = t.Tecnico_ID || t.Codigo_Cliente || t.Nombre_Completo;
                         return html`
-                            <div class="user-card lock-profile-card" data-id="${t.Codigo_Cliente || t.Nombre_Completo || t.Email}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem 0.75rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
+                            <div class="user-card lock-profile-card" data-id="${techUniqueId}" style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 1.25rem 0.75rem; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; transition: var(--transition-fast);">
                                 <img src="${avatar}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);">
                                 <div style="text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
                                     <strong style="font-size: 0.9rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-primary); line-height: 1.25; min-height: 2.5em; text-align: center; width: 100%;" title="${t.Nombre_Completo}">${t.Nombre_Completo}</strong>
@@ -91,7 +118,7 @@ export function renderLockScreen(container) {
             });
             card.addEventListener('click', () => {
                 const techId = card.getAttribute('data-id');
-                const selectedTech = tecnicos.find(t => (t.Codigo_Cliente || t.Nombre_Completo || t.Email) === techId);
+                const selectedTech = tecnicos.find(t => (t.Tecnico_ID || t.Codigo_Cliente || t.Nombre_Completo) === techId);
                 if (selectedTech) {
                     showPasscodeForm(selectedTech);
                 }
@@ -140,7 +167,7 @@ export function renderLockScreen(container) {
                 <form id="lock-passcode-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
                     <div class="form-group">
                         <label style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Contraseña de Acceso</label>
-                        <input type="password" id="lock-user-password" required placeholder="Ingresa tu contraseña" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
+                        <input type="password" id="lock-user-password" required placeholder="Ingresa tu contraseña (PIN por defecto: 1234)" style="padding: 0.75rem; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; font-size: 1rem; margin-top: 0.4rem;">
                     </div>
                     <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
                         <button type="button" class="btn btn-secondary" id="btn-lock-back" style="flex: 1; padding: 0.75rem;"><i class="fa-solid fa-arrow-left"></i> Cambiar Perfil</button>
@@ -159,12 +186,18 @@ export function renderLockScreen(container) {
 
         document.getElementById('lock-passcode-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const enteredPass = document.getElementById('lock-user-password').value;
+            const enteredPass = document.getElementById('lock-user-password').value.trim();
             const realPass = tech.Contraseña || '';
             const hashedEntered = await hashPassword(enteredPass);
             
-            if (hashedEntered === realPass || enteredPass === realPass) {
-                if (enteredPass === realPass) {
+            // Allow if exact match, hashed match, default 1234, or empty initial password
+            const isMatch = (hashedEntered === realPass) || 
+                            (enteredPass === realPass) || 
+                            (enteredPass === '1234') || 
+                            (!realPass && (enteredPass === '1234' || enteredPass.length >= 4));
+            
+            if (isMatch) {
+                if (!realPass || enteredPass === '1234') {
                     tech.Contraseña = hashedEntered;
                     saveDatabase(db);
                 }
@@ -182,18 +215,6 @@ export function renderLockScreen(container) {
                     pwdInput.focus();
                 }
             }
-        });
-    }
-
-    // Deduplicate tecnicos array ONLY by unique Tecnico_ID if an exact same ID was loaded twice
-    if (db.tecnicos && Array.isArray(db.tecnicos)) {
-        const seenIds = new Set();
-        db.tecnicos = db.tecnicos.filter(t => {
-            const id = (t.Tecnico_ID || '').trim();
-            if (!id) return true;
-            if (seenIds.has(id)) return false;
-            seenIds.add(id);
-            return true;
         });
     }
 
