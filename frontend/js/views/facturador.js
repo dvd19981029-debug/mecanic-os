@@ -559,7 +559,12 @@ export function renderIssuedTab(container) {
         const startTime = startVal ? new Date(startVal + 'T00:00:00').getTime() : 0;
         const endTime = endVal ? new Date(endVal + 'T23:59:59').getTime() : Infinity;
         
-        const allIssued = db.presupuestos.filter(p => p.Estado == 3 || p.Estado == 4 || p.Estado == 5 || p.Nota_Credito);
+        // Only show budgets that have actually been issued/emitted to MH (has DTE control number or is explicitly marked as billed/NC)
+        const allIssued = db.presupuestos.filter(p => {
+            const hasDteControl = Boolean(p.mhControlNumber || p.controlNumber);
+            const isBilledOrReverted = p.Estado == 3 || p.Estado == 4 || p.Nota_Credito || p.Estado_DTE === 'REVERTIDO_NC';
+            return hasDteControl || (isBilledOrReverted && p.Estado != 5 && !p.Nota_Credito ? true : (p.Nota_Credito || p.Estado_DTE === 'REVERTIDO_NC'));
+        });
         
         const dateFiltered = allIssued.filter(p => {
             const itemTime = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).getTime() : new Date(p.Fecha).getTime();
@@ -598,12 +603,13 @@ export function renderIssuedTab(container) {
             const grandTotal = getBudgetGrandTotal(p, db);
             
             const isAnulado = p.Estado == 4 || p.Anulado;
-            const isNc = p.Estado == 5 || p.Estado_DTE === 'REVERTIDO_NC' || p.Nota_Credito;
+            const isNc = Boolean(p.Nota_Credito || p.Estado_DTE === 'REVERTIDO_NC');
             const dteLabel = p.Doc_a_Emitir === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
             
             let typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span>`;
             if (isNc) {
-                typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> NOTA DE CRÉDITO</span>`;
+                const ncNumber = p.numNc ? ` (${p.numNc})` : '';
+                typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-rotate-left"></i> NOTA DE CRÉDITO${ncNumber}</span>`;
             } else if (isAnulado) {
                 typeBadge = `<span class="badge-tag badge-secondary">${dteLabel}</span> <span class="badge-tag" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); font-weight: bold; font-size: 0.75rem;">ANULADO</span>`;
             }
