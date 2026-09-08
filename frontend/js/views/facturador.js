@@ -720,7 +720,8 @@ export function renderInvoicingWorkspace(container, presId) {
         return;
     }
     
-    const client = db.clientes.find(c => c.Codigo_Cliente === p.Codigo_Cliente) || { Nombre: p.Nombre };
+    const pClientCode = (p.Codigo_Cliente || p['Codigo Cliente'] || p.Cliente || '').toString().trim();
+    const client = db.clientes.find(c => (c.Codigo_Cliente || '').toString().trim() === pClientCode) || { Nombre: p.Nombre };
 
     if (p.Estado == 3) {
         container.innerHTML = html`
@@ -889,7 +890,8 @@ export function renderInvoicingWorkspace(container, presId) {
     
     // Auto select payment condition if budget has it set or if client has credit enabled
     const hasCreditEnabled = client['Credito?'] === 'SI';
-    if (p.Condicion === 'CREDITO' || (p.Condicion !== 'CONTADO' && hasCreditEnabled)) {
+    const bCond = (p.Condicion || p['Condicion de Pago'] || '').toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (bCond === 'CREDITO' || bCond.includes('CREDIT') || hasCreditEnabled) {
         dtePayCond.value = 'CREDITO';
         creditDaysGroup.style.display = 'block';
         if (client['Plazo Credito Días']) {

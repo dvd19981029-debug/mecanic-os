@@ -56,7 +56,8 @@ export function getBudgetGrandTotal(budget, db) {
 
     let retVal = 0;
     let percVal = 0;
-    const client = db.clientes.find(c => c.Codigo_Cliente === budget.Codigo_Cliente) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
+    const budgetClientCode = (budget.Codigo_Cliente || budget['Codigo Cliente'] || budget.Cliente || '').toString().trim();
+    const client = (db.clientes || []).find(c => (c.Codigo_Cliente || '').toString().trim() === budgetClientCode) || { AplicaRetencion: 0, AplicaPercepcion: 0 };
     if (client.AplicaRetencion > 0 && baseParaImpuestos >= 100.00) {
         retVal = baseParaImpuestos * parseFloat(client.AplicaRetencion);
     }
@@ -70,16 +71,28 @@ export function getBudgetGrandTotal(budget, db) {
 
 // Helper: Calculate client unpaid credit balance
 export function getClientPendingBalance(clientCode, db) {
+    if (!clientCode || !db || !Array.isArray(db.presupuestos)) return 0;
+    const cleanClientCode = clientCode.toString().trim();
+    const client = (db.clientes || []).find(c => (c.Codigo_Cliente || '').toString().trim() === cleanClientCode);
+    const hasCreditSetting = client && client['Credito?'] === 'SI';
+
     // 1. Get all budgets for client that are CREDIT, status is FACTURADO (Estado === 3) and NOT marked as paid (Pagado? !== 'SI')
-    const unpaidBudgets = db.presupuestos.filter(p => 
-        p.Codigo_Cliente === clientCode && 
-        (p.Estado === 3 || p.Estado === '3') && 
-        p.Condicion === 'CREDITO' && 
-        p['Pagado?'] !== 'SI'
-    );
+    const unpaidBudgets = db.presupuestos.filter(p => {
+        const pCode = (p.Codigo_Cliente || p['Codigo Cliente'] || p.Cliente || '').toString().trim();
+        if (pCode !== cleanClientCode) return false;
+
+        const isFacturado = p.Estado == 3 || p.Estado == '3';
+        if (!isFacturado) return false;
+
+        const isPaid = p['Pagado?'] === 'SI' || p.Pagado === 'SI';
+        if (isPaid) return false;
+
+        const cond = (p.Condicion || p['Condicion de Pago'] || '').toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        return cond === 'CREDITO' || cond.includes('CREDIT') || (hasCreditSetting && cond !== 'CONTADO') || p.Pagado === 'NO';
+    });
     
     // All abonos for this client
-    const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientCode);
+    const clientAbonos = (db['30 Abonos Creditos'] || []).filter(ab => (ab.Codigo_Cliente || '').toString().trim() === cleanClientCode);
     
     // Sum remaining balances of unpaid budgets
     let totalUnpaidRemaining = 0;

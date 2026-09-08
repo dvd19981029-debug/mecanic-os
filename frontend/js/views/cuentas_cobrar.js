@@ -29,13 +29,31 @@ import {
     downloadExcelReport
 } from '../utils.js?v=69';
 
+function formatCxCDate(val) {
+    if (!val) return 'N/A';
+    if (typeof val === 'number' && val < 100000) {
+        return new Date(Math.round((val - 25569) * 86400 * 1000)).toLocaleDateString('es-SV');
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('es-SV');
+}
+
+function getCxCTimestamp(val) {
+    if (!val) return 0;
+    if (typeof val === 'number' && val < 100000) {
+        return Math.round((val - 25569) * 86400 * 1000);
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
 let activeCuentasCobrarTab = 'cartera';
 
 export function renderCuentasCobrar(container) {
     const db = getDatabase();
     
-    // Calculate metric card values
-    const creditClients = db.clientes.filter(c => c['Credito?'] === 'SI');
+    // Calculate metric card values (Include all credit clients or clients with pending balance)
+    const creditClients = db.clientes.filter(c => c['Credito?'] === 'SI' || getClientPendingBalance(c.Codigo_Cliente, db) > 0);
     let totalPortfolio = 0;
     let overlimitCount = 0;
     
@@ -183,36 +201,49 @@ export function renderCuentasCobrar(container) {
                     showToast("Por favor seleccione un cliente.", "danger");
                     return;
                 }
-                const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+                const cleanClientId = clientId.toString().trim();
+                const client = db.clientes.find(c => (c.Codigo_Cliente || '').toString().trim() === cleanClientId);
                 if (!client) return;
 
-                const creditBudgets = db.presupuestos.filter(p => 
-                    p.Codigo_Cliente === clientId && 
-                    p.Condicion === 'CREDITO' && 
-                    (p.Estado == 3 || p.Estado == '3' || p.Estado == 4 || p.Estado == '4' || p.Anulado === true)
-                );
-                const charges = creditBudgets.map(p => ({
-                    timestamp: p.Fecha ? new Date(p.Fecha).getTime() : Date.now(),
-                    fecha: p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A',
-                    ref: p['ID Presupuesto'],
-                    tipo: 'Facturación Crédito',
-                    cargo: getBudgetGrandTotal(p, db),
-                    abono: 0,
-                    dte: p.mhControlNumber || p.controlNumber || '',
-                    isAnulado: p.Estado == 4 || p.Anulado === true
-                }));
+                const hasCreditSetting = client['Credito?'] === 'SI';
+                const creditBudgets = db.presupuestos.filter(p => {
+                    const pCode = (p.Codigo_Cliente || p['Codigo Cliente'] || p.Cliente || '').toString().trim();
+                    if (pCode !== cleanClientId) return false;
 
-                const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
-                const payments = abonos.map(ab => ({
-                    timestamp: ab['Fecha Abono'] || Date.now(),
-                    fecha: ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A',
-                    ref: ab.ID_Abono,
-                    tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
-                    cargo: 0,
-                    abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
-                    dte: '',
-                    isAnulado: false
-                }));
+                    const isFacturadoOrAnulado = p.Estado == 3 || p.Estado == '3' || p.Estado == 4 || p.Estado == '4' || p.Anulado === true;
+                    if (!isFacturadoOrAnulado) return false;
+
+                    const cond = (p.Condicion || p['Condicion de Pago'] || '').toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                    return cond === 'CREDITO' || cond.includes('CREDIT') || (hasCreditSetting && cond !== 'CONTADO') || p.Pagado === 'NO';
+                });
+                const charges = creditBudgets.map(p => {
+                    const rawTime = p.Fecha_Facturacion || p.Fecha;
+                    return {
+                        timestamp: getCxCTimestamp(rawTime),
+                        fecha: formatCxCDate(rawTime),
+                        ref: p['ID Presupuesto'],
+                        tipo: 'Facturación Crédito',
+                        cargo: getBudgetGrandTotal(p, db),
+                        abono: 0,
+                        dte: p.mhControlNumber || p.controlNumber || '',
+                        isAnulado: p.Estado == 4 || p.Anulado === true
+                    };
+                });
+
+                const abonos = (db['30 Abonos Creditos'] || []).filter(ab => (ab.Codigo_Cliente || '').toString().trim() === cleanClientId);
+                const payments = abonos.map(ab => {
+                    const rawTime = ab['Fecha Abono'] || ab['Fecha Registro'] || Date.now();
+                    return {
+                        timestamp: getCxCTimestamp(rawTime),
+                        fecha: formatCxCDate(rawTime),
+                        ref: ab.ID_Abono,
+                        tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
+                        cargo: 0,
+                        abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
+                        dte: '',
+                        isAnulado: false
+                    };
+                });
 
                 const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
 
@@ -442,25 +473,34 @@ export function renderCuentasCobrar(container) {
         }
 
         function renderClientDetails(clientId) {
-            const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+            const cleanClientId = (clientId || '').toString().trim();
+            const client = db.clientes.find(c => (c.Codigo_Cliente || '').toString().trim() === cleanClientId);
             if (!client) return;
 
-            const balance = getClientPendingBalance(clientId, db);
+            const balance = getClientPendingBalance(cleanClientId, db);
             const limit = parseFloat(client['Monto Credito'] || client.Monto_Credito || 0);
             const termDays = parseInt(client['Plazo Credito Días'] || 30);
             const availableCredit = Math.max(0, limit - balance);
             const isExceeded = balance > limit;
+            const hasCreditSetting = client['Credito?'] === 'SI';
 
             // Fetch pending budgets (Condition = CREDIT, status is FACTURADO, and Pagado? !== SI)
-            const pendingBudgets = db.presupuestos.filter(p => 
-                p.Codigo_Cliente === clientId && 
-                p.Condicion === 'CREDITO' && 
-                p['Pagado?'] !== 'SI' && 
-                (p.Estado === 3 || p.Estado === '3')
-            );
+            const pendingBudgets = db.presupuestos.filter(p => {
+                const pCode = (p.Codigo_Cliente || p['Codigo Cliente'] || p.Cliente || '').toString().trim();
+                if (pCode !== cleanClientId) return false;
+
+                const isFacturado = p.Estado == 3 || p.Estado == '3';
+                if (!isFacturado) return false;
+
+                const isPaid = p['Pagado?'] === 'SI' || p.Pagado === 'SI';
+                if (isPaid) return false;
+
+                const cond = (p.Condicion || p['Condicion de Pago'] || '').toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                return cond === 'CREDITO' || cond.includes('CREDIT') || (hasCreditSetting && cond !== 'CONTADO') || p.Pagado === 'NO';
+            });
             
             // Fetch client abonos
-            const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
+            const abonos = (db['30 Abonos Creditos'] || []).filter(ab => (ab.Codigo_Cliente || '').toString().trim() === cleanClientId);
 
             detailPanel.innerHTML = html`
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:1rem; margin-bottom:1.5rem;">
@@ -521,12 +561,13 @@ export function renderCuentasCobrar(container) {
                                     );
                                     const totalPaid = linked.reduce((sum, ab) => sum + parseFloat(ab['Monto Abono'] || ab.Monto || 0), 0);
                                     const remaining = Math.max(0, totalBudget - totalPaid);
+                                    const rawDate = p.Fecha_Facturacion || p.Fecha;
                                     
                                     return `
                                         <tr>
                                             <td><strong>${p['ID Presupuesto']}</strong></td>
-                                            <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
-                                            <td>${p.Placas || 'N/A'}</td>
+                                            <td>${formatCxCDate(rawDate)}</td>
+                                            <td>${p.Placas || p.Placa || 'N/A'}</td>
                                             <td>$ ${totalBudget.toFixed(2)}</td>
                                             <td style="color:var(--danger); font-weight:700;">$ ${remaining.toFixed(2)}</td>
                                             <td style="text-align:right;">
@@ -560,7 +601,7 @@ export function renderCuentasCobrar(container) {
                                 : abonos.map(ab => `
                                     <tr>
                                         <td><strong>${ab.ID_Abono}</strong></td>
-                                        <td>${ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A'}</td>
+                                        <td>${formatCxCDate(ab['Fecha Abono'] || ab['Fecha Registro'])}</td>
                                         <td style="color:var(--success); font-weight:700;">$ ${parseFloat(ab['Monto Abono'] || ab.Monto || 0).toFixed(2)}</td>
                                         <td>${ab['Metodo Pago'] || 'N/A'}</td>
                                         <td>${ab['Num Doc/Auto'] || 'N/A'}</td>
@@ -1003,40 +1044,58 @@ export function printClientStatementPDF(db, ws, clientId) {
         return;
     }
     
-    const client = db.clientes.find(c => c.Codigo_Cliente === clientId);
+    const cleanClientId = (clientId || '').toString().trim();
+    const client = db.clientes.find(c => (c.Codigo_Cliente || '').toString().trim() === cleanClientId);
     if (!client) return;
 
     const limit = parseFloat(client['Monto Credito'] || client.Monto_Credito || 0);
-    const balance = getClientPendingBalance(clientId, db);
+    const balance = getClientPendingBalance(cleanClientId, db);
     const termDays = parseInt(client['Plazo Credito Días'] || 30);
     const availableCredit = Math.max(0, limit - balance);
     const isExceeded = balance > limit;
+    const hasCreditSetting = client['Credito?'] === 'SI';
 
-    // Invoices/Charges (Condition = CREDIT)
-    const creditBudgets = db.presupuestos.filter(p => p.Codigo_Cliente === clientId && p.Condicion === 'CREDITO');
-    const charges = creditBudgets.map(p => ({
-        timestamp: p.Fecha ? new Date(p.Fecha).getTime() : Date.now(),
-        fecha: p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A',
-        ref: p['ID Presupuesto'],
-        tipo: 'Facturación Crédito',
-        cargo: getBudgetGrandTotal(p, db),
-        abono: 0,
-        dte: p.mhControlNumber || p.controlNumber || '',
-        isAnulado: p.Estado == 4 || p.Anulado === true
-    }));
+    // Invoices/Charges (Condition = CREDIT or invoiced at credit)
+    const creditBudgets = db.presupuestos.filter(p => {
+        const pCode = (p.Codigo_Cliente || p['Codigo Cliente'] || p.Cliente || '').toString().trim();
+        if (pCode !== cleanClientId) return false;
+
+        const isFacturadoOrAnulado = p.Estado == 3 || p.Estado == '3' || p.Estado == 4 || p.Estado == '4' || p.Anulado === true;
+        if (!isFacturadoOrAnulado) return false;
+
+        const cond = (p.Condicion || p['Condicion de Pago'] || '').toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        return cond === 'CREDITO' || cond.includes('CREDIT') || (hasCreditSetting && cond !== 'CONTADO') || p.Pagado === 'NO';
+    });
+
+    const charges = creditBudgets.map(p => {
+        const rawTime = p.Fecha_Facturacion || p.Fecha;
+        return {
+            timestamp: getCxCTimestamp(rawTime),
+            fecha: formatCxCDate(rawTime),
+            ref: p['ID Presupuesto'],
+            tipo: 'Facturación Crédito',
+            cargo: getBudgetGrandTotal(p, db),
+            abono: 0,
+            dte: p.mhControlNumber || p.controlNumber || '',
+            isAnulado: p.Estado == 4 || p.Anulado === true
+        };
+    });
 
     // Payments/Abonos
-    const abonos = (db['30 Abonos Creditos'] || []).filter(ab => ab.Codigo_Cliente === clientId);
-    const payments = abonos.map(ab => ({
-        timestamp: ab['Fecha Abono'] || Date.now(),
-        fecha: ab['Fecha Abono'] ? new Date(ab['Fecha Abono']).toLocaleDateString('es-SV') : 'N/A',
-        ref: ab.ID_Abono,
-        tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
-        cargo: 0,
-        abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
-        dte: '',
-        isAnulado: false
-    }));
+    const abonos = (db['30 Abonos Creditos'] || []).filter(ab => (ab.Codigo_Cliente || '').toString().trim() === cleanClientId);
+    const payments = abonos.map(ab => {
+        const rawTime = ab['Fecha Abono'] || ab['Fecha Registro'] || Date.now();
+        return {
+            timestamp: getCxCTimestamp(rawTime),
+            fecha: formatCxCDate(rawTime),
+            ref: ab.ID_Abono,
+            tipo: `Abono (${ab['Metodo Pago'] || 'EFECTIVO'})`,
+            cargo: 0,
+            abono: parseFloat(ab['Monto Abono'] || ab.Monto || 0),
+            dte: '',
+            isAnulado: false
+        };
+    });
 
     // Combine and sort chronologically
     const ledger = [...charges, ...payments].sort((a, b) => a.timestamp - b.timestamp);
