@@ -3747,6 +3747,7 @@ export function getBudgetFullHtml(budgetId) {
     } else {
         grandTotal = subtotalConDescuento + iva + percVal - retVal;
     }
+    const originalDiscount = discount;
     discount = finalDiscount;
 
     const format = ws.formato_presupuesto || 'moderno_facturallama';
@@ -3757,7 +3758,7 @@ export function getBudgetFullHtml(budgetId) {
     } else if (format === 'elegante_ejecutivo') {
         pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     } else if (format === 'compacto_orden') {
-        pdfHTML = getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
+        pdfHTML = getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, rawSubtotal, originalDiscount);
     } else {
         pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
     }
@@ -4045,12 +4046,18 @@ export function openSendBudgetEmailModal(budgetId) {
     }
 }
 
-function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, rawSubtotal = null, originalDiscount = 0) {
     const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
     const mostrarIva = ws && ws.mostrar_iva_presupuesto !== 'no';
     const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
+
+    const rawTotal = rawSubtotal !== null ? rawSubtotal : (sumProd + sumLab);
+    const rawDisc = originalDiscount > 0 ? originalDiscount : (discount > 0 && iva > 0 ? (discount * (1 + taxRate)) : discount);
+
+    const subtotalFinal = mostrarIva ? (subtotal - discount) : (rawTotal - rawDisc);
+    const totalPagarFinal = mostrarIva ? grandTotal : (rawTotal - rawDisc + percVal - retVal);
 
     return `
 <!DOCTYPE html>
@@ -4419,7 +4426,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     }).join('')}
                     <tr class="category-total-row">
                         <td colspan="3" style="text-align: right;">Total Repuestos:</td>
-                        <td style="text-align: right; font-weight: 700;">$ ${(sumProd - discount).toFixed(2)}</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${sumProd.toFixed(2)}</td>
                     </tr>
                 ` : ''}
 
@@ -4457,6 +4464,12 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                             <td class="total-label">Subtotal</td>
                             <td class="total-value">$ ${(subtotal - discount).toFixed(2)}</td>
                         </tr>
+                        ${discount > 0 ? `
+                        <tr>
+                            <td class="total-label">(-) Descuento</td>
+                            <td class="total-value" style="color: #b91c1c;">- $ ${discount.toFixed(2)}</td>
+                        </tr>
+                        ` : ''}
                         <tr>
                             <td class="total-label">(+) IVA (${(taxRate * 100).toFixed(0)}%)</td>
                             <td class="total-value">$ ${iva.toFixed(2)}</td>
@@ -4464,8 +4477,14 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     ` : `
                         <tr>
                             <td class="total-label">Subtotal</td>
-                            <td class="total-value">$ ${(subtotal - discount).toFixed(2)}</td>
+                            <td class="total-value">$ ${subtotalFinal.toFixed(2)}</td>
                         </tr>
+                        ${rawDisc > 0 ? `
+                        <tr>
+                            <td class="total-label">(-) Descuento</td>
+                            <td class="total-value" style="color: #b91c1c;">- $ ${rawDisc.toFixed(2)}</td>
+                        </tr>
+                        ` : ''}
                     `}
                     ${percVal > 0 ? `
                         <tr>
@@ -4481,7 +4500,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     ` : ''}
                     <tr class="grand-total-row">
                         <td class="total-label">Total a Pagar</td>
-                        <td class="total-value">$ ${(mostrarIva ? grandTotal : (subtotal - discount + percVal - retVal)).toFixed(2)}</td>
+                        <td class="total-value">$ ${totalPagarFinal.toFixed(2)}</td>
                     </tr>
                 </table>
             </div>
