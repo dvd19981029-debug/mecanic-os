@@ -199,7 +199,7 @@ export function renderConfiguracion(container, queryParams) {
                                     <input type="text" id="cfg-taller-tagline" value="${ws.logoTagline || ''}" placeholder="Ej: Mantenimiento de Flotas" required style="padding:0.6rem;">
                                 </div>
                             </div>
-                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+                            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
                                 <div class="form-group">
                                     <label>Formato de Impresión (Presupuestos)</label>
                                     <select id="cfg-taller-formato-presupuesto" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
@@ -207,6 +207,13 @@ export function renderConfiguracion(container, queryParams) {
                                         <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
                                         <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
                                         <option value="compacto_orden" ${ws.formato_presupuesto === 'compacto_orden' ? 'selected' : ''}>Compacto</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Desglosar IVA en Presupuesto</label>
+                                    <select id="cfg-taller-mostrar-iva" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
+                                        <option value="si" ${ws.mostrar_iva_presupuesto !== 'no' ? 'selected' : ''}>Sí (Mostrar IVA desglosado)</option>
+                                        <option value="no" ${ws.mostrar_iva_presupuesto === 'no' ? 'selected' : ''}>No (Solo Total Neto/Pactado)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -833,6 +840,7 @@ export function renderConfiguracion(container, queryParams) {
                     municipio: document.getElementById('cfg-taller-municipio').value,
                     logo: window.saasSelectedLogoBase64 || '',
                     formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value,
+                    mostrar_iva_presupuesto: document.getElementById('cfg-taller-mostrar-iva') ? document.getElementById('cfg-taller-mostrar-iva').value : 'si',
                     color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value,
                     tipo_comision: document.getElementById('cfg-taller-tipo-comision').value,
                     qr_whatsapp: document.getElementById('cfg-taller-qr-whatsapp').value.trim()
