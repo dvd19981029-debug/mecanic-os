@@ -6,7 +6,8 @@ import {
 } from '../../app.js?v=69';
 import {
     showToast,
-    escapeHtml
+    escapeHtml,
+    matchesMultiFieldSearch
 } from '../utils.js?v=69';
 import { exportBudgetPDF } from './presupuestos.js?v=88';
 
@@ -50,13 +51,15 @@ export function renderTrabajosTaller(container) {
             const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || {};
             const tech = db.tecnicos.find(t => t.Tecnico_ID === p.Tecnico_Asignado) || {};
             
-            const term = filter.toLowerCase().trim();
-            return (p['ID Presupuesto'] || '').toLowerCase().includes(term) ||
-                   (p.Nombre || '').toLowerCase().includes(term) ||
-                   (p.Placas || '').toLowerCase().includes(term) ||
-                   (vehicle.Marca || '').toLowerCase().includes(term) ||
-                   (vehicle.Modelo || '').toLowerCase().includes(term) ||
-                   (tech.Nombre_Completo || '').toLowerCase().includes(term);
+            return matchesMultiFieldSearch([
+                p['ID Presupuesto'],
+                p.Nombre,
+                p.Placas,
+                vehicle.Marca,
+                vehicle.Modelo,
+                vehicle.N_Equipo,
+                tech.Nombre_Completo
+            ], filter);
         });
 
         // Sort by date descending (newest first)

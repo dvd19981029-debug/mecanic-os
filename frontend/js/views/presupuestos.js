@@ -27,7 +27,8 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport,
-    makeSelectSearchable
+    makeSelectSearchable,
+    matchesMultiFieldSearch
 } from '../utils.js?v=80';
 
 export function renderPresupuestos(container, queryParams) {
@@ -1521,8 +1522,12 @@ export function renderBudgetEditor(container, budget) {
     function populateProdCatalog(filter = '') {
         prodResults.innerHTML = '';
         const filtered = db.productos.filter(p => 
-            (p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+            matchesMultiFieldSearch([
+                p.Descripcion,
+                p['ID_ Producto'],
+                p.Marca,
+                p.Categoria
+            ], filter)
         );
 
         const wsConfig = getWorkshopConfig(db);
@@ -1632,8 +1637,10 @@ export function renderBudgetEditor(container, budget) {
     function populateLaborCatalog(filter = '') {
         laborResults.innerHTML = '';
         const filtered = db.mano_obra.filter(mo => 
-            (mo.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (mo.ID_ManoObra || '').toString().includes(filter)
+            matchesMultiFieldSearch([
+                mo.Descripcion,
+                (mo.ID_ManoObra || '').toString()
+            ], filter)
         );
 
         const wsConfig = getWorkshopConfig(db);

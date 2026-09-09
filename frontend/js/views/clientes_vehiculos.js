@@ -27,7 +27,8 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
+    downloadExcelReport,
+    matchesMultiFieldSearch
 } from '../utils.js?v=69';
 
 export function renderClientesVehiculos(container, queryParams) {
@@ -512,9 +513,14 @@ export function renderClientesVehiculos(container, queryParams) {
     function populateClientsList(filter = '') {
         clientsListContainer.innerHTML = '';
         const filtered = db.clientes.filter(c => 
-            (c.Nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (c.Codigo_Cliente || '').toLowerCase().includes(filter.toLowerCase()) ||
-            (c.Num_Doc || '').toLowerCase().includes(filter.toLowerCase())
+            matchesMultiFieldSearch([
+                c.Nombre,
+                c.Codigo_Cliente,
+                c.Num_Doc,
+                c['Telefono 1 '],
+                c.Telefono,
+                c.Correo
+            ], filter)
         );
         
         if (filtered.length === 0) {

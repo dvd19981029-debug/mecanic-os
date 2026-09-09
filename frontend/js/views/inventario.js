@@ -27,7 +27,8 @@ import {
     sanitizeBackendUrl,
     getBackendUrl,
     downloadExcelReport,
-    makeSelectSearchable
+    makeSelectSearchable,
+    matchesMultiFieldSearch
 } from '../utils.js?v=69';
 
 let activeInventarioTab = 'catalogo';
@@ -151,8 +152,10 @@ export function renderInventario(container) {
         function populateInventoryList(filter = '') {
             rowsEl.innerHTML = '';
             const filtered = db.productos.filter(p => 
-                String(p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                String(p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+                matchesMultiFieldSearch([
+                    p.Descripcion,
+                    p['ID_ Producto']
+                ], filter)
             );
 
             filtered.forEach(p => {
@@ -221,8 +224,10 @@ export function renderInventario(container) {
         exportBtn.addEventListener('click', () => {
             const filter = searchInput.value;
             const filtered = db.productos.filter(p => 
-                String(p.Descripcion || '').toLowerCase().includes(filter.toLowerCase()) ||
-                String(p['ID_ Producto'] || '').toLowerCase().includes(filter.toLowerCase())
+                matchesMultiFieldSearch([
+                    p.Descripcion,
+                    p['ID_ Producto']
+                ], filter)
             );
 
             if (filtered.length === 0) {

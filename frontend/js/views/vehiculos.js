@@ -9,7 +9,8 @@ import {
     showToast,
     escapeHtml,
     html,
-    safe
+    safe,
+    matchesMultiFieldSearch
 } from '../utils.js';
 import { exportBudgetPDF } from './presupuestos.js';
 
@@ -350,18 +351,18 @@ export function renderVehiculos(container) {
             const client = getVehicleClient(v);
             const clientName = (client.Nombre || '').toLowerCase();
 
-            const matchesSearch = !searchText || (
-                placa.includes(searchText) ||
-                idVeh.includes(searchText) ||
-                marca.includes(searchText) ||
-                modelo.includes(searchText) ||
-                anio.includes(searchText) ||
-                vin.includes(searchText) ||
-                motor.includes(searchText) ||
-                color.includes(searchText) ||
-                nEquipo.includes(searchText) ||
-                clientName.includes(searchText)
-            );
+            const matchesSearch = matchesMultiFieldSearch([
+                placa,
+                idVeh,
+                marca,
+                modelo,
+                anio,
+                vin,
+                motor,
+                color,
+                nEquipo,
+                clientName
+            ], searchText);
 
             const matchesBrand = !selectedBrand || (v.Marca || '').trim().toUpperCase() === selectedBrand;
 

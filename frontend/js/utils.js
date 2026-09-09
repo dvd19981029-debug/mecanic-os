@@ -452,6 +452,39 @@ export function saveDteLogToFirestore(action, workshopId, docType, requestPayloa
     .catch(err => console.error("Error writing DTE log to Firestore:", err));
 }
 
+// Flexible Search Helpers (Accents, Punctuation, Multi-token, Compact match)
+export function normalizeSearchText(str) {
+    return (str || '')
+        .toString()
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/['"`\u2019\u2018\-_/\\.,;:()]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+export function matchesSearchQuery(target, query) {
+    if (!query || !query.trim()) return true;
+    if (!target) return false;
+    const normTarget = normalizeSearchText(target);
+    const compactTarget = normTarget.replace(/\s+/g, '');
+    const normQuery = normalizeSearchText(query);
+    const compactQuery = normQuery.replace(/\s+/g, '');
+
+    if (!normQuery) return true;
+    if (compactTarget.includes(compactQuery)) return true;
+
+    const tokens = normQuery.split(' ').filter(t => t.length > 0);
+    return tokens.every(token => normTarget.includes(token));
+}
+
+export function matchesMultiFieldSearch(fields, query) {
+    if (!query || !query.trim()) return true;
+    if (!Array.isArray(fields)) return matchesSearchQuery(fields, query);
+    const combined = fields.filter(Boolean).join(' ');
+    return matchesSearchQuery(combined, query);
+}
+
 // Make a select element searchable with autocomplete input
 export function makeSelectSearchable(selectId, placeholderText) {
     const originalSelect = document.getElementById(selectId);
@@ -531,8 +564,7 @@ export function makeSelectSearchable(selectId, placeholderText) {
         // Filter out initial empty placeholder if we have search input
         const filtered = options.filter((opt, idx) => {
             if (idx === 0 && opt.value === '') return false;
-            return opt.textContent.toLowerCase().includes(filterText.toLowerCase()) ||
-                   opt.value.toLowerCase().includes(filterText.toLowerCase());
+            return matchesMultiFieldSearch([opt.textContent, opt.value], filterText);
         });
         
         if (filtered.length === 0) {
