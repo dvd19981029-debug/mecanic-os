@@ -324,12 +324,14 @@ function initFirebaseAuthListener() {
                     return;
                 }
                 
+                let activeReqData = null;
                 // Verificar si es un taller activo o si es una solicitud pendiente/huérfana
                 if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                     try {
                         const reqDoc = await dbFirestore.collection("saas_requests").doc(user.uid).get();
                         if (reqDoc.exists) {
                             const reqData = reqDoc.data();
+                            activeReqData = reqData;
                             if (reqData.status === 'pendiente') {
                                 await firebase.auth().signOut();
                                 const db = getDatabase();
@@ -371,6 +373,23 @@ function initFirebaseAuthListener() {
                 // Guardar UID del taller para que empleados puedan conectarse
                 localStorage.setItem('mecanic_os_workshop_uid', user.uid);
                 updateCloudStatusUI(true, "active");
+                
+                const currentDb = getDatabase();
+                if (currentDb) {
+                    currentDb.saas_state = currentDb.saas_state || {};
+                    currentDb.saas_state.status = 'active';
+                    if (activeReqData) {
+                        currentDb.saas_state.workshopData = Object.assign({}, activeReqData, currentDb.saas_state.workshopData || {}, { uid: user.uid });
+                    }
+                    const isLegacyGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+                    if (!currentDb.config_taller || !currentDb.config_taller.nombre || isLegacyGema(currentDb.config_taller)) {
+                        if (currentDb.saas_state.workshopData && (currentDb.saas_state.workshopData.nombre || currentDb.saas_state.workshopData.nombre_comercial)) {
+                            currentDb.config_taller = buildConfigFromWorkshopData(currentDb.saas_state.workshopData);
+                            saveDatabase(currentDb);
+                        }
+                    }
+                }
+
                 dataService.startSync(user.uid, false); // false = puede escribir
                 await dataService.checkAndMigrate(user.uid);
             } else if (user && user.isAnonymous) {
@@ -713,12 +732,14 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
             const ownerUid = userCredential.user.uid;
             
+            let activeReqData = null;
             // Check if this account belongs to a pending or approved SaaS request before activating
             if (typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     const reqDoc = await dbFirestore.collection("saas_requests").doc(ownerUid).get();
                     if (reqDoc.exists) {
                         const reqData = reqDoc.data();
+                        activeReqData = reqData;
                         if (reqData.status === 'pendiente') {
                             await firebase.auth().signOut();
                             const db = getDatabase();
@@ -783,28 +804,41 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             const db = getDatabase();
             db.saas_state = db.saas_state || {};
             db.saas_state.status = 'active';
-            db.saas_state.workshopData = db.saas_state.workshopData || {};
-            db.saas_state.workshopData.uid = ownerUid;
-            db.saas_state.workshopData.correo = email;
+            db.saas_state.workshopData = Object.assign({}, activeReqData || {}, db.saas_state.workshopData || {}, { uid: ownerUid, correo: email });
             db.saas_state.termsSigned = true;
 
-            // Ensure a default Administrator technician profile exists
-            if (!db.tecnicos || db.tecnicos.length === 0) {
-                const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
-                const defaultAdminTech = {
-                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
-                    Nombre_Completo: ownerName,
-                    Email: email,
-                    Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',
-                    Especialidad: 'Gerente General',
-                    Nivel_Acceso: 'Administrador',
-                    Salario_Base: 1500,
-                    Contraseña: await hashPassword("1234"),
-                    Incapacidades: [],
-                    Vacaciones: [],
-                    Bonos: []
-                };
-                db.tecnicos = [defaultAdminTech];
+            // Auto-populate config_taller if missing or legacy Grupo Gema
+            const isLegacyGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+            if (!db.config_taller || !db.config_taller.nombre || isLegacyGema(db.config_taller)) {
+                if (db.saas_state.workshopData && (db.saas_state.workshopData.nombre || db.saas_state.workshopData.nombre_comercial)) {
+                    db.config_taller = buildConfigFromWorkshopData(db.saas_state.workshopData);
+                }
+            }
+
+            // Only create an initial Administrator if Firestore truly has NO technicians in the cloud
+            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                try {
+                    const techSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("tecnicos").limit(1).get();
+                    if (techSnap.empty && (!db.tecnicos || db.tecnicos.length === 0)) {
+                        const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
+                        const defaultAdminTech = {
+                            Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                            Nombre_Completo: ownerName,
+                            Email: email,
+                            Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',
+                            Especialidad: 'Gerente General',
+                            Nivel_Acceso: 'Administrador',
+                            Salario_Base: 1500,
+                            Contraseña: await hashPassword("1234"),
+                            Incapacidades: [],
+                            Vacaciones: [],
+                            Bonos: []
+                        };
+                        db.tecnicos = [defaultAdminTech];
+                    }
+                } catch (techChkErr) {
+                    console.warn("Error checking technicians in cloud:", techChkErr);
+                }
             }
 
             await saveDatabase(db);
@@ -1098,41 +1132,86 @@ function bindFirebaseEvents() {
     }
 }
 
+function buildConfigFromWorkshopData(wsData) {
+    if (!wsData) return null;
+    return {
+        nombre: wsData.nombre || wsData.nombre_comercial || '',
+        alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
+        nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
+        giro: wsData.giro || wsData.actividad_economica || '',
+        direccion: wsData.direccion || '',
+        telefono: wsData.telefono || '',
+        correo: wsData.correo || '',
+        nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
+        nrc: wsData.nrc || '',
+        logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : (wsData.nombre ? wsData.nombre.substring(0, 15).toUpperCase() : 'MecanicOS')),
+        logoTagline: wsData.logoTagline || 'Servicio Automotriz Especializado',
+        tipo_persona: wsData.tipo_persona || 'Jurídica',
+        clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
+        sujeto_excluido: wsData.sujeto_excluido || 'No',
+        tipo_documento: wsData.tipo_documento || 'NIT',
+        num_documento: wsData.num_documento || '',
+        actividad_economica: wsData.actividad_economica || wsData.giro || '',
+        pais: wsData.pais || 'El Salvador',
+        departamento: wsData.departamento || '',
+        municipio: wsData.municipio || '',
+        logo: wsData.logo || '',
+        formato_presupuesto: wsData.formato_presupuesto || 'moderno_facturallama'
+    };
+}
+
 function getWorkshopConfig(db) {
-    if (!db || !db.config_taller) {
-        return {
-            nombre: 'GRUPO GEMA, S.A. DE C.V.',
-            alias: 'Grupo Gema',
-            nombre_comercial: 'Grupo Gema Taller',
-            giro: 'Servicio de Mantenimiento al Transporte Terrestre',
-            direccion: 'Carr. Sonsonate, col. Cuyagualo #16, Colon, La Libertad',
-            telefono: '7625-0906',
-            correo: 'grupogem2024@outlook.com',
-            nit: '0614-111111-101-1',
-            nrc: '123456-7',
-            logoText: 'GRUPO GEMA',
-            logoTagline: 'Mantenimiento de Flotas y Vehículos',
+    const wsData = (db && db.saas_state && db.saas_state.workshopData) || null;
+    const isLegacyGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+
+    let cfg = null;
+
+    // 1. Si config_taller existe y NO es el fallback de Grupo Gema, usarlo
+    if (db && db.config_taller && db.config_taller.nombre && !isLegacyGema(db.config_taller)) {
+        cfg = Object.assign({}, db.config_taller);
+    } 
+    // 2. Si no es válido o era Grupo Gema residual, intentar recuperarlo de los datos de registro (workshopData)
+    else if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
+        cfg = buildConfigFromWorkshopData(wsData);
+        if (db) {
+            db.config_taller = Object.assign({}, cfg);
+        }
+    }
+    // 3. Si aún no hay nada (sesión limpia sin datos), usar plantilla neutra vacía (NUNCA Grupo Gema)
+    else {
+        cfg = {
+            nombre: '',
+            alias: '',
+            nombre_comercial: '',
+            giro: '',
+            direccion: '',
+            telefono: '',
+            correo: '',
+            nit: '',
+            nrc: '',
+            logoText: 'MecanicOS',
+            logoTagline: 'Servicio Automotriz Especializado',
             tipo_persona: 'Jurídica',
             clasificacion_tributaria: 'Otros',
             sujeto_excluido: 'No',
             tipo_documento: 'NIT',
-            num_documento: '0614-111111-101-1',
-            actividad_economica: 'Servicio de Mantenimiento al Transporte Terrestre',
+            num_documento: '',
+            actividad_economica: '',
             pais: 'El Salvador',
-            departamento: 'La Libertad',
-            municipio: 'Colón',
+            departamento: '',
+            municipio: '',
             logo: '',
             formato_presupuesto: 'moderno_facturallama'
         };
     }
-    const cfg = Object.assign({}, db.config_taller);
+
     if (!cfg.formato_presupuesto) {
         cfg.formato_presupuesto = 'moderno_facturallama';
     }
-    if (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.features) {
-        cfg.features = db.saas_state.workshopData.features;
+    if (wsData && wsData.features) {
+        cfg.features = wsData.features;
     } else {
-        cfg.features = {};
+        cfg.features = cfg.features || {};
     }
     return cfg;
 }
@@ -1270,6 +1349,7 @@ export {
     updateSidebarBrand,
     startClock,
     getWorkshopConfig,
+    buildConfigFromWorkshopData,
     setupMunicipiosSelect,
     setupOfficialCatalogsSelect,
     setupMarcasModelosSelect,

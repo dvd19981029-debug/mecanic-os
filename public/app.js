@@ -461,36 +461,70 @@ function bindFirebaseEvents() {
 }
 
 function getWorkshopConfig(db) {
-    if (!db.config_taller) {
-        db.config_taller = {
-            nombre: 'GRUPO GEMA, S.A. DE C.V.',
-            alias: 'Grupo Gema',
-            nombre_comercial: 'Grupo Gema Taller',
-            giro: 'Servicio de Mantenimiento al Transporte Terrestre',
-            direccion: 'Carr. Sonsonate, col. Cuyagualo #16, Colon, La Libertad',
-            telefono: '7625-0906',
-            correo: 'grupogem2024@outlook.com',
-            nit: '0614-111111-101-1',
-            nrc: '123456-7',
-            logoText: 'GRUPO GEMA',
-            logoTagline: 'Mantenimiento de Flotas y Vehículos',
+    const wsData = (db && db.saas_state && db.saas_state.workshopData) || null;
+    const isLegacyGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+
+    let cfg = null;
+
+    if (db && db.config_taller && db.config_taller.nombre && !isLegacyGema(db.config_taller)) {
+        cfg = db.config_taller;
+    } else if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
+        cfg = {
+            nombre: wsData.nombre || wsData.nombre_comercial || '',
+            alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
+            nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
+            giro: wsData.giro || wsData.actividad_economica || '',
+            direccion: wsData.direccion || '',
+            telefono: wsData.telefono || '',
+            correo: wsData.correo || '',
+            nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
+            nrc: wsData.nrc || '',
+            logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : 'MecanicOS'),
+            logoTagline: wsData.logoTagline || 'Servicio Automotriz Especializado',
+            tipo_persona: wsData.tipo_persona || 'Jurídica',
+            clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
+            sujeto_excluido: wsData.sujeto_excluido || 'No',
+            tipo_documento: wsData.tipo_documento || 'NIT',
+            num_documento: wsData.num_documento || '',
+            actividad_economica: wsData.actividad_economica || wsData.giro || '',
+            pais: wsData.pais || 'El Salvador',
+            departamento: wsData.departamento || '',
+            municipio: wsData.municipio || '',
+            logo: wsData.logo || '',
+            formato_presupuesto: wsData.formato_presupuesto || 'moderno_facturallama'
+        };
+        if (db) db.config_taller = cfg;
+    } else {
+        cfg = {
+            nombre: '',
+            alias: '',
+            nombre_comercial: '',
+            giro: '',
+            direccion: '',
+            telefono: '',
+            correo: '',
+            nit: '',
+            nrc: '',
+            logoText: 'MecanicOS',
+            logoTagline: 'Servicio Automotriz Especializado',
             tipo_persona: 'Jurídica',
             clasificacion_tributaria: 'Otros',
             sujeto_excluido: 'No',
             tipo_documento: 'NIT',
-            num_documento: '0614-111111-101-1',
-            actividad_economica: 'Servicio de Mantenimiento al Transporte Terrestre',
+            num_documento: '',
+            actividad_economica: '',
             pais: 'El Salvador',
-            departamento: 'La Libertad',
-            municipio: 'Colón',
+            departamento: '',
+            municipio: '',
             logo: '',
             formato_presupuesto: 'moderno_facturallama'
         };
     }
-    if (!db.config_taller.formato_presupuesto) {
-        db.config_taller.formato_presupuesto = 'moderno_facturallama';
+
+    if (!cfg.formato_presupuesto) {
+        cfg.formato_presupuesto = 'moderno_facturallama';
     }
-    return db.config_taller;
+    return cfg;
 }
 
 // Helper: Calculate total for any budget in db

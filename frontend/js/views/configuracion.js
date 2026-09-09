@@ -192,7 +192,7 @@ export function renderConfiguracion(container, queryParams) {
                             <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                                 <div class="form-group">
                                     <label>Texto Corto para Logo (PDFs)</label>
-                                    <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: GRUPO GEMA" required style="padding:0.6rem;">
+                                    <input type="text" id="cfg-taller-logotext" value="${ws.logoText || ''}" placeholder="Ej: MI TALLER" required style="padding:0.6rem;">
                                 </div>
                                 <div class="form-group">
                                     <label>Eslogan / Tagline Logo</label>

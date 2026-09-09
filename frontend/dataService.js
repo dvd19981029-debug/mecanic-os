@@ -587,9 +587,46 @@ const dataService = {
             if (doc.exists) {
                 const data = doc.data();
                 let changed = false;
-                if (data.config_taller && JSON.stringify(this.cache.config_taller) !== JSON.stringify(data.config_taller)) { 
-                    this.cache.config_taller = data.config_taller; 
-                    changed = true; 
+                const isGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+                if (data.config_taller && !isGema(data.config_taller)) { 
+                    if (JSON.stringify(this.cache.config_taller) !== JSON.stringify(data.config_taller)) {
+                        this.cache.config_taller = data.config_taller; 
+                        changed = true; 
+                    }
+                } else {
+                    // Si Firestore no tiene config_taller o tiene Grupo Gema residual, reparar desde workshopData
+                    const wsData = (data.saas_state && data.saas_state.workshopData) || (this.cache.saas_state && this.cache.saas_state.workshopData);
+                    if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
+                        const repairedConfig = {
+                            nombre: wsData.nombre || wsData.nombre_comercial || '',
+                            alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
+                            nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
+                            giro: wsData.giro || wsData.actividad_economica || '',
+                            direccion: wsData.direccion || '',
+                            telefono: wsData.telefono || '',
+                            correo: wsData.correo || '',
+                            nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
+                            nrc: wsData.nrc || '',
+                            logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : 'MecanicOS'),
+                            logoTagline: wsData.logoTagline || 'Servicio Automotriz Especializado',
+                            tipo_persona: wsData.tipo_persona || 'Jurídica',
+                            clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
+                            sujeto_excluido: wsData.sujeto_excluido || 'No',
+                            tipo_documento: wsData.tipo_documento || 'NIT',
+                            num_documento: wsData.num_documento || '',
+                            actividad_economica: wsData.actividad_economica || wsData.giro || '',
+                            pais: wsData.pais || 'El Salvador',
+                            departamento: wsData.departamento || '',
+                            municipio: wsData.municipio || '',
+                            logo: wsData.logo || '',
+                            formato_presupuesto: 'moderno_facturallama'
+                        };
+                        this.cache.config_taller = repairedConfig;
+                        changed = true;
+                        if (!this.readOnlyMode && typeof docRef.set === 'function') {
+                            docRef.set({ config_taller: repairedConfig }, { merge: true }).catch(e => console.warn("Auto-repair config_taller failed:", e));
+                        }
+                    }
                 }
                 if (data.saas_state && JSON.stringify(this.cache.saas_state) !== JSON.stringify(data.saas_state)) { 
                     this.cache.saas_state = data.saas_state; 
