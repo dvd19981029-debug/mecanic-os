@@ -2,12 +2,15 @@ import {
     getDatabase,
     saveDatabase,
     getActiveUser,
+    getBudgetGrandTotal,
     setupMarcasModelosSelect
 } from '../../app.js';
 import {
     showToast,
     escapeHtml
 } from '../utils.js';
+import { exportBudgetPDF } from './presupuestos.js';
+
 
 export function renderVehiculos(container) {
     const db = getDatabase();
@@ -66,19 +69,27 @@ export function renderVehiculos(container) {
 
         const match = (item) => {
             if (!item) return false;
-            const itemPlaca = (item.Placas || item.Placa || item.placas || item.ID_Vehiculo || '').trim().toUpperCase();
+            const itemPlaca = (item.Placas || item.Placa || item.placas || item['Número de Placas'] || item.ID_Vehiculo || '').trim().toUpperCase();
             const itemVehId = (item.ID_Vehiculo || '').trim().toUpperCase();
             return (placa && placa !== 'S/N' && itemPlaca === placa) || (idVeh && itemVehId === idVeh);
         };
 
         const vIngresos = ingresosList.filter(match);
         const vPresupuestos = presupuestosList.filter(match);
-        const vTrabajos = trabajosList.filter(match);
+        
+        // Work orders correspond to budgets that reached production/repair/billing (states: 2 = En Reparación, 5 = Finalizado, 3 = Facturado) or legacy db.trabajos
+        const legacyTrabajos = trabajosList.filter(match);
+        const budgetTrabajos = vPresupuestos.filter(p => {
+            const st = parseInt(p.Estado || 0);
+            return [2, 3, 5].includes(st);
+        });
+        const vTrabajos = budgetTrabajos.length > 0 ? budgetTrabajos : legacyTrabajos;
+
         const vRevisiones = revisionesList.filter(match);
 
         const vPresupuestosActive = vPresupuestos.some(p => {
-            const st = p.Estado;
-            return st === 2 || st === '2' || st === 'APROBADO' || st === 'EN_PROCESO' || st === 'EN PROCESO';
+            const st = parseInt(p.Estado || 0);
+            return st === 2;
         });
 
         const vIngresosActive = vIngresos.some(i => {
@@ -87,8 +98,8 @@ export function renderVehiculos(container) {
         });
 
         const vTrabajosActive = vTrabajos.some(t => {
-            const st = (t.Estado || '').toString().trim().toUpperCase();
-            return st !== 'ENTREGADO' && st !== 'FINALIZADO' && st !== 'COBRADO' && st !== 'CANCELADO';
+            const st = parseInt(t.Estado || 0);
+            return st === 2;
         });
 
         const enTaller = vPresupuestosActive || vIngresosActive || vTrabajosActive;
@@ -534,7 +545,19 @@ export function renderVehiculos(container) {
             document.getElementById('exp-tab-trabajos').onclick = () => { activeTab = 'trabajos'; renderModalTabs(); };
             document.getElementById('exp-tab-presupuestos').onclick = () => { activeTab = 'presupuestos'; renderModalTabs(); };
             document.getElementById('exp-tab-revisiones').onclick = () => { activeTab = 'revisiones'; renderModalTabs(); };
+
+            // Bind PDF Export buttons
+            modalBody.querySelectorAll('.btn-exp-pdf').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    const bId = btn.getAttribute('data-id');
+                    if (bId && bId !== 'N/A') {
+                        exportBudgetPDF(bId);
+                    }
+                };
+            });
         }
+
 
         renderModalTabs();
         modal.style.display = 'flex';
@@ -554,6 +577,24 @@ export function renderVehiculos(container) {
                 modal.classList.remove('active');
             }
         };
+    }
+
+    // Helper to format date / timestamp safely
+    function formatExpedienteDate(val) {
+        if (!val) return 'N/A';
+        try {
+            const num = Number(val);
+            if (!isNaN(num) && num > 1000000000) {
+                return new Date(num).toLocaleDateString('es-SV', { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+            const d = new Date(val);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleDateString('es-SV', { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        return String(val);
     }
 
     // Helper to render active tab content inside expediente modal
@@ -576,7 +617,7 @@ export function renderVehiculos(container) {
                         </thead>
                         <tbody>
                             ${safe(stats.ingresos.map(ing => {
-                                const dateStr = ing['Marca Temporal'] ? new Date(ing['Marca Temporal']).toLocaleString('es-SV') : (ing.Fecha || 'N/A');
+                                const dateStr = formatExpedienteDate(ing['Marca Temporal'] || ing.Fecha);
                                 return html`
                                     <tr>
                                         <td><strong>${dateStr}</strong></td>
@@ -598,32 +639,110 @@ export function renderVehiculos(container) {
                 return `<p style="text-align:center; color:var(--text-muted); padding:2rem;">No hay órdenes de trabajo registradas para este vehículo.</p>`;
             }
             return html`
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Trabajo / Servicio</th>
-                                <th>Técnico Asignado</th>
-                                <th>Total ($)</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${safe(stats.trabajos.map(t => {
-                                const dateStr = t['Marca Temporal'] ? new Date(t['Marca Temporal']).toLocaleDateString('es-SV') : (t.Fecha || 'N/A');
-                                return html`
-                                    <tr>
-                                        <td>${dateStr}</td>
-                                        <td><strong>${escapeHtml(t.Servicio || t.Trabajo || t.Descripcion || 'Mantenimiento General')}</strong></td>
-                                        <td>${escapeHtml(t.Tecnico || t.Mecanico || 'No Asignado')}</td>
-                                        <td><strong>$ ${(parseFloat(t.Total || t.total || 0)).toFixed(2)}</strong></td>
-                                        <td><span class="badge-tag ${t.Estado === 'FINALIZADO' || t.Estado === 'ENTREGADO' ? 'badge-success' : 'badge-secondary'}">${escapeHtml(t.Estado || 'En Proceso')}</span></td>
-                                    </tr>
-                                `;
-                            }).join(''))}
-                        </tbody>
-                    </table>
+                <div style="display:flex; flex-direction:column; gap:1rem;">
+                    ${safe(stats.trabajos.map(t => {
+                        const code = t['ID Presupuesto'] || t.ID_Presupuesto || t.id || 'N/A';
+                        const dateStr = formatExpedienteDate(t.Fecha || t['Marca Temporal']);
+                        const tech = (db.tecnicos || []).find(tec => tec.Tecnico_ID === t.Tecnico_Asignado) || { Nombre_Completo: t.Tecnico || t.Mecanico || 'Taller General' };
+                        
+                        const pLabor = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(dm => dm['ID_Presupuesto MO'] === code);
+                        const pProducts = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(dp => dp['ID_Presupuesto DPP'] === code);
+                        
+                        let total = 0;
+                        try {
+                            total = getBudgetGrandTotal(t, db);
+                        } catch (e) {
+                            total = parseFloat(t.Total || t.total || 0);
+                        }
+
+                        const statusNum = parseInt(t.Estado || 0);
+                        let badgeClass = 'badge-secondary';
+                        let statusText = 'En Proceso';
+                        if (statusNum === 2) { badgeClass = 'badge-warning'; statusText = 'En Reparación'; }
+                        else if (statusNum === 5) { badgeClass = 'badge-primary'; statusText = 'Trabajo Finalizado'; }
+                        else if (statusNum === 3) { badgeClass = 'badge-success'; statusText = 'Facturado / Entregado'; }
+
+                        return html`
+                            <div class="glass-card" style="padding:1.1rem; border:1px solid var(--border-color); border-left:4px solid var(--primary); background:rgba(255,255,255,0.02);">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                    <div>
+                                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                                            <strong style="font-family:monospace; font-size:1.05rem; color:var(--primary);">${escapeHtml(code)}</strong>
+                                            <span class="badge-tag ${badgeClass}">${statusText}</span>
+                                        </div>
+                                        <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.25rem;">
+                                            <i class="fa-regular fa-calendar"></i> ${dateStr} • 
+                                            <i class="fa-solid fa-user-gear"></i> Técnico: <strong>${escapeHtml(tech.Nombre_Completo || 'Sin Asignar')}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Total del Trabajo</span>
+                                        <strong style="font-size:1.2rem; color:var(--text-primary);">$ ${total.toFixed(2)}</strong>
+                                    </div>
+                                </div>
+
+                                ${t.Fallas_Detectadas ? html`
+                                    <div style="background:rgba(0,0,0,0.2); border-radius:6px; padding:0.6rem 0.8rem; margin-bottom:0.75rem; font-size:0.82rem;">
+                                        <span style="color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-stethoscope"></i> Diagnóstico / Motivo:</span>
+                                        <p style="margin:0.2rem 0 0 0; color:var(--text-secondary);">${escapeHtml(t.Fallas_Detectadas)}</p>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Services & Labor Performed -->
+                                ${pLabor.length > 0 ? html`
+                                    <div style="margin-bottom:0.6rem;">
+                                        <h5 style="margin:0 0 0.35rem 0; font-size:0.75rem; text-transform:uppercase; color:#a855f7; letter-spacing:0.5px; font-weight:700;">
+                                            <i class="fa-solid fa-screwdriver-wrench"></i> Mano de Obra y Servicios Realizados (${pLabor.length})
+                                        </h5>
+                                        <div style="background:rgba(255,255,255,0.015); border:1px solid var(--border-color); border-radius:6px; overflow:hidden;">
+                                            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                                                <tbody>
+                                                    ${safe(pLabor.map(l => html`
+                                                        <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                                                            <td style="padding:0.4rem 0.6rem; color:var(--text-primary);">${escapeHtml(l.Descripcion || 'Servicio Mecánico')}</td>
+                                                            <td style="padding:0.4rem 0.6rem; color:var(--text-muted); text-align:center; width:80px;">Cant: ${l.Cantidad || 1}</td>
+                                                            <td style="padding:0.4rem 0.6rem; font-family:monospace; text-align:right; width:90px; color:var(--text-secondary);">$ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toFixed(2)}</td>
+                                                        </tr>
+                                                    `).join(''))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Parts and Products Installed -->
+                                ${pProducts.length > 0 ? html`
+                                    <div style="margin-bottom:0.75rem;">
+                                        <h5 style="margin:0 0 0.35rem 0; font-size:0.75rem; text-transform:uppercase; color:var(--primary); letter-spacing:0.5px; font-weight:700;">
+                                            <i class="fa-solid fa-box-open"></i> Repuestos e Insumos Instalados (${pProducts.length})
+                                        </h5>
+                                        <div style="background:rgba(255,255,255,0.015); border:1px solid var(--border-color); border-radius:6px; overflow:hidden;">
+                                            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                                                <tbody>
+                                                    ${safe(pProducts.map(pr => html`
+                                                        <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                                                            <td style="padding:0.4rem 0.6rem; color:var(--text-primary);">${escapeHtml(pr.Descripcion || 'Repuesto')}</td>
+                                                            <td style="padding:0.4rem 0.6rem; color:var(--text-muted); text-align:center; width:80px;">Cant: ${pr.Cantidad || 1}</td>
+                                                            <td style="padding:0.4rem 0.6rem; font-family:monospace; text-align:right; width:90px; color:var(--text-secondary);">$ ${(parseFloat(pr.PrecioUnitario || 0) * parseInt(pr.Cantidad || 1)).toFixed(2)}</td>
+                                                        </tr>
+                                                    `).join(''))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border-color); padding-top:0.65rem; margin-top:0.5rem;">
+                                    <button class="btn btn-secondary btn-exp-pdf" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                        <i class="fa-solid fa-file-pdf" style="color:#e74c3c;"></i> Imprimir PDF
+                                    </button>
+                                    <a href="#presupuestos?id=${escapeHtml(code)}" class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver Ficha Completa
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''))}
                 </div>
             `;
         }
@@ -633,35 +752,107 @@ export function renderVehiculos(container) {
                 return `<p style="text-align:center; color:var(--text-muted); padding:2rem;">No hay presupuestos emitidos para este vehículo.</p>`;
             }
             return html`
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Código Presupuesto</th>
-                                <th>Fecha</th>
-                                <th>Subtotal</th>
-                                <th>IVA (13%)</th>
-                                <th>Total ($)</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${safe(stats.presupuestos.map(p => {
-                                const dateStr = p['Marca Temporal'] ? new Date(p['Marca Temporal']).toLocaleDateString('es-SV') : (p.Fecha || 'N/A');
-                                const statusClass = p.Estado === 'APROBADO' ? 'badge-success' : (p.Estado === 'RECHAZADO' ? 'badge-danger' : 'badge-secondary');
-                                return html`
-                                    <tr>
-                                        <td><strong style="font-family:monospace; color:var(--primary);">${escapeHtml(p.ID_Presupuesto || p.id || 'N/A')}</strong></td>
-                                        <td>${dateStr}</td>
-                                        <td>$ ${(parseFloat(p.Subtotal || p.subtotal || 0)).toFixed(2)}</td>
-                                        <td>$ ${(parseFloat(p.IVA || p.iva || 0)).toFixed(2)}</td>
-                                        <td><strong>$ ${(parseFloat(p.Total || p.total || 0)).toFixed(2)}</strong></td>
-                                        <td><span class="badge-tag ${statusClass}">${escapeHtml(p.Estado || 'PENDIENTE')}</span></td>
-                                    </tr>
-                                `;
-                            }).join(''))}
-                        </tbody>
-                    </table>
+                <div style="display:flex; flex-direction:column; gap:1rem;">
+                    ${safe(stats.presupuestos.map(p => {
+                        const code = p['ID Presupuesto'] || p.ID_Presupuesto || p.id || 'N/A';
+                        const dateStr = formatExpedienteDate(p.Fecha || p['Marca Temporal']);
+                        
+                        const pLabor = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(dm => dm['ID_Presupuesto MO'] === code);
+                        const pProducts = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(dp => dp['ID_Presupuesto DPP'] === code);
+                        
+                        const sumProd = pProducts.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
+                        const sumLab = pLabor.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
+                        const subtotal = sumProd + sumLab;
+                        
+                        let grandTotal = 0;
+                        try {
+                            grandTotal = getBudgetGrandTotal(p, db);
+                        } catch (e) {
+                            grandTotal = parseFloat(p.Total || p.total || subtotal);
+                        }
+                        const iva = Math.max(0, grandTotal - subtotal);
+
+                        const statusNum = parseInt(p.Estado || 0);
+                        let badgeClass = 'badge-secondary';
+                        let statusText = 'Cotización / Creado';
+                        if (statusNum === 2) { badgeClass = 'badge-warning'; statusText = 'Aprobado / Reparación'; }
+                        else if (statusNum === 3) { badgeClass = 'badge-success'; statusText = 'Facturado'; }
+                        else if (statusNum === 4) { badgeClass = 'badge-danger'; statusText = 'Anulado / Rechazado'; }
+                        else if (statusNum === 5) { badgeClass = 'badge-primary'; statusText = 'Trabajo Finalizado'; }
+                        else if (p.Estado === 'APROBADO') { badgeClass = 'badge-success'; statusText = 'Aprobado'; }
+                        else if (p.Estado === 'RECHAZADO') { badgeClass = 'badge-danger'; statusText = 'Rechazado'; }
+
+                        return html`
+                            <div class="glass-card" style="padding:1.1rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                    <div>
+                                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                                            <strong style="font-family:monospace; font-size:1.05rem; color:var(--primary);">${escapeHtml(code)}</strong>
+                                            <span class="badge-tag ${badgeClass}">${statusText}</span>
+                                        </div>
+                                        <span style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-top:0.25rem;">
+                                            <i class="fa-regular fa-calendar"></i> Fecha: <strong>${dateStr}</strong>
+                                        </span>
+                                    </div>
+                                    <div style="display:flex; gap:1.25rem; text-align:right;">
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Subtotal</span>
+                                            <span style="font-family:monospace; font-size:0.95rem; color:var(--text-primary);">$ ${subtotal.toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">IVA (13%)</span>
+                                            <span style="font-family:monospace; font-size:0.95rem; color:var(--text-secondary);">$ ${iva.toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                            <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Total</span>
+                                            <strong style="font-size:1.15rem; color:var(--primary);">$ ${grandTotal.toFixed(2)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Collapsible detail of works -->
+                                <details style="background:rgba(0,0,0,0.2); border-radius:6px; padding:0.5rem 0.75rem; margin-top:0.5rem; font-size:0.82rem;">
+                                    <summary style="cursor:pointer; font-weight:600; color:var(--text-primary); outline:none;">
+                                        <i class="fa-solid fa-list-check"></i> Ver Desglose de Trabajos y Repuestos (${pLabor.length + pProducts.length} ítems)
+                                    </summary>
+                                    <div style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.5rem;">
+                                        ${p.Fallas_Detectadas ? html`
+                                            <p style="margin:0; color:var(--text-secondary); font-size:0.8rem;">
+                                                <strong>Diagnóstico:</strong> ${escapeHtml(p.Fallas_Detectadas)}
+                                            </p>
+                                        ` : ''}
+
+                                        ${pLabor.length > 0 ? html`
+                                            <div>
+                                                <strong style="color:#a855f7; font-size:0.75rem; text-transform:uppercase;">Mano de Obra (${pLabor.length}):</strong>
+                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary);">
+                                                    ${safe(pLabor.map(l => `<li>${escapeHtml(l.Descripcion)} (Cant: ${l.Cantidad || 1}) - $ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                </ul>
+                                            </div>
+                                        ` : ''}
+
+                                        ${pProducts.length > 0 ? html`
+                                            <div>
+                                                <strong style="color:var(--primary); font-size:0.75rem; text-transform:uppercase;">Repuestos e Insumos (${pProducts.length}):</strong>
+                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary);">
+                                                    ${safe(pProducts.map(pr => `<li>${escapeHtml(pr.Descripcion)} (Cant: ${pr.Cantidad || 1}) - $ ${(parseFloat(pr.PrecioUnitario || 0) * parseInt(pr.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                </ul>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </details>
+
+                                <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border-color); padding-top:0.65rem; margin-top:0.65rem;">
+                                    <button class="btn btn-secondary btn-exp-pdf" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                        <i class="fa-solid fa-file-pdf" style="color:#e74c3c;"></i> Imprimir PDF
+                                    </button>
+                                    <a href="#presupuestos?id=${escapeHtml(code)}" class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver Ficha Completa
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''))}
                 </div>
             `;
         }
@@ -683,7 +874,7 @@ export function renderVehiculos(container) {
                         </thead>
                         <tbody>
                             ${safe(stats.revisiones.map(r => {
-                                const dateStr = r['Marca Temporal'] ? new Date(r['Marca Temporal']).toLocaleString('es-SV') : (r.Fecha || 'N/A');
+                                const dateStr = formatExpedienteDate(r['Marca Temporal'] || r.Fecha);
                                 return html`
                                     <tr>
                                         <td><strong>${dateStr}</strong></td>
