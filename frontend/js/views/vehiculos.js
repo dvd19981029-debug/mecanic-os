@@ -7,9 +7,12 @@ import {
 } from '../../app.js';
 import {
     showToast,
-    escapeHtml
+    escapeHtml,
+    html,
+    safe
 } from '../utils.js';
 import { exportBudgetPDF } from './presupuestos.js';
+
 
 
 export function renderVehiculos(container) {
@@ -816,29 +819,29 @@ export function renderVehiculos(container) {
                                         <i class="fa-solid fa-list-check"></i> Ver Desglose de Trabajos y Repuestos (${pLabor.length + pProducts.length} ítems)
                                     </summary>
                                     <div style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.5rem;">
-                                        ${p.Fallas_Detectadas ? html`
+                                        ${p.Fallas_Detectadas ? safe(html`
                                             <p style="margin:0; color:var(--text-secondary); font-size:0.8rem;">
                                                 <strong>Diagnóstico:</strong> ${escapeHtml(p.Fallas_Detectadas)}
                                             </p>
-                                        ` : ''}
+                                        `) : ''}
 
-                                        ${pLabor.length > 0 ? html`
+                                        ${pLabor.length > 0 ? safe(html`
                                             <div>
                                                 <strong style="color:#a855f7; font-size:0.75rem; text-transform:uppercase;">Mano de Obra (${pLabor.length}):</strong>
-                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary);">
-                                                    ${safe(pLabor.map(l => `<li>${escapeHtml(l.Descripcion)} (Cant: ${l.Cantidad || 1}) - $ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary); line-height:1.4;">
+                                                    ${safe(pLabor.map(l => `<li>${escapeHtml(l.Descripcion || 'Servicio')} (Cant: ${l.Cantidad || 1}) - $ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
                                                 </ul>
                                             </div>
-                                        ` : ''}
+                                        `) : ''}
 
-                                        ${pProducts.length > 0 ? html`
+                                        ${pProducts.length > 0 ? safe(html`
                                             <div>
                                                 <strong style="color:var(--primary); font-size:0.75rem; text-transform:uppercase;">Repuestos e Insumos (${pProducts.length}):</strong>
-                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary);">
-                                                    ${safe(pProducts.map(pr => `<li>${escapeHtml(pr.Descripcion)} (Cant: ${pr.Cantidad || 1}) - $ ${(parseFloat(pr.PrecioUnitario || 0) * parseInt(pr.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary); line-height:1.4;">
+                                                    ${safe(pProducts.map(pr => `<li>${escapeHtml(pr.Descripcion || 'Repuesto')} (Cant: ${pr.Cantidad || 1}) - $ ${(parseFloat(pr.PrecioUnitario || 0) * parseInt(pr.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
                                                 </ul>
                                             </div>
-                                        ` : ''}
+                                        `) : ''}
                                     </div>
                                 </details>
 
