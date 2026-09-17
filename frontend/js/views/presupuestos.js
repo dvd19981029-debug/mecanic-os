@@ -4102,16 +4102,9 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
         const tot = effectiveLineTotal / factorIva;
         totalNetLab += tot;
 
-        const discBadge = totalLineDisc > 0
-            ? `<div style="font-size: 8.5px; color: #16a34a; font-weight: 500;">(-${laborDiscountPercent > 0 ? (laborDiscountPercent * 100).toFixed(0) + '% ' : ''}desc: -$ ${(totalLineDisc / factorIva).toFixed(2)})</div>`
-            : '';
-
         return `
             <tr>
-                <td>
-                    ${l.Descripcion}
-                    ${discBadge}
-                </td>
+                <td>${l.Descripcion}</td>
                 <td style="text-align: center;">${qty}</td>
                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
@@ -4127,22 +4120,14 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
         const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
         const linePromoDisc = baseLineTotal * prodDiscountPercent;
         const effectiveLineTotal = baseLineTotal - linePromoDisc;
-        const totalLineDisc = itemDisc + linePromoDisc;
 
         const unitPrice = rawUnitPrice / factorIva;
         const tot = effectiveLineTotal / factorIva;
         totalNetProd += tot;
 
-        const discBadge = totalLineDisc > 0
-            ? `<div style="font-size: 8.5px; color: #16a34a; font-weight: 500;">(-${prodDiscountPercent > 0 ? (prodDiscountPercent * 100).toFixed(0) + '% ' : ''}desc: -$ ${(totalLineDisc / factorIva).toFixed(2)})</div>`
-            : '';
-
         return `
             <tr>
-                <td>
-                    ${p.Descripcion}
-                    ${discBadge}
-                </td>
+                <td>${p.Descripcion}</td>
                 <td style="text-align: center;">${qty}</td>
                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
