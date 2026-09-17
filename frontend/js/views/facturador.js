@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF } from './presupuestos.js?v=88';
+import { exportBudgetPDF } from './presupuestos.js?v=119';
 
 // Expose functions globally for other views (like clientes_vehiculos)
 window.viewDtePdf = viewDtePdf;

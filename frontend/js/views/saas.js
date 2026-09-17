@@ -1026,8 +1026,10 @@ export async function renderAdminSolicitudes(container) {
                             saasState.status = 'active';
                         }
                         
-                        // Copy to config_taller
+                        // Copy to config_taller while preserving all custom formatting, colors, and existing logo
+                        const existingCfg = db.config_taller || {};
                         db.config_taller = {
+                            ...existingCfg,
                             nombre: workshop.nombre,
                             alias: workshop.alias,
                             nombre_comercial: workshop.nombre_comercial,
@@ -1035,10 +1037,10 @@ export async function renderAdminSolicitudes(container) {
                             direccion: workshop.direccion,
                             telefono: workshop.telefono,
                             correo: workshop.correo,
-                            nit: workshop.tipo_documento === 'NIT' ? workshop.num_documento : '',
+                            nit: workshop.tipo_documento === 'NIT' ? workshop.num_documento : (workshop.nit || existingCfg.nit || ''),
                             nrc: workshop.nrc,
-                            logoText: workshop.alias.substring(0, 15).toUpperCase(),
-                            logoTagline: 'Servicio Automotriz Especializado',
+                            logoText: workshop.alias ? workshop.alias.substring(0, 15).toUpperCase() : (existingCfg.logoText || 'MecanicOS'),
+                            logoTagline: existingCfg.logoTagline || 'Servicio Automotriz Especializado',
                             tipo_persona: workshop.tipo_persona,
                             clasificacion_tributaria: workshop.clasificacion_tributaria,
                             sujeto_excluido: workshop.sujeto_excluido,
@@ -1048,7 +1050,12 @@ export async function renderAdminSolicitudes(container) {
                             pais: workshop.pais,
                             departamento: workshop.departamento,
                             municipio: workshop.municipio,
-                            logo: workshop.logo || ''
+                            logo: workshop.logo || existingCfg.logo || '',
+                            formato_presupuesto: existingCfg.formato_presupuesto || workshop.formato_presupuesto || 'moderno_facturallama',
+                            mostrar_iva_presupuesto: existingCfg.mostrar_iva_presupuesto || 'si',
+                            color_presupuesto: existingCfg.color_presupuesto || '#1e293b',
+                            tipo_comision: existingCfg.tipo_comision || 'general',
+                            qr_whatsapp: existingCfg.qr_whatsapp || ''
                         };
                     }
                     saveDatabase(db);
@@ -2522,6 +2529,7 @@ if (window.saasViewReceiptPaymentId) {
                 <button class="saas-tab-btn ${activeTab === 'metrics' ? 'active' : ''}" onclick="window.switchSaaSTab('metrics')"><i class="fa-solid fa-chart-line"></i> Métricas SaaS</button>
                 <button class="saas-tab-btn ${activeTab === 'landing-analytics' ? 'active' : ''}" onclick="window.switchSaaSTab('landing-analytics')"><i class="fa-solid fa-chart-pie"></i> Analíticas Landing</button>
                 <button class="saas-tab-btn ${activeTab === 'dte-logs' ? 'active' : ''}" onclick="window.switchSaaSTab('dte-logs')"><i class="fa-solid fa-server"></i> Logs Servidor (DTE)</button>
+                <button class="saas-tab-btn ${activeTab === 'audit-logs' ? 'active' : ''}" onclick="window.switchSaaSTab('audit-logs')"><i class="fa-solid fa-shield-halved"></i> Auditoría Talleres</button>
             </div>
             
             <!-- Tab Body -->
@@ -2533,6 +2541,7 @@ if (window.saasViewReceiptPaymentId) {
                 ${safe(activeTab === 'metrics' ? renderMetricsTab() : '')}
                 ${safe(activeTab === 'landing-analytics' ? renderLandingAnalyticsTab() : '')}
                 ${safe(activeTab === 'dte-logs' ? renderDteLogsTab() : '')}
+                ${safe(activeTab === 'audit-logs' ? renderAuditLogsTab() : '')}
             </div>
         </div>
     `;
@@ -4224,6 +4233,378 @@ if (window.saasViewReceiptPaymentId) {
             showToast("Error al abrir visor: " + err.message, "danger");
         }
     };
+
+    // -------------------------------------------------------------
+    // AUDITORÍA PRIVADA DE TALLERES (AUDIT TRAIL EXCLUSIVO SUPER ADMIN)
+    // -------------------------------------------------------------
+    function renderAuditLogsTab() {
+        setTimeout(async () => {
+            const container = document.getElementById('saas-audit-logs-container');
+            if (!container) return;
+
+            if (typeof dbFirestore === 'undefined' || !dbFirestore) {
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem; color: var(--warning); margin-bottom: 1rem;"></i>
+                        <div>Firebase Firestore no está inicializado en este entorno.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                let logs = [];
+                try {
+                    const snap = await dbFirestore.collection('saas_audit_logs')
+                        .orderBy('timestamp_millis', 'desc')
+                        .limit(200)
+                        .get();
+                    snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+                } catch (idxErr) {
+                    console.warn("Falling back to client sort for audit logs:", idxErr);
+                    const snap = await dbFirestore.collection('saas_audit_logs')
+                        .limit(200)
+                        .get();
+                    snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+                    logs.sort((a, b) => (b.timestamp_millis || 0) - (a.timestamp_millis || 0));
+                }
+
+                window.saasAllAuditLogsList = logs;
+                window.saasAuditLogsData = {};
+                logs.forEach(l => { window.saasAuditLogsData[l.id] = l; });
+
+                // Populate workshop filter dropdown
+                const filterSelect = document.getElementById('saas-audit-workshop-filter');
+                if (filterSelect) {
+                    const uniqueWorkshops = new Map();
+                    logs.forEach(l => {
+                        if (l.workshopId) {
+                            uniqueWorkshops.set(l.workshopId, l.workshopName || l.workshopId);
+                        }
+                    });
+                    (solicitudes || []).forEach(s => {
+                        if (s.id) {
+                            uniqueWorkshops.set(s.id, s.nombre || s.nombre_comercial || s.id);
+                        }
+                    });
+
+                    const currentVal = filterSelect.value;
+                    let opts = `<option value="">Todos los talleres (${uniqueWorkshops.size})</option>`;
+                    uniqueWorkshops.forEach((name, id) => {
+                        opts += `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`;
+                    });
+                    filterSelect.innerHTML = opts;
+                    if (currentVal) filterSelect.value = currentVal;
+                }
+
+                window.renderAuditLogsTable();
+            } catch (err) {
+                console.error("Error fetching audit logs:", err);
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--danger); padding: 3rem;">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+                        <div>Error al consultar logs de auditoría: ${escapeHtml(err.message)}</div>
+                    </div>
+                `;
+            }
+        }, 50);
+
+        return `
+            <div class="saas-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.25rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Auditoría Privada de Talleres (Audit Trail)
+                        </h3>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">
+                            Registro inmutable de modificaciones en configuraciones, roles, modelos de factura y datos de talleres.
+                        </p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="window.switchSaaSTab('audit-logs')" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 4px;">
+                        <i class="fa-solid fa-sync"></i> Refrescar
+                    </button>
+                </div>
+
+                <!-- Barra de Filtros -->
+                <div style="display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; margin-bottom: 1.25rem; align-items: center;">
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Filtrar por Taller</label>
+                        <select id="saas-audit-workshop-filter" onchange="window.renderAuditLogsTable()" style="width: 100%; padding: 0.5rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
+                            <option value="">Cargando talleres...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Buscar en el Registro</label>
+                        <div style="position: relative;">
+                            <input type="text" id="saas-audit-search" oninput="window.renderAuditLogsTable()" placeholder="Buscar por usuario, rol, campo modificado o descripción..." style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                        </div>
+                    </div>
+                    <div style="text-align: right; padding-top: 1.2rem;">
+                        <span id="saas-audit-counter" style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Cargando...</span>
+                    </div>
+                </div>
+
+                <div id="saas-audit-logs-container">
+                    <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <div>Cargando registros de auditoría...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    window.renderAuditLogsTable = function() {
+        const container = document.getElementById('saas-audit-logs-container');
+        const counter = document.getElementById('saas-audit-counter');
+        if (!container) return;
+
+        const logs = window.saasAllAuditLogsList || [];
+        const workshopFilter = (document.getElementById('saas-audit-workshop-filter')?.value || '').trim();
+        const searchTerm = (document.getElementById('saas-audit-search')?.value || '').trim().toLowerCase();
+
+        const filtered = logs.filter(item => {
+            if (workshopFilter && item.workshopId !== workshopFilter) return false;
+            if (searchTerm) {
+                const searchStr = `${item.workshopName || ''} ${item.usuario?.nombre || ''} ${item.usuario?.rol || ''} ${item.usuario?.email || ''} ${item.resumen || ''} ${item.accion || ''} ${JSON.stringify(item.cambios || {})}`.toLowerCase();
+                if (!searchStr.includes(searchTerm)) return false;
+            }
+            return true;
+        });
+
+        if (counter) {
+            counter.textContent = `${filtered.length} de ${logs.length} eventos`;
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); padding: 3rem; background: var(--bg-base); border-radius: 6px; border: 1px dashed var(--border-color);">
+                    <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 0.75rem;"></i>
+                    <div style="font-weight: 600;">No se encontraron registros de auditoría</div>
+                    <div style="font-size: 0.85rem; margin-top: 0.25rem;">No hay cambios registrados que coincidan con los filtros seleccionados.</div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <div class="table-responsive">
+                <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-color); background: rgba(0,0,0,0.03);">
+                            <th style="padding: 0.75rem;">Fecha / Hora</th>
+                            <th style="padding: 0.75rem;">Taller</th>
+                            <th style="padding: 0.75rem;">Usuario / Perfil</th>
+                            <th style="padding: 0.75rem;">Módulo / Acción</th>
+                            <th style="padding: 0.75rem;">Resumen del Cambio</th>
+                            <th style="padding: 0.75rem; text-align: center;">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        filtered.forEach(log => {
+            const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString('es-SV', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            }) : 'N/A';
+
+            const userRole = log.usuario?.rol || 'Administrador';
+            const roleBadgeColor = userRole.toLowerCase().includes('admin') ? '#e74c3c' : '#3498db';
+            const roleBg = userRole.toLowerCase().includes('admin') ? 'rgba(231,76,60,0.12)' : 'rgba(52,152,219,0.12)';
+
+            html += `
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;">
+                        <i class="fa-regular fa-clock" style="margin-right: 0.25rem;"></i>${dateStr}
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <strong style="color: var(--text-primary);">${escapeHtml(log.workshopName || 'Taller')}</strong>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(log.workshopId || '')}</div>
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                            <i class="fa-solid fa-user-circle" style="color: var(--primary);"></i>
+                            ${escapeHtml(log.usuario?.nombre || 'Desconocido')}
+                        </div>
+                        <div style="margin-top: 0.25rem;">
+                            <span class="badge" style="background: ${roleBg}; color: ${roleBadgeColor}; padding: 0.15rem 0.45rem; border-radius: 3px; font-size: 0.72rem; font-weight: bold;">
+                                ${escapeHtml(userRole)}
+                            </span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: 0.25rem;">(${escapeHtml(log.usuario?.email || '')})</span>
+                        </div>
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <span class="badge" style="background: rgba(46, 204, 113, 0.12); color: #27ae60; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">
+                            ${escapeHtml(log.modulo || 'Configuración')}
+                        </span>
+                    </td>
+                    <td style="padding: 0.75rem; color: var(--text-secondary); max-width: 320px;">
+                        <div style="font-size: 0.82rem; line-height: 1.4;">${escapeHtml(log.resumen || 'Actualización de datos')}</div>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        <button class="btn btn-primary" onclick="window.viewAuditLogDetail('${log.id}')" style="padding: 0.35rem 0.7rem; font-size: 0.75rem; border-radius: 4px; white-space: nowrap;">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i> Ver Diff
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        container.innerHTML = html;
+    };
+
+    window.viewAuditLogDetail = function(logId) {
+        const log = (window.saasAuditLogsData || {})[logId];
+        if (!log) {
+            showToast("No se encontró el registro de auditoría", "warning");
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'custom-modal active';
+        modal.id = 'audit-log-detail-modal';
+        modal.style.zIndex = '9999';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.55)';
+        modal.style.display = 'flex';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+
+        const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString('es-SV', { dateStyle: 'full', timeStyle: 'medium' }) : 'N/A';
+        const cambios = log.cambios || {};
+        const changeKeys = Object.keys(cambios);
+
+        let diffHtml = '';
+        if (changeKeys.length > 0) {
+            diffHtml = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.05); border-bottom: 2px solid var(--border-color);">
+                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 30%;">Campo Modificado</th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 35%; color: #c0392b;">
+                                <i class="fa-solid fa-circle-minus"></i> Valor Anterior (Antes)
+                            </th>
+                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 35%; color: #27ae60;">
+                                <i class="fa-solid fa-circle-plus"></i> Valor Nuevo (Después)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            changeKeys.forEach(k => {
+                const item = cambios[k];
+                const isPair = item && typeof item === 'object' && ('antes' in item || 'despues' in item);
+                const beforeVal = isPair ? (item.antes === null ? '<em>(no definido / default)</em>' : escapeHtml(String(item.antes))) : escapeHtml(JSON.stringify(item));
+                const afterVal = isPair ? (item.despues === null ? '<em>(eliminado)</em>' : escapeHtml(String(item.despues))) : '-';
+
+                let fieldLabel = k;
+                if (k === 'formato_presupuesto') fieldLabel = 'Formato de Impresión Presupuesto';
+                if (k === 'mostrar_iva_presupuesto') fieldLabel = 'Desglosar IVA en Presupuesto';
+                if (k === 'tipo_comision') fieldLabel = 'Modelo de Comisiones';
+                if (k === 'color_presupuesto') fieldLabel = 'Color de Encabezado PDF';
+
+                diffHtml += `
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(fieldLabel)}</td>
+                        <td style="padding: 0.65rem 0.75rem; background: rgba(231, 76, 60, 0.08); color: #c0392b; font-family: monospace; font-size: 0.85rem;">
+                            ${beforeVal}
+                        </td>
+                        <td style="padding: 0.65rem 0.75rem; background: rgba(46, 204, 113, 0.08); color: #27ae60; font-family: monospace; font-size: 0.85rem; font-weight: 600;">
+                            ${afterVal}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            diffHtml += `
+                    </tbody>
+                </table>
+            `;
+        } else {
+            diffHtml = `
+                <div style="padding: 1rem; background: var(--bg-base); border-radius: 6px; color: var(--text-muted); font-size: 0.85rem;">
+                    No se grabó un diff estructurado para esta acción.
+                </div>
+            `;
+        }
+
+        modal.innerHTML = `
+            <div class="modal-wrapper" style="max-width: 850px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Detalle de Auditoría
+                        </h3>
+                        <span style="font-size: 0.78rem; color: var(--text-muted);">${dateStr}</span>
+                    </div>
+                    <button class="modal-close" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+                </div>
+                <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1.5rem; background: var(--bg-body);">
+                    <!-- Metadata Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; background: var(--bg-card); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Taller</div>
+                            <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">${escapeHtml(log.workshopName || 'N/A')}</div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(log.workshopId || '')}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Usuario en Sesión</div>
+                            <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">${escapeHtml(log.usuario?.nombre || 'Desconocido')}</div>
+                            <div style="font-size: 0.75rem; color: #e74c3c; font-weight: 600;">Rol: ${escapeHtml(log.usuario?.rol || 'Administrador')}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Cuenta Firebase</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(log.usuario?.email || 'N/A')}</div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted);">ID: ${escapeHtml(log.usuario?.id || 'Sin ID')}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Módulo</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary);">${escapeHtml(log.modulo || 'General')}</div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(log.accion || '')}</div>
+                        </div>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div style="padding: 0.85rem 1rem; background: rgba(52, 152, 219, 0.1); border-left: 4px solid var(--primary); border-radius: 4px; margin-bottom: 1.25rem;">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 0.2rem;">Resumen de la Operación</div>
+                        <div style="font-size: 0.88rem; color: var(--text-primary); font-weight: 500;">${escapeHtml(log.resumen || '')}</div>
+                    </div>
+
+                    <!-- Diff Table -->
+                    <h4 style="margin: 0 0 0.5rem 0; font-family: 'Outfit', sans-serif; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-code-compare" style="color: var(--primary);"></i> Cambios Exactos Realizados (Antes vs. Después)
+                    </h4>
+                    ${diffHtml}
+
+                    ${log.userAgent ? `
+                        <div style="margin-top: 1.25rem; font-size: 0.72rem; color: var(--text-muted); word-break: break-all;">
+                            <strong>Navegador / Dispositivo:</strong> ${escapeHtml(log.userAgent)}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+                    <button class="btn btn-secondary close-btn" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Cerrar</button>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.remove(); };
+        modal.querySelector('.modal-close').addEventListener('click', close);
+        modal.querySelector('.close-btn').addEventListener('click', close);
+        document.body.appendChild(modal);
+    };
 }
 
 
@@ -4366,7 +4747,9 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     signedAt: Date.now()
                 };
                 
+                const existingCfg = db.config_taller || {};
                 db.config_taller = {
+                    ...existingCfg,
                     nombre: saas.workshopData.nombre,
                     alias: saas.workshopData.alias || '',
                     nombre_comercial: saas.workshopData.nombre_comercial || '',
@@ -4376,8 +4759,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     correo: saas.workshopData.correo,
                     nit: saas.workshopData.nit,
                     nrc: saas.workshopData.nrc,
-                    logoText: saas.workshopData.logoText || 'MecanicOS',
-                    logoTagline: saas.workshopData.logoTagline || 'Servicio Automotriz Especializado',
+                    logoText: saas.workshopData.logoText || existingCfg.logoText || 'MecanicOS',
+                    logoTagline: saas.workshopData.logoTagline || existingCfg.logoTagline || 'Servicio Automotriz Especializado',
                     tipo_persona: saas.workshopData.tipo_persona || 'Jurídica',
                     clasificacion_tributaria: saas.workshopData.clasificacion_tributaria || 'Otros',
                     sujeto_excluido: saas.workshopData.sujeto_excluido || 'No',
@@ -4387,7 +4770,12 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     pais: saas.workshopData.pais || 'El Salvador',
                     departamento: saas.workshopData.departamento || '',
                     municipio: saas.workshopData.municipio || '',
-                    logo: saas.workshopData.logo || ''
+                    logo: saas.workshopData.logo || existingCfg.logo || '',
+                    formato_presupuesto: existingCfg.formato_presupuesto || 'moderno_facturallama',
+                    mostrar_iva_presupuesto: existingCfg.mostrar_iva_presupuesto || 'si',
+                    color_presupuesto: existingCfg.color_presupuesto || '#1e293b',
+                    tipo_comision: existingCfg.tipo_comision || 'general',
+                    qr_whatsapp: existingCfg.qr_whatsapp || ''
                 };
                 
                 const exists = db.tecnicos.some(t => t.Nombre_Completo.toLowerCase() === saas.workshopData.propietario.toLowerCase());

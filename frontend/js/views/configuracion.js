@@ -185,6 +185,11 @@ export function renderConfiguracion(container, queryParams) {
                             <div id="cfg-logo-preview-container" style="display:${ws.logo ? 'block' : 'none'}; text-align:center; margin-top:0.5rem;">
                                 <span style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.4rem;">Vista Previa del Logotipo:</span>
                                 <img id="cfg-logo-preview" src="${ws.logo || ''}" style="max-height:85px; max-width:200px; object-fit:contain; border:1px solid var(--border-color); border-radius:6px; padding:6px; background:#f8fafc;" />
+                                <div style="margin-top:0.4rem;">
+                                    <button type="button" id="cfg-logo-remove-btn" class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.75rem; background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; cursor:pointer;">
+                                        <i class="fa-solid fa-trash"></i> Eliminar Logotipo
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Branding de Documentos -->
@@ -203,10 +208,10 @@ export function renderConfiguracion(container, queryParams) {
                                 <div class="form-group">
                                     <label>Formato de Impresión (Presupuestos)</label>
                                     <select id="cfg-taller-formato-presupuesto" style="padding:0.6rem; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px; height:38px;">
-                                        <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' ? 'selected' : ''}>Moderno (Formato FacturaLlama DTE)</option>
-                                        <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas)</option>
-                                        <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada)</option>
-                                        <option value="compacto_orden" ${ws.formato_presupuesto === 'compacto_orden' ? 'selected' : ''}>Compacto</option>
+                                        <option value="moderno_facturallama" ${ws.formato_presupuesto === 'moderno_facturallama' || !ws.formato_presupuesto ? 'selected' : ''}>Moderno (FacturaLlama DTE - Con Logo)</option>
+                                        <option value="clasico_mecanicos" ${ws.formato_presupuesto === 'clasico_mecanicos' ? 'selected' : ''}>Clásico Mecanic OS (Tablas Separadas - Con Logo)</option>
+                                        <option value="elegante_ejecutivo" ${ws.formato_presupuesto === 'elegante_ejecutivo' ? 'selected' : ''}>Elegante / Ejecutivo (Cabecera Centrada - Con Logo)</option>
+                                        <option value="compacto_orden" ${ws.formato_presupuesto === 'compacto_orden' ? 'selected' : ''}>Compacto / Hoja de Taller (Orden de Trabajo)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -775,8 +780,11 @@ export function renderConfiguracion(container, queryParams) {
         
         // Bind Taller Form
         const configTallerForm = document.getElementById('config-taller-form');
-        // Bind file change for logo upload
+        // Bind file change for logo upload with canvas compression and protection
         const logoInput = document.getElementById('cfg-taller-logo');
+        const removeLogoBtn = document.getElementById('cfg-logo-remove-btn');
+        let currentLogoBase64 = ws.logo || '';
+        let isLogoRemoved = false;
         window.saasSelectedLogoBase64 = ws.logo || '';
         
         // Bind color picker sync
@@ -794,22 +802,75 @@ export function renderConfiguracion(container, queryParams) {
             });
         }
 
+        // Prevent accidental format selection change when scrolling through the form
+        const formatSelect = document.getElementById('cfg-taller-formato-presupuesto');
+        if (formatSelect) {
+            formatSelect.addEventListener('wheel', (e) => {
+                if (document.activeElement === formatSelect) {
+                    formatSelect.blur();
+                }
+            }, { passive: true });
+        }
+
         if (logoInput) {
             logoInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (readerEvent) => {
-                        const base64 = readerEvent.target.result;
-                        window.saasSelectedLogoBase64 = base64;
-                        const previewImg = document.getElementById('cfg-logo-preview');
-                        const previewContainer = document.getElementById('cfg-logo-preview-container');
-                        if (previewImg && previewContainer) {
-                            previewImg.src = base64;
-                            previewContainer.style.display = 'block';
-                        }
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const maxDim = 400; // Optimal size for high DPI headers while keeping Firestore doc < 50KB
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                }
+                            } else {
+                                if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                }
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+                            currentLogoBase64 = compressedBase64;
+                            window.saasSelectedLogoBase64 = compressedBase64;
+                            isLogoRemoved = false;
+
+                            const previewImg = document.getElementById('cfg-logo-preview');
+                            const previewContainer = document.getElementById('cfg-logo-preview-container');
+                            if (previewImg && previewContainer) {
+                                previewImg.src = compressedBase64;
+                                previewContainer.style.display = 'block';
+                            }
+                        };
+                        img.src = readerEvent.target.result;
                     };
                     reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        if (removeLogoBtn) {
+            removeLogoBtn.addEventListener('click', () => {
+                if (confirm("¿Estás seguro de que deseas eliminar el logotipo de la empresa?")) {
+                    isLogoRemoved = true;
+                    currentLogoBase64 = '';
+                    window.saasSelectedLogoBase64 = '';
+                    if (logoInput) logoInput.value = '';
+                    const previewContainer = document.getElementById('cfg-logo-preview-container');
+                    const previewImg = document.getElementById('cfg-logo-preview');
+                    if (previewImg) previewImg.src = '';
+                    if (previewContainer) previewContainer.style.display = 'none';
+                    showToast("Logotipo marcado para eliminar. Guarda los cambios para confirmar.", "info");
                 }
             });
         }
@@ -817,6 +878,7 @@ export function renderConfiguracion(container, queryParams) {
         if (configTallerForm) {
             configTallerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
+                const finalLogo = isLogoRemoved ? '' : (currentLogoBase64 || window.saasSelectedLogoBase64 || ws.logo || '');
                 db.config_taller = {
                     nombre: document.getElementById('cfg-taller-nombre').value,
                     alias: document.getElementById('cfg-taller-nombre-comercial').value,
@@ -838,7 +900,7 @@ export function renderConfiguracion(container, queryParams) {
                     pais: document.getElementById('cfg-taller-pais').value,
                     departamento: document.getElementById('cfg-taller-departamento').value,
                     municipio: document.getElementById('cfg-taller-municipio').value,
-                    logo: window.saasSelectedLogoBase64 || '',
+                    logo: finalLogo,
                     formato_presupuesto: document.getElementById('cfg-taller-formato-presupuesto').value,
                     mostrar_iva_presupuesto: document.getElementById('cfg-taller-mostrar-iva') ? document.getElementById('cfg-taller-mostrar-iva').value : 'si',
                     color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value,

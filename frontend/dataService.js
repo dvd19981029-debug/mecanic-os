@@ -87,6 +87,54 @@ const dataService = {
         }
     },
 
+    // Secure Audit Trail Logger (Saved to saas_audit_logs for Super Admin only)
+    async logAuditEvent({ accion, modulo, resumen, cambios, workshopId, workshopName }) {
+        try {
+            if (typeof dbFirestore === 'undefined' || !dbFirestore) return;
+
+            let activeUser = null;
+            try {
+                const userStr = sessionStorage.getItem('mecanic_os_active_user');
+                if (userStr) activeUser = JSON.parse(userStr);
+            } catch (e) {}
+
+            const userName = activeUser ? (activeUser.Nombre_Completo || activeUser.Nombre || 'Usuario') : 'Sin perfil seleccionado';
+            const userRole = activeUser ? (activeUser.Nivel_Acceso || 'Administrador') : 'Administrador';
+            const userId = activeUser ? (activeUser.Tecnico_ID || '') : '';
+            const firebaseEmail = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
+            const targetWorkshopId = workshopId || this.activeUserUid || 'desconocido';
+            const targetWorkshopName = workshopName || (this.cache && this.cache.config_taller && (this.cache.config_taller.nombre_comercial || this.cache.config_taller.nombre)) || 'Taller';
+
+            const auditEntry = {
+                timestamp: new Date().toISOString(),
+                timestamp_millis: Date.now(),
+                workshopId: targetWorkshopId,
+                workshopName: targetWorkshopName,
+                usuario: {
+                    id: userId,
+                    nombre: userName,
+                    rol: userRole,
+                    email: firebaseEmail
+                },
+                accion: accion || 'ACCION_GENERAL',
+                modulo: modulo || 'General',
+                resumen: resumen || '',
+                cambios: cambios || {},
+                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
+            };
+
+            // Write to central collection for Super Admin view
+            await dbFirestore.collection("saas_audit_logs").add(auditEntry);
+
+            // Also mirror under the workshop document
+            if (this.activeUserUid) {
+                await dbFirestore.collection("workshops").doc(this.activeUserUid).collection("audit_logs").add(auditEntry);
+            }
+        } catch (err) {
+            console.warn("[Audit] Could not record audit log:", err);
+        }
+    },
+
     // Initialize database cache from storage and setup Firestore persistence
     async init() {
         try {
@@ -454,16 +502,40 @@ const dataService = {
 
                         // 1. Sync metadata to root document differentially (only if baseline has been loaded from cloud)
                         const updateObj = {};
+                        let configDiff = null;
+                        let rolesDiff = null;
                         
                         if (this.lastSyncedState) {
                             if (db.config_taller && Object.keys(db.config_taller).length > 0 && JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
                                 updateObj.config_taller = db.config_taller;
-                            }
-                            if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
-                                updateObj.saas_state = db.saas_state;
+
+                                // Build granular diff for config_taller
+                                const oldCfg = oldCache.config_taller || {};
+                                const newCfg = db.config_taller || {};
+                                const changes = {};
+                                const allKeys = new Set([...Object.keys(oldCfg), ...Object.keys(newCfg)]);
+                                for (const key of allKeys) {
+                                    if (key === 'logo') continue; // exclude large base64 logo
+                                    if (JSON.stringify(oldCfg[key]) !== JSON.stringify(newCfg[key])) {
+                                        changes[key] = {
+                                            antes: oldCfg[key] !== undefined ? oldCfg[key] : null,
+                                            despues: newCfg[key] !== undefined ? newCfg[key] : null
+                                        };
+                                    }
+                                }
+                                if (Object.keys(changes).length > 0) {
+                                    configDiff = changes;
+                                }
                             }
                             if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
                                 updateObj.role_permissions = db.role_permissions;
+                                rolesDiff = {
+                                    roles_anteriores: oldCache.role_permissions || {},
+                                    roles_nuevos: db.role_permissions || {}
+                                };
+                            }
+                            if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
+                                updateObj.saas_state = db.saas_state;
                             }
                             if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
                                 updateObj.saas_payments = db.saas_payments;
@@ -476,11 +548,67 @@ const dataService = {
                             }
                         }
 
+                        let activeUser = null;
+                        try {
+                            const userStr = sessionStorage.getItem('mecanic_os_active_user');
+                            if (userStr) activeUser = JSON.parse(userStr);
+                        } catch (e) {}
+
+                        const currentActiveUserName = activeUser ? (activeUser.Nombre_Completo || activeUser.Nombre || 'Usuario') : 'Sin perfil seleccionado';
+                        const currentActiveUserRole = activeUser ? (activeUser.Nivel_Acceso || 'Administrador') : 'Administrador';
+                        const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre)) ||
+                                             (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.nombre) ||
+                                             'Taller';
+
                         if (Object.keys(updateObj).length > 0) {
                             updateObj.updatedAt = new Date().toISOString();
                             updateObj.updatedBy = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
+                            updateObj.updatedByUserName = currentActiveUserName;
+                            updateObj.updatedByUserRole = currentActiveUserRole;
+
                             await docRef.set(updateObj, { merge: true });
                             this.saas.logOp('writes', 1);
+
+                            // Background Audit Trail
+                            if (configDiff) {
+                                const summaryParts = [];
+                                if (configDiff.formato_presupuesto) {
+                                    summaryParts.push(`Formato presupuesto: "${configDiff.formato_presupuesto.antes || 'predeterminado'}" ➔ "${configDiff.formato_presupuesto.despues}"`);
+                                }
+                                if (configDiff.mostrar_iva_presupuesto) {
+                                    summaryParts.push(`Desglose IVA: "${configDiff.mostrar_iva_presupuesto.antes || 'si'}" ➔ "${configDiff.mostrar_iva_presupuesto.despues}"`);
+                                }
+                                if (configDiff.tipo_comision) {
+                                    summaryParts.push(`Modelo comisión: "${configDiff.tipo_comision.despues}"`);
+                                }
+                                if (configDiff.color_presupuesto) {
+                                    summaryParts.push(`Color encabezados: "${configDiff.color_presupuesto.despues}"`);
+                                }
+                                const otherKeys = Object.keys(configDiff).filter(k => !['formato_presupuesto', 'mostrar_iva_presupuesto', 'tipo_comision', 'color_presupuesto'].includes(k));
+                                if (otherKeys.length > 0) {
+                                    summaryParts.push(`Campos: ${otherKeys.join(', ')}`);
+                                }
+
+                                this.logAuditEvent({
+                                    accion: 'MODIFICAR_CONFIGURACION',
+                                    modulo: 'Configuración del Taller',
+                                    resumen: `${currentActiveUserName} (${currentActiveUserRole}) actualizó configuración: ${summaryParts.join(' | ')}`,
+                                    cambios: configDiff,
+                                    workshopId: this.activeUserUid,
+                                    workshopName: workshopName
+                                }).catch(() => {});
+                            }
+
+                            if (rolesDiff) {
+                                this.logAuditEvent({
+                                    accion: 'MODIFICAR_ROLES',
+                                    modulo: 'Roles y Permisos',
+                                    resumen: `${currentActiveUserName} (${currentActiveUserRole}) modificó la matriz de permisos de roles`,
+                                    cambios: rolesDiff,
+                                    workshopId: this.activeUserUid,
+                                    workshopName: workshopName
+                                }).catch(() => {});
+                            }
                         }
 
                         // 2. Perform automated granular diffing per subcollection
@@ -498,6 +626,22 @@ const dataService = {
                                     // Save single document
                                     await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
                                     this.saas.logOp('writes', 1);
+
+                                    // Check for technician role changes
+                                    if (config.name === 'tecnicos' && oldItem && oldItem.Nivel_Acceso !== newItem.Nivel_Acceso) {
+                                        this.logAuditEvent({
+                                            accion: 'CAMBIO_ROL_EMPLEADO',
+                                            modulo: 'Personal y Empleados',
+                                            resumen: `${currentActiveUserName} (${currentActiveUserRole}) cambió el rol de ${newItem.Nombre_Completo || 'empleado'} de "${oldItem.Nivel_Acceso || 'Sin rol'}" a "${newItem.Nivel_Acceso}"`,
+                                            cambios: {
+                                                empleado: newItem.Nombre_Completo,
+                                                rol_anterior: oldItem.Nivel_Acceso,
+                                                rol_nuevo: newItem.Nivel_Acceso
+                                            },
+                                            workshopId: this.activeUserUid,
+                                            workshopName: workshopName
+                                        }).catch(() => {});
+                                    }
                                 }
                             }
 
@@ -594,10 +738,11 @@ const dataService = {
                         changed = true; 
                     }
                 } else {
-                    // Si Firestore no tiene config_taller o tiene Grupo Gema residual, reparar desde workshopData
                     const wsData = (data.saas_state && data.saas_state.workshopData) || (this.cache.saas_state && this.cache.saas_state.workshopData);
                     if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
+                        const existingCfg = this.cache.config_taller || {};
                         const repairedConfig = {
+                            ...existingCfg,
                             nombre: wsData.nombre || wsData.nombre_comercial || '',
                             alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
                             nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
@@ -607,8 +752,8 @@ const dataService = {
                             correo: wsData.correo || '',
                             nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
                             nrc: wsData.nrc || '',
-                            logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : 'MecanicOS'),
-                            logoTagline: wsData.logoTagline || 'Servicio Automotriz Especializado',
+                            logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : (existingCfg.logoText || 'MecanicOS')),
+                            logoTagline: wsData.logoTagline || existingCfg.logoTagline || 'Servicio Automotriz Especializado',
                             tipo_persona: wsData.tipo_persona || 'Jurídica',
                             clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
                             sujeto_excluido: wsData.sujeto_excluido || 'No',
@@ -618,8 +763,12 @@ const dataService = {
                             pais: wsData.pais || 'El Salvador',
                             departamento: wsData.departamento || '',
                             municipio: wsData.municipio || '',
-                            logo: wsData.logo || '',
-                            formato_presupuesto: 'moderno_facturallama'
+                            logo: wsData.logo || existingCfg.logo || '',
+                            formato_presupuesto: existingCfg.formato_presupuesto || wsData.formato_presupuesto || 'moderno_facturallama',
+                            mostrar_iva_presupuesto: existingCfg.mostrar_iva_presupuesto || wsData.mostrar_iva_presupuesto || 'si',
+                            color_presupuesto: existingCfg.color_presupuesto || wsData.color_presupuesto || '#1e293b',
+                            tipo_comision: existingCfg.tipo_comision || wsData.tipo_comision || 'general',
+                            qr_whatsapp: existingCfg.qr_whatsapp || wsData.qr_whatsapp || ''
                         };
                         this.cache.config_taller = repairedConfig;
                         changed = true;

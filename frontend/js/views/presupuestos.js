@@ -4059,30 +4059,112 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
     const preciosConIva = ws && ws.features && ws.features.precios_con_iva === true;
     const factorIva = (mostrarIva && preciosConIva) ? (1 + taxRate) : 1;
 
-    const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [] };
+    const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [], promociones: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
 
+    const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
+
+    let prodDiscountPercent = 0;
+    let laborDiscountPercent = 0;
+    let isProportional = true;
+
+    if (promo) {
+        if (promo.Tipo === 'desc_mano_obra') {
+            laborDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        } else if (promo.Tipo === 'desc_productos') {
+            prodDiscountPercent = parseFloat(promo.Valor || 0) / 100;
+            isProportional = false;
+        }
+    }
+
     const rawTotal = rawSubtotal !== null ? rawSubtotal : (sumProd + sumLab);
-    const rawDisc = originalDiscount > 0 ? originalDiscount : (discount > 0 && iva > 0 ? (discount * (1 + taxRate)) : discount);
+    const activeDiscount = (mostrarIva && preciosConIva) ? discount : (originalDiscount > 0 ? originalDiscount : discount);
 
-    const displaySumLab = sumLab / factorIva;
-    const displaySumProd = (sumProd - (sumProd > 0 && discount > 0 ? discount : 0)) / factorIva;
+    if (isProportional) {
+        const discountPercent = rawTotal > 0 ? (activeDiscount / rawTotal) : 0;
+        prodDiscountPercent = discountPercent;
+        laborDiscountPercent = discountPercent;
+    }
 
-    const roundedSumLab = parseFloat(displaySumLab.toFixed(2));
-    const roundedSumProd = parseFloat(displaySumProd.toFixed(2));
+    let totalNetLab = 0;
+    const laborRows = labor.map(l => {
+        const rawUnitPrice = parseFloat(l.PrecioUnitario || 0);
+        const qty = parseInt(l.Cantidad || 1);
+        const itemDisc = parseFloat(l.Descuento || 0);
+        const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
+        const linePromoDisc = baseLineTotal * laborDiscountPercent;
+        const effectiveLineTotal = baseLineTotal - linePromoDisc;
+        const totalLineDisc = itemDisc + linePromoDisc;
+
+        const unitPrice = rawUnitPrice / factorIva;
+        const tot = effectiveLineTotal / factorIva;
+        totalNetLab += tot;
+
+        const discBadge = totalLineDisc > 0
+            ? `<div style="font-size: 8.5px; color: #16a34a; font-weight: 500;">(-${laborDiscountPercent > 0 ? (laborDiscountPercent * 100).toFixed(0) + '% ' : ''}desc: -$ ${(totalLineDisc / factorIva).toFixed(2)})</div>`
+            : '';
+
+        return `
+            <tr>
+                <td>
+                    ${l.Descripcion}
+                    ${discBadge}
+                </td>
+                <td style="text-align: center;">${qty}</td>
+                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let totalNetProd = 0;
+    const productsRows = products.map(p => {
+        const rawUnitPrice = parseFloat(p.PrecioUnitario || 0);
+        const qty = parseInt(p.Cantidad || 1);
+        const itemDisc = parseFloat(p.Descuento || 0);
+        const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
+        const linePromoDisc = baseLineTotal * prodDiscountPercent;
+        const effectiveLineTotal = baseLineTotal - linePromoDisc;
+        const totalLineDisc = itemDisc + linePromoDisc;
+
+        const unitPrice = rawUnitPrice / factorIva;
+        const tot = effectiveLineTotal / factorIva;
+        totalNetProd += tot;
+
+        const discBadge = totalLineDisc > 0
+            ? `<div style="font-size: 8.5px; color: #16a34a; font-weight: 500;">(-${prodDiscountPercent > 0 ? (prodDiscountPercent * 100).toFixed(0) + '% ' : ''}desc: -$ ${(totalLineDisc / factorIva).toFixed(2)})</div>`
+            : '';
+
+        return `
+            <tr>
+                <td>
+                    ${p.Descripcion}
+                    ${discBadge}
+                </td>
+                <td style="text-align: center;">${qty}</td>
+                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const grossSubtotal = (sumProd + sumLab) / factorIva;
+    const displayDiscount = activeDiscount / factorIva;
+    const netSubtotal = grossSubtotal - displayDiscount;
 
     let subtotalFinal = 0;
     let ivaFinal = 0;
     let totalPagarFinal = 0;
 
     if (mostrarIva) {
-        subtotalFinal = roundedSumLab + roundedSumProd;
+        subtotalFinal = grossSubtotal;
         totalPagarFinal = grandTotal;
-        ivaFinal = totalPagarFinal - subtotalFinal - percVal + retVal;
+        ivaFinal = totalPagarFinal - netSubtotal - percVal + retVal;
     } else {
-        subtotalFinal = rawTotal - rawDisc;
-        totalPagarFinal = rawTotal - rawDisc + percVal - retVal;
+        subtotalFinal = grossSubtotal;
+        totalPagarFinal = netSubtotal + percVal - retVal;
         ivaFinal = 0;
     }
 
@@ -4347,7 +4429,7 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
     <div class="page-container">
         <!-- Title block -->
         <div class="title-block">
-            <h1 class="title-text">Orden de Trabajo</h1>
+            <h1 class="title-text">Presupuesto / Orden de Trabajo</h1>
             <div class="subtitle-text"># ${budget['ID Presupuesto']} | ${budget.Fecha ? new Date(budget.Fecha).toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</div>
         </div>
         
@@ -4369,10 +4451,10 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                         <img src="${ws.logo}" style="max-height: 85px; max-width: 100%; object-fit: contain; display: block;" />
                     </div>
                 ` : `
-                    <div style="font-weight: 700; color: var(--primary-color); font-size: 13px; margin-bottom: 4px; text-align: center;">${ws.nombreTaller || 'Centro de Servicio'}</div>
+                    <div style="font-weight: 700; color: var(--primary-color); font-size: 13px; margin-bottom: 4px; text-align: center;">${ws.nombre_comercial || ws.nombre || ws.alias || 'Centro de Servicio Automotriz'}</div>
                 `}
                 <div style="color: #475569; font-size: 10px; text-align: center; line-height: 1.4;">
-                    ${ws.logo ? `<div style="font-weight: 700; color: var(--primary-color); font-size: 11px; margin-bottom: 2px;">${ws.nombreTaller || 'Centro de Servicio'}</div>` : ''}
+                    ${ws.logo ? `<div style="font-weight: 700; color: var(--primary-color); font-size: 11px; margin-bottom: 2px;">${ws.nombre_comercial || ws.nombre || ws.alias || 'Centro de Servicio Automotriz'}</div>` : ''}
                     <div>${ws.direccion || ''}</div>
                     <div>Tel: ${ws.telefono || ''}</div>
                     ${ws.correo ? `<div>Email: ${ws.correo}</div>` : ''}
@@ -4407,25 +4489,10 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     <tr class="category-header-row">
                         <td colspan="4">Mano de Obra y Servicios</td>
                     </tr>
-                    ${labor.map(l => {
-                        const rawUnitPrice = parseFloat(l.PrecioUnitario || 0);
-                        const qty = parseInt(l.Cantidad || 1);
-                        const disc = parseFloat(l.Descuento || 0);
-                        const rawTot = (rawUnitPrice * qty) - disc;
-                        const unitPrice = rawUnitPrice / factorIva;
-                        const tot = rawTot / factorIva;
-                        return `
-                            <tr>
-                                <td>${l.Descripcion}</td>
-                                <td style="text-align: center;">${qty}</td>
-                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
-                                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
-                            </tr>
-                        `;
-                    }).join('')}
+                    ${laborRows}
                     <tr class="category-total-row">
                         <td colspan="3" style="text-align: right;">Total Mano de obra:</td>
-                        <td style="text-align: right; font-weight: 700;">$ ${roundedSumLab.toFixed(2)}</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${totalNetLab.toFixed(2)}</td>
                     </tr>
                 ` : ''}
                 
@@ -4434,31 +4501,10 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     <tr class="category-header-row">
                         <td colspan="4">Repuestos, Lubricantes y Refacciones</td>
                     </tr>
-                    ${products.map(p => {
-                        const rawUnitPrice = parseFloat(p.PrecioUnitario || 0);
-                        const qty = parseInt(p.Cantidad || 1);
-                        const itemDisc = parseFloat(p.Descuento || 0);
-                        const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
-                        
-                        // Apply promo discount proportionally to each product item line
-                        const linePromoDisc = (sumProd > 0 && discount > 0) ? (baseLineTotal / sumProd) * discount : 0;
-                        const effectiveLineTotal = baseLineTotal - linePromoDisc;
-                        const effectiveUnitPrice = qty > 0 ? effectiveLineTotal / qty : 0;
-
-                        const unitPrice = effectiveUnitPrice / factorIva;
-                        const tot = effectiveLineTotal / factorIva;
-                        return `
-                            <tr>
-                                <td>${p.Descripcion}</td>
-                                <td style="text-align: center;">${qty}</td>
-                                <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
-                                <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
-                            </tr>
-                        `;
-                    }).join('')}
+                    ${productsRows}
                     <tr class="category-total-row">
                         <td colspan="3" style="text-align: right;">Total Repuestos:</td>
-                        <td style="text-align: right; font-weight: 700;">$ ${roundedSumProd.toFixed(2)}</td>
+                        <td style="text-align: right; font-weight: 700;">$ ${totalNetProd.toFixed(2)}</td>
                     </tr>
                 ` : ''}
 
@@ -4494,12 +4540,16 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     ${mostrarIva ? `
                         <tr>
                             <td class="total-label">Subtotal</td>
-                            <td class="total-value">$ ${subtotalFinal.toFixed(2)}</td>
+                            <td class="total-value">$ ${grossSubtotal.toFixed(2)}</td>
                         </tr>
-                        ${discount > 0 ? `
+                        ${displayDiscount > 0 ? `
                         <tr>
                             <td class="total-label">(-) Descuento</td>
-                            <td class="total-value" style="color: #b91c1c;">- $ ${(discount / factorIva).toFixed(2)}</td>
+                            <td class="total-value" style="color: #b91c1c;">- $ ${displayDiscount.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td class="total-label">Subtotal Neto</td>
+                            <td class="total-value" style="font-weight: 700;">$ ${netSubtotal.toFixed(2)}</td>
                         </tr>
                         ` : ''}
                         <tr>
@@ -4509,12 +4559,16 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
                     ` : `
                         <tr>
                             <td class="total-label">Subtotal</td>
-                            <td class="total-value">$ ${subtotalFinal.toFixed(2)}</td>
+                            <td class="total-value">$ ${grossSubtotal.toFixed(2)}</td>
                         </tr>
-                        ${rawDisc > 0 ? `
+                        ${displayDiscount > 0 ? `
                         <tr>
                             <td class="total-label">(-) Descuento</td>
-                            <td class="total-value" style="color: #b91c1c;">- $ ${rawDisc.toFixed(2)}</td>
+                            <td class="total-value" style="color: #b91c1c;">- $ ${displayDiscount.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td class="total-label">Subtotal Neto</td>
+                            <td class="total-value" style="font-weight: 700;">$ ${netSubtotal.toFixed(2)}</td>
                         </tr>
                         ` : ''}
                     `}
