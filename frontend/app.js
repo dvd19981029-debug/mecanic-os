@@ -318,10 +318,10 @@ function initFirebaseAuthListener() {
 
                 // Si es una cuenta de SuperAdmin de Mecanic OS, no aplica la validación de taller individual
                 const authorizedAdmins = ['dvd19981029@gmail.com', 'amejia2998@gmail.com'];
-                if (user.email && authorizedAdmins.includes(user.email.toLowerCase())) {
+                const isSuperAdmin = user.email && authorizedAdmins.includes(user.email.toLowerCase());
+                if (isSuperAdmin) {
                     console.log("Mecanic OS: SuperAdmin conectado.");
                     updateCloudStatusUI(true, "active");
-                    return;
                 }
                 
                 let activeReqData = null;
@@ -332,25 +332,27 @@ function initFirebaseAuthListener() {
                         if (reqDoc.exists) {
                             const reqData = reqDoc.data();
                             activeReqData = reqData;
-                            if (reqData.status === 'pendiente') {
-                                await firebase.auth().signOut();
-                                const db = getDatabase();
-                                db.saas_state = { status: 'pending', workshopData: reqData, termsSigned: false };
-                                saveDatabase(db);
-                                showToast("Tu solicitud de taller está pendiente de aprobación por el Administrador.", "info");
-                                window.location.hash = 'landing';
-                                handleRouting();
-                                return;
-                            } else if (reqData.status === 'approved_terms_pending') {
-                                const db = getDatabase();
-                                db.saas_state = { status: 'approved_terms_pending', workshopData: reqData, termsSigned: false };
-                                saveDatabase(db);
-                                showToast("¡Tu solicitud fue aprobada! Firma los términos para activar tu taller.", "success");
-                                window.location.hash = 'terminos';
-                                handleRouting();
-                                return;
+                            if (!isSuperAdmin) {
+                                if (reqData.status === 'pendiente') {
+                                    await firebase.auth().signOut();
+                                    const db = getDatabase();
+                                    db.saas_state = { status: 'pending', workshopData: reqData, termsSigned: false };
+                                    saveDatabase(db);
+                                    showToast("Tu solicitud de taller está pendiente de aprobación por el Administrador.", "info");
+                                    window.location.hash = 'landing';
+                                    handleRouting();
+                                    return;
+                                } else if (reqData.status === 'approved_terms_pending') {
+                                    const db = getDatabase();
+                                    db.saas_state = { status: 'approved_terms_pending', workshopData: reqData, termsSigned: false };
+                                    saveDatabase(db);
+                                    showToast("¡Tu solicitud fue aprobada! Firma los términos para activar tu taller.", "success");
+                                    window.location.hash = 'terminos';
+                                    handleRouting();
+                                    return;
+                                }
                             }
-                        } else {
+                        } else if (!isSuperAdmin) {
                             // No tiene saas_requests. Revisar si ya tiene taller configurado en /workshops/{uid}
                             const wsSnap = await dbFirestore.collection("workshops").doc(user.uid).get().catch(() => null);
                             if (!wsSnap || !wsSnap.exists) {

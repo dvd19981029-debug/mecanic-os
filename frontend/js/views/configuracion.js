@@ -15,6 +15,7 @@ import {
 } from '../../app.js?v=69';
 
 import { showToast, html, safe, hashPassword } from '../utils.js?v=69';
+import { compressImage, uploadImageToStorage } from '../imageService.js';
 
 // Configuration active tab state
 let activeConfigTab = 'taller';
@@ -813,48 +814,58 @@ export function renderConfiguracion(container, queryParams) {
         }
 
         if (logoInput) {
-            logoInput.addEventListener('change', (e) => {
+            logoInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (readerEvent) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const maxDim = 400; // Optimal size for high DPI headers while keeping Firestore doc < 50KB
-                            let width = img.width;
-                            let height = img.height;
-                            if (width > height) {
-                                if (width > maxDim) {
-                                    height = Math.round((height * maxDim) / width);
-                                    width = maxDim;
-                                }
-                            } else {
-                                if (height > maxDim) {
-                                    width = Math.round((width * maxDim) / height);
-                                    height = maxDim;
-                                }
-                            }
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, width, height);
+                if (!file) return;
 
-                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
-                            currentLogoBase64 = compressedBase64;
-                            window.saasSelectedLogoBase64 = compressedBase64;
-                            isLogoRemoved = false;
+                const previewImg = document.getElementById('cfg-logo-preview');
+                const previewContainer = document.getElementById('cfg-logo-preview-container');
+                const submitBtn = configTallerForm ? configTallerForm.querySelector('button[type="submit"]') : null;
 
-                            const previewImg = document.getElementById('cfg-logo-preview');
-                            const previewContainer = document.getElementById('cfg-logo-preview-container');
-                            if (previewImg && previewContainer) {
-                                previewImg.src = compressedBase64;
-                                previewContainer.style.display = 'block';
-                            }
-                        };
-                        img.src = readerEvent.target.result;
-                    };
-                    reader.readAsDataURL(file);
+                if (previewImg && previewContainer) {
+                    try {
+                        previewImg.src = URL.createObjectURL(file);
+                        previewContainer.style.display = 'block';
+                    } catch (e) {}
+                }
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo imagen a la nube...';
+                }
+
+                showToast("Optimizando y subiendo logotipo a Firebase Storage...", "info");
+
+                try {
+                    const isPng = file.type === 'image/png';
+                    const compressed = await compressImage(file, {
+                        maxWidth: 800,
+                        maxHeight: 800,
+                        quality: isPng ? 0.9 : 0.85,
+                        mimeType: isPng ? 'image/png' : 'image/jpeg'
+                    });
+
+                    const uploadResult = await uploadImageToStorage(compressed.blob, {
+                        folder: 'branding',
+                        name: file.name
+                    });
+
+                    currentLogoBase64 = uploadResult.url;
+                    window.saasSelectedLogoBase64 = uploadResult.url;
+                    isLogoRemoved = false;
+
+                    if (previewImg) {
+                        previewImg.src = uploadResult.url;
+                    }
+                    showToast("¡Logotipo subido exitosamente como imagen en la nube! Guarda los cambios para aplicar.", "success");
+                } catch (err) {
+                    console.error("Error al procesar/subir logotipo:", err);
+                    showToast("Error al subir logotipo: " + (err.message || err), "error");
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Guardar Datos del Taller';
+                    }
                 }
             });
         }
