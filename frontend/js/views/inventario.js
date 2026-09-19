@@ -154,7 +154,10 @@ export function renderInventario(container) {
             const filtered = db.productos.filter(p => 
                 matchesMultiFieldSearch([
                     p.Descripcion,
-                    p['ID_ Producto']
+                    p['ID_ Producto'],
+                    p.Barra,
+                    p['Aplicación'],
+                    p['Notas Producto']
                 ], filter)
             );
 
@@ -169,9 +172,16 @@ export function renderInventario(container) {
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = html`
-                    <td><strong>${escapeHtml(p['ID_ Producto'])}</strong></td>
-                    <td>${escapeHtml(p.Descripcion)}</td>
-                    <td>${escapeHtml(p['Unidad de Medida'] || 'Pza')}</td>
+                    <td>
+                        <strong>${escapeHtml(p['ID_ Producto'])}</strong>
+                        ${p.Barra ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p.Barra)}</div>` : ''}
+                    </td>
+                    <td>
+                        <div><strong>${escapeHtml(p.Descripcion)}</strong></div>
+                        ${p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : ''}
+                        ${p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : ''}
+                    </td>
+                    <td>${escapeHtml(p['Unidad de Medida'] || p.Presentacion || 'Pza')}</td>
                     <td>$ ${cost.toFixed(2)}</td>
                     <td>$ ${salePrice.toFixed(2)}</td>
                     <td><strong>${qty}</strong></td>
@@ -226,7 +236,10 @@ export function renderInventario(container) {
             const filtered = db.productos.filter(p => 
                 matchesMultiFieldSearch([
                     p.Descripcion,
-                    p['ID_ Producto']
+                    p['ID_ Producto'],
+                    p.Barra,
+                    p['Aplicación'],
+                    p['Notas Producto']
                 ], filter)
             );
 
@@ -237,12 +250,16 @@ export function renderInventario(container) {
 
             const excelData = filtered.map(p => ({
                 "Código Producto": p['ID_ Producto'] || '',
+                "Código Barra": p.Barra || '',
                 "Descripción": p.Descripcion || '',
-                "Unidad de Medida": p['Unidad de Medida'] || 'Pza',
+                "Aplicación": p['Aplicación'] || '',
+                "Unidad de Medida": p['Unidad de Medida'] || p.Presentacion || 'Pza',
                 "Precio Costo ($)": getProductCost(p),
                 "Precio Venta ($)": getProductSalePrice(p),
                 "Existencia": p.Minimos || 0,
-                "Estado": (p.Minimos || 0) <= 0 ? "Agotado" : ((p.Minimos || 0) <= 3 ? "Mínimo" : "OK")
+                "Estado": (p.Minimos || 0) <= 0 ? "Agotado" : ((p.Minimos || 0) <= 3 ? "Mínimo" : "OK"),
+                "Notas Producto": p['Notas Producto'] || '',
+                "Descuento": p.Descuento || 'SI'
             }));
 
             const timestamp = new Date().toISOString().slice(0, 10);

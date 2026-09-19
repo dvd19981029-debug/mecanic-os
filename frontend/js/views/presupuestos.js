@@ -1332,13 +1332,23 @@ export function renderBudgetEditor(container, budget) {
                     </div>
 
                     <form id="create-prod-form" style="display:flex; flex-direction:column; gap:1rem; font-size:0.9rem;">
-                        <div class="form-group">
-                            <label>Código de Producto / Repuesto</label>
-                            <input type="text" id="new-prod-id" required value="${newProdId}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Código de Producto / Repuesto</label>
+                                <input type="text" id="new-prod-id" required value="${newProdId}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fa-solid fa-barcode"></i> Código Barra (Barra)</label>
+                                <input type="text" id="new-prod-barra" placeholder="Ej. 750123456789" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Descripción / Nombre</label>
                             <input type="text" id="new-prod-desc" required value="${escapeHtml(initialDesc)}" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-car-side"></i> Aplicación (Modelos compatibles)</label>
+                            <input type="text" id="new-prod-aplicacion" placeholder="Ej. Toyota Hilux / Corolla" style="padding:0.5rem; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-color); border-radius:4px;">
                         </div>
                         <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                             <div class="form-group">
@@ -1389,7 +1399,9 @@ export function renderBudgetEditor(container, budget) {
         document.getElementById('create-prod-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const code = document.getElementById('new-prod-id').value.trim();
+            const barra = (document.getElementById('new-prod-barra').value || '').trim();
             const desc = document.getElementById('new-prod-desc').value.trim();
+            const aplicacion = (document.getElementById('new-prod-aplicacion').value || '').trim();
             const brand = document.getElementById('new-prod-brand').value.trim();
             const unit = document.getElementById('new-prod-unit').value;
             const priceSell = parseFloat(document.getElementById('new-prod-price-sell').value) || 0;
@@ -1408,6 +1420,10 @@ export function renderBudgetEditor(container, budget) {
                 'ID_ Producto': code,
                 Descripcion: desc,
                 Marca: brand,
+                Barra: barra,
+                'Aplicación': aplicacion,
+                'Notas Producto': '',
+                'Descuento': 'SI',
                 'Unidad de Medida': unit,
                 'Precio Compra': priceCost,
                 'Precio Costo': priceCost,
@@ -1416,7 +1432,12 @@ export function renderBudgetEditor(container, budget) {
                 'Precio Venta Unit Iva Inc': finalPrecioIvaInc,
                 'Precio Unit Iva Inc': finalPrecioIvaInc,
                 Minimos: stock,
-                Presentacion: unit === 'Pza' ? 'Unidad' : unit
+                Presentacion: unit === 'Pza' ? 'Unidad' : unit,
+                Categoría: '100101',
+                Division: '1001',
+                Margen: 0,
+                'Fecha Creacion': Math.floor(Date.now() / 1000),
+                Usuario: activeUser ? activeUser.Tecnico_ID : ''
             };
 
             db.productos.unshift(newProd);
@@ -1536,6 +1557,9 @@ export function renderBudgetEditor(container, budget) {
             matchesMultiFieldSearch([
                 p.Descripcion,
                 p['ID_ Producto'],
+                p.Barra,
+                p['Aplicación'],
+                p['Notas Producto'],
                 p.Marca,
                 p.Categoria
             ], filter)
@@ -1552,10 +1576,16 @@ export function renderBudgetEditor(container, budget) {
                 ? parseFloat(p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || ((p['Precio Unit'] || p['Precio Venta'] || 0) * 1.13))
                 : parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
 
+            const extraDetails = [];
+            if (p['ID_ Producto']) extraDetails.push(`Cód: ${p['ID_ Producto']}`);
+            if (p.Barra) extraDetails.push(`Barra: ${p.Barra}`);
+            if (p['Aplicación']) extraDetails.push(p['Aplicación']);
+            extraDetails.push(`Unitario: $${displayPrice.toFixed(2)}`);
+
             item.innerHTML = html`
                 <div class="list-item-main">
-                    <span class="list-item-title">${p.Descripcion}</span>
-                    <span class="list-item-subtitle">Código: ${p['ID_ Producto']} • Unitario: $${displayPrice.toFixed(2)}</span>
+                    <span class="list-item-title">${escapeHtml(p.Descripcion)}</span>
+                    <span class="list-item-subtitle">${escapeHtml(extraDetails.join(' • '))}</span>
                 </div>
                 <button class="btn btn-primary btn-add" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i></button>
             `;

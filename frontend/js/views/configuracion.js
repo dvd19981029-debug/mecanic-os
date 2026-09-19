@@ -566,20 +566,30 @@ export function renderConfiguracion(container, queryParams) {
 
         <!-- Producto Modal -->
         <div id="producto-modal" class="modal">
-            <div class="modal-content glass-card" style="max-width: 500px;">
+            <div class="modal-content glass-card" style="max-width: 580px;">
                 <div class="modal-header">
                     <h2 id="producto-modal-title">Registrar Producto / Repuesto</h2>
                     <button class="close-modal-btn" id="close-producto-modal">&times;</button>
                 </div>
                 <form id="producto-form" novalidate style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
                     <input type="hidden" id="producto-original-id">
-                    <div class="form-group">
-                        <label>Código de Producto / Repuesto</label>
-                        <input type="text" id="producto-id" required placeholder="Ej. PROD-CS-230722-120000">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Código de Producto / Repuesto</label>
+                            <input type="text" id="producto-id" required placeholder="Ej. PROD-CS-230722-120000">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-barcode"></i> Código de Barra (Barra)</label>
+                            <input type="text" id="producto-barra" placeholder="Ej. 750123456789 (Escáner)">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Descripción / Nombre del Repuesto</label>
                         <input type="text" id="producto-descripcion" required placeholder="Ej. Balatas delanteras">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-car-side"></i> Aplicación (Modelos / Vehículos compatibles)</label>
+                        <input type="text" id="producto-aplicacion" placeholder="Ej. Toyota Hilux 2.8 / Fortuner 2016-2023">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -601,15 +611,26 @@ export function renderConfiguracion(container, queryParams) {
                             <input type="text" id="producto-precio-iva" readonly style="background:rgba(255,255,255,0.05); color:var(--text-muted); padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
                         </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
                         <div class="form-group">
                             <label>Stock Mínimo</label>
                             <input type="number" id="producto-minimos" required min="0" step="1" value="1">
                         </div>
                         <div class="form-group">
-                            <label>Presentación / Tipo Unidad</label>
-                            <input type="text" id="producto-presentacion" required value="Unidad" placeholder="Ej. Unidad, Galón, Litro">
+                            <label>Presentación / Unidad</label>
+                            <input type="text" id="producto-presentacion" required value="Unidad" placeholder="Ej. Unidad, Galón">
                         </div>
+                        <div class="form-group">
+                            <label>Descuento</label>
+                            <select id="producto-descuento" style="padding:0.6rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-primary); width:100%;">
+                                <option value="SI">SI (Aplica)</option>
+                                <option value="NO">NO (Sin desc.)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-note-sticky"></i> Notas Producto (Observaciones / Marca)</label>
+                        <input type="text" id="producto-notas" placeholder="Ej. MOBIL CK4 / Filtro con válvula check">
                     </div>
                     <div style="margin-top:0.25rem;">
                         <label style="display:flex; align-items:center; gap:0.75rem; cursor:pointer; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(255,255,255,0.02); user-select:none;" id="lbl-consumible">
@@ -1376,7 +1397,10 @@ export function renderConfiguracion(container, queryParams) {
             tableBody.innerHTML = '';
             let filtered = db.productos.filter(p => 
                 (p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
-                (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
+                (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p['Barra'] || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p['Aplicación'] || '').toLowerCase().includes(filterText.toLowerCase()) ||
+                (p['Notas Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
             );
 
             // Apply sorting
@@ -1453,9 +1477,14 @@ export function renderConfiguracion(container, queryParams) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = html`
                     <td style="text-align:center; color:var(--text-secondary); font-size:0.85rem;">${idx + 1}</td>
-                    <td><small style="color:var(--text-muted); font-family:monospace;">${p['ID_ Producto']}</small></td>
-                    <td><strong>${p.Descripcion}</strong></td>
-                    <td>${p.Presentacion || 'Unidad'}</td>
+                    <td><small style="color:var(--text-muted); font-family:monospace;">${escapeHtml(p['ID_ Producto'])}</small></td>
+                    <td>
+                        <strong>${escapeHtml(p.Descripcion)}</strong>
+                        ${p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : ''}
+                        ${p['Barra'] ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p['Barra'])}</div>` : ''}
+                        ${p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : ''}
+                    </td>
+                    <td>${escapeHtml(p.Presentacion || 'Unidad')}</td>
                     <td style="text-align:right; color:var(--text-muted);">$ ${pCompra.toFixed(2)}</td>
                     <td style="text-align:right;">$ ${pVenta.toFixed(2)}</td>
                     <td style="text-align:right; color:var(--cyan);">$ ${parseFloat(p['Precio Venta Unit Iva Inc'] || (pVenta * 1.13) || 0).toFixed(2)}</td>
@@ -1486,7 +1515,11 @@ export function renderConfiguracion(container, queryParams) {
                         document.getElementById('producto-modal-title').textContent = 'Editar Producto / Repuesto';
                         document.getElementById('producto-original-id').value = p['ID_ Producto'];
                         document.getElementById('producto-id').value = p['ID_ Producto'];
+                        document.getElementById('producto-barra').value = p['Barra'] || '';
                         document.getElementById('producto-descripcion').value = p.Descripcion || '';
+                        document.getElementById('producto-aplicacion').value = p['Aplicación'] || '';
+                        document.getElementById('producto-notas').value = p['Notas Producto'] || '';
+                        document.getElementById('producto-descuento').value = (p['Descuento'] === 'NO') ? 'NO' : 'SI';
                         document.getElementById('producto-precio-compra').value = p['Precio Compra'] || 0;
                         const pVentaVal = preciosConIva 
                             ? (p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || parseFloat((p['Precio Venta'] * 1.13).toFixed(2)))
@@ -1573,13 +1606,16 @@ export function renderConfiguracion(container, queryParams) {
                         'Unidad de Medida (Pza/Ltro/Gal/etc.)',
                         'Precio Costo ($)',
                         'Precio Venta ($) (Excluye IVA)',
-                        'Existencia Inicial (Stock)'
+                        'Existencia Inicial (Stock)',
+                        'Código de Barra (Opcional)',
+                        'Aplicación / Modelos (Opcional)',
+                        'Notas Producto (Opcional)'
                     ];
                     
                     const samples = [
-                        ['PROD-001', 'FILTRO DE ACEITE TOYOTA 90915-YZZN1', 'Pza', 5.50, 10.00, 15],
-                        ['PROD-002', 'ACEITE CASTROL EDGE 5W30 1GL', 'Gal', 25.00, 45.00, 8],
-                        ['', 'BUJIA DENSO IRIDIUM POWER', 'Pza', 4.50, 8.50, 24]
+                        ['PROD-001', 'FILTRO DE ACEITE TOYOTA 90915-YZZN1', 'Pza', 5.50, 10.00, 15, '750123456789', 'Toyota Hilux 2.8 / Fortuner', 'Original'],
+                        ['PROD-002', 'ACEITE CASTROL EDGE 5W30 1GL', 'Gal', 25.00, 45.00, 8, '074969002517', 'Universal Gasolina', 'Sintético'],
+                        ['', 'BUJIA DENSO IRIDIUM POWER', 'Pza', 4.50, 8.50, 24, '', 'Toyota Yaris / Corolla', 'Denso IK20']
                     ];
                     
                     const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
@@ -1589,7 +1625,10 @@ export function renderConfiguracion(container, queryParams) {
                         { wch: 30 },
                         { wch: 18 },
                         { wch: 18 },
-                        { wch: 22 }
+                        { wch: 22 },
+                        { wch: 20 },
+                        { wch: 35 },
+                        { wch: 30 }
                     ];
                     
                     const wb = XLSX.utils.book_new();
@@ -1673,13 +1712,20 @@ export function renderConfiguracion(container, queryParams) {
                                 continue;
                             }
                             
+                            const barra = row[6] ? String(row[6]).trim() : '';
+                            const aplicacion = row[7] ? String(row[7]).trim() : '';
+                            const notas = row[8] ? String(row[8]).trim() : '';
+
                             importedList.push({
                                 code: code,
                                 descripcion: desc,
                                 unit: unit,
                                 costo: parsedCost,
                                 precio: parsedPrice,
-                                stock: parsedStock
+                                stock: parsedStock,
+                                barra: barra,
+                                aplicacion: aplicacion,
+                                notas: notas
                             });
                         }
                         
@@ -1774,6 +1820,9 @@ export function renderConfiguracion(container, queryParams) {
                                     existing['Precio Unit'] = item.precio;
                                     existing['Precio Venta Unit Iva Inc'] = parseFloat((item.precio * 1.13).toFixed(2));
                                     existing['Precio Unit Iva Inc'] = parseFloat((item.precio * 1.13).toFixed(2));
+                                    if (item.barra) existing.Barra = item.barra;
+                                    if (item.aplicacion) existing['Aplicación'] = item.aplicacion;
+                                    if (item.notas) existing['Notas Producto'] = item.notas;
                                     
                                     const diff = item.stock - (existing.Minimos || 0);
                                     if (diff !== 0) {
@@ -1805,6 +1854,9 @@ export function renderConfiguracion(container, queryParams) {
                                     currentDb.productos.push({
                                         "ID_ Producto": assignedId,
                                         "Descripcion": item.descripcion,
+                                        "Barra": item.barra || '',
+                                        "Aplicación": item.aplicacion || '',
+                                        "Notas Producto": item.notas || '',
                                         "Precio Compra": item.costo,
                                         "Precio Venta": item.precio,
                                         "Precio Unit": item.precio,
@@ -1814,8 +1866,10 @@ export function renderConfiguracion(container, queryParams) {
                                         "Presentacion": item.unit,
                                         "Unidad de Medida": item.unit,
                                         "Categoría": "100101",
+                                        "Division": "1001",
                                         "Margen": 0,
-                                        "Descuento": "NO",
+                                        "Descuento": "SI",
+                                        "Fecha Creacion": Math.floor(Date.now() / 1000),
                                         "Usuario": activeUser ? activeUser.Tecnico_ID : ''
                                     });
                                     
@@ -1902,12 +1956,15 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('producto-original-id').value = '';
             
             document.getElementById('producto-id').value = '';
-            
+            document.getElementById('producto-barra').value = '';
             document.getElementById('producto-descripcion').value = '';
+            document.getElementById('producto-aplicacion').value = '';
             document.getElementById('producto-precio-compra').value = '0.00';
             document.getElementById('producto-precio-venta').value = '0.00';
             document.getElementById('producto-minimos').value = '1';
             document.getElementById('producto-presentacion').value = 'Unidad';
+            document.getElementById('producto-descuento').value = 'SI';
+            document.getElementById('producto-notas').value = '';
             document.getElementById('producto-consumible').checked = false;
             
             // Reset calculations inside modal
@@ -1926,7 +1983,11 @@ export function renderConfiguracion(container, queryParams) {
             e.preventDefault();
             const originalId = document.getElementById('producto-original-id').value;
             const newCode = document.getElementById('producto-id').value.trim();
+            const barra = (document.getElementById('producto-barra').value || '').trim();
             const desc = document.getElementById('producto-descripcion').value.trim();
+            const aplicacion = (document.getElementById('producto-aplicacion').value || '').trim();
+            const notas = (document.getElementById('producto-notas').value || '').trim();
+            const descuento = document.getElementById('producto-descuento').value || 'SI';
             const compraInput = document.getElementById('producto-precio-compra');
             const precioInput = document.getElementById('producto-precio-venta');
             const minimosInput = document.getElementById('producto-minimos');
@@ -1996,6 +2057,10 @@ export function renderConfiguracion(container, queryParams) {
                 if (p) {
                     p['ID_ Producto'] = newCode;
                     p.Descripcion = desc;
+                    p.Barra = barra;
+                    p['Aplicación'] = aplicacion;
+                    p['Notas Producto'] = notas;
+                    p.Descuento = descuento;
                     p['Precio Compra'] = compra;
                     p['Precio Venta'] = finalPrecioBase;
                     p['Precio Unit'] = finalPrecioBase;
@@ -2011,6 +2076,10 @@ export function renderConfiguracion(container, queryParams) {
                 currentDb.productos.push({
                     "ID_ Producto": newCode,
                     "Descripcion": desc,
+                    "Barra": barra,
+                    "Aplicación": aplicacion,
+                    "Notas Producto": notas,
+                    "Descuento": descuento,
                     "Precio Compra": compra,
                     "Precio Venta": finalPrecioBase,
                     "Precio Unit": finalPrecioBase,
@@ -2020,8 +2089,9 @@ export function renderConfiguracion(container, queryParams) {
                     "Presentacion": pres,
                     "Consumible": isConsumible,
                     "Categoría": "100101",
+                    "Division": "1001",
                     "Margen": 0,
-                    "Descuento": "NO",
+                    "Fecha Creacion": Math.floor(Date.now() / 1000),
                     "Usuario": getActiveUser() ? getActiveUser().Tecnico_ID : ''
                 });
                 showToast("Nuevo producto registrado con éxito", "success");
