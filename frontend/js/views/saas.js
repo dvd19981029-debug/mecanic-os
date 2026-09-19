@@ -1520,7 +1520,7 @@ export async function renderAdminSolicitudes(container) {
         }
 
         container.innerHTML = html`
-            <div style="max-width:900px; margin:2rem auto; padding:2rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="width: 100%; max-width: 1400px; margin: 1rem auto; padding: 2rem; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); box-sizing: border-box;">
                 <!-- Header del Expediente -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:1.25rem;">
                     <div>
@@ -2476,7 +2476,7 @@ if (window.saasViewReceiptPaymentId) {
     
     // Main UI
     container.innerHTML = html`
-        <div style="max-width:1100px; margin:3rem auto; padding:1.5rem;">
+        <div style="width: 100%; max-width: 100%; padding: 0.5rem 1rem 2.5rem 1rem; box-sizing: border-box;">
             <!-- Header -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; border-bottom:1px solid var(--border-color); padding-bottom:1rem;">
                 <div>

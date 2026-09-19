@@ -1590,13 +1590,25 @@ tr:hover td {
 .saas-tabs-container {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: thin;
+}
+
+.saas-tabs-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.saas-tabs-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
 }
 
 .saas-tab-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
@@ -1605,7 +1617,9 @@ tr:hover td {
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition-fast);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .saas-tab-btn:hover {
