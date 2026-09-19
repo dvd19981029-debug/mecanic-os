@@ -4310,38 +4310,38 @@ if (window.saasViewReceiptPaymentId) {
         }, 50);
 
         return `
-            <div class="saas-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; margin-top: 1.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 1rem;">
+            <div class="saas-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.15rem; width: 100%; box-sizing: border-box;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; flex-wrap: wrap; gap: 0.75rem;">
                     <div>
-                        <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.25rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        <h3 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Auditoría Privada de Talleres (Audit Trail)
                         </h3>
-                        <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">
+                        <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-muted);">
                             Registro inmutable de modificaciones en configuraciones, roles, modelos de factura y datos de talleres.
                         </p>
                     </div>
-                    <button class="btn btn-secondary" onclick="window.switchSaaSTab('audit-logs')" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 4px;">
+                    <button class="btn btn-secondary" onclick="window.switchSaaSTab('audit-logs')" style="padding: 0.3rem 0.65rem; font-size: 0.75rem; border-radius: 4px;">
                         <i class="fa-solid fa-sync"></i> Refrescar
                     </button>
                 </div>
 
                 <!-- Barra de Filtros -->
-                <div style="display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; margin-bottom: 1.25rem; align-items: center;">
+                <div style="display: grid; grid-template-columns: minmax(200px, 300px) 1fr auto; gap: 0.75rem; margin-bottom: 0.85rem; align-items: center;">
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Filtrar por Taller</label>
-                        <select id="saas-audit-workshop-filter" onchange="window.renderAuditLogsTable()" style="width: 100%; padding: 0.5rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
+                        <label style="display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.2rem;">Filtrar por Taller</label>
+                        <select id="saas-audit-workshop-filter" onchange="window.renderAuditLogsTable()" style="width: 100%; padding: 0.38rem 0.5rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.78rem;">
                             <option value="">Cargando talleres...</option>
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">Buscar en el Registro</label>
+                        <label style="display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.2rem;">Buscar en el Registro</label>
                         <div style="position: relative;">
-                            <input type="text" id="saas-audit-search" oninput="window.renderAuditLogsTable()" placeholder="Buscar por usuario, rol, campo modificado o descripción..." style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
-                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                            <input type="text" id="saas-audit-search" oninput="window.renderAuditLogsTable()" placeholder="Buscar por usuario, rol, campo modificado o descripción..." style="width: 100%; padding: 0.38rem 0.5rem 0.38rem 1.85rem; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; font-size: 0.78rem;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.72rem;"></i>
                         </div>
                     </div>
-                    <div style="text-align: right; padding-top: 1.2rem;">
-                        <span id="saas-audit-counter" style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Cargando...</span>
+                    <div style="text-align: right; padding-top: 0.9rem;">
+                        <span id="saas-audit-counter" style="font-size: 0.76rem; color: var(--text-secondary); font-weight: 600;">Cargando...</span>
                     </div>
                 </div>
 
@@ -4389,17 +4389,17 @@ if (window.saasViewReceiptPaymentId) {
         }
 
         let html = `
-            <div class="table-responsive" style="border: 1px solid var(--border-color); border-radius: 6px; overflow-x: auto; background: var(--bg-card);">
-                <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem;">
+            <div class="table-responsive" style="border: 1px solid var(--border-color); border-radius: 6px; overflow-x: auto; background: var(--bg-card); width: 100%;">
+                <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem;">
                     <thead>
-                        <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em;">
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Fecha / Hora</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Taller</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Usuario</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Rol</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Módulo</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600;">Descripción del Cambio</th>
-                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; text-align: center; width: 80px;">Detalle</th>
+                        <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; white-space: nowrap; width: 140px;">Fecha / Hora</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; white-space: nowrap; width: 160px;">Taller</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; white-space: nowrap; width: 200px;">Usuario</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; white-space: nowrap; width: 110px;">Rol</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; white-space: nowrap; width: 150px;">Módulo</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600;">Descripción del Cambio</th>
+                            <th style="padding: 0.35rem 0.6rem; font-weight: 600; text-align: center; width: 75px; white-space: nowrap;">Detalle</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -4411,31 +4411,31 @@ if (window.saasViewReceiptPaymentId) {
 
             const userRole = log.usuario?.rol || 'Administrador';
             const userName = log.usuario?.nombre || 'Desconocido';
-            const userEmail = log.usuario?.email ? `<span style="color: var(--text-muted); font-size: 0.72rem; margin-left: 0.35rem;">(${escapeHtml(log.usuario.email)})</span>` : '';
+            const userEmail = log.usuario?.email ? `<span style="color: var(--text-muted); font-size: 0.7rem; margin-left: 0.3rem;">(${escapeHtml(log.usuario.email)})</span>` : '';
             const rowBg = idx % 2 === 1 ? 'background: rgba(255, 255, 255, 0.015);' : '';
 
             html += `
-                <tr style="border-bottom: 1px solid var(--border-color); ${rowBg} transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255, 255, 255, 0.04)'" onmouseout="this.style.background='${idx % 2 === 1 ? 'rgba(255, 255, 255, 0.015)' : 'transparent'}'">
-                    <td style="padding: 0.45rem 0.75rem; white-space: nowrap; color: var(--text-secondary); font-family: monospace; font-size: 0.78rem;">
+                <tr style="border-bottom: 1px solid var(--border-color); ${rowBg} line-height: 1.25; transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255, 255, 255, 0.04)'" onmouseout="this.style.background='${idx % 2 === 1 ? 'rgba(255, 255, 255, 0.015)' : 'transparent'}'">
+                    <td style="padding: 0.28rem 0.6rem; white-space: nowrap; color: var(--text-secondary); font-family: monospace; font-size: 0.74rem;">
                         ${dateStr}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); font-weight: 500; white-space: nowrap;">
+                    <td style="padding: 0.28rem 0.6rem; color: var(--text-primary); font-weight: 500; white-space: nowrap; font-size: 0.76rem;">
                         ${escapeHtml(log.workshopName || 'Taller')}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); white-space: nowrap;">
+                    <td style="padding: 0.28rem 0.6rem; color: var(--text-primary); white-space: nowrap; font-size: 0.76rem;">
                         <span>${escapeHtml(userName)}</span>${userEmail}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap;">
+                    <td style="padding: 0.28rem 0.6rem; color: var(--text-secondary); font-size: 0.74rem; white-space: nowrap;">
                         ${escapeHtml(userRole)}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap;">
+                    <td style="padding: 0.28rem 0.6rem; color: var(--text-secondary); font-size: 0.74rem; white-space: nowrap;">
                         ${escapeHtml(log.modulo || 'General')}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); font-size: 0.8rem; line-height: 1.35;">
+                    <td style="padding: 0.28rem 0.6rem; color: var(--text-primary); font-size: 0.76rem; line-height: 1.25;">
                         ${escapeHtml(log.resumen || 'Actualización de datos')}
                     </td>
-                    <td style="padding: 0.45rem 0.75rem; text-align: center; white-space: nowrap;">
-                        <button onclick="window.viewAuditLogDetail('${log.id}')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-primary); cursor: pointer;">
+                    <td style="padding: 0.28rem 0.6rem; text-align: center; white-space: nowrap;">
+                        <button onclick="window.viewAuditLogDetail('${log.id}')" style="padding: 0.15rem 0.45rem; font-size: 0.68rem; border: 1px solid var(--border-color); border-radius: 3px; background: rgba(255,255,255,0.05); color: var(--text-primary); cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.background='var(--primary)'; this.style.borderColor='var(--primary)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--border-color)';">
                             Ver Diff
                         </button>
                     </td>
@@ -4479,14 +4479,14 @@ if (window.saasViewReceiptPaymentId) {
         let diffHtml = '';
         if (changeKeys.length > 0) {
             diffHtml = `
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
                     <thead>
-                        <tr style="background: rgba(0,0,0,0.05); border-bottom: 2px solid var(--border-color);">
-                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 30%;">Campo Modificado</th>
-                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 35%; color: #c0392b;">
+                        <tr style="background: rgba(0,0,0,0.05); border-bottom: 1px solid var(--border-color); font-size: 0.72rem; text-transform: uppercase;">
+                            <th style="padding: 0.4rem 0.65rem; text-align: left; width: 28%;">Campo Modificado</th>
+                            <th style="padding: 0.4rem 0.65rem; text-align: left; width: 36%; color: #c0392b;">
                                 <i class="fa-solid fa-circle-minus"></i> Valor Anterior (Antes)
                             </th>
-                            <th style="padding: 0.6rem 0.75rem; text-align: left; width: 35%; color: #27ae60;">
+                            <th style="padding: 0.4rem 0.65rem; text-align: left; width: 36%; color: #27ae60;">
                                 <i class="fa-solid fa-circle-plus"></i> Valor Nuevo (Después)
                             </th>
                         </tr>
@@ -4539,11 +4539,11 @@ if (window.saasViewReceiptPaymentId) {
 
                 diffHtml += `
                     <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(fieldLabel)}</td>
-                        <td style="padding: 0.65rem 0.75rem; background: rgba(231, 76, 60, 0.08); color: #c0392b; font-family: monospace; font-size: 0.85rem;">
+                        <td style="padding: 0.4rem 0.65rem; font-weight: 600; color: var(--text-primary); font-size: 0.78rem;">${escapeHtml(fieldLabel)}</td>
+                        <td style="padding: 0.4rem 0.65rem; background: rgba(231, 76, 60, 0.08); color: #c0392b; font-family: monospace; font-size: 0.78rem;">
                             ${beforeVal}
                         </td>
-                        <td style="padding: 0.65rem 0.75rem; background: rgba(46, 204, 113, 0.08); color: #27ae60; font-family: monospace; font-size: 0.85rem; font-weight: 600;">
+                        <td style="padding: 0.4rem 0.65rem; background: rgba(46, 204, 113, 0.08); color: #27ae60; font-family: monospace; font-size: 0.78rem; font-weight: 600;">
                             ${afterVal}
                         </td>
                     </tr>
