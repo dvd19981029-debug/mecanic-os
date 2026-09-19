@@ -890,7 +890,8 @@ export function renderConfiguracion(container, queryParams) {
             configTallerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const finalLogo = isLogoRemoved ? '' : (currentLogoBase64 || window.saasSelectedLogoBase64 || ws.logo || '');
-                db.config_taller = {
+                const existingCfg = Object.assign({}, ws || {}, db.config_taller || {});
+                db.config_taller = Object.assign({}, existingCfg, {
                     nombre: document.getElementById('cfg-taller-nombre').value,
                     alias: document.getElementById('cfg-taller-nombre-comercial').value,
                     nombre_comercial: document.getElementById('cfg-taller-nombre-comercial').value,
@@ -917,7 +918,7 @@ export function renderConfiguracion(container, queryParams) {
                     color_presupuesto: document.getElementById('cfg-taller-color-presupuesto').value,
                     tipo_comision: document.getElementById('cfg-taller-tipo-comision').value,
                     qr_whatsapp: document.getElementById('cfg-taller-qr-whatsapp').value.trim()
-                };
+                });
 
                 // Sync with saas_state if matching active session
                 if (db.saas_state && db.saas_state.workshopData) {

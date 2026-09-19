@@ -4494,17 +4494,48 @@ if (window.saasViewReceiptPaymentId) {
                     <tbody>
             `;
 
+            function formatAuditVal(val, isNew) {
+                if (val === null || val === undefined) {
+                    return isNew 
+                        ? '<span style="color: #c0392b; font-style: italic;">(eliminado)</span>' 
+                        : '<span style="color: var(--text-muted); font-style: italic;">(no definido / default)</span>';
+                }
+                if (typeof val === 'boolean') {
+                    return `<span style="font-weight: 600;">${val ? 'Verdadero (Sí)' : 'Falso (No)'}</span>`;
+                }
+                if (typeof val === 'object') {
+                    if (Array.isArray(val)) {
+                        if (val.length === 0) return '<span style="color: var(--text-muted); font-style: italic;">(lista vacía)</span>';
+                        return escapeHtml(val.join(', '));
+                    }
+                    const keys = Object.keys(val);
+                    if (keys.length === 0) return '<span style="color: var(--text-muted); font-style: italic;">(objeto vacío)</span>';
+                    return '<div style="display: flex; flex-direction: column; gap: 0.25rem;">' +
+                        keys.map(key => {
+                            const subVal = val[key];
+                            const subDisplay = (typeof subVal === 'object' && subVal !== null) ? JSON.stringify(subVal) : String(subVal);
+                            return `<div><strong style="color: var(--text-primary);">${escapeHtml(key)}:</strong> <span>${escapeHtml(subDisplay)}</span></div>`;
+                        }).join('') +
+                    '</div>';
+                }
+                const str = String(val);
+                if (!str.trim()) return '<span style="color: var(--text-muted); font-style: italic;">(vacío)</span>';
+                return escapeHtml(str);
+            }
+
             changeKeys.forEach(k => {
                 const item = cambios[k];
                 const isPair = item && typeof item === 'object' && ('antes' in item || 'despues' in item);
-                const beforeVal = isPair ? (item.antes === null ? '<em>(no definido / default)</em>' : escapeHtml(String(item.antes))) : escapeHtml(JSON.stringify(item));
-                const afterVal = isPair ? (item.despues === null ? '<em>(eliminado)</em>' : escapeHtml(String(item.despues))) : '-';
+                const beforeVal = isPair ? formatAuditVal(item.antes, false) : formatAuditVal(item, false);
+                const afterVal = isPair ? formatAuditVal(item.despues, true) : '-';
 
                 let fieldLabel = k;
                 if (k === 'formato_presupuesto') fieldLabel = 'Formato de Impresión Presupuesto';
                 if (k === 'mostrar_iva_presupuesto') fieldLabel = 'Desglosar IVA en Presupuesto';
                 if (k === 'tipo_comision') fieldLabel = 'Modelo de Comisiones';
                 if (k === 'color_presupuesto') fieldLabel = 'Color de Encabezado PDF';
+                if (k === 'features') fieldLabel = 'Funciones / Features del Taller';
+                if (k === 'roles_anteriores' || k === 'roles_nuevos') fieldLabel = 'Permisos por Rol';
 
                 diffHtml += `
                     <tr style="border-bottom: 1px solid var(--border-color);">
