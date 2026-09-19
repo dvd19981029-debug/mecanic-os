@@ -929,6 +929,44 @@ export function renderConfiguracion(container, queryParams) {
                     }
                 }
 
+                // Build granular audit trail
+                const oldCfg = Object.assign({}, ws || {});
+                const changes = {};
+                const allKeys = new Set([...Object.keys(oldCfg), ...Object.keys(db.config_taller)]);
+                for (const key of allKeys) {
+                    if (key === 'logo') continue;
+                    if (JSON.stringify(oldCfg[key]) !== JSON.stringify(db.config_taller[key])) {
+                        changes[key] = {
+                            antes: oldCfg[key] !== undefined ? oldCfg[key] : null,
+                            despues: db.config_taller[key] !== undefined ? db.config_taller[key] : null
+                        };
+                    }
+                }
+
+                const summaryParts = [];
+                if (changes.formato_presupuesto) summaryParts.push(`Formato presupuesto: "${changes.formato_presupuesto.antes || 'predeterminado'}" ➔ "${changes.formato_presupuesto.despues}"`);
+                if (changes.mostrar_iva_presupuesto) summaryParts.push(`Desglose IVA: "${changes.mostrar_iva_presupuesto.antes || 'si'}" ➔ "${changes.mostrar_iva_presupuesto.despues}"`);
+                if (changes.tipo_comision) summaryParts.push(`Modelo comisión: "${changes.tipo_comision.despues}"`);
+                if (changes.color_presupuesto) summaryParts.push(`Color encabezados: "${changes.color_presupuesto.despues}"`);
+                const otherKeys = Object.keys(changes).filter(k => !['formato_presupuesto', 'mostrar_iva_presupuesto', 'tipo_comision', 'color_presupuesto'].includes(k));
+                if (otherKeys.length > 0) summaryParts.push(`Campos: ${otherKeys.join(', ')}`);
+
+                const resumen = summaryParts.length > 0 
+                    ? `Actualizó configuración: ${summaryParts.join(' | ')}`
+                    : `Guardó y confirmó la configuración del taller`;
+
+                if (typeof dataService !== 'undefined' && typeof dataService.logAuditEvent === 'function') {
+                    const wsUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id);
+                    dataService.logAuditEvent({
+                        accion: 'MODIFICAR_CONFIGURACION',
+                        modulo: 'Configuración del Taller',
+                        resumen: resumen,
+                        cambios: changes,
+                        workshopId: wsUid,
+                        workshopName: db.config_taller.nombre_comercial || db.config_taller.nombre
+                    }).catch(() => {});
+                }
+
                 saveDatabase(db);
                 showToast("Datos de la empresa y branding de documentos actualizados", "success");
                 if (typeof window.updateSidebarBrand === 'function') {
@@ -1116,7 +1154,21 @@ export function renderConfiguracion(container, queryParams) {
                 }
 
                 currentDb.role_permissions = currentDb.role_permissions || {};
+                const prevRoutes = currentDb.role_permissions[selectedRole] || [];
                 currentDb.role_permissions[selectedRole] = selectedRoutes;
+
+                if (typeof dataService !== 'undefined' && typeof dataService.logAuditEvent === 'function') {
+                    const wsUid = localStorage.getItem('mecanic_os_workshop_uid') || (currentDb.saas_state && currentDb.saas_state.workshopData && currentDb.saas_state.workshopData.id);
+                    dataService.logAuditEvent({
+                        accion: 'MODIFICAR_ROLES',
+                        modulo: 'Roles y Permisos',
+                        resumen: `Modificó permisos para el rol "${selectedRole}" (${selectedRoutes.length} vistas autorizadas)`,
+                        cambios: { rol: selectedRole, vistas_anteriores: prevRoutes, vistas_nuevas: selectedRoutes },
+                        workshopId: wsUid,
+                        workshopName: currentDb.config_taller?.nombre_comercial || currentDb.config_taller?.nombre
+                    }).catch(() => {});
+                }
+
                 saveDatabase(currentDb);
                 showToast(`Permisos para el rol "${selectedRole}" guardados y sincronizados.`, "success");
                 

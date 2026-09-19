@@ -67,9 +67,9 @@ service cloud.firestore {
     // AUDITORÍA PRIVADA DE TALLERES (Solo Super Admin puede leer)
     // ============================================================
     match /saas_audit_logs/{docId} {
-      // Cualquier taller autenticado puede generar/registrar una entrada de auditoría
-      allow create: if request.auth != null;
-      // Solo el super admin puede leer, listar o gestionar los registros
+      // Cualquier taller puede generar/registrar una entrada de auditoría
+      allow create: if true;
+      // Solo el super admin puede leer o gestionar los registros
       allow read, delete: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     

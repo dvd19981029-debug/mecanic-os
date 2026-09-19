@@ -102,7 +102,7 @@ const dataService = {
             const userRole = activeUser ? (activeUser.Nivel_Acceso || 'Administrador') : 'Administrador';
             const userId = activeUser ? (activeUser.Tecnico_ID || '') : '';
             const firebaseEmail = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
-            const targetWorkshopId = workshopId || this.activeUserUid || 'desconocido';
+            const targetWorkshopId = workshopId || this.activeUserUid || localStorage.getItem('mecanic_os_workshop_uid') || 'desconocido';
             const targetWorkshopName = workshopName || (this.cache && this.cache.config_taller && (this.cache.config_taller.nombre_comercial || this.cache.config_taller.nombre)) || 'Taller';
 
             const auditEntry = {
@@ -127,8 +127,12 @@ const dataService = {
             await dbFirestore.collection("saas_audit_logs").add(auditEntry);
 
             // Also mirror under the workshop document
-            if (this.activeUserUid) {
-                await dbFirestore.collection("workshops").doc(this.activeUserUid).collection("audit_logs").add(auditEntry);
+            if (targetWorkshopId && targetWorkshopId !== 'desconocido') {
+                try {
+                    await dbFirestore.collection("workshops").doc(targetWorkshopId).collection("audit_logs").add(auditEntry);
+                } catch (mirrorErr) {
+                    // Ignore mirror error
+                }
             }
         } catch (err) {
             console.warn("[Audit] Could not record audit log:", err);
@@ -496,17 +500,18 @@ const dataService = {
                 }
 
                 // If logged in, sync metadata and collection differences to Firestore
-                if (this.activeUserUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
+                const targetWorkshopUid = this.activeUserUid || localStorage.getItem('mecanic_os_workshop_uid');
+                if (targetWorkshopUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
                     try {
-                        const docRef = dbFirestore.collection("workshops").doc(this.activeUserUid);
+                        const docRef = dbFirestore.collection("workshops").doc(targetWorkshopUid);
 
-                        // 1. Sync metadata to root document differentially (only if baseline has been loaded from cloud)
+                        // 1. Sync metadata to root document differentially
                         const updateObj = {};
                         let configDiff = null;
                         let rolesDiff = null;
                         
-                        if (this.lastSyncedState) {
-                            if (db.config_taller && Object.keys(db.config_taller).length > 0 && JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
+                        if (db.config_taller && Object.keys(db.config_taller).length > 0) {
+                            if (!this.lastSyncedState || JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
                                 updateObj.config_taller = db.config_taller;
 
                                 // Build granular diff for config_taller
