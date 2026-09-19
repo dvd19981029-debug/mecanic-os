@@ -1609,13 +1609,14 @@ export function renderConfiguracion(container, queryParams) {
                         'Existencia Inicial (Stock)',
                         'Código de Barra (Opcional)',
                         'Aplicación / Modelos (Opcional)',
-                        'Notas Producto (Opcional)'
+                        'Notas Producto (Opcional)',
+                        'Admite Descuento (SI/NO)'
                     ];
                     
                     const samples = [
-                        ['PROD-001', 'FILTRO DE ACEITE TOYOTA 90915-YZZN1', 'Pza', 5.50, 10.00, 15, '750123456789', 'Toyota Hilux 2.8 / Fortuner', 'Original'],
-                        ['PROD-002', 'ACEITE CASTROL EDGE 5W30 1GL', 'Gal', 25.00, 45.00, 8, '074969002517', 'Universal Gasolina', 'Sintético'],
-                        ['', 'BUJIA DENSO IRIDIUM POWER', 'Pza', 4.50, 8.50, 24, '', 'Toyota Yaris / Corolla', 'Denso IK20']
+                        ['PROD-001', 'FILTRO DE ACEITE TOYOTA 90915-YZZN1', 'Pza', 5.50, 10.00, 15, '750123456789', 'Toyota Hilux 2.8 / Fortuner', 'Original', 'SI'],
+                        ['PROD-002', 'ACEITE CASTROL EDGE 5W30 1GL', 'Gal', 25.00, 45.00, 8, '074969002517', 'Universal Gasolina', 'Sintético', 'SI'],
+                        ['', 'BUJIA DENSO IRIDIUM POWER', 'Pza', 4.50, 8.50, 24, '', 'Toyota Yaris / Corolla', 'Denso IK20', 'NO']
                     ];
                     
                     const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
@@ -1628,7 +1629,8 @@ export function renderConfiguracion(container, queryParams) {
                         { wch: 22 },
                         { wch: 20 },
                         { wch: 35 },
-                        { wch: 30 }
+                        { wch: 30 },
+                        { wch: 24 }
                     ];
                     
                     const wb = XLSX.utils.book_new();
@@ -1674,6 +1676,25 @@ export function renderConfiguracion(container, queryParams) {
                             return;
                         }
                         
+                        // Header row detection
+                        const headerRow = (rows[0] || []).map(h => String(h || '').trim().toLowerCase());
+                        
+                        const findIndexWithFilter = (testFn, fallbackIdx) => {
+                            const idx = headerRow.findIndex(testFn);
+                            return idx !== -1 ? idx : fallbackIdx;
+                        };
+
+                        const codeIdx = findIndexWithFilter(h => (/c[oó]digo.*prod/i.test(h) || /^id/i.test(h) || /^c[oó]digo$/i.test(h)) && !/barra/i.test(h), 0);
+                        const descIdx = findIndexWithFilter(h => /descrip/i.test(h) || /^nombre.*prod/i.test(h) || /^producto$/i.test(h), 1);
+                        const unitIdx = findIndexWithFilter(h => /unidad/i.test(h) || /presentaci[oó]n/i.test(h) || /medida/i.test(h), 2);
+                        const costIdx = findIndexWithFilter(h => /costo/i.test(h) || /compra/i.test(h), 3);
+                        const priceIdx = findIndexWithFilter(h => (/venta/i.test(h) || /precio.*unit/i.test(h) || /^precio$/i.test(h)) && !/compra|costo/i.test(h), 4);
+                        const stockIdx = findIndexWithFilter(h => /stock/i.test(h) || /existencia/i.test(h) || /m[ií]nimo/i.test(h) || /^cant/i.test(h), 5);
+                        const barraIdx = findIndexWithFilter(h => /barra/i.test(h) || /barcode/i.test(h), 6);
+                        const aplicacionIdx = findIndexWithFilter(h => /aplica/i.test(h) || /modelo/i.test(h), 7);
+                        const notasIdx = findIndexWithFilter(h => /nota/i.test(h) || /observa/i.test(h), 8);
+                        const descuentoIdx = findIndexWithFilter(h => /descuento/i.test(h), 9);
+                        
                         const importedList = [];
                         let errors = [];
                         
@@ -1682,12 +1703,12 @@ export function renderConfiguracion(container, queryParams) {
                             if (!row || row.length === 0) continue;
                             if (row.every(cell => cell === null || cell === undefined || cell === '')) continue;
                             
-                            const code = row[0] ? String(row[0]).trim() : '';
-                            const desc = row[1] ? String(row[1]).trim() : '';
-                            const unit = row[2] ? String(row[2]).trim() : 'Pza';
-                            const costBase = row[3];
-                            const priceBase = row[4];
-                            const stockQty = row[5];
+                            const code = (codeIdx !== -1 && row[codeIdx] !== undefined && row[codeIdx] !== null) ? String(row[codeIdx]).trim() : '';
+                            const desc = (descIdx !== -1 && row[descIdx] !== undefined && row[descIdx] !== null) ? String(row[descIdx]).trim() : '';
+                            const unit = (unitIdx !== -1 && row[unitIdx] !== undefined && row[unitIdx] !== null) ? String(row[unitIdx]).trim() : 'Pza';
+                            const costBase = (costIdx !== -1 && row[costIdx] !== undefined && row[costIdx] !== null && String(row[costIdx]).trim() !== '') ? row[costIdx] : 0;
+                            const priceBase = (priceIdx !== -1 && row[priceIdx] !== undefined && row[priceIdx] !== null) ? row[priceIdx] : '';
+                            const stockQty = (stockIdx !== -1 && row[stockIdx] !== undefined && row[stockIdx] !== null && String(row[stockIdx]).trim() !== '') ? row[stockIdx] : 0;
                             
                             if (!desc) {
                                 errors.push(`Fila ${i + 1}: La descripción está vacía.`);
@@ -1712,20 +1733,31 @@ export function renderConfiguracion(container, queryParams) {
                                 continue;
                             }
                             
-                            const barra = row[6] ? String(row[6]).trim() : '';
-                            const aplicacion = row[7] ? String(row[7]).trim() : '';
-                            const notas = row[8] ? String(row[8]).trim() : '';
+                            const barra = (barraIdx !== -1 && row[barraIdx] !== undefined && row[barraIdx] !== null) ? String(row[barraIdx]).trim() : '';
+                            const aplicacion = (aplicacionIdx !== -1 && row[aplicacionIdx] !== undefined && row[aplicacionIdx] !== null) ? String(row[aplicacionIdx]).trim() : '';
+                            const notas = (notasIdx !== -1 && row[notasIdx] !== undefined && row[notasIdx] !== null) ? String(row[notasIdx]).trim() : '';
+
+                            let descuento = 'SI';
+                            if (descuentoIdx !== -1 && row[descuentoIdx] !== undefined && row[descuentoIdx] !== null) {
+                                const rawDesc = String(row[descuentoIdx]).trim().toUpperCase();
+                                if (rawDesc === 'NO' || rawDesc === '0' || rawDesc === 'FALSE') {
+                                    descuento = 'NO';
+                                } else {
+                                    descuento = 'SI';
+                                }
+                            }
 
                             importedList.push({
                                 code: code,
                                 descripcion: desc,
-                                unit: unit,
+                                unit: unit || 'Pza',
                                 costo: parsedCost,
                                 precio: parsedPrice,
                                 stock: parsedStock,
                                 barra: barra,
                                 aplicacion: aplicacion,
-                                notas: notas
+                                notas: notas,
+                                descuento: descuento
                             });
                         }
                         
@@ -1823,6 +1855,7 @@ export function renderConfiguracion(container, queryParams) {
                                     if (item.barra) existing.Barra = item.barra;
                                     if (item.aplicacion) existing['Aplicación'] = item.aplicacion;
                                     if (item.notas) existing['Notas Producto'] = item.notas;
+                                    if (item.descuento) existing.Descuento = item.descuento;
                                     existing['Nombre Producto'] = getNombreProducto(existing);
                                     
                                     const diff = item.stock - (existing.Minimos || 0);
@@ -1869,7 +1902,7 @@ export function renderConfiguracion(container, queryParams) {
                                         "Categoría": "100101",
                                         "Division": "1001",
                                         "Margen": 0,
-                                        "Descuento": "SI",
+                                        "Descuento": item.descuento || "SI",
                                         "Fecha Creacion": Math.floor(Date.now() / 1000),
                                         "Usuario": activeUser ? activeUser.Tecnico_ID : ''
                                     };
