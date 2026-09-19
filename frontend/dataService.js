@@ -38,6 +38,8 @@ const dataService = {
     activeUserUid: null,      // UID de Firebase Auth del dueño (para writes propios)
     workshopOwnerUid: null,   // UID del taller (puede ser del dueño o compartido por empleados)
     readOnlyMode: false,      // true cuando el dispositivo es de un empleado (sin Firebase Auth propio)
+    isSaving: false,          // true cuando hay una escritura activa hacia Firestore o storage
+    saveQueue: Promise.resolve(), // Cola serializada de operaciones de guardado
     listeners: [],
 
     async getStorageItem(key) {
@@ -426,11 +428,11 @@ const dataService = {
         // Initialize Firestore Native Offline Persistence if Firebase SDK is present
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
             try {
-                await firebase.firestore().enablePersistence();
-                console.log("Firestore Sync: Persistence enabled successfully.");
+                await firebase.firestore().enablePersistence({ synchronizeTabs: true });
+                console.log("Firestore Sync: Multi-tab persistence enabled successfully.");
             } catch (err) {
                 if (err.code === 'failed-precondition') {
-                    console.warn("Firestore Sync: Persistence failed (multiple tabs open).");
+                    console.warn("Firestore Sync: Persistence failed (multiple tabs open without multi-tab support).");
                 } else if (err.code === 'unimplemented') {
                     console.warn("Firestore Sync: Persistence unimplemented by browser.");
                 }
@@ -441,8 +443,21 @@ const dataService = {
         return this.cache;
     },
 
-    // Save cache state back to storage asynchronously with automated granular diffing
+    // Save cache state back to storage with serialization queue and automated granular diffing
     async save(db) {
+        this.saveQueue = this.saveQueue.then(() => this._executeSave(db)).catch(err => {
+            console.error("Mecanic OS: Queued save error:", err);
+            this.isSaving = false;
+        });
+        return this.saveQueue;
+    },
+
+    async _executeSave(db) {
+        this.isSaving = true;
+        if (typeof window.updateCloudStatusUI === 'function') {
+            window.updateCloudStatusUI(true, "syncing");
+        }
+
         const oldCache = this.lastSyncedState || {};
         // Align aliased array references in memory, prioritizing new camelCase keys if they have been reassigned
         const alignAlias = (newKey, legacyKey) => {
@@ -467,217 +482,219 @@ const dataService = {
 
         this.cache = db;
 
-        // Perform I/O write operations asynchronously using setTimeout
-        return new Promise((resolve) => {
-            setTimeout(async () => {
-                if (this.activeUserUid) {
-                    const prunedDb = { ...db };
-                    collectionConfigs.forEach(config => {
-                        delete prunedDb[config.name];
-                    });
-                    delete prunedDb['21 Detalle Presupuesto Producto'];
-                    delete prunedDb['11 Detalle Mano de Obra'];
-                    delete prunedDb['30 Abonos Creditos'];
-                    delete prunedDb['29 Movs de Inventario'];
-                    delete prunedDb['43 Venta Rapida'];
-                    delete prunedDb['46 Gastos'];
-                    delete prunedDb['45 Pagos VR'];
-                    await this.setStorageItem('mecanic_os_db', prunedDb);
-                } else {
-                    await this.setStorageItem('mecanic_os_db', db);
-                }
+        // Persist full database to local storage (IndexedDB) without destructive pruning
+        await this.setStorageItem('mecanic_os_db', db);
+        
+        if (db && db.saas_state && db.saas_state.workshopData) {
+            const wsData = db.saas_state.workshopData;
+            if (wsData.dte_config) {
+                await this.setStorageItem('mecanic_os_dte_config', wsData.dte_config);
+            }
+            if (wsData.firebase_config) {
+                await this.setStorageItem('mecanic_os_firebase_config', wsData.firebase_config);
+            } else if (db.saas_state.status === 'guest') {
+                await this.removeStorageItem('mecanic_os_firebase_config');
+            }
+        }
+
+        // If logged in, sync metadata and collection differences to Firestore
+        const targetWorkshopUid = this.activeUserUid || localStorage.getItem('mecanic_os_workshop_uid');
+        if (targetWorkshopUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
+            try {
+                const docRef = dbFirestore.collection("workshops").doc(targetWorkshopUid);
+
+                // 1. Sync metadata to root document differentially
+                const updateObj = {};
+                let configDiff = null;
+                let rolesDiff = null;
                 
-                if (db && db.saas_state && db.saas_state.workshopData) {
-                    const wsData = db.saas_state.workshopData;
-                    if (wsData.dte_config) {
-                        await this.setStorageItem('mecanic_os_dte_config', wsData.dte_config);
-                    }
-                    if (wsData.firebase_config) {
-                        await this.setStorageItem('mecanic_os_firebase_config', wsData.firebase_config);
-                    } else if (db.saas_state.status === 'guest') {
-                        await this.removeStorageItem('mecanic_os_firebase_config');
-                    }
-                }
+                if (db.config_taller && Object.keys(db.config_taller).length > 0) {
+                    if (!this.lastSyncedState || JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
+                        updateObj.config_taller = db.config_taller;
 
-                // If logged in, sync metadata and collection differences to Firestore
-                const targetWorkshopUid = this.activeUserUid || localStorage.getItem('mecanic_os_workshop_uid');
-                if (targetWorkshopUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                    try {
-                        const docRef = dbFirestore.collection("workshops").doc(targetWorkshopUid);
-
-                        // 1. Sync metadata to root document differentially
-                        const updateObj = {};
-                        let configDiff = null;
-                        let rolesDiff = null;
-                        
-                        if (db.config_taller && Object.keys(db.config_taller).length > 0) {
-                            if (!this.lastSyncedState || JSON.stringify(oldCache.config_taller) !== JSON.stringify(db.config_taller)) {
-                                updateObj.config_taller = db.config_taller;
-
-                                // Build granular diff for config_taller
-                                const oldCfg = oldCache.config_taller || {};
-                                const newCfg = db.config_taller || {};
-                                const changes = {};
-                                const allKeys = new Set([...Object.keys(oldCfg), ...Object.keys(newCfg)]);
-                                for (const key of allKeys) {
-                                    if (key === 'logo') continue; // exclude large base64 logo
-                                    if (JSON.stringify(oldCfg[key]) !== JSON.stringify(newCfg[key])) {
-                                        changes[key] = {
-                                            antes: oldCfg[key] !== undefined ? oldCfg[key] : null,
-                                            despues: newCfg[key] !== undefined ? newCfg[key] : null
-                                        };
-                                    }
-                                }
-                                if (Object.keys(changes).length > 0) {
-                                    configDiff = changes;
-                                }
-                            }
-                            if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
-                                updateObj.role_permissions = db.role_permissions;
-                                rolesDiff = {
-                                    roles_anteriores: oldCache.role_permissions || {},
-                                    roles_nuevos: db.role_permissions || {}
+                        // Build granular diff for config_taller
+                        const oldCfg = oldCache.config_taller || {};
+                        const newCfg = db.config_taller || {};
+                        const changes = {};
+                        const allKeys = new Set([...Object.keys(oldCfg), ...Object.keys(newCfg)]);
+                        for (const key of allKeys) {
+                            if (key === 'logo') continue; // exclude large base64 logo
+                            if (JSON.stringify(oldCfg[key]) !== JSON.stringify(newCfg[key])) {
+                                changes[key] = {
+                                    antes: oldCfg[key] !== undefined ? oldCfg[key] : null,
+                                    despues: newCfg[key] !== undefined ? newCfg[key] : null
                                 };
                             }
-                            if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
-                                updateObj.saas_state = db.saas_state;
-                            }
-                            if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
-                                updateObj.saas_payments = db.saas_payments;
-                            }
-                            if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
-                                updateObj.saas_config = db.saas_config;
-                            }
-                            if (db.ingreso_config && JSON.stringify(oldCache.ingreso_config) !== JSON.stringify(db.ingreso_config)) {
-                                updateObj.ingreso_config = db.ingreso_config;
-                            }
                         }
-
-                        let activeUser = null;
-                        try {
-                            const userStr = sessionStorage.getItem('mecanic_os_active_user');
-                            if (userStr) activeUser = JSON.parse(userStr);
-                        } catch (e) {}
-
-                        const currentActiveUserName = activeUser ? (activeUser.Nombre_Completo || activeUser.Nombre || 'Usuario') : 'Sin perfil seleccionado';
-                        const currentActiveUserRole = activeUser ? (activeUser.Nivel_Acceso || 'Administrador') : 'Administrador';
-                        const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre)) ||
-                                             (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.nombre) ||
-                                             'Taller';
-
-                        if (Object.keys(updateObj).length > 0) {
-                            updateObj.updatedAt = new Date().toISOString();
-                            updateObj.updatedBy = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
-                            updateObj.updatedByUserName = currentActiveUserName;
-                            updateObj.updatedByUserRole = currentActiveUserRole;
-
-                            await docRef.set(updateObj, { merge: true });
-                            this.saas.logOp('writes', 1);
-
-                            // Background Audit Trail
-                            if (configDiff) {
-                                const summaryParts = [];
-                                if (configDiff.formato_presupuesto) {
-                                    summaryParts.push(`Formato presupuesto: "${configDiff.formato_presupuesto.antes || 'predeterminado'}" ➔ "${configDiff.formato_presupuesto.despues}"`);
-                                }
-                                if (configDiff.mostrar_iva_presupuesto) {
-                                    summaryParts.push(`Desglose IVA: "${configDiff.mostrar_iva_presupuesto.antes || 'si'}" ➔ "${configDiff.mostrar_iva_presupuesto.despues}"`);
-                                }
-                                if (configDiff.tipo_comision) {
-                                    summaryParts.push(`Modelo comisión: "${configDiff.tipo_comision.despues}"`);
-                                }
-                                if (configDiff.color_presupuesto) {
-                                    summaryParts.push(`Color encabezados: "${configDiff.color_presupuesto.despues}"`);
-                                }
-                                const otherKeys = Object.keys(configDiff).filter(k => !['formato_presupuesto', 'mostrar_iva_presupuesto', 'tipo_comision', 'color_presupuesto'].includes(k));
-                                if (otherKeys.length > 0) {
-                                    summaryParts.push(`Campos: ${otherKeys.join(', ')}`);
-                                }
-
-                                this.logAuditEvent({
-                                    accion: 'MODIFICAR_CONFIGURACION',
-                                    modulo: 'Configuración del Taller',
-                                    resumen: `${currentActiveUserName} (${currentActiveUserRole}) actualizó configuración: ${summaryParts.join(' | ')}`,
-                                    cambios: configDiff,
-                                    workshopId: this.activeUserUid,
-                                    workshopName: workshopName
-                                }).catch(() => {});
-                            }
-
-                            if (rolesDiff) {
-                                this.logAuditEvent({
-                                    accion: 'MODIFICAR_ROLES',
-                                    modulo: 'Roles y Permisos',
-                                    resumen: `${currentActiveUserName} (${currentActiveUserRole}) modificó la matriz de permisos de roles`,
-                                    cambios: rolesDiff,
-                                    workshopId: this.activeUserUid,
-                                    workshopName: workshopName
-                                }).catch(() => {});
-                            }
+                        if (Object.keys(changes).length > 0) {
+                            configDiff = changes;
                         }
-
-                        // 2. Perform automated granular diffing per subcollection
-                        for (const config of collectionConfigs) {
-                            const oldItems = oldCache[config.name] || [];
-                            const newItems = db[config.name] || [];
-
-                            // Find added or modified items
-                            for (const newItem of newItems) {
-                                const keyVal = newItem[config.key];
-                                if (!keyVal) continue;
-
-                                const oldItem = oldItems.find(x => x[config.key] === keyVal);
-                                if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
-                                    // Save single document
-                                    await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
-                                    this.saas.logOp('writes', 1);
-
-                                    // Check for technician role changes
-                                    if (config.name === 'tecnicos' && oldItem && oldItem.Nivel_Acceso !== newItem.Nivel_Acceso) {
-                                        this.logAuditEvent({
-                                            accion: 'CAMBIO_ROL_EMPLEADO',
-                                            modulo: 'Personal y Empleados',
-                                            resumen: `${currentActiveUserName} (${currentActiveUserRole}) cambió el rol de ${newItem.Nombre_Completo || 'empleado'} de "${oldItem.Nivel_Acceso || 'Sin rol'}" a "${newItem.Nivel_Acceso}"`,
-                                            cambios: {
-                                                empleado: newItem.Nombre_Completo,
-                                                rol_anterior: oldItem.Nivel_Acceso,
-                                                rol_nuevo: newItem.Nivel_Acceso
-                                            },
-                                            workshopId: this.activeUserUid,
-                                            workshopName: workshopName
-                                        }).catch(() => {});
-                                    }
-                                }
-                            }
-
-                            // Find deleted items
-                            for (const oldItem of oldItems) {
-                                const keyVal = oldItem[config.key];
-                                if (!keyVal) continue;
-
-                                const exists = newItems.some(x => x[config.key] === keyVal);
-                                if (!exists) {
-                                    // Delete single document
-                                    await docRef.collection(config.path).doc(keyVal.toString()).delete();
-                                    this.saas.logOp('deletes', 1);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Firestore Auto-Sync Error:", e);
                     }
                 }
 
-                // Update lastSyncedState to match the newly saved state
-                this.lastSyncedState = JSON.parse(JSON.stringify(db));
-
-                // Trigger notifications badge updates in UI
-                if (typeof updateNotifications === 'function') {
-                    updateNotifications();
+                // UN-NESTED: role_permissions syncs independently
+                if (db.role_permissions && JSON.stringify(oldCache.role_permissions) !== JSON.stringify(db.role_permissions)) {
+                    updateObj.role_permissions = db.role_permissions;
+                    rolesDiff = {
+                        roles_anteriores: oldCache.role_permissions || {},
+                        roles_nuevos: db.role_permissions || {}
+                    };
                 }
-                resolve();
-            }, 0);
-        });
+
+                // UN-NESTED: saas_state syncs independently
+                if (db.saas_state && JSON.stringify(oldCache.saas_state) !== JSON.stringify(db.saas_state)) {
+                    updateObj.saas_state = db.saas_state;
+                }
+
+                // UN-NESTED: saas_payments syncs independently
+                if (db.saas_payments && JSON.stringify(oldCache.saas_payments) !== JSON.stringify(db.saas_payments)) {
+                    updateObj.saas_payments = db.saas_payments;
+                }
+
+                // UN-NESTED: saas_config syncs independently
+                if (db.saas_config && JSON.stringify(oldCache.saas_config) !== JSON.stringify(db.saas_config)) {
+                    updateObj.saas_config = db.saas_config;
+                }
+
+                // UN-NESTED: ingreso_config syncs independently
+                if (db.ingreso_config && JSON.stringify(oldCache.ingreso_config) !== JSON.stringify(db.ingreso_config)) {
+                    updateObj.ingreso_config = db.ingreso_config;
+                }
+
+                let activeUser = null;
+                try {
+                    const userStr = sessionStorage.getItem('mecanic_os_active_user');
+                    if (userStr) activeUser = JSON.parse(userStr);
+                } catch (e) {}
+
+                const currentActiveUserName = activeUser ? (activeUser.Nombre_Completo || activeUser.Nombre || 'Usuario') : 'Sin perfil seleccionado';
+                const currentActiveUserRole = activeUser ? (activeUser.Nivel_Acceso || 'Administrador') : 'Administrador';
+                const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre)) ||
+                                     (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.nombre) ||
+                                     'Taller';
+
+                if (Object.keys(updateObj).length > 0) {
+                    updateObj.updatedAt = new Date().toISOString();
+                    updateObj.updatedBy = (typeof currentFirebaseUser !== 'undefined' && currentFirebaseUser) ? currentFirebaseUser.email : 'system';
+                    updateObj.updatedByUserName = currentActiveUserName;
+                    updateObj.updatedByUserRole = currentActiveUserRole;
+
+                    await docRef.set(updateObj, { merge: true });
+                    this.saas.logOp('writes', 1);
+
+                    // Background Audit Trail
+                    if (configDiff) {
+                        const summaryParts = [];
+                        if (configDiff.formato_presupuesto) {
+                            summaryParts.push(`Formato presupuesto: "${configDiff.formato_presupuesto.antes || 'predeterminado'}" ➔ "${configDiff.formato_presupuesto.despues}"`);
+                        }
+                        if (configDiff.mostrar_iva_presupuesto) {
+                            summaryParts.push(`Desglose IVA: "${configDiff.mostrar_iva_presupuesto.antes || 'si'}" ➔ "${configDiff.mostrar_iva_presupuesto.despues}"`);
+                        }
+                        if (configDiff.tipo_comision) {
+                            summaryParts.push(`Modelo comisión: "${configDiff.tipo_comision.despues}"`);
+                        }
+                        if (configDiff.color_presupuesto) {
+                            summaryParts.push(`Color encabezados: "${configDiff.color_presupuesto.despues}"`);
+                        }
+                        const otherKeys = Object.keys(configDiff).filter(k => !['formato_presupuesto', 'mostrar_iva_presupuesto', 'tipo_comision', 'color_presupuesto'].includes(k));
+                        if (otherKeys.length > 0) {
+                            summaryParts.push(`Campos: ${otherKeys.join(', ')}`);
+                        }
+
+                        this.logAuditEvent({
+                            accion: 'MODIFICAR_CONFIGURACION',
+                            modulo: 'Configuración del Taller',
+                            resumen: `${currentActiveUserName} (${currentActiveUserRole}) actualizó configuración: ${summaryParts.join(' | ')}`,
+                            cambios: configDiff,
+                            workshopId: this.activeUserUid,
+                            workshopName: workshopName
+                        }).catch(() => {});
+                    }
+
+                    if (rolesDiff) {
+                        this.logAuditEvent({
+                            accion: 'MODIFICAR_ROLES',
+                            modulo: 'Roles y Permisos',
+                            resumen: `${currentActiveUserName} (${currentActiveUserRole}) modificó la matriz de permisos de roles`,
+                            cambios: rolesDiff,
+                            workshopId: this.activeUserUid,
+                            workshopName: workshopName
+                        }).catch(() => {});
+                    }
+                }
+
+                // 2. Perform automated granular diffing per subcollection
+                for (const config of collectionConfigs) {
+                    const oldItems = oldCache[config.name] || [];
+                    const newItems = db[config.name] || [];
+
+                    // Find added or modified items
+                    for (const newItem of newItems) {
+                        const keyVal = newItem[config.key];
+                        if (!keyVal) continue;
+
+                        const oldItem = oldItems.find(x => x[config.key] === keyVal);
+                        if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+                            // Save single document
+                            await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
+                            this.saas.logOp('writes', 1);
+
+                            // Check for technician role changes
+                            if (config.name === 'tecnicos' && oldItem && oldItem.Nivel_Acceso !== newItem.Nivel_Acceso) {
+                                this.logAuditEvent({
+                                    accion: 'CAMBIO_ROL_EMPLEADO',
+                                    modulo: 'Personal y Empleados',
+                                    resumen: `${currentActiveUserName} (${currentActiveUserRole}) cambió el rol de ${newItem.Nombre_Completo || 'empleado'} de "${oldItem.Nivel_Acceso || 'Sin rol'}" a "${newItem.Nivel_Acceso}"`,
+                                    cambios: {
+                                        empleado: newItem.Nombre_Completo,
+                                        rol_anterior: oldItem.Nivel_Acceso,
+                                        rol_nuevo: newItem.Nivel_Acceso
+                                    },
+                                    workshopId: this.activeUserUid,
+                                    workshopName: workshopName
+                                }).catch(() => {});
+                            }
+                        }
+                    }
+
+                    // Find deleted items
+                    for (const oldItem of oldItems) {
+                        const keyVal = oldItem[config.key];
+                        if (!keyVal) continue;
+
+                        const exists = newItems.some(x => x[config.key] === keyVal);
+                        if (!exists) {
+                            // Delete single document
+                            await docRef.collection(config.path).doc(keyVal.toString()).delete();
+                            this.saas.logOp('deletes', 1);
+                        }
+                    }
+                }
+
+                // Update lastSyncedState ONLY on verified successful write
+                this.lastSyncedState = JSON.parse(JSON.stringify(db));
+                if (typeof window.updateCloudStatusUI === 'function') {
+                    window.updateCloudStatusUI(true, "active");
+                }
+            } catch (e) {
+                console.error("Firestore Auto-Sync Error:", e);
+                // Do NOT advance lastSyncedState on error so dirty changes retry
+                if (typeof window.updateCloudStatusUI === 'function') {
+                    window.updateCloudStatusUI(false, "offline");
+                }
+            }
+        } else {
+            // Local offline mode
+            this.lastSyncedState = JSON.parse(JSON.stringify(db));
+        }
+
+        this.isSaving = false;
+
+        // Trigger notifications badge updates in UI
+        if (typeof updateNotifications === 'function') {
+            updateNotifications();
+        }
     },
 
     // Firestore Collections Real-Time Sync Subscribers
@@ -733,84 +750,94 @@ const dataService = {
         // 1. Listen to Root document updates (Metadata & Configs)
         const rootListener = docRef.onSnapshot(async (doc) => {
             this.saas.logOp('reads', 1);
-            if (doc.exists) {
-                const data = doc.data();
-                let changed = false;
-                const isGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
-                if (data.config_taller && !isGema(data.config_taller)) { 
-                    if (JSON.stringify(this.cache.config_taller) !== JSON.stringify(data.config_taller)) {
-                        this.cache.config_taller = data.config_taller; 
-                        changed = true; 
-                    }
-                } else {
-                    const wsData = (data.saas_state && data.saas_state.workshopData) || (this.cache.saas_state && this.cache.saas_state.workshopData);
-                    if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
-                        const existingCfg = this.cache.config_taller || {};
-                        const repairedConfig = {
-                            ...existingCfg,
-                            nombre: wsData.nombre || wsData.nombre_comercial || '',
-                            alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
-                            nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
-                            giro: wsData.giro || wsData.actividad_economica || '',
-                            direccion: wsData.direccion || '',
-                            telefono: wsData.telefono || '',
-                            correo: wsData.correo || '',
-                            nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
-                            nrc: wsData.nrc || '',
-                            logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : (existingCfg.logoText || 'MecanicOS')),
-                            logoTagline: wsData.logoTagline || existingCfg.logoTagline || 'Servicio Automotriz Especializado',
-                            tipo_persona: wsData.tipo_persona || 'Jurídica',
-                            clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
-                            sujeto_excluido: wsData.sujeto_excluido || 'No',
-                            tipo_documento: wsData.tipo_documento || 'NIT',
-                            num_documento: wsData.num_documento || '',
-                            actividad_economica: wsData.actividad_economica || wsData.giro || '',
-                            pais: wsData.pais || 'El Salvador',
-                            departamento: wsData.departamento || '',
-                            municipio: wsData.municipio || '',
-                            logo: wsData.logo || existingCfg.logo || '',
-                            formato_presupuesto: existingCfg.formato_presupuesto || wsData.formato_presupuesto || 'moderno_facturallama',
-                            mostrar_iva_presupuesto: existingCfg.mostrar_iva_presupuesto || wsData.mostrar_iva_presupuesto || 'si',
-                            color_presupuesto: existingCfg.color_presupuesto || wsData.color_presupuesto || '#1e293b',
-                            tipo_comision: existingCfg.tipo_comision || wsData.tipo_comision || 'general',
-                            qr_whatsapp: existingCfg.qr_whatsapp || wsData.qr_whatsapp || ''
-                        };
-                        this.cache.config_taller = repairedConfig;
-                        changed = true;
-                        if (!this.readOnlyMode && typeof docRef.set === 'function') {
-                            docRef.set({ config_taller: repairedConfig }, { merge: true }).catch(e => console.warn("Auto-repair config_taller failed:", e));
-                        }
-                    }
-                }
-                if (data.saas_state && JSON.stringify(this.cache.saas_state) !== JSON.stringify(data.saas_state)) { 
-                    this.cache.saas_state = data.saas_state; 
-                    changed = true; 
-                }
-                if (data.role_permissions && JSON.stringify(this.cache.role_permissions) !== JSON.stringify(data.role_permissions)) { 
-                    this.cache.role_permissions = data.role_permissions; 
-                    changed = true; 
-                }
-                if (data.saas_payments && JSON.stringify(this.cache.saas_payments) !== JSON.stringify(data.saas_payments)) { 
-                    this.cache.saas_payments = data.saas_payments; 
-                    changed = true; 
-                }
-                if (data.saas_config && JSON.stringify(this.cache.saas_config) !== JSON.stringify(data.saas_config)) { 
-                    this.cache.saas_config = data.saas_config; 
-                    changed = true; 
-                }
-                if (data.ingreso_config && JSON.stringify(this.cache.ingreso_config) !== JSON.stringify(data.ingreso_config)) { 
-                    this.cache.ingreso_config = data.ingreso_config; 
-                    changed = true; 
-                }
-                
-                if (changed) {
-                    await this.setStorageItem('mecanic_os_db', this.cache);
-                    if (typeof handleRouting === 'function') handleRouting();
-                    if (typeof window.updateUserUI === 'function') window.updateUserUI();
-                    if (typeof window.updateSidebarBrand === 'function') window.updateSidebarBrand();
-                }
-                this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
+            if (!doc.exists) return;
+            // Ignore snapshots if local writes are in progress or pending server confirmation
+            if (doc.metadata && doc.metadata.hasPendingWrites) {
+                return;
             }
+            if (this.isSaving) {
+                return;
+            }
+
+            const data = doc.data();
+            let changed = false;
+            const isGema = (cfg) => cfg && cfg.nombre && (cfg.nombre.includes('GRUPO GEMA') || cfg.correo === 'grupogem2024@outlook.com');
+            if (data.config_taller && !isGema(data.config_taller)) { 
+                // Preserve local logo and styles if incoming doc is missing them
+                if (!data.config_taller.logo && this.cache && this.cache.config_taller && this.cache.config_taller.logo) {
+                    data.config_taller.logo = this.cache.config_taller.logo;
+                }
+                if (JSON.stringify(this.cache.config_taller) !== JSON.stringify(data.config_taller)) {
+                    this.cache.config_taller = data.config_taller; 
+                    changed = true; 
+                }
+            } else {
+                const wsData = (data.saas_state && data.saas_state.workshopData) || (this.cache.saas_state && this.cache.saas_state.workshopData);
+                if (wsData && (wsData.nombre || wsData.nombre_comercial)) {
+                    const existingCfg = this.cache.config_taller || {};
+                    const repairedConfig = {
+                        ...existingCfg,
+                        nombre: wsData.nombre || wsData.nombre_comercial || '',
+                        alias: wsData.alias || wsData.nombre_comercial || wsData.nombre || '',
+                        nombre_comercial: wsData.nombre_comercial || wsData.nombre || '',
+                        giro: wsData.giro || wsData.actividad_economica || '',
+                        direccion: wsData.direccion || '',
+                        telefono: wsData.telefono || '',
+                        correo: wsData.correo || '',
+                        nit: wsData.nit || (wsData.tipo_documento === 'NIT' ? wsData.num_documento : '') || '',
+                        nrc: wsData.nrc || '',
+                        logoText: wsData.logoText || (wsData.nombre_comercial ? wsData.nombre_comercial.substring(0, 15).toUpperCase() : (existingCfg.logoText || 'MecanicOS')),
+                        logoTagline: wsData.logoTagline || existingCfg.logoTagline || 'Servicio Automotriz Especializado',
+                        tipo_persona: wsData.tipo_persona || 'Jurídica',
+                        clasificacion_tributaria: wsData.clasificacion_tributaria || 'Otros',
+                        sujeto_excluido: wsData.sujeto_excluido || 'No',
+                        tipo_documento: wsData.tipo_documento || 'NIT',
+                        num_documento: wsData.num_documento || '',
+                        actividad_economica: wsData.actividad_economica || wsData.giro || '',
+                        pais: wsData.pais || 'El Salvador',
+                        departamento: wsData.departamento || '',
+                        municipio: wsData.municipio || '',
+                        logo: existingCfg.logo || wsData.logo || '',
+                        formato_presupuesto: existingCfg.formato_presupuesto || wsData.formato_presupuesto || 'moderno_facturallama',
+                        mostrar_iva_presupuesto: existingCfg.mostrar_iva_presupuesto || wsData.mostrar_iva_presupuesto || 'si',
+                        color_presupuesto: existingCfg.color_presupuesto || wsData.color_presupuesto || '#1e293b',
+                        tipo_comision: existingCfg.tipo_comision || wsData.tipo_comision || 'general',
+                        qr_whatsapp: existingCfg.qr_whatsapp || wsData.qr_whatsapp || ''
+                    };
+                    this.cache.config_taller = repairedConfig;
+                    changed = true;
+                    if (!this.readOnlyMode && typeof docRef.set === 'function') {
+                        docRef.set({ config_taller: repairedConfig }, { merge: true }).catch(e => console.warn("Auto-repair config_taller failed:", e));
+                    }
+                }
+            }
+            if (data.saas_state && JSON.stringify(this.cache.saas_state) !== JSON.stringify(data.saas_state)) { 
+                this.cache.saas_state = data.saas_state; 
+                changed = true; 
+            }
+            if (data.role_permissions && JSON.stringify(this.cache.role_permissions) !== JSON.stringify(data.role_permissions)) { 
+                this.cache.role_permissions = data.role_permissions; 
+                changed = true; 
+            }
+            if (data.saas_payments && JSON.stringify(this.cache.saas_payments) !== JSON.stringify(data.saas_payments)) { 
+                this.cache.saas_payments = data.saas_payments; 
+                changed = true; 
+            }
+            if (data.saas_config && JSON.stringify(this.cache.saas_config) !== JSON.stringify(data.saas_config)) { 
+                this.cache.saas_config = data.saas_config; 
+                changed = true; 
+            }
+            if (data.ingreso_config && JSON.stringify(this.cache.ingreso_config) !== JSON.stringify(data.ingreso_config)) { 
+                this.cache.ingreso_config = data.ingreso_config; 
+                changed = true; 
+            }
+            
+            if (changed) {
+                await this.setStorageItem('mecanic_os_db', this.cache);
+                if (typeof window.updateUserUI === 'function') window.updateUserUI();
+                if (typeof window.updateSidebarBrand === 'function') window.updateSidebarBrand();
+            }
+            this.lastSyncedState = JSON.parse(JSON.stringify(this.cache));
         }, handleSyncError);
         this.listeners.push(rootListener);
 
@@ -855,22 +882,9 @@ const dataService = {
                     this.cache['46 Gastos'] = this.cache.gastos;
                     this.cache['45 Pagos VR'] = this.cache.pagos_vr;
 
-                    if (this.activeUserUid) {
-                        const prunedDb = { ...this.cache };
-                        collectionConfigs.forEach(c => {
-                            delete prunedDb[c.name];
-                        });
-                        delete prunedDb['21 Detalle Presupuesto Producto'];
-                        delete prunedDb['11 Detalle Mano de Obra'];
-                        delete prunedDb['30 Abonos Creditos'];
-                        delete prunedDb['29 Movs de Inventario'];
-                        delete prunedDb['43 Venta Rapida'];
-                        delete prunedDb['46 Gastos'];
-                        delete prunedDb['45 Pagos VR'];
-                        await this.setStorageItem('mecanic_os_db', prunedDb);
-                    } else {
-                        await this.setStorageItem('mecanic_os_db', this.cache);
-                    }
+                    // Persist complete database in local storage (no destructive pruning)
+                    await this.setStorageItem('mecanic_os_db', this.cache);
+
                     // Solo refrescar UI si el cambio vino de otro dispositivo
                     if (isRemoteChange && typeof smartRefreshView === 'function') {
                         smartRefreshView(config.name);

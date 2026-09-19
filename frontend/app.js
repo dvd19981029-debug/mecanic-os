@@ -1370,11 +1370,16 @@ export {
     MUNICIPIOS_CODES
 };
 
-// Prevent tab/page close during active DTE transmission
+// Prevent tab/page close or hard reload during active DTE transmission or background cloud sync
 window.addEventListener('beforeunload', (e) => {
     if (window.isDteTransmitting) {
         e.preventDefault();
         e.returnValue = 'Transmisión DTE en curso. Si sale o recarga la página, podría interrumpirse la facturación. ¿Desea salir?';
+        return e.returnValue;
+    }
+    if (typeof dataService !== 'undefined' && dataService && dataService.isSaving) {
+        e.preventDefault();
+        e.returnValue = 'Hay cambios sincronizándose en la nube de Firestore. Si sale o recarga ahora, la sincronización podría interrumpirse. ¿Desea salir?';
         return e.returnValue;
     }
 });
