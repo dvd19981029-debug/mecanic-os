@@ -28,6 +28,12 @@ import {
     getBackendUrl,
     downloadExcelReport
 } from '../utils.js?v=69';
+import {
+    createPhotoUploader,
+    renderPhotoGalleryHtml,
+    renderPhotoPrintHtml,
+    bindLightboxTriggers
+} from '../imageService.js';
 
 export function renderRevision21(container, queryParams) {
     const db = getDatabase();
@@ -102,6 +108,17 @@ export function renderRevision21(container, queryParams) {
             }
         }
 
+        // Initialize Photo Uploader for Inspection
+        let photoUploader = null;
+        const photoContainer = document.getElementById('revision-photos-container');
+        if (photoContainer) {
+            photoUploader = createPhotoUploader({
+                container: photoContainer,
+                initialPhotos: [],
+                folder: 'revision21'
+            });
+        }
+
         document.querySelectorAll('.checkpoint-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const parent = btn.parentElement;
@@ -145,6 +162,7 @@ export function renderRevision21(container, queryParams) {
                 Odometro: odo,
                 Fallas_Reportadas: fallas,
                 Observaciones_Generales: obsG,
+                Fotos: photoUploader ? photoUploader.getPhotos() : [],
                 Chequeos: details
             };
 
@@ -392,6 +410,11 @@ window.viewInspectionDetails = function(revId) {
                 <p style="margin: 0; font-size: 0.85rem; background: var(--bg-input); padding: 0.6rem; border-radius: 4px; border: 1px solid var(--border-color);">${revision.Observaciones_Generales || 'Ninguna'}</p>
             </div>
 
+            <div style="margin-bottom: 1.5rem;">
+                <h4 style="margin:0 0 0.5rem 0; color:var(--primary); font-size:0.9rem;"><i class="fa-solid fa-camera"></i> Evidencia Fotográfica (${(revision.Fotos || []).length})</h4>
+                ${safe(renderPhotoGalleryHtml(revision.Fotos || []))}
+            </div>
+
             <h4 style="margin: 1.5rem 0 0.5rem 0; color: var(--primary); font-size: 0.9rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.25rem;">Resultados del Semáforo de Inspección</h4>
             <div class="checkpoint-detail-list" style="max-height: 250px; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1.5rem;">
                 <div style="display: grid; grid-template-columns: 1.5fr 100px 1.5fr; font-weight: bold; border-bottom: 2px solid var(--border-color); padding-bottom: 0.4rem; font-size: 0.85rem; color: var(--text-primary);">
@@ -410,6 +433,7 @@ window.viewInspectionDetails = function(revId) {
         </div>
     `;
     modal.classList.add('active');
+    bindLightboxTriggers(modal);
 };
 
 window.closeInspectionDetails = function() {
@@ -764,6 +788,8 @@ window.exportInspectionPDF = function(revId) {
             ${revision.Observaciones_Generales || 'Ninguna observación adicional.'}
         </div>
 
+        ${renderPhotoPrintHtml(revision.Fotos || [])}
+
         <div class="signatures">
             <div>
                 <div style="height: 60px;"></div>
@@ -844,6 +870,8 @@ export function renderRegistrarTab(db, checkpoints) {
                     </div>
                 `).join(''))}
             </div>
+
+            <div id="revision-photos-container" style="margin-top: 1.5rem;"></div>
 
             <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
                 <button type="button" class="btn btn-secondary" onclick="window.location.hash='#taller-dashboard'">Cancelar</button>

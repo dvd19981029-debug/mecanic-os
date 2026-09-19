@@ -6,6 +6,12 @@ import {
 } from '../../app.js?v=69';
 
 import { html, safe, escapeHtml, showToast } from '../utils.js?v=69';
+import {
+    createPhotoUploader,
+    renderPhotoGalleryHtml,
+    renderPhotoPrintHtml,
+    bindLightboxTriggers
+} from '../imageService.js';
 
 const DEFAULT_INGRESO_CONFIG = {
     pilotos: [
@@ -299,6 +305,11 @@ function renderDetails(container, id) {
         </div>
 
         <div class="glass-card" style="padding:1.5rem; margin-top:1.5rem;">
+            <h3 style="color:var(--primary); margin:0 0 0.5rem 0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-camera"></i> Evidencia Fotográfica (${(ing.Fotos || []).length})</h3>
+            ${safe(renderPhotoGalleryHtml(ing.Fotos || []))}
+        </div>
+
+        <div class="glass-card" style="padding:1.5rem; margin-top:1.5rem;">
             <h3 style="color:var(--primary); margin:0 0 1rem 0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-pen-nib"></i> Firmas y Observaciones</h3>
             <div style="margin-bottom:1.5rem;">
                 <strong>Observaciones Técnicas:</strong>
@@ -322,6 +333,7 @@ function renderDetails(container, id) {
         </div>
     `;
 
+    bindLightboxTriggers(container);
     document.getElementById('btn-print-detail').addEventListener('click', () => printIngresoPDF(ing));
 }
 
@@ -508,6 +520,9 @@ function renderEditor(container, editId) {
 
             </div>
 
+            <!-- Vehicle Photos Section -->
+            <div id="ingreso-photos-container" style="margin-bottom:1.5rem;"></div>
+
             <!-- Signature pads & observations -->
             <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:1.2rem;">
                 <h3 style="color:var(--primary); margin:0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;"><i class="fa-solid fa-pen-nib"></i> Firmas y Observaciones</h3>
@@ -612,6 +627,17 @@ function renderEditor(container, editId) {
         clientCanvas = initSignatureCanvas('signature-client', 'clear-signature-client', ing.Firma_Cliente);
     }, 100);
 
+    // Initialize Photo Uploader
+    let photoUploader = null;
+    const photoContainer = document.getElementById('ingreso-photos-container');
+    if (photoContainer) {
+        photoUploader = createPhotoUploader({
+            container: photoContainer,
+            initialPhotos: ing.Fotos || [],
+            folder: 'ingresos'
+        });
+    }
+
     // Save action
     document.getElementById('btn-save-ingreso').addEventListener('click', () => {
         const vehSelect = document.getElementById('ing-vehicle-select');
@@ -654,6 +680,9 @@ function renderEditor(container, editId) {
         ing.Tecnico_ID = document.getElementById('ing-tech-select').value;
         if (advisorData) ing.Firma_Asesor = advisorData;
         if (clientData) ing.Firma_Cliente = clientData;
+        if (photoUploader) {
+            ing.Fotos = photoUploader.getPhotos();
+        }
 
         if (!db.ingresos) db.ingresos = [];
 
@@ -879,6 +908,8 @@ function printIngresoPDF(ing) {
             <div style="border: 1px solid #e5e7eb; padding: 10px; min-height: 50px; border-radius: 4px;">
                 ${ing.Observaciones || 'Ninguna observación reportada.'}
             </div>
+
+            ${renderPhotoPrintHtml(ing.Fotos || [])}
 
             <div class="footer-text">
                 <strong>Términos y condiciones de ${ws.nombre_comercial || ws.nombre || 'Mecanic OS'}:</strong> El cliente autoriza la realización de las pruebas de carretera correspondientes por parte del personal del taller. ${(ws.nombre_comercial || ws.nombre || 'El taller')} no se hace responsable de daños causados por desastres naturales, incendios, robos o vandalismo fortuito fuera de su control. Todo repuesto reemplazado pasará a ser propiedad del cliente, a menos que este autorice su desecho. ${(ws.nombre_comercial || ws.nombre || 'El taller')} no se responsabiliza por objetos personales de valor no reportados formalmente al momento de la entrega.
