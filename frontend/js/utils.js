@@ -691,3 +691,20 @@ export function makeSelectSearchable(selectId, placeholderText) {
     
     return container;
 }
+
+/**
+ * Concatena el nombre del producto según la fórmula oficial de AppSheet:
+ * [Descripcion] & " " & [Barra] & " " & [Aplicación]
+ */
+export function getNombreProducto(p) {
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    const desc = (p.Descripcion || '').trim();
+    const barra = (p.Barra || '').trim();
+    const aplicacion = (p['Aplicación'] || '').trim();
+    const parts = [];
+    if (desc) parts.push(desc);
+    if (barra) parts.push(barra);
+    if (aplicacion) parts.push(aplicacion);
+    return parts.join(' ').replace(/\s+/g, ' ').trim() || desc || p['ID_ Producto'] || '';
+}

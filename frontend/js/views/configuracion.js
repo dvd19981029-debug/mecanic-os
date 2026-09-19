@@ -14,7 +14,7 @@ import {
     getActiveUser
 } from '../../app.js?v=69';
 
-import { showToast, html, safe, hashPassword } from '../utils.js?v=69';
+import { showToast, html, safe, hashPassword, getNombreProducto } from '../utils.js?v=69';
 import { compressImage, uploadImageToStorage } from '../imageService.js';
 
 // Configuration active tab state
@@ -1823,6 +1823,7 @@ export function renderConfiguracion(container, queryParams) {
                                     if (item.barra) existing.Barra = item.barra;
                                     if (item.aplicacion) existing['Aplicación'] = item.aplicacion;
                                     if (item.notas) existing['Notas Producto'] = item.notas;
+                                    existing['Nombre Producto'] = getNombreProducto(existing);
                                     
                                     const diff = item.stock - (existing.Minimos || 0);
                                     if (diff !== 0) {
@@ -1851,7 +1852,7 @@ export function renderConfiguracion(container, queryParams) {
                                         assignedId = `PROD-CS-${yymmdd}-${hhmmss}-${indexCounter++}`;
                                     }
                                     
-                                    currentDb.productos.push({
+                                    const newProdImported = {
                                         "ID_ Producto": assignedId,
                                         "Descripcion": item.descripcion,
                                         "Barra": item.barra || '',
@@ -1871,7 +1872,9 @@ export function renderConfiguracion(container, queryParams) {
                                         "Descuento": "SI",
                                         "Fecha Creacion": Math.floor(Date.now() / 1000),
                                         "Usuario": activeUser ? activeUser.Tecnico_ID : ''
-                                    });
+                                    };
+                                    newProdImported['Nombre Producto'] = getNombreProducto(newProdImported);
+                                    currentDb.productos.push(newProdImported);
                                     
                                     if (item.stock > 0) {
                                         currentDb['29 Movs de Inventario'] = currentDb['29 Movs de Inventario'] || [];
@@ -2069,11 +2072,12 @@ export function renderConfiguracion(container, queryParams) {
                     p.Minimos = minimos;
                     p.Presentacion = pres;
                     p.Consumible = isConsumible;
+                    p['Nombre Producto'] = getNombreProducto(p);
                 }
                 showToast("Producto actualizado en catálogo", "success");
             } else {
                 // Add
-                currentDb.productos.push({
+                const newProdObj = {
                     "ID_ Producto": newCode,
                     "Descripcion": desc,
                     "Barra": barra,
@@ -2093,7 +2097,9 @@ export function renderConfiguracion(container, queryParams) {
                     "Margen": 0,
                     "Fecha Creacion": Math.floor(Date.now() / 1000),
                     "Usuario": getActiveUser() ? getActiveUser().Tecnico_ID : ''
-                });
+                };
+                newProdObj['Nombre Producto'] = getNombreProducto(newProdObj);
+                currentDb.productos.push(newProdObj);
                 showToast("Nuevo producto registrado con éxito", "success");
             }
             saveDatabase(currentDb);

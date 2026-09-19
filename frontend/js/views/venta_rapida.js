@@ -30,7 +30,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable,
-    showDteErrorModal
+    showDteErrorModal,
+    getNombreProducto
 } from '../utils.js?v=80';
 
 export function renderVentaRapida(container) {
@@ -390,10 +391,17 @@ export function renderVentaRapida(container) {
     function populateProdList(filterText = '') {
         const resultsContainer = document.getElementById('pos-prod-results');
         resultsContainer.innerHTML = '';
-        const filtered = db.productos.filter(p => 
-            (p.Descripcion || '').toLowerCase().includes(filterText.toLowerCase()) ||
-            (p['ID_ Producto'] || '').toLowerCase().includes(filterText.toLowerCase())
-        );
+        const searchNormalized = (filterText || '').toLowerCase().trim();
+        const filtered = db.productos.filter(p => {
+            const fullName = getNombreProducto(p);
+            return (
+                fullName.toLowerCase().includes(searchNormalized) ||
+                (p.Descripcion || '').toLowerCase().includes(searchNormalized) ||
+                (p['ID_ Producto'] || '').toLowerCase().includes(searchNormalized) ||
+                (p.Barra || '').toLowerCase().includes(searchNormalized) ||
+                (p['Aplicación'] || '').toLowerCase().includes(searchNormalized)
+            );
+        });
         if (filtered.length === 0) {
             resultsContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:1rem;">Sin resultados</div>';
             return;
@@ -405,9 +413,10 @@ export function renderVentaRapida(container) {
             div.addEventListener('mouseenter', () => div.style.backgroundColor = 'rgba(255,255,255,0.03)');
             div.addEventListener('mouseleave', () => div.style.backgroundColor = 'transparent');
             
+            const fullName = getNombreProducto(p);
             div.innerHTML = html`
                 <div>
-                    <strong>${escapeHtml(p.Descripcion)}</strong>
+                    <strong>${escapeHtml(fullName || p.Descripcion)}</strong>
                     <div style="font-size:0.75rem; color:var(--text-secondary);">Código: ${escapeHtml(p['ID_ Producto'])} | Stock: ${p.Minimos || 0}</div>
                 </div>
                 <div style="font-weight:bold; color:var(--cyan);">$ ${parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0).toFixed(2)}</div>
@@ -460,12 +469,13 @@ export function renderVentaRapida(container) {
     // Cart items operations
     function addTempProduct(p) {
         const existing = tempProducts.find(item => item.id === p['ID_ Producto']);
+        const fullName = getNombreProducto(p);
         if (existing) {
             existing.qty += 1;
         } else {
             tempProducts.push({
                 id: p['ID_ Producto'],
-                desc: p.Descripcion,
+                desc: fullName || p.Descripcion,
                 price: parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0),
                 qty: 1
             });

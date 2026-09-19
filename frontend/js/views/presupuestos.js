@@ -28,7 +28,8 @@ import {
     getBackendUrl,
     downloadExcelReport,
     makeSelectSearchable,
-    matchesMultiFieldSearch
+    matchesMultiFieldSearch,
+    getNombreProducto
 } from '../utils.js?v=80';
 
 export function renderPresupuestos(container, queryParams) {
@@ -1553,8 +1554,10 @@ export function renderBudgetEditor(container, budget) {
 
     function populateProdCatalog(filter = '') {
         prodResults.innerHTML = '';
-        const filtered = db.productos.filter(p => 
-            matchesMultiFieldSearch([
+        const filtered = db.productos.filter(p => {
+            const fullName = getNombreProducto(p);
+            return matchesMultiFieldSearch([
+                fullName,
                 p.Descripcion,
                 p['ID_ Producto'],
                 p.Barra,
@@ -1562,8 +1565,8 @@ export function renderBudgetEditor(container, budget) {
                 p['Notas Producto'],
                 p.Marca,
                 p.Categoria
-            ], filter)
-        );
+            ], filter);
+        });
 
         const wsConfig = getWorkshopConfig(db);
         const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
@@ -1576,6 +1579,7 @@ export function renderBudgetEditor(container, budget) {
                 ? parseFloat(p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || ((p['Precio Unit'] || p['Precio Venta'] || 0) * 1.13))
                 : parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
 
+            const fullName = getNombreProducto(p);
             const extraDetails = [];
             if (p['ID_ Producto']) extraDetails.push(`Cód: ${p['ID_ Producto']}`);
             if (p.Barra) extraDetails.push(`Barra: ${p.Barra}`);
@@ -1584,7 +1588,7 @@ export function renderBudgetEditor(container, budget) {
 
             item.innerHTML = html`
                 <div class="list-item-main">
-                    <span class="list-item-title">${escapeHtml(p.Descripcion)}</span>
+                    <span class="list-item-title">${escapeHtml(fullName || p.Descripcion)}</span>
                     <span class="list-item-subtitle">${escapeHtml(extraDetails.join(' • '))}</span>
                 </div>
                 <button class="btn btn-primary btn-add" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i></button>
@@ -1597,7 +1601,7 @@ export function renderBudgetEditor(container, budget) {
                     DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                     'ID_Presupuesto DPP': budget['ID Presupuesto'],
                     'ID_Producto DPP': p['ID_ Producto'],
-                    Descripcion: p.Descripcion,
+                    Descripcion: fullName || p.Descripcion,
                     Cantidad: 1,
                     UnidadMedida: p['Unidad de Medida'] || 'Pza',
                     PrecioUnitario: displayPrice,
