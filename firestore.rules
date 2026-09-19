@@ -70,7 +70,7 @@ service cloud.firestore {
       // Cualquier taller autenticado puede generar/registrar una entrada de auditoría
       allow create: if request.auth != null;
       // Solo el super admin puede leer, listar o gestionar los registros
-      allow read, list, delete: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
+      allow read, delete: if request.auth != null && request.auth.token.email in ["dvd19981029@gmail.com", "amejia2998@gmail.com"];
     }
     
   }
