@@ -4389,63 +4389,54 @@ if (window.saasViewReceiptPaymentId) {
         }
 
         let html = `
-            <div class="table-responsive">
-                <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+            <div class="table-responsive" style="border: 1px solid var(--border-color); border-radius: 6px; overflow-x: auto; background: var(--bg-card);">
+                <table class="saas-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem;">
                     <thead>
-                        <tr style="border-bottom: 2px solid var(--border-color); background: rgba(0,0,0,0.03);">
-                            <th style="padding: 0.75rem;">Fecha / Hora</th>
-                            <th style="padding: 0.75rem;">Taller</th>
-                            <th style="padding: 0.75rem;">Usuario / Perfil</th>
-                            <th style="padding: 0.75rem;">Módulo / Acción</th>
-                            <th style="padding: 0.75rem;">Resumen del Cambio</th>
-                            <th style="padding: 0.75rem; text-align: center;">Detalle</th>
+                        <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em;">
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Fecha / Hora</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Taller</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Usuario</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Rol</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; white-space: nowrap;">Módulo</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600;">Descripción del Cambio</th>
+                            <th style="padding: 0.55rem 0.75rem; font-weight: 600; text-align: center; width: 80px;">Detalle</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
-        filtered.forEach(log => {
-            const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString('es-SV', {
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit'
-            }) : 'N/A';
+        filtered.forEach((log, idx) => {
+            const d = log.timestamp ? new Date(log.timestamp) : null;
+            const dateStr = d ? `${d.toLocaleDateString('es-SV')} ${d.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'N/A';
 
             const userRole = log.usuario?.rol || 'Administrador';
-            const roleBadgeColor = userRole.toLowerCase().includes('admin') ? '#e74c3c' : '#3498db';
-            const roleBg = userRole.toLowerCase().includes('admin') ? 'rgba(231,76,60,0.12)' : 'rgba(52,152,219,0.12)';
+            const userName = log.usuario?.nombre || 'Desconocido';
+            const userEmail = log.usuario?.email ? `<span style="color: var(--text-muted); font-size: 0.72rem; margin-left: 0.35rem;">(${escapeHtml(log.usuario.email)})</span>` : '';
+            const rowBg = idx % 2 === 1 ? 'background: rgba(255, 255, 255, 0.015);' : '';
 
             html += `
-                <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td style="padding: 0.75rem; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;">
-                        <i class="fa-regular fa-clock" style="margin-right: 0.25rem;"></i>${dateStr}
+                <tr style="border-bottom: 1px solid var(--border-color); ${rowBg} transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255, 255, 255, 0.04)'" onmouseout="this.style.background='${idx % 2 === 1 ? 'rgba(255, 255, 255, 0.015)' : 'transparent'}'">
+                    <td style="padding: 0.45rem 0.75rem; white-space: nowrap; color: var(--text-secondary); font-family: monospace; font-size: 0.78rem;">
+                        ${dateStr}
                     </td>
-                    <td style="padding: 0.75rem;">
-                        <strong style="color: var(--text-primary);">${escapeHtml(log.workshopName || 'Taller')}</strong>
-                        <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(log.workshopId || '')}</div>
+                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); font-weight: 500; white-space: nowrap;">
+                        ${escapeHtml(log.workshopName || 'Taller')}
                     </td>
-                    <td style="padding: 0.75rem;">
-                        <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
-                            <i class="fa-solid fa-user-circle" style="color: var(--primary);"></i>
-                            ${escapeHtml(log.usuario?.nombre || 'Desconocido')}
-                        </div>
-                        <div style="margin-top: 0.25rem;">
-                            <span class="badge" style="background: ${roleBg}; color: ${roleBadgeColor}; padding: 0.15rem 0.45rem; border-radius: 3px; font-size: 0.72rem; font-weight: bold;">
-                                ${escapeHtml(userRole)}
-                            </span>
-                            <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: 0.25rem;">(${escapeHtml(log.usuario?.email || '')})</span>
-                        </div>
+                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); white-space: nowrap;">
+                        <span>${escapeHtml(userName)}</span>${userEmail}
                     </td>
-                    <td style="padding: 0.75rem;">
-                        <span class="badge" style="background: rgba(46, 204, 113, 0.12); color: #27ae60; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">
-                            ${escapeHtml(log.modulo || 'Configuración')}
-                        </span>
+                    <td style="padding: 0.45rem 0.75rem; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap;">
+                        ${escapeHtml(userRole)}
                     </td>
-                    <td style="padding: 0.75rem; color: var(--text-secondary); max-width: 320px;">
-                        <div style="font-size: 0.82rem; line-height: 1.4;">${escapeHtml(log.resumen || 'Actualización de datos')}</div>
+                    <td style="padding: 0.45rem 0.75rem; color: var(--text-secondary); font-size: 0.8rem; white-space: nowrap;">
+                        ${escapeHtml(log.modulo || 'General')}
                     </td>
-                    <td style="padding: 0.75rem; text-align: center;">
-                        <button class="btn btn-primary" onclick="window.viewAuditLogDetail('${log.id}')" style="padding: 0.35rem 0.7rem; font-size: 0.75rem; border-radius: 4px; white-space: nowrap;">
-                            <i class="fa-solid fa-magnifying-glass-chart"></i> Ver Diff
+                    <td style="padding: 0.45rem 0.75rem; color: var(--text-primary); font-size: 0.8rem; line-height: 1.35;">
+                        ${escapeHtml(log.resumen || 'Actualización de datos')}
+                    </td>
+                    <td style="padding: 0.45rem 0.75rem; text-align: center; white-space: nowrap;">
+                        <button onclick="window.viewAuditLogDetail('${log.id}')" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; border: 1px solid var(--border-color); border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-primary); cursor: pointer;">
+                            Ver Diff
                         </button>
                     </td>
                 </tr>
