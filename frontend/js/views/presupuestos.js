@@ -868,61 +868,72 @@ export function renderBudgetEditor(container, budget) {
     let tempProducts = [...budgetProducts];
     let tempLabor = [...budgetLabor];
     let tempRepuestosCliente = [...(budget.Repuestos_Cliente || [])];
+    let _autoSaveTimer = null;
 
-    function autoSaveBudget() {
+    function autoSaveBudget(immediate = false) {
         if (!budget || !budget['ID Presupuesto']) return;
 
-        // Auto-update header fields if elements exist
-        const fallasEl = document.getElementById('editor-fallas');
-        if (fallasEl) {
-            budget.Fallas_Detectadas = fallasEl.value;
-        }
-        const obsEl = document.getElementById('editor-observaciones');
-        if (obsEl) {
-            budget.Observaciones = obsEl.value;
-        }
-        const techEl = document.getElementById('editor-tech-select');
-        if (techEl) {
-            budget.Tecnico_Asignado = techEl.value;
-        }
-        const advisorEl = document.getElementById('editor-advisor-select');
-        if (advisorEl) {
-            budget.Asesor_Asignado = advisorEl.value;
-        }
-        const poEl = document.getElementById('editor-purchase-order');
-        if (poEl) {
-            budget.Orden_Compra = poEl.value.trim().toUpperCase();
-        }
-        const stateEl = document.getElementById('editor-state');
-        if (stateEl) {
-            budget.Estado = parseInt(stateEl.value);
-        }
-        const odoEl = document.getElementById('editor-odo');
-        if (odoEl) {
-            budget.Kilometraje = odoEl.value;
-        }
-
-        const config = getWorkshopConfig(db);
-        budget.Tipo_Comision = config.tipo_comision || 'general';
-
-        // Save details
-        db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
-        db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
-        db['21 Detalle Presupuesto Producto'] = db.detalle_productos;
-        db['11 Detalle Mano de Obra'] = db.detalle_mano_obra;
-        if (habilitarRepuestosCliente) {
-            budget.Repuestos_Cliente = tempRepuestosCliente;
-        }
-
-        // If it is a new budget and client+vehicle are selected, make sure it's in the list
-        if (isNew && budget.Codigo_Cliente && budget.ID_Vehiculo) {
-            const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
-            if (!exists) {
-                db.presupuestos.unshift(budget);
+        const performAutoSave = () => {
+            // Auto-update header fields if elements exist
+            const fallasEl = document.getElementById('editor-fallas');
+            if (fallasEl) {
+                budget.Fallas_Detectadas = fallasEl.value;
             }
-        }
+            const obsEl = document.getElementById('editor-observaciones');
+            if (obsEl) {
+                budget.Observaciones = obsEl.value;
+            }
+            const techEl = document.getElementById('editor-tech-select');
+            if (techEl) {
+                budget.Tecnico_Asignado = techEl.value;
+            }
+            const advisorEl = document.getElementById('editor-advisor-select');
+            if (advisorEl) {
+                budget.Asesor_Asignado = advisorEl.value;
+            }
+            const poEl = document.getElementById('editor-purchase-order');
+            if (poEl) {
+                budget.Orden_Compra = poEl.value.trim().toUpperCase();
+            }
+            const stateEl = document.getElementById('editor-state');
+            if (stateEl) {
+                budget.Estado = parseInt(stateEl.value);
+            }
+            const odoEl = document.getElementById('editor-odo');
+            if (odoEl) {
+                budget.Kilometraje = odoEl.value;
+            }
 
-        saveDatabase(db);
+            const config = getWorkshopConfig(db);
+            budget.Tipo_Comision = config.tipo_comision || 'general';
+
+            // Save details
+            db.detalle_productos = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] !== budget['ID Presupuesto']).concat(tempProducts);
+            db.detalle_mano_obra = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] !== budget['ID Presupuesto']).concat(tempLabor);
+            db['21 Detalle Presupuesto Producto'] = db.detalle_productos;
+            db['11 Detalle Mano de Obra'] = db.detalle_mano_obra;
+            if (habilitarRepuestosCliente) {
+                budget.Repuestos_Cliente = tempRepuestosCliente;
+            }
+
+            // If it is a new budget and client+vehicle are selected, make sure it's in the list
+            if (isNew && budget.Codigo_Cliente && budget.ID_Vehiculo) {
+                const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
+                if (!exists) {
+                    db.presupuestos.unshift(budget);
+                }
+            }
+
+            saveDatabase(db);
+        };
+
+        if (immediate) {
+            clearTimeout(_autoSaveTimer);
+            performAutoSave();
+        } else {
+            clearTimeout(_autoSaveTimer);
+            _autoSaveTimer = setTimeout(performAutoSave, 400);
+        }
     }
 
     // Helper functions for Creation Mode dropdowns
@@ -1805,7 +1816,8 @@ export function renderBudgetEditor(container, budget) {
             }
         }
 
-        // Save to LocalStorage
+        // Save to LocalStorage and Cloud
+        if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
         saveDatabase(db);
         showToast("Presupuesto guardado correctamente", "success");
         

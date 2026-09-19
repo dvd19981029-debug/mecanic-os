@@ -658,7 +658,12 @@ const dataService = {
                         }
                     }
 
-                    // Find deleted items
+                    // Find deleted items (with safety guard against uninitialized/corrupted arrays)
+                    if (oldItems.length > 0 && newItems.length === 0) {
+                        console.warn(`Mecanic OS Safety Guard: Omitiendo borrado masivo sospechoso en '${config.name}' (previos: ${oldItems.length}, nuevos: 0).`);
+                        continue;
+                    }
+
                     for (const oldItem of oldItems) {
                         const keyVal = oldItem[config.key];
                         if (!keyVal) continue;
