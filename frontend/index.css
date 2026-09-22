@@ -1440,15 +1440,40 @@ tr:hover td {
     }
 
     .master-detail-container {
-        grid-template-columns: 1fr !important;
+        display: flex !important;
+        flex-direction: column !important;
         height: auto !important;
         overflow: visible !important;
         gap: 1.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .list-panel, .detail-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
         height: auto !important;
         overflow: visible !important;
+    }
+
+    #client-detail-container {
+        scroll-margin-top: 70px;
+    }
+
+    #client-detail-back-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+        font-size: 0.8rem !important;
+        padding: 0.45rem 0.8rem !important;
+        margin-bottom: 1rem !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 6px !important;
+        width: auto !important;
     }
 
     .form-row, .inspection-header-fields {
@@ -1458,16 +1483,32 @@ tr:hover td {
 
     /* Client Detail Responsive Mobile Optimization */
     .client-detail-header {
+        display: flex !important;
         flex-direction: column !important;
         align-items: stretch !important;
-        gap: 1rem !important;
+        gap: 0.85rem !important;
         padding-bottom: 1rem !important;
         margin-bottom: 1rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .client-detail-title-block {
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .client-detail-title-block h2 {
-        font-size: 1.35rem !important;
-        word-break: break-word;
+        font-size: 1.25rem !important;
+        line-height: 1.3 !important;
+        margin-bottom: 0.35rem !important;
+        word-break: break-word !important;
+    }
+
+    .client-detail-title-block .badge-tag {
+        font-size: 0.72rem !important;
+        padding: 0.2rem 0.5rem !important;
     }
 
     .client-detail-actions {
@@ -1475,28 +1516,69 @@ tr:hover td {
         grid-template-columns: 1fr 1fr !important;
         gap: 0.5rem !important;
         width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .client-detail-actions .btn {
         width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
         justify-content: center !important;
-        font-size: 0.8rem !important;
-        padding: 0.6rem 0.4rem !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        padding: 0.55rem 0.35rem !important;
         margin: 0 !important;
         white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+    }
+
+    .client-detail-actions .btn i {
+        font-size: 0.75rem !important;
+        flex-shrink: 0;
+    }
+
+    .client-detail-info-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .client-fiscal-card,
+    .client-financial-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .client-fiscal-card h4,
+    .client-financial-card h4 {
+        font-size: 0.88rem !important;
+        margin-bottom: 0.6rem !important;
     }
 
     .client-financial-card {
         border-left: none !important;
         padding-left: 0 !important;
         border-top: 1px solid var(--border-color) !important;
-        padding-top: 1.25rem !important;
-        margin-top: 0.75rem !important;
+        padding-top: 1rem !important;
+        margin-top: 0.5rem !important;
     }
 
     .client-detail-table {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.35rem !important;
         width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: separate !important;
+        box-sizing: border-box !important;
     }
 
     .client-detail-table tbody {
@@ -1504,22 +1586,27 @@ tr:hover td {
         flex-direction: column !important;
         gap: 0.35rem !important;
         width: 100% !important;
+        max-width: 100% !important;
     }
 
     .client-detail-table tr {
         display: flex !important;
         justify-content: space-between !important;
         align-items: baseline !important;
-        padding: 0.45rem 0.6rem !important;
+        padding: 0.45rem 0.65rem !important;
         background: rgba(255, 255, 255, 0.02) !important;
         border-radius: 6px !important;
         border: 1px solid rgba(255, 255, 255, 0.04) !important;
-        gap: 0.75rem !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .client-detail-table td.client-table-label {
         color: var(--text-secondary) !important;
-        font-size: 0.8rem !important;
+        font-size: 0.78rem !important;
+        font-weight: 500 !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
         padding: 0 !important;
@@ -1527,23 +1614,40 @@ tr:hover td {
 
     .client-detail-table td.client-table-value {
         color: var(--text-primary) !important;
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
         text-align: right !important;
         word-break: break-word !important;
         overflow-wrap: anywhere !important;
         flex: 1 !important;
+        min-width: 0 !important;
         padding: 0 !important;
     }
 
     .client-detail-table tr.table-row-stacked-mobile {
         flex-direction: column !important;
         align-items: flex-start !important;
-        gap: 0.25rem !important;
+        gap: 0.2rem !important;
     }
 
     .client-detail-table tr.table-row-stacked-mobile td.client-table-value {
         text-align: left !important;
         width: 100% !important;
+    }
+
+    .detail-panel .vehicles-grid {
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .detail-panel .table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        box-sizing: border-box !important;
     }
 
     .users-grid {
