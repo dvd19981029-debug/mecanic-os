@@ -1456,6 +1456,96 @@ tr:hover td {
         gap: 0.75rem;
     }
 
+    /* Client Detail Responsive Mobile Optimization */
+    .client-detail-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 1rem !important;
+        padding-bottom: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .client-detail-title-block h2 {
+        font-size: 1.35rem !important;
+        word-break: break-word;
+    }
+
+    .client-detail-actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+
+    .client-detail-actions .btn {
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 0.8rem !important;
+        padding: 0.6rem 0.4rem !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .client-financial-card {
+        border-left: none !important;
+        padding-left: 0 !important;
+        border-top: 1px solid var(--border-color) !important;
+        padding-top: 1.25rem !important;
+        margin-top: 0.75rem !important;
+    }
+
+    .client-detail-table {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .client-detail-table tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.35rem !important;
+        width: 100% !important;
+    }
+
+    .client-detail-table tr {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        padding: 0.45rem 0.6rem !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(255, 255, 255, 0.04) !important;
+        gap: 0.75rem !important;
+    }
+
+    .client-detail-table td.client-table-label {
+        color: var(--text-secondary) !important;
+        font-size: 0.8rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+    }
+
+    .client-detail-table td.client-table-value {
+        color: var(--text-primary) !important;
+        font-size: 0.85rem !important;
+        text-align: right !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        flex: 1 !important;
+        padding: 0 !important;
+    }
+
+    .client-detail-table tr.table-row-stacked-mobile {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.25rem !important;
+    }
+
+    .client-detail-table tr.table-row-stacked-mobile td.client-table-value {
+        text-align: left !important;
+        width: 100% !important;
+    }
+
     .users-grid {
         grid-template-columns: 1fr !important;
         gap: 1rem;

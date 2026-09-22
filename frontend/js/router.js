@@ -5,7 +5,7 @@
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
 import { renderConfiguracion } from './views/configuracion.js?v=83';
 import { renderLanding } from './views/landing.js?v=77';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=92';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=93';
 import { renderVehiculos } from './views/vehiculos.js?v=92';
 import { renderRevision21 } from './views/revision21.js?v=78';
 import { renderPresupuestos } from './views/presupuestos.js?v=120';

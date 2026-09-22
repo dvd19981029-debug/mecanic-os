@@ -571,13 +571,13 @@ export function renderClientesVehiculos(container, queryParams) {
         
         clientDetailContainer.innerHTML = html`
             <button class="btn btn-secondary mobile-only-btn" id="client-detail-back-btn" style="margin-bottom: 1.25rem; display: none; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-arrow-left"></i> Volver a la Lista</button>
-            <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
-                <div>
+            <div class="client-detail-header" style="display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="client-detail-title-block">
                     <h2>${escapeHtml(client.Nombre)}</h2>
                     <span class="badge-tag badge-primary" style="margin-top: 0.5rem;">${escapeHtml(client['Tipo Cliente'] || 'Persona Natural')}</span>
                     ${safe(client['Contribuyente?'] === 'SI' ? '<span class="badge-tag badge-success">Contribuyente IVA</span>' : '<span class="badge-tag badge-warning">Consumidor Final</span>')}
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div class="client-detail-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button class="btn btn-secondary" id="edit-client-trigger-btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); color:var(--text-primary);"><i class="fa-solid fa-user-pen"></i> Editar</button>
                     <button class="btn btn-secondary" id="delete-client-trigger-btn" style="background:rgba(220,53,69,0.1); border:1px solid rgba(220,53,69,0.4); color:#ff6b6b;"><i class="fa-solid fa-user-xmark"></i> Eliminar</button>
                     <button class="btn btn-secondary" id="add-vehicle-trigger-btn"><i class="fa-solid fa-car-side"></i> Agregar Auto</button>
@@ -585,39 +585,39 @@ export function renderClientesVehiculos(container, queryParams) {
                 </div>
             </div>
             
-            <div class="form-row">
-                <div>
+            <div class="form-row client-detail-info-grid">
+                <div class="client-fiscal-card">
                     <h4 style="margin-bottom: 0.75rem; color: var(--text-secondary);">Datos Fiscales y Contacto</h4>
-                    <table style="width: 100%; font-size: 0.85rem;">
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Código:</td><td><strong>${escapeHtml(client.Codigo_Cliente)}</strong></td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Doc ID (${escapeHtml(client['Tipo Doc'] || 'DUI')}):</td><td>${escapeHtml(client['Num Doc'] || 'N/A')}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">NIT/NRC:</td><td>${escapeHtml(client.NIT || 'N/A')} / ${escapeHtml(client.NRC || 'N/A')}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Giro:</td><td>${escapeHtml(client.Giro || 'N/A')}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Correo:</td><td>${escapeHtml(client.Correo || 'N/A')}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Departamento:</td><td>${(() => {
+                    <table class="client-detail-table" style="width: 100%; font-size: 0.85rem;">
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Código:</td><td class="client-table-value"><strong>${escapeHtml(client.Codigo_Cliente)}</strong></td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Doc ID (${escapeHtml(client['Tipo Doc'] || 'DUI')}):</td><td class="client-table-value">${escapeHtml(client['Num Doc'] || 'N/A')}</td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">NIT/NRC:</td><td class="client-table-value">${escapeHtml(client.NIT || 'N/A')} / ${escapeHtml(client.NRC || 'N/A')}</td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Giro:</td><td class="client-table-value">${escapeHtml(client.Giro || 'N/A')}</td></tr>
+                        <tr class="table-row-stacked-mobile"><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Correo:</td><td class="client-table-value">${escapeHtml(client.Correo || 'N/A')}</td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Departamento:</td><td class="client-table-value">${(() => {
                             if (client.Departamento && typeof DEPARTAMENTOS_CATALOG !== 'undefined') {
                                 const d = DEPARTAMENTOS_CATALOG.find(x => x.id === client.Departamento);
                                 return d ? d.nombre.toUpperCase() : escapeHtml(client.Departamento);
                             }
                             return 'N/A';
                         })()}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Municipio:</td><td>${(() => {
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Municipio:</td><td class="client-table-value">${(() => {
                             if (client.Municipio && typeof MUNICIPIOS_CATALOG !== 'undefined') {
                                 const m = MUNICIPIOS_CATALOG.find(x => x.id === client.Municipio && x.departamentoId === client.Departamento);
                                 return m ? m.nombre.toUpperCase() : escapeHtml(client.Municipio);
                             }
                             return 'N/A';
                         })()}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Dirección Detalle:</td><td>${escapeHtml(client.Direccion || 'N/A')}</td></tr>
+                        <tr class="table-row-stacked-mobile"><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Dirección Detalle:</td><td class="client-table-value">${escapeHtml(client.Direccion || 'N/A')}</td></tr>
                     </table>
                 </div>
                 
-                <div style="border-left: 1px solid var(--border-color); padding-left: 1.5rem;">
+                <div class="client-financial-card" style="border-left: 1px solid var(--border-color); padding-left: 1.5rem;">
                     <h4 style="margin-bottom: 0.75rem; color: var(--text-secondary);">Estado Financiero</h4>
-                    <table style="width: 100%; font-size: 0.85rem;">
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Crédito Autorizado:</td><td><strong>${client['Credito?'] || 'NO'}</strong></td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Monto Crédito:</td><td>$ ${(parseFloat(client['Monto Credito'] || client.Monto_Credito || 0)).toFixed(2)}</td></tr>
-                        <tr><td style="color: var(--text-muted); padding: 0.4rem 0;">Saldo Pendiente:</td><td style="color: var(--danger); font-weight: bold;">$ ${getClientPendingBalance(client.Codigo_Cliente, db).toFixed(2)}</td></tr>
+                    <table class="client-detail-table" style="width: 100%; font-size: 0.85rem;">
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Crédito Autorizado:</td><td class="client-table-value"><strong>${client['Credito?'] || 'NO'}</strong></td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Monto Crédito:</td><td class="client-table-value">$ ${(parseFloat(client['Monto Credito'] || client.Monto_Credito || 0)).toFixed(2)}</td></tr>
+                        <tr><td class="client-table-label" style="color: var(--text-muted); padding: 0.4rem 0;">Saldo Pendiente:</td><td class="client-table-value" style="color: var(--danger); font-weight: bold;">$ ${getClientPendingBalance(client.Codigo_Cliente, db).toFixed(2)}</td></tr>
                     </table>
                 </div>
             </div>
