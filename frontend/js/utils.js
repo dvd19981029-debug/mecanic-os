@@ -492,6 +492,10 @@ export function makeSelectSearchable(selectId, placeholderText) {
     
     // Hide original select
     originalSelect.style.display = 'none';
+    if (originalSelect.required) {
+        originalSelect.required = false;
+        originalSelect.dataset.wasRequired = 'true';
+    }
     
     // Create container
     const container = document.createElement('div');
@@ -512,6 +516,9 @@ export function makeSelectSearchable(selectId, placeholderText) {
     input.style.color = 'var(--text-primary)';
     input.style.fontFamily = 'inherit';
     input.autocomplete = 'off';
+    if (originalSelect.dataset.wasRequired === 'true') {
+        input.required = true;
+    }
     
     // Set initial value
     const selectedIdx = originalSelect.selectedIndex;

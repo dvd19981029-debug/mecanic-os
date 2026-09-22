@@ -26,7 +26,8 @@ import {
     decryptString,
     sanitizeBackendUrl,
     getBackendUrl,
-    downloadExcelReport
+    downloadExcelReport,
+    makeSelectSearchable
 } from '../utils.js?v=69';
 import {
     createPhotoUploader,
@@ -71,8 +72,12 @@ export function renderRevision21(container, queryParams) {
         const odoInput = document.getElementById('ins-odo');
         const form = document.getElementById('inspection-form');
 
+        makeSelectSearchable('ins-client-select', 'Buscar cliente...');
+        makeSelectSearchable('ins-vehicle-select', 'Buscar vehículo...');
+
         if (queryParams.client) {
             clientSelect.value = queryParams.client;
+            clientSelect.dispatchEvent(new Event('change'));
             updateVehicleDropdown(queryParams.client);
         }
 
@@ -80,22 +85,37 @@ export function renderRevision21(container, queryParams) {
             updateVehicleDropdown(e.target.value);
         });
 
+        vehicleSelect.addEventListener('change', (e) => {
+            const veh = (db.vehiculos || []).find(v => v.ID_Vehiculo === e.target.value);
+            if (veh && veh.Odometro) {
+                odoInput.value = veh.Odometro;
+            }
+        });
+
         function updateVehicleDropdown(clientCode) {
             vehicleSelect.innerHTML = '';
             if (!clientCode) {
                 vehicleSelect.innerHTML = '<option value="">-- Selecciona un cliente primero --</option>';
                 vehicleSelect.disabled = true;
+                vehicleSelect.setAttribute('disabled', 'true');
+                odoInput.value = '';
+                vehicleSelect.dispatchEvent(new Event('change'));
                 return;
             }
 
-            const vehicles = db.vehiculos.filter(v => v.Codigo_Cliente === clientCode);
+            const vehicles = (db.vehiculos || []).filter(v => v.Codigo_Cliente === clientCode);
             if (vehicles.length === 0) {
                 vehicleSelect.innerHTML = '<option value="">-- Sin vehículos registrados --</option>';
                 vehicleSelect.disabled = true;
+                vehicleSelect.setAttribute('disabled', 'true');
+                odoInput.value = '';
+                vehicleSelect.dispatchEvent(new Event('change'));
                 return;
             }
 
             vehicleSelect.disabled = false;
+            vehicleSelect.removeAttribute('disabled');
+            vehicleSelect.innerHTML = '<option value="">-- Seleccionar Vehículo --</option>';
             vehicles.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.ID_Vehiculo;
@@ -103,9 +123,28 @@ export function renderRevision21(container, queryParams) {
                 vehicleSelect.appendChild(opt);
             });
 
-            if (vehicles[0] && vehicles[0].Odometro) {
-                odoInput.value = vehicles[0].Odometro;
+            if (vehicles.length === 1) {
+                vehicleSelect.value = vehicles[0].ID_Vehiculo;
+                if (vehicles[0].Odometro) {
+                    odoInput.value = vehicles[0].Odometro;
+                }
+            } else {
+                vehicleSelect.value = '';
+                odoInput.value = '';
             }
+            vehicleSelect.dispatchEvent(new Event('change'));
+        }
+
+        const cpSearch = document.getElementById('ins-checkpoint-search');
+        if (cpSearch) {
+            cpSearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                document.querySelectorAll('.checkpoint-row[data-key]').forEach(row => {
+                    const titleEl = row.querySelector('.checkpoint-title');
+                    const title = titleEl ? titleEl.textContent.toLowerCase() : '';
+                    row.style.display = (!query || title.includes(query)) ? '' : 'none';
+                });
+            });
         }
 
         // Initialize Photo Uploader for Inspection
@@ -131,6 +170,14 @@ export function renderRevision21(container, queryParams) {
             e.preventDefault();
             const clientCode = clientSelect.value;
             const vehId = vehicleSelect.value;
+            if (!clientCode) {
+                showToast("Por favor selecciona un cliente", "warning");
+                return;
+            }
+            if (!vehId) {
+                showToast("Por favor selecciona un vehículo", "warning");
+                return;
+            }
             const odo = odoInput.value;
             const fallas = document.getElementById('ins-fallas').value;
             const obsG = document.getElementById('ins-observaciones').value;
@@ -212,6 +259,19 @@ export function renderRevision21(container, queryParams) {
                     } else {
                         row.style.display = 'none';
                     }
+                });
+            });
+        }
+    }
+
+    if (activeTab === 'configurar') {
+        const searchInput = document.getElementById('cfg-checkpoint-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                document.querySelectorAll('.ins-criterio-row').forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = (!query || text.includes(query)) ? '' : 'none';
                 });
             });
         }
@@ -845,6 +905,9 @@ export function renderRegistrarTab(db, checkpoints) {
                     <label>Otras Observaciones Generales</label>
                     <textarea id="ins-observaciones" rows="2" placeholder="Golpes en carrocería, accesorios faltantes, etc."></textarea>
                 </div>
+            <div style="margin-bottom: 1rem; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem;"></i>
+                <input type="text" id="ins-checkpoint-search" placeholder="Buscar punto de inspección..." style="width: 100%; padding: 0.6rem 0.6rem 0.6rem 2.2rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;">
             </div>
 
             <div class="checkpoint-list">
@@ -951,7 +1014,7 @@ export function renderHistorialTab(db) {
 export function renderConfigurarTab(db, checkpoints) {
     let rowsHTML = checkpoints.map((cp, idx) => {
         return `
-            <tr>
+            <tr class="ins-criterio-row">
                 <td style="font-weight: 600; width: 50px;">${idx + 1}</td>
                 <td>
                     <span style="font-weight: 500; color: var(--text-primary);">${cp.title}</span>
@@ -971,6 +1034,11 @@ export function renderConfigurarTab(db, checkpoints) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3 style="font-size: 1.1rem; color: var(--primary); margin: 0;"><i class="fa-solid fa-list-check"></i> Criterios Activos (${checkpoints.length})</h3>
                     <button class="btn btn-secondary btn-sm" onclick="window.resetInspectionCriterios()" style="font-size: 0.75rem; color: var(--warning); border-color: var(--warning);"><i class="fa-solid fa-arrow-rotate-left"></i> Restablecer 21 Puntos</button>
+                </div>
+                
+                <div style="margin-bottom: 0.75rem; position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.8rem;"></i>
+                    <input type="text" id="cfg-checkpoint-search" placeholder="Buscar criterio..." style="width: 100%; padding: 0.45rem 0.6rem 0.45rem 2rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;">
                 </div>
                 
                 <div class="table-container" style="max-height: 450px; overflow-y: auto;">

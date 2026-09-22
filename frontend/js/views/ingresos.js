@@ -5,7 +5,7 @@ import {
     getWorkshopConfig
 } from '../../app.js?v=69';
 
-import { html, safe, escapeHtml, showToast } from '../utils.js?v=69';
+import { html, safe, escapeHtml, showToast, makeSelectSearchable } from '../utils.js?v=69';
 import {
     createPhotoUploader,
     renderPhotoGalleryHtml,
@@ -499,6 +499,10 @@ function renderEditor(container, editId) {
                 <!-- Col Right: Inventory checklist -->
                 <div class="glass-card" style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
                     <h3 style="color:var(--primary); margin:0; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; margin-bottom:0.5rem;"><i class="fa-solid fa-list-check"></i> Checklist de Inventario</h3>
+                    <div style="margin-bottom:0.5rem; position:relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-secondary); font-size:0.8rem;"></i>
+                        <input type="text" id="search-inventory-checklist" placeholder="Buscar en checklist..." style="width:100%; padding:0.45rem 0.6rem 0.45rem 2rem; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-input); color:var(--text-primary); font-size:0.85rem;">
+                    </div>
                     <div style="overflow-y:auto; max-height:480px; padding-right:0.5rem; display:flex; flex-direction:column; gap:0.5rem;">
                         ${safe(config.checklist.map(c => {
                             const val = ing.Checklist ? (ing.Checklist[c.id] || c.default || 'Y') : (c.default || 'Y');
@@ -554,6 +558,29 @@ function renderEditor(container, editId) {
             </div>
         </form>
     `;
+
+    makeSelectSearchable('ing-vehicle-select', 'Buscar por placa, modelo o cliente...');
+
+    const vehSelectElem = document.getElementById('ing-vehicle-select');
+    if (vehSelectElem) {
+        vehSelectElem.addEventListener('change', () => {
+            const v = (db.vehiculos || []).find(veh => veh.ID_Vehiculo === vehSelectElem.value);
+            if (v && v.Odometro && (!isEdit || !document.getElementById('ing-odo').value)) {
+                document.getElementById('ing-odo').value = v.Odometro;
+            }
+        });
+    }
+
+    const checklistSearch = document.getElementById('search-inventory-checklist');
+    if (checklistSearch) {
+        checklistSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('.checklist-row').forEach(row => {
+                const label = (row.querySelector('span') ? row.querySelector('span').textContent : '').toLowerCase();
+                row.style.display = (!query || label.includes(query)) ? 'flex' : 'none';
+            });
+        });
+    }
 
     // Fuel Type Toggle actions
     document.querySelectorAll('#fuel-type-toggle .toggle-btn').forEach(btn => {

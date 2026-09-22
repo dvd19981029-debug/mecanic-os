@@ -7,7 +7,7 @@ import { renderConfiguracion } from './views/configuracion.js?v=83';
 import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=92';
 import { renderVehiculos } from './views/vehiculos.js?v=92';
-import { renderRevision21 } from './views/revision21.js?v=77';
+import { renderRevision21 } from './views/revision21.js?v=78';
 import { renderPresupuestos } from './views/presupuestos.js?v=120';
 import { renderKanban } from './views/kanban.js?v=69';
 import { renderFacturador } from './views/facturador.js?v=107';
@@ -20,7 +20,7 @@ import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
 import { renderTrabajosTaller } from './views/trabajos.js?v=71';
-import { renderIngresos } from './views/ingresos.js?v=86';
+import { renderIngresos } from './views/ingresos.js?v=87';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
