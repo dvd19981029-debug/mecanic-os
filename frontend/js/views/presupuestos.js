@@ -32,6 +32,17 @@ import {
     getNombreProducto
 } from '../utils.js?v=80';
 
+function stripProductApplication(desc, prod) {
+    if (!desc || typeof desc !== 'string') return desc || '';
+    if (!prod || !prod['Aplicación'] || !String(prod['Aplicación']).trim()) return desc;
+    const appStr = String(prod['Aplicación']).trim();
+    const regex = new RegExp(appStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    if (regex.test(desc)) {
+        return desc.replace(regex, '').replace(/\s+/g, ' ').trim();
+    }
+    return desc;
+}
+
 export function renderPresupuestos(container, queryParams) {
     const db = getDatabase();
     
@@ -866,7 +877,13 @@ export function renderBudgetEditor(container, budget) {
     const laborResults = document.getElementById('catalogo-labor-results');
 
     // Local temporary copies of products/labor rows so we don't save to db until user clicks save
-    let tempProducts = [...budgetProducts];
+    let tempProducts = budgetProducts.map(item => {
+        const prod = db.productos && db.productos.find(x => x['ID_ Producto'] === item['ID_Producto DPP']);
+        return {
+            ...item,
+            Descripcion: stripProductApplication(item.Descripcion, prod)
+        };
+    });
     let tempLabor = [...budgetLabor];
     let tempRepuestosCliente = [...(budget.Repuestos_Cliente || [])];
     let _autoSaveTimer = null;
@@ -1053,6 +1070,10 @@ export function renderBudgetEditor(container, budget) {
         const isLocked = budget.Estado != 1;
         productsContainer.innerHTML = '';
         tempProducts.forEach((item, index) => {
+            const prod = db.productos && db.productos.find(x => x['ID_ Producto'] === item['ID_Producto DPP']);
+            if (prod) {
+                item.Descripcion = stripProductApplication(item.Descripcion, prod);
+            }
             const row = document.createElement('div');
             row.className = 'item-row';
             
@@ -1579,16 +1600,16 @@ export function renderBudgetEditor(container, budget) {
                 ? parseFloat(p['Precio Unit Iva Inc'] || p['Precio Venta Unit Iva Inc'] || ((p['Precio Unit'] || p['Precio Venta'] || 0) * 1.13))
                 : parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
 
-            const fullName = getNombreProducto(p);
+            const nameWithBarra = [p.Descripcion, p.Barra].filter(Boolean).join(' ').trim() || p.Descripcion || '';
             const extraDetails = [];
             if (p['ID_ Producto']) extraDetails.push(`Cód: ${p['ID_ Producto']}`);
             if (p.Barra) extraDetails.push(`Barra: ${p.Barra}`);
-            if (p['Aplicación']) extraDetails.push(p['Aplicación']);
+            if (p['Aplicación']) extraDetails.push(`Aplica: ${p['Aplicación']}`);
             extraDetails.push(`Unitario: $${displayPrice.toFixed(2)}`);
 
             item.innerHTML = html`
                 <div class="list-item-main">
-                    <span class="list-item-title">${escapeHtml(fullName || p.Descripcion)}</span>
+                    <span class="list-item-title">${escapeHtml(nameWithBarra)}</span>
                     <span class="list-item-subtitle">${escapeHtml(extraDetails.join(' • '))}</span>
                 </div>
                 <button class="btn btn-primary btn-add" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-plus"></i></button>
@@ -1601,7 +1622,7 @@ export function renderBudgetEditor(container, budget) {
                     DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                     'ID_Presupuesto DPP': budget['ID Presupuesto'],
                     'ID_Producto DPP': p['ID_ Producto'],
-                    Descripcion: fullName || p.Descripcion,
+                    Descripcion: nameWithBarra,
                     Cantidad: 1,
                     UnidadMedida: p['Unidad de Medida'] || 'Pza',
                     PrecioUnitario: displayPrice,
@@ -1650,7 +1671,7 @@ export function renderBudgetEditor(container, budget) {
                         DPP: "DETPP-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100),
                         'ID_Presupuesto DPP': budget['ID Presupuesto'],
                         'ID_Producto DPP': newProd['ID_ Producto'],
-                        Descripcion: newProd.Descripcion,
+                        Descripcion: [newProd.Descripcion, newProd.Barra].filter(Boolean).join(' ').trim() || newProd.Descripcion,
                         Cantidad: 1,
                         UnidadMedida: newProd['Unidad de Medida'],
                         PrecioUnitario: addedPrice,
@@ -3741,7 +3762,13 @@ export function getBudgetFullHtml(budgetId) {
     if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
     if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
 
-    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === budgetId);
+    const products = db.detalle_productos.filter(dp => dp['ID_Presupuesto DPP'] === budgetId).map(dp => {
+        const prod = db.productos && db.productos.find(x => x['ID_ Producto'] === dp['ID_Producto DPP']);
+        return {
+            ...dp,
+            Descripcion: stripProductApplication(dp.Descripcion, prod)
+        };
+    });
     const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === budgetId);
 
     const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
