@@ -1480,9 +1480,9 @@ export function renderConfiguracion(container, queryParams) {
                     <td><small style="color:var(--text-muted); font-family:monospace;">${escapeHtml(p['ID_ Producto'])}</small></td>
                     <td>
                         <strong>${escapeHtml(p.Descripcion)}</strong>
-                        ${p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : ''}
-                        ${p['Barra'] ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p['Barra'])}</div>` : ''}
-                        ${p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : ''}
+                        ${safe(p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : '')}
+                        ${safe(p['Barra'] ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p['Barra'])}</div>` : '')}
+                        ${safe(p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : '')}
                     </td>
                     <td>${escapeHtml(p.Presentacion || 'Unidad')}</td>
                     <td style="text-align:right; color:var(--text-muted);">$ ${pCompra.toFixed(2)}</td>

@@ -29,7 +29,9 @@ import {
     downloadExcelReport,
     makeSelectSearchable,
     matchesMultiFieldSearch,
-    getNombreProducto
+    getNombreProducto,
+    safe,
+    html
 } from '../utils.js?v=69';
 
 let activeInventarioTab = 'catalogo';
@@ -175,12 +177,12 @@ export function renderInventario(container) {
                 tr.innerHTML = html`
                     <td>
                         <strong>${escapeHtml(p['ID_ Producto'])}</strong>
-                        ${p.Barra ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p.Barra)}</div>` : ''}
+                        ${safe(p.Barra ? `<div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;"><i class="fa-solid fa-barcode"></i> ${escapeHtml(p.Barra)}</div>` : '')}
                     </td>
                     <td>
                         <div><strong>${escapeHtml(p.Descripcion)}</strong></div>
-                        ${p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : ''}
-                        ${p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : ''}
+                        ${safe(p['Aplicación'] ? `<div style="font-size:0.75rem; color:var(--cyan); margin-top:2px;"><i class="fa-solid fa-car-side"></i> ${escapeHtml(p['Aplicación'])}</div>` : '')}
+                        ${safe(p['Notas Producto'] ? `<div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${escapeHtml(p['Notas Producto'])}</div>` : '')}
                     </td>
                     <td>${escapeHtml(p['Unidad de Medida'] || p.Presentacion || 'Pza')}</td>
                     <td>$ ${cost.toFixed(2)}</td>

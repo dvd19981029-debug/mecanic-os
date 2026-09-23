@@ -3,7 +3,7 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=83';
+import { renderConfiguracion } from './views/configuracion.js?v=84';
 import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=94';
 import { renderVehiculos } from './views/vehiculos.js?v=92';
@@ -14,7 +14,7 @@ import { renderFacturador } from './views/facturador.js?v=107';
 import { renderVentaRapida } from './views/venta_rapida.js?v=102';
 import { renderCaja } from './views/caja.js?v=69';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
-import { renderInventario } from './views/inventario.js?v=84';
+import { renderInventario } from './views/inventario.js?v=85';
 import { renderGastos } from './views/gastos.js?v=88';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
