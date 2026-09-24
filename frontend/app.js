@@ -393,7 +393,8 @@ function initFirebaseAuthListener() {
                 }
 
                 dataService.startSync(user.uid, false); // false = puede escribir
-                await dataService.checkAndMigrate(user.uid);
+                // Ejecutar migración en segundo plano sin bloquear el flujo ni la interfaz
+                dataService.checkAndMigrate(user.uid).catch(err => console.warn("Firestore Migration check failed:", err));
             } else if (user && user.isAnonymous) {
                 // --- Empleado con sesión anónima de Firebase ---
                 // Buscar el UID del taller del dueño (guardado en localStorage)
@@ -512,7 +513,7 @@ function smartRefreshView(changedCollection) {
             'productos': ['inventario', 'presupuestos', 'venta-rapida', 'taller-dashboard'],
             'mano_obra': ['presupuestos', 'revision-21'],
             'revisiones': ['revision-21', 'taller-dashboard', 'kanban'],
-            'tecnicos': ['configuracion', 'planilla'],
+            'tecnicos': ['configuracion', 'planilla', 'lock-screen'],
             'abonos_credito': ['cuentas-cobrar', 'presupuestos'],
             'movs_inventario': ['inventario'],
             'venta_rapida': ['venta-rapida', 'taller-dashboard', 'dashboard-bi'],
@@ -817,8 +818,8 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                 }
             }
 
-            // Only create an initial Administrator if Firestore truly has NO technicians in the cloud
-            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+            // Only create an initial Administrator if Firestore truly has NO technicians locally and in the cloud
+            if ((!db.tecnicos || db.tecnicos.length === 0) && typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     const techSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("tecnicos").limit(1).get();
                     if (techSnap.empty && (!db.tecnicos || db.tecnicos.length === 0)) {
@@ -851,17 +852,14 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             showToast("Taller conectado correctamente", "success");
             if (typeof onComplete === 'function') onComplete(true);
         } catch (error) {
-            console.error("Error al iniciar sesión como admin:", error);
-            showToast("Usuario o contraseña incorrectos", "error");
-            if (typeof onComplete === 'function') onComplete(false);
+            throw error;
         }
     };
 
-    // 1. Check local database first (extremely robust, supports offline, case-insensitive and bypasses index issues)
+    // 1. Check local database first (extremely robust, supports offline, case-insensitive)
     if (localTech) {
         const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
         if (workshopUid) {
-            // Ya no hacemos login anónimo. Usamos la sesión activa del dueño (si existe).
             const db = getDatabase();
             db.saas_state = db.saas_state || {};
             db.saas_state.status = 'active';
@@ -880,95 +878,40 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
         }
     }
 
-    // 2. Query Firestore if not found in local db
-    if (typeof dbFirestore !== 'undefined' && dbFirestore && firebase.auth().currentUser) {
+    // 2. Try authenticating as Workshop Owner / Admin via Firebase Auth FIRST (Fast path: ~1s)
+    try {
+        await proceedAsAdmin();
+    } catch (adminErr) {
+        // Fallback: If not an admin account in Firebase Auth, check if they are a technician in the connected workshop
+        const isUserNotFound = adminErr && (adminErr.code === 'auth/user-not-found' || adminErr.code === 'auth/invalid-credential');
         const workshopUid = localStorage.getItem('mecanic_os_workshop_uid') || (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.uid);
         
-        const queryFirestoreCollection = (colRef) => {
-            return colRef.where("Email", "==", email).get()
-                .then((snapshot) => {
-                    let matchedTech = null;
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.Contraseña === hashedPass || data.Contraseña === pass) {
-                            matchedTech = { data, ref: doc.ref };
-                            if (data.Contraseña === pass) {
-                                doc.ref.update({ Contraseña: hashedPass }).catch(e => console.error("Error migrating Firestore password:", e));
-                            }
-                        }
-                    });
-                    return matchedTech;
-                });
-        };
-
-        const handleMatchedTech = (matchedTech) => {
-            const pathSegments = matchedTech.ref.path.split('/');
-            const targetWorkshopUid = pathSegments[1];
-            
-            localStorage.setItem('mecanic_os_workshop_uid', targetWorkshopUid);
-            sessionStorage.setItem('mecanic_os_session_key', hashedPass);
-            
-            const db = getDatabase();
-            db.saas_state = db.saas_state || {};
-            db.saas_state.status = 'active';
-            db.saas_state.workshopData = db.saas_state.workshopData || {};
-            db.saas_state.workshopData.uid = targetWorkshopUid;
-            db.saas_state.termsSigned = true;
-            saveDatabase(db);
-            
-            dataService.startSync(targetWorkshopUid, true); // true = employeeMode
-            setActiveUser(matchedTech.data);
-            
-            showToast(`Sesión iniciada correctamente como ${matchedTech.data.Nombre_Completo}`, "success");
-            if (typeof onComplete === 'function') onComplete(true);
-        };
-
-        const handleCollectionGroupFallback = () => {
-            return dbFirestore.collectionGroup("tecnicos")
-                .where("Email", "==", email)
-                .get()
-                .then(snapshot => {
-                    let collectionGroupTech = null;
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.Contraseña === hashedPass || data.Contraseña === pass) {
-                            collectionGroupTech = { data, ref: doc.ref };
-                            if (data.Contraseña === pass) {
-                                doc.ref.update({ Contraseña: hashedPass }).catch(e => console.error("Error migrating collectionGroup password:", e));
-                            }
-                        }
-                    });
-                    if (collectionGroupTech) {
-                        handleMatchedTech(collectionGroupTech);
-                    } else {
-                        proceedAsAdmin();
+        if (isUserNotFound && workshopUid && typeof dbFirestore !== 'undefined' && dbFirestore) {
+            try {
+                const snap = await dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos").where("Email", "==", email).get();
+                let matchedTech = null;
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.Contraseña === hashedPass || data.Contraseña === pass) {
+                        matchedTech = data;
                     }
-                })
-                .catch((err) => {
-                    console.error("Error en collectionGroup para login de técnico:", err);
-                    proceedAsAdmin();
                 });
-        };
-
-        if (workshopUid) {
-            queryFirestoreCollection(dbFirestore.collection("workshops").doc(workshopUid).collection("tecnicos"))
-                .then(matchedTech => {
-                    if (matchedTech) {
-                        handleMatchedTech(matchedTech);
-                    } else {
-                        handleCollectionGroupFallback();
-                    }
-                })
-                .catch((err) => {
-                    console.error("Error buscando en colección de técnicos local del taller:", err);
-                    handleCollectionGroupFallback();
-                });
-        } else {
-            handleCollectionGroupFallback();
+                if (matchedTech) {
+                    sessionStorage.setItem('mecanic_os_session_key', hashedPass);
+                    dataService.startSync(workshopUid, true);
+                    setActiveUser(matchedTech);
+                    showToast(`Sesión iniciada correctamente como ${matchedTech.Nombre_Completo}`, "success");
+                    if (typeof onComplete === 'function') onComplete(true);
+                    return;
+                }
+            } catch (techSearchErr) {
+                console.warn("Error buscando técnico en Firestore:", techSearchErr);
+            }
         }
-    } else {
-        // Fallback: Si no hay conexión o no hay sesión de Firebase activa, intentamos directamente proceedAsAdmin
-        proceedAsAdmin();
+
+        console.error("Error al iniciar sesión:", adminErr);
+        showToast("Usuario o contraseña incorrectos", "error");
+        if (typeof onComplete === 'function') onComplete(false);
     }
 }
 

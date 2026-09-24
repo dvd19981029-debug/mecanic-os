@@ -33,7 +33,7 @@ import { renderTerminosPublicos } from './views/terminos_publicos.js?v=3';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=80';
+} from './views/auth.js?v=81';
 
 import {
     getActiveUser,

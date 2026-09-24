@@ -242,7 +242,8 @@ export function renderLockScreen(container) {
         saveDatabase(db);
     }
 
-    if (db.tecnicos && db.tecnicos.length > 0) {
+    const hasOwnerInfo = saas.workshopData && (saas.workshopData.propietario || saas.workshopData.nombre || saas.workshopData.correo);
+    if ((db.tecnicos && db.tecnicos.length > 0) || hasOwnerInfo) {
         showProfiles();
     } else if (isFirebaseAuthed && saas.status === 'active') {
         // Authenticated to Firebase but still syncing/loading technicians
