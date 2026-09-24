@@ -905,6 +905,8 @@ export function renderRegistrarTab(db, checkpoints) {
                     <label>Otras Observaciones Generales</label>
                     <textarea id="ins-observaciones" rows="2" placeholder="Golpes en carrocería, accesorios faltantes, etc."></textarea>
                 </div>
+            </div>
+
             <div style="margin-bottom: 1rem; position: relative;">
                 <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.85rem;"></i>
                 <input type="text" id="ins-checkpoint-search" placeholder="Buscar punto de inspección..." style="width: 100%; padding: 0.6rem 0.6rem 0.6rem 2.2rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;">
