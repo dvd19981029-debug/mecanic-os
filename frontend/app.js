@@ -735,9 +735,12 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
             const userCredential = await firebase.auth().signInWithEmailAndPassword(email, pass);
             const ownerUid = userCredential.user.uid;
             
+            const authorizedAdmins = ['dvd19981029@gmail.com', 'amejia2998@gmail.com'];
+            const isSuperAdmin = email && authorizedAdmins.includes(email.toLowerCase());
+
             let activeReqData = null;
             // Check if this account belongs to a pending or approved SaaS request before activating
-            if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+            if (!isSuperAdmin && typeof dbFirestore !== 'undefined' && dbFirestore) {
                 try {
                     const reqDoc = await dbFirestore.collection("saas_requests").doc(ownerUid).get();
                     if (reqDoc.exists) {
@@ -818,30 +821,23 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                 }
             }
 
-            // Only create an initial Administrator if Firestore truly has NO technicians locally and in the cloud
-            if ((!db.tecnicos || db.tecnicos.length === 0) && typeof dbFirestore !== 'undefined' && dbFirestore) {
-                try {
-                    const techSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("tecnicos").limit(1).get();
-                    if (techSnap.empty && (!db.tecnicos || db.tecnicos.length === 0)) {
-                        const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
-                        const defaultAdminTech = {
-                            Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
-                            Nombre_Completo: ownerName,
-                            Email: email,
-                            Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',
-                            Especialidad: 'Gerente General',
-                            Nivel_Acceso: 'Administrador',
-                            Salario_Base: 1500,
-                            Contraseña: await hashPassword("1234"),
-                            Incapacidades: [],
-                            Vacaciones: [],
-                            Bonos: []
-                        };
-                        db.tecnicos = [defaultAdminTech];
-                    }
-                } catch (techChkErr) {
-                    console.warn("Error checking technicians in cloud:", techChkErr);
-                }
+            // Only create an initial Administrator if local database has no technicians
+            if (!db.tecnicos || db.tecnicos.length === 0) {
+                const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
+                const defaultAdminTech = {
+                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                    Nombre_Completo: ownerName,
+                    Email: email,
+                    Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',
+                    Especialidad: 'Gerente General',
+                    Nivel_Acceso: 'Administrador',
+                    Salario_Base: 1500,
+                    Contraseña: await hashPassword("1234"),
+                    Incapacidades: [],
+                    Vacaciones: [],
+                    Bonos: []
+                };
+                db.tecnicos = [defaultAdminTech];
             }
 
             await saveDatabase(db);

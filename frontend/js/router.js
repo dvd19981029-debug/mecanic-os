@@ -33,13 +33,13 @@ import { renderTerminosPublicos } from './views/terminos_publicos.js?v=3';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=81';
+} from './views/auth.js?v=82';
 
 import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js?v=70';
+} from '../app.js?v=88';
 
 import { showToast } from './utils.js?v=90';
 

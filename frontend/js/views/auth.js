@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     performUnifiedLogin
-} from '../../app.js';
+} from '../../app.js?v=88';
 import {
     showToast,
     escapeHtml,
@@ -353,7 +353,11 @@ export function renderLockScreen(container) {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
                     if (success) {
-                        window.location.hash = 'taller-dashboard';
+                        if (getActiveUser()) {
+                            window.location.hash = 'taller-dashboard';
+                        } else {
+                            window.location.hash = 'lock-screen';
+                        }
                         handleRouting();
                     }
                 });
