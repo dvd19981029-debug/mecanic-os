@@ -821,11 +821,32 @@ async function performUnifiedLogin(email, pass, btn, onComplete) {
                 }
             }
 
-            // Only create an initial Administrator if local database has no technicians
+            // Only create an initial Administrator on FIRST-TIME workshop setup
+            // (both local DB and Firestore have zero technicians).
+            // On normal re-logins, skip this — the sync listeners will bring in existing technicians.
+            const ownerTechId = 'TECH-OWNER-' + ownerUid.slice(0, 10);
+            let shouldCreateAdmin = false;
             if (!db.tecnicos || db.tecnicos.length === 0) {
+                if (typeof dbFirestore !== 'undefined' && dbFirestore) {
+                    try {
+                        const techSnap = await dbFirestore.collection("workshops").doc(ownerUid).collection("tecnicos").limit(1).get();
+                        if (techSnap.empty) {
+                            shouldCreateAdmin = true;
+                        }
+                    } catch (techChkErr) {
+                        console.warn("Error checking technicians in Firestore:", techChkErr);
+                        // Offline or error — create admin as fallback so the user isn't stuck
+                        shouldCreateAdmin = true;
+                    }
+                } else {
+                    // No Firestore available (offline) — create admin so user can proceed
+                    shouldCreateAdmin = true;
+                }
+            }
+            if (shouldCreateAdmin) {
                 const ownerName = (db.saas_state.workshopData && db.saas_state.workshopData.propietario) || 'Administrador';
                 const defaultAdminTech = {
-                    Tecnico_ID: 'TECH-' + Date.now().toString().slice(-6),
+                    Tecnico_ID: ownerTechId,
                     Nombre_Completo: ownerName,
                     Email: email,
                     Telefono: (db.saas_state.workshopData && db.saas_state.workshopData.telefono) || '',

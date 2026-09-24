@@ -221,12 +221,14 @@ export function renderLockScreen(container) {
     const isFirebaseAuthed = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
 
     // Auto-seed owner profile ONLY if active workshop has completely empty tecnicos array
-    if ((!db.tecnicos || db.tecnicos.length === 0) && (saas.status === 'active' || isFirebaseAuthed)) {
+    const ownerUid = (saas.workshopData && saas.workshopData.uid) || 'ADMIN';
+    const ownerTechId = 'TECH-OWNER-' + ownerUid.slice(0, 10);
+    const ownerAlreadyExists = (db.tecnicos || []).some(t => t.Tecnico_ID === ownerTechId);
+    if ((!db.tecnicos || db.tecnicos.length === 0) && !ownerAlreadyExists && (saas.status === 'active' || isFirebaseAuthed)) {
         const ownerName = (saas.workshopData && saas.workshopData.propietario) || (saas.workshopData && saas.workshopData.nombre) || 'Administrador';
         const ownerEmail = (saas.workshopData && saas.workshopData.correo) || '';
-        const ownerUid = (saas.workshopData && saas.workshopData.uid) || 'ADMIN';
         const defaultAdminTech = {
-            Tecnico_ID: 'TECH-OWNER-' + ownerUid.slice(0, 10),
+            Tecnico_ID: ownerTechId,
             Nombre_Completo: ownerName,
             Email: ownerEmail,
             Telefono: (saas.workshopData && saas.workshopData.telefono) || '',
