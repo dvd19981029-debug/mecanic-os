@@ -280,9 +280,11 @@ export function renderRevision21(container, queryParams) {
 
 
 export function getInspectionCheckpoints(db) {
-    const ws = getWorkshopConfig(db);
-    if (!ws.checkpoints_inspeccion || !Array.isArray(ws.checkpoints_inspeccion) || ws.checkpoints_inspeccion.length === 0) {
-        ws.checkpoints_inspeccion = [
+    if (!db.config_taller) {
+        db.config_taller = getWorkshopConfig(db) || {};
+    }
+    if (!db.config_taller.checkpoints_inspeccion || !Array.isArray(db.config_taller.checkpoints_inspeccion) || db.config_taller.checkpoints_inspeccion.length === 0) {
+        db.config_taller.checkpoints_inspeccion = [
             { key: 'Freno de Mano', title: 'Freno de Mano (Recorrido / Regular)' },
             { key: 'AC', title: 'A/C Ventilación y filtro de cabina' },
             { key: 'Parabrisas', title: 'Parabrisas y Aspersores de agua' },
@@ -307,7 +309,7 @@ export function getInspectionCheckpoints(db) {
         ];
         saveDatabase(db);
     }
-    return ws.checkpoints_inspeccion;
+    return db.config_taller.checkpoints_inspeccion;
 }
 
 window.switchInspeccionTab = function(tabName) {
@@ -327,16 +329,41 @@ window.switchInspeccionTab = function(tabName) {
     }
 };
 
+window.editInspectionCriterio = function(key) {
+    const db = getDatabase();
+    if (!db.config_taller) {
+        db.config_taller = getWorkshopConfig(db) || {};
+    }
+    let list = getInspectionCheckpoints(db);
+    const cp = list.find(item => item.key === key);
+    if (!cp) return;
+    
+    const newTitle = prompt("Modificar nombre del criterio de inspección:", cp.title);
+    if (newTitle === null) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed) {
+        showToast("El título no puede estar vacío", "warning");
+        return;
+    }
+    
+    cp.title = trimmed;
+    db.config_taller.checkpoints_inspeccion = list;
+    saveDatabase(db);
+    showToast("Criterio actualizado con éxito", "success");
+    window.switchInspeccionTab('configurar');
+};
+
 window.deleteInspectionCriterio = function(key) {
     if (confirm("¿Estás seguro de que deseas eliminar este criterio de la hoja de revisión?\nNota: No afectará las revisiones pasadas pero no aparecerá en las nuevas.")) {
         const db = getDatabase();
-        const ws = getWorkshopConfig(db);
-        if (ws.checkpoints_inspeccion) {
-            ws.checkpoints_inspeccion = ws.checkpoints_inspeccion.filter(cp => cp.key !== key);
-            saveDatabase(db);
-            showToast("Criterio eliminado con éxito", "success");
-            window.switchInspeccionTab('configurar');
+        if (!db.config_taller) {
+            db.config_taller = getWorkshopConfig(db) || {};
         }
+        let list = getInspectionCheckpoints(db);
+        db.config_taller.checkpoints_inspeccion = list.filter(cp => cp.key !== key);
+        saveDatabase(db);
+        showToast("Criterio eliminado con éxito", "success");
+        window.switchInspeccionTab('configurar');
     }
 };
 
@@ -348,19 +375,19 @@ window.addInspectionCriterio = function(e) {
     const keyVal = titleVal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "");
     
     const db = getDatabase();
-    const ws = getWorkshopConfig(db);
-    
-    if (!ws.checkpoints_inspeccion) {
-        ws.checkpoints_inspeccion = [];
+    if (!db.config_taller) {
+        db.config_taller = getWorkshopConfig(db) || {};
     }
+    let list = getInspectionCheckpoints(db);
     
-    const exists = ws.checkpoints_inspeccion.some(cp => cp.key.toLowerCase() === keyVal.toLowerCase() || cp.title.toLowerCase() === titleVal.toLowerCase());
+    const exists = list.some(cp => cp.key.toLowerCase() === keyVal.toLowerCase() || cp.title.toLowerCase() === titleVal.toLowerCase());
     if (exists) {
         showToast("Este criterio o uno muy similar ya existe.", "warning");
         return;
     }
     
-    ws.checkpoints_inspeccion.push({ key: keyVal, title: titleVal });
+    list.push({ key: keyVal, title: titleVal });
+    db.config_taller.checkpoints_inspeccion = list;
     saveDatabase(db);
     showToast("Nuevo criterio agregado correctamente", "success");
     window.switchInspeccionTab('configurar');
@@ -369,8 +396,10 @@ window.addInspectionCriterio = function(e) {
 window.resetInspectionCriterios = function() {
     if (confirm("¿Estás seguro de que deseas restablecer los criterios al listado predeterminado de 21 Puntos?")) {
         const db = getDatabase();
-        const ws = getWorkshopConfig(db);
-        ws.checkpoints_inspeccion = [
+        if (!db.config_taller) {
+            db.config_taller = getWorkshopConfig(db) || {};
+        }
+        db.config_taller.checkpoints_inspeccion = [
             { key: 'Freno de Mano', title: 'Freno de Mano (Recorrido / Regular)' },
             { key: 'AC', title: 'A/C Ventilación y filtro de cabina' },
             { key: 'Parabrisas', title: 'Parabrisas y Aspersores de agua' },
@@ -1023,7 +1052,8 @@ export function renderConfigurarTab(db, checkpoints) {
                     <br>
                     <small style="color: var(--text-secondary); font-size: 0.75rem;">Llave técnica: <code>${cp.key}</code></small>
                 </td>
-                <td style="text-align: right; width: 100px;">
+                <td style="text-align: right; width: 140px; white-space: nowrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="window.editInspectionCriterio('${cp.key}')" style="color: var(--primary); border-color: var(--primary); padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-right: 0.35rem;"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
                     <button class="btn btn-secondary btn-sm" onclick="window.deleteInspectionCriterio('${cp.key}')" style="color: var(--danger); border-color: var(--danger); padding: 0.25rem 0.5rem; font-size: 0.75rem;"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
                 </td>
             </tr>
