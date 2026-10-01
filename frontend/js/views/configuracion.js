@@ -543,7 +543,12 @@ export function renderConfiguracion(container, queryParams) {
                         </div>
                         <div class="form-group">
                             <label>Contraseña Acceso</label>
-                            <input type="password" id="tecnico-pass" required value="1234">
+                            <div style="position: relative; display: flex; align-items: center;">
+                                <input type="password" id="tecnico-pass" required value="1234" style="width: 100%; padding-right: 2.5rem;">
+                                <button type="button" id="btn-toggle-tecnico-pass" style="position: absolute; right: 0.5rem; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.4rem; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: color 0.2s;" title="Mostrar / Ocultar Contraseña">
+                                    <i class="fa-solid fa-eye" id="tecnico-pass-eye-icon"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="form-row">
@@ -1239,9 +1244,34 @@ export function renderConfiguracion(container, queryParams) {
             });
         });
 
+        async function resolveEmployeePin(t) {
+            if (!t) return '1234';
+            if (t.Pin) return t.Pin;
+            if (t.Contraseña) {
+                if (t.Contraseña.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(t.Contraseña)) {
+                    return t.Contraseña;
+                }
+                const targetHash = t.Contraseña.toLowerCase();
+                const hash1234 = await hashPassword("1234");
+                if (hash1234 === targetHash) {
+                    t.Pin = '1234';
+                    return '1234';
+                }
+                for (let i = 0; i <= 9999; i++) {
+                    const pinStr = i.toString().padStart(4, '0');
+                    const h = await hashPassword(pinStr);
+                    if (h === targetHash) {
+                        t.Pin = pinStr;
+                        return pinStr;
+                    }
+                }
+            }
+            return t.Pin || '1234';
+        }
+
         // Edit Employee button
         document.querySelectorAll('.btn-edit-tecnico').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
                 const t = db.tecnicos.find(x => x.Tecnico_ID === id);
                 if (t) {
@@ -1253,7 +1283,14 @@ export function renderConfiguracion(container, queryParams) {
                     document.getElementById('tecnico-especialidad').value = t.Especialidad || 'Mecánico General';
                     populateEmployeeRolesDropdown(t.Nivel_Acceso || 'Técnico');
                     document.getElementById('tecnico-salario').value = t.Salario_Base || 365;
-                    document.getElementById('tecnico-pass').value = '********'; // Mask password to hide hash
+
+                    const passInput = document.getElementById('tecnico-pass');
+                    const eyeIcon = document.getElementById('tecnico-pass-eye-icon');
+                    if (passInput) passInput.type = 'password';
+                    if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye';
+                    const pin = await resolveEmployeePin(t);
+                    if (passInput) passInput.value = pin;
+
                     document.getElementById('tecnico-comision-servicios').value = t.Comision_Servicios !== undefined ? t.Comision_Servicios : 10;
                     document.getElementById('tecnico-comision-productos').value = t.Comision_Productos !== undefined ? t.Comision_Productos : 0;
                     document.getElementById('tecnico-modal').classList.add('active');
@@ -1290,11 +1327,35 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('tecnico-especialidad').value = 'Mecánico General';
             populateEmployeeRolesDropdown('Técnico');
             document.getElementById('tecnico-salario').value = '365';
-            document.getElementById('tecnico-pass').value = '1234';
+            
+            const passInput = document.getElementById('tecnico-pass');
+            const eyeIcon = document.getElementById('tecnico-pass-eye-icon');
+            if (passInput) {
+                passInput.type = 'password';
+                passInput.value = '1234';
+            }
+            if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye';
+
             document.getElementById('tecnico-comision-servicios').value = '10';
             document.getElementById('tecnico-comision-productos').value = '0';
             document.getElementById('tecnico-modal').classList.add('active');
         });
+
+        // Bind Eye Icon Password Toggle
+        const togglePassBtn = document.getElementById('btn-toggle-tecnico-pass');
+        if (togglePassBtn) {
+            togglePassBtn.addEventListener('click', () => {
+                const passInput = document.getElementById('tecnico-pass');
+                const eyeIcon = document.getElementById('tecnico-pass-eye-icon');
+                if (passInput) {
+                    const isPass = passInput.type === 'password';
+                    passInput.type = isPass ? 'text' : 'password';
+                    if (eyeIcon) {
+                        eyeIcon.className = isPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+                    }
+                }
+            });
+        }
 
         // Bind Employee Form Submit
         const tecnicoForm = document.getElementById('tecnico-form');
@@ -1349,8 +1410,9 @@ export function renderConfiguracion(container, queryParams) {
                     t.Especialidad = especialidad;
                     t.Nivel_Acceso = acceso;
                     t.Salario_Base = salario;
-                    if (pass !== '********') {
+                    if (pass) {
                         t.Contraseña = await hashPassword(pass);
+                        t.Pin = pass;
                     }
                     t.Comision_Servicios = comisionServicios;
                     t.Comision_Productos = comisionProductos;
@@ -1368,6 +1430,7 @@ export function renderConfiguracion(container, queryParams) {
                     Nivel_Acceso: acceso,
                     Salario_Base: salario,
                     Contraseña: hashedPass,
+                    Pin: pass,
                     Comision_Servicios: comisionServicios,
                     Comision_Productos: comisionProductos,
                     Incapacidades: [],
