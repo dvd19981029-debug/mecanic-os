@@ -31,6 +31,7 @@ export function renderVehiculos(container) {
     const clientesList = db.clientes || db['01 Clientes'] || [];
     const ingresosList = db.ingresos || db['03 Hojas de Ingreso'] || [];
     const presupuestosList = db.presupuestos || db['04 Presupuestos'] || [];
+    const ventasRapidasList = db['43 Venta Rapida'] || db.venta_rapida || [];
     const trabajosList = db.trabajos || db['05 Trabajos en Progreso'] || [];
     const revisionesList = db.revisiones || db['21 Puntos'] || [];
 
@@ -80,6 +81,17 @@ export function renderVehiculos(container) {
 
         const vIngresos = ingresosList.filter(match);
         const vPresupuestos = presupuestosList.filter(match);
+        const vVentasRapidas = (ventasRapidasList || []).filter(match).map(vr => ({
+            ...vr,
+            isVentaRapida: true,
+            'ID Presupuesto': vr.ID_Venta_Rapida,
+            Fecha: vr.Fecha_Facturacion || vr['Marca Temporal']
+        }));
+        const combinedPresupuestos = [...vPresupuestos, ...vVentasRapidas].sort((a, b) => {
+            const dateA = new Date(a.Fecha_Facturacion || a.Fecha || a['Marca Temporal'] || 0).getTime();
+            const dateB = new Date(b.Fecha_Facturacion || b.Fecha || b['Marca Temporal'] || 0).getTime();
+            return dateB - dateA;
+        });
         
         // Work orders correspond to budgets that reached production/repair/billing (states: 2 = En Reparación, 5 = Finalizado, 3 = Facturado) or legacy db.trabajos
         const legacyTrabajos = trabajosList.filter(match);
@@ -110,12 +122,12 @@ export function renderVehiculos(container) {
 
         return {
             ingresosCount: vIngresos.length,
-            presupuestosCount: vPresupuestos.length,
+            presupuestosCount: combinedPresupuestos.length,
             trabajosCount: vTrabajos.length,
             revisionesCount: vRevisiones.length,
             enTaller,
             ingresos: vIngresos,
-            presupuestos: vPresupuestos,
+            presupuestos: combinedPresupuestos,
             trabajos: vTrabajos,
             revisiones: vRevisiones
         };
@@ -531,7 +543,7 @@ export function renderVehiculos(container) {
                         <i class="fa-solid fa-screwdriver-wrench"></i> Ordenes de Trabajo (${stats.trabajosCount})
                     </button>
                     <button class="btn ${activeTab === 'presupuestos' ? 'btn-primary' : 'btn-secondary'}" id="exp-tab-presupuestos" style="padding:0.45rem 0.9rem; font-size:0.85rem;">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> Presupuestos (${stats.presupuestosCount})
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Presupuestos & Ventas (${stats.presupuestosCount})
                     </button>
                     <button class="btn ${activeTab === 'revisiones' ? 'btn-primary' : 'btn-secondary'}" id="exp-tab-revisiones" style="padding:0.45rem 0.9rem; font-size:0.85rem;">
                         <i class="fa-solid fa-clipboard-check"></i> Inspecciones 21 Puntos (${stats.revisionesCount})
@@ -557,6 +569,21 @@ export function renderVehiculos(container) {
                     const bId = btn.getAttribute('data-id');
                     if (bId && bId !== 'N/A') {
                         exportBudgetPDF(bId);
+                    }
+                };
+            });
+
+            // Bind Ticket Print buttons for Venta Rápida
+            modalBody.querySelectorAll('.btn-exp-ticket').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    const bId = btn.getAttribute('data-id');
+                    if (bId && bId !== 'N/A') {
+                        if (typeof window.printDteTicket === 'function') {
+                            window.printDteTicket(bId);
+                        } else {
+                            showToast("Función de impresión de ticket no disponible", "warning");
+                        }
                     }
                 };
             });
@@ -753,38 +780,66 @@ export function renderVehiculos(container) {
 
         if (tab === 'presupuestos') {
             if (stats.presupuestos.length === 0) {
-                return `<p style="text-align:center; color:var(--text-muted); padding:2rem;">No hay presupuestos emitidos para este vehículo.</p>`;
+                return `<p style="text-align:center; color:var(--text-muted); padding:2rem;">No hay presupuestos ni ventas registrados para este vehículo.</p>`;
             }
             return html`
                 <div style="display:flex; flex-direction:column; gap:1rem;">
                     ${safe(stats.presupuestos.map(p => {
-                        const code = p['ID Presupuesto'] || p.ID_Presupuesto || p.id || 'N/A';
-                        const dateStr = formatExpedienteDate(p.Fecha || p['Marca Temporal']);
+                        const isVR = !!p.ID_Venta_Rapida || p.isVentaRapida;
+                        const code = p.ID_Venta_Rapida || p['ID Presupuesto'] || p.ID_Presupuesto || p.id || 'N/A';
+                        const dateStr = formatExpedienteDate(p.Fecha_Facturacion || p.Fecha || p['Marca Temporal']);
                         
-                        const pLabor = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(dm => dm['ID_Presupuesto MO'] === code);
-                        const pProducts = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(dp => dp['ID_Presupuesto DPP'] === code);
+                        let pLabor = [];
+                        let pProducts = [];
+                        if (isVR) {
+                            pLabor = p.mano_obra || [];
+                            pProducts = p.productos || [];
+                        } else {
+                            pLabor = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(dm => dm['ID_Presupuesto MO'] === code);
+                            pProducts = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(dp => dp['ID_Presupuesto DPP'] === code);
+                        }
                         
-                        const sumProd = pProducts.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
-                        const sumLab = pLabor.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
+                        const sumProd = pProducts.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1), 0);
+                        const sumLab = pLabor.reduce((sum, item) => sum + parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1), 0);
                         const subtotal = sumProd + sumLab;
                         
                         let grandTotal = 0;
-                        try {
-                            grandTotal = getBudgetGrandTotal(p, db);
-                        } catch (e) {
-                            grandTotal = parseFloat(p.Total || p.total || subtotal);
+                        if (isVR) {
+                            grandTotal = parseFloat(p.total || p.Total || p.Monto || subtotal);
+                        } else {
+                            try {
+                                grandTotal = getBudgetGrandTotal(p, db);
+                            } catch (e) {
+                                grandTotal = parseFloat(p.Total || p.total || subtotal);
+                            }
                         }
                         const iva = Math.max(0, grandTotal - subtotal);
 
-                        const statusNum = parseInt(p.Estado || 0);
                         let badgeClass = 'badge-secondary';
                         let statusText = 'Cotización / Creado';
-                        if (statusNum === 2) { badgeClass = 'badge-warning'; statusText = 'Aprobado / Reparación'; }
-                        else if (statusNum === 3) { badgeClass = 'badge-success'; statusText = 'Facturado'; }
-                        else if (statusNum === 4) { badgeClass = 'badge-danger'; statusText = 'Anulado / Rechazado'; }
-                        else if (statusNum === 5) { badgeClass = 'badge-primary'; statusText = 'Trabajo Finalizado'; }
-                        else if (p.Estado === 'APROBADO') { badgeClass = 'badge-success'; statusText = 'Aprobado'; }
-                        else if (p.Estado === 'RECHAZADO') { badgeClass = 'badge-danger'; statusText = 'Rechazado'; }
+                        if (isVR) {
+                            if (p.Estado === 'PENDIENTE') {
+                                badgeClass = 'badge-warning';
+                                statusText = 'Venta Rápida (Pendiente)';
+                            } else if (p.Estado === 'FACTURADO' || p.Estado === 'EMITIDO' || p.mhControlNumber || p.controlNumber) {
+                                badgeClass = 'badge-success';
+                                statusText = 'Venta Rápida (Facturado)';
+                            } else {
+                                badgeClass = 'badge-primary';
+                                statusText = `Venta Rápida (${p.Estado || 'Registrada'})`;
+                            }
+                        } else {
+                            const statusNum = parseInt(p.Estado || 0);
+                            if (statusNum === 2) { badgeClass = 'badge-warning'; statusText = 'Aprobado / Reparación'; }
+                            else if (statusNum === 3) { badgeClass = 'badge-success'; statusText = 'Facturado'; }
+                            else if (statusNum === 4) { badgeClass = 'badge-danger'; statusText = 'Anulado / Rechazado'; }
+                            else if (statusNum === 5) { badgeClass = 'badge-primary'; statusText = 'Trabajo Finalizado'; }
+                            else if (p.Estado === 'APROBADO') { badgeClass = 'badge-success'; statusText = 'Aprobado'; }
+                            else if (p.Estado === 'RECHAZADO') { badgeClass = 'badge-danger'; statusText = 'Rechazado'; }
+                        }
+
+                        const obsText = p.Observaciones || p[' Observaciones'] || '';
+                        const hasObs = obsText && obsText !== 'Venta directa de mostrador';
 
                         return html`
                             <div class="glass-card" style="padding:1.1rem; border:1px solid var(--border-color); background:rgba(255,255,255,0.02);">
@@ -797,6 +852,11 @@ export function renderVehiculos(container) {
                                         <span style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-top:0.25rem;">
                                             <i class="fa-regular fa-calendar"></i> Fecha: <strong>${dateStr}</strong>
                                         </span>
+                                        ${safe(hasObs ? `
+                                        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:0.25rem; font-style:italic;">
+                                            <i class="fa-regular fa-comment-dots" style="color:var(--primary);"></i> ${escapeHtml(obsText)}
+                                        </div>
+                                        ` : '')}
                                     </div>
                                     <div style="display:flex; gap:1.25rem; text-align:right;">
                                         <div>
@@ -817,7 +877,7 @@ export function renderVehiculos(container) {
                                 <!-- Collapsible detail of works -->
                                 <details style="background:rgba(0,0,0,0.2); border-radius:6px; padding:0.5rem 0.75rem; margin-top:0.5rem; font-size:0.82rem;">
                                     <summary style="cursor:pointer; font-weight:600; color:var(--text-primary); outline:none;">
-                                        <i class="fa-solid fa-list-check"></i> Ver Desglose de Trabajos y Repuestos (${pLabor.length + pProducts.length} ítems)
+                                        <i class="fa-solid fa-list-check"></i> Ver Desglose (${pLabor.length + pProducts.length} ítems)
                                     </summary>
                                     <div style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.5rem;">
                                         ${p.Fallas_Detectadas ? safe(html`
@@ -830,7 +890,7 @@ export function renderVehiculos(container) {
                                             <div>
                                                 <strong style="color:#a855f7; font-size:0.75rem; text-transform:uppercase;">Mano de Obra (${pLabor.length}):</strong>
                                                 <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary); line-height:1.4;">
-                                                    ${safe(pLabor.map(l => `<li>${escapeHtml(l.Descripcion || 'Servicio')} (Cant: ${l.Cantidad || 1}) - $ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                    ${safe(pLabor.map(l => `<li>${escapeHtml(l.Descripcion || l.desc || 'Servicio')} (Cant: ${l.Cantidad || l.qty || 1}) - $ ${(parseFloat(l.PrecioUnitario || l.price || 0) * parseInt(l.Cantidad || l.qty || 1)).toFixed(2)}</li>`).join(''))}
                                                 </ul>
                                             </div>
                                         `) : ''}
@@ -839,7 +899,7 @@ export function renderVehiculos(container) {
                                             <div>
                                                 <strong style="color:var(--primary); font-size:0.75rem; text-transform:uppercase;">Repuestos e Insumos (${pProducts.length}):</strong>
                                                 <ul style="margin:0.2rem 0 0 1.25rem; padding:0; color:var(--text-secondary); line-height:1.4;">
-                                                    ${safe(pProducts.map(pr => `<li>${escapeHtml(pr.Descripcion || 'Repuesto')} (Cant: ${pr.Cantidad || 1}) - $ ${(parseFloat(pr.PrecioUnitario || 0) * parseInt(pr.Cantidad || 1)).toFixed(2)}</li>`).join(''))}
+                                                    ${safe(pProducts.map(pr => `<li>${escapeHtml(pr.Descripcion || pr.desc || 'Repuesto')} (Cant: ${pr.Cantidad || pr.qty || 1}) - $ ${(parseFloat(pr.PrecioUnitario || pr.price || 0) * parseInt(pr.Cantidad || pr.qty || 1)).toFixed(2)}</li>`).join(''))}
                                                 </ul>
                                             </div>
                                         `) : ''}
@@ -847,12 +907,21 @@ export function renderVehiculos(container) {
                                 </details>
 
                                 <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border-color); padding-top:0.65rem; margin-top:0.65rem;">
-                                    <button class="btn btn-secondary btn-exp-pdf" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
-                                        <i class="fa-solid fa-file-pdf" style="color:#e74c3c;"></i> Imprimir PDF
-                                    </button>
-                                    <a href="#presupuestos?id=${escapeHtml(code)}" class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
-                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver Ficha Completa
-                                    </a>
+                                    ${isVR ? `
+                                        <button class="btn btn-secondary btn-exp-ticket" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                            <i class="fa-solid fa-receipt" style="color:var(--primary);"></i> Imprimir Ticket
+                                        </button>
+                                        <a href="#venta-rapida" class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                                            <i class="fa-solid fa-store"></i> Ver en Venta Rápida
+                                        </a>
+                                    ` : `
+                                        <button class="btn btn-secondary btn-exp-pdf" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
+                                            <i class="fa-solid fa-file-pdf" style="color:#e74c3c;"></i> Imprimir PDF
+                                        </button>
+                                        <a href="#presupuestos?id=${escapeHtml(code)}" class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver Ficha Completa
+                                        </a>
+                                    `}
                                 </div>
                             </div>
                         `;

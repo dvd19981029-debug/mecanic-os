@@ -58,25 +58,43 @@ export function renderVentaRapida(container) {
         <div id="pos-panel-new" class="pos-panel">
             <div class="budget-editor" style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
                 <div class="items-section" style="display: flex; flex-direction: column; gap: 1.25rem;">
-                    <!-- Client Selection -->
+                    <!-- Client and Document Selection -->
                     <div class="glass-card" style="padding: 1.25rem;">
                         <h4 style="margin: 0 0 1rem 0; color: var(--primary); font-family: var(--font-heading); display:flex; align-items:center; gap:0.5rem; font-size:1.05rem; font-weight:700;">
                             <i class="fa-solid fa-user-tag"></i> Datos del Cliente y Documento
                         </h4>
-                        <div class="form-row" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem;">
+                        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1rem;">
                             <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">Seleccionar Cliente</label>
+                                <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">
+                                    <i class="fa-solid fa-user"></i> Seleccionar Cliente
+                                </label>
                                 <select id="pos-client-select" style="padding: 0.65rem; width:100%; font-family:inherit;">
                                     ${safe(db.clientes.map(c => `<option value="${escapeHtml(c.Codigo_Cliente)}">${escapeHtml(c.Nombre)}</option>`).join(''))}
                                 </select>
                             </div>
                             <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">Tipo de Documento</label>
+                                <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">
+                                    <i class="fa-solid fa-car"></i> Vehículo (Opcional)
+                                </label>
+                                <select id="pos-vehicle-select" style="padding: 0.65rem; width:100%; font-family:inherit;">
+                                    <option value="">-- Sin Vehículo (Venta Mostrador) --</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">
+                                    <i class="fa-solid fa-file-invoice"></i> Tipo de Documento
+                                </label>
                                 <select id="pos-doc-type" style="padding: 0.65rem; width:100%; font-family:inherit;">
                                     <option value="FE">Factura Electrónica (Consumidor Final)</option>
                                     <option value="CCF">Comprobante de Crédito Fiscal (CCF)</option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem; color:var(--text-secondary); display:block; margin-bottom:0.4rem;">
+                                <i class="fa-regular fa-comment-dots"></i> Observaciones / Notas de la Venta (Opcional)
+                            </label>
+                            <input type="text" id="pos-observaciones" placeholder="Ej: Venta de mostrador / Retira el cliente / Mantenimiento específico..." style="padding: 0.65rem 0.8rem; width:100%; font-family:inherit; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-sm); color:var(--text-primary); font-size:0.85rem;" autocomplete="off">
                         </div>
                     </div>
 
@@ -280,7 +298,61 @@ export function renderVentaRapida(container) {
     
     makeSelectSearchable('pos-client-select', 'Buscar y seleccionar cliente...');
     const clientSelect = document.getElementById('pos-client-select');
+    const vehicleSelect = document.getElementById('pos-vehicle-select');
+    makeSelectSearchable('pos-vehicle-select', 'Buscar o seleccionar vehículo (Opcional)...');
     const docTypeSelect = document.getElementById('pos-doc-type');
+    const observacionesInput = document.getElementById('pos-observaciones');
+
+    function populatePosVehicles(clientCode, selectedVehKey = '') {
+        if (!vehicleSelect) return;
+        const rawVehicles = [...(db.vehiculos || []), ...(db['02 Vehiculos'] || [])];
+        const vMap = new Map();
+        rawVehicles.forEach(v => {
+            const key = v.ID_Vehiculo || v.Placas || v.Placa;
+            if (key && !vMap.has(key)) vMap.set(key, v);
+        });
+        const allVehs = Array.from(vMap.values());
+        
+        const clientVehs = allVehs.filter(v => {
+            if (!clientCode) return false;
+            return (v.Codigo_Cliente && v.Codigo_Cliente === clientCode) ||
+                   (v.Cliente && v.Cliente === clientCode) ||
+                   (v.ID_Cliente && v.ID_Cliente === clientCode);
+        });
+        
+        vehicleSelect.innerHTML = '<option value="">-- Sin Vehículo (Venta Mostrador) --</option>';
+        clientVehs.forEach(v => {
+            const opt = document.createElement('option');
+            const vehId = v.ID_Vehiculo || v.Placas || v.Placa;
+            opt.value = vehId;
+            const placa = v.Placas || v.Placa || 'S/P';
+            const marca = v.Marca || '';
+            const modelo = v.Modelo || '';
+            const anio = v.Año || v.Anio || '';
+            const details = [placa];
+            if (marca || modelo) details.push(`- ${marca} ${modelo}`.trim());
+            if (anio) details.push(`(${anio})`);
+            opt.textContent = details.join(' ');
+            
+            if (selectedVehKey && (vehId === selectedVehKey || v.Placas === selectedVehKey || v.Placa === selectedVehKey)) {
+                opt.selected = true;
+            }
+            vehicleSelect.appendChild(opt);
+        });
+        
+        if (!selectedVehKey) {
+            vehicleSelect.value = '';
+        }
+        vehicleSelect.dispatchEvent(new Event('change'));
+    }
+
+    if (clientSelect) {
+        populatePosVehicles(clientSelect.value);
+        clientSelect.addEventListener('change', () => {
+            populatePosVehicles(clientSelect.value);
+            calculateTotals();
+        });
+    }
     
     const productsRows = document.getElementById('pos-products-rows');
     const laborRows = document.getElementById('pos-labor-rows');
@@ -701,6 +773,27 @@ export function renderVentaRapida(container) {
         const clientCode = clientSelect.value;
         const client = db.clientes.find(c => c.Codigo_Cliente === clientCode) || {};
         
+        // Resolve selected vehicle
+        const selectedVehId = vehicleSelect ? vehicleSelect.value : '';
+        let selectedPlaca = '';
+        let selectedVehDesc = '';
+        if (selectedVehId) {
+            const rawVehicles = [...(db.vehiculos || []), ...(db['02 Vehiculos'] || [])];
+            const foundVeh = rawVehicles.find(v => (v.ID_Vehiculo && v.ID_Vehiculo === selectedVehId) || (v.Placas && v.Placas === selectedVehId) || (v.Placa && v.Placa === selectedVehId));
+            if (foundVeh) {
+                selectedPlaca = foundVeh.Placas || foundVeh.Placa || selectedVehId;
+                const marca = foundVeh.Marca || '';
+                const modelo = foundVeh.Modelo || '';
+                const anio = foundVeh.Año || foundVeh.Anio || '';
+                selectedVehDesc = `${marca} ${modelo} ${anio}`.trim();
+            } else {
+                selectedPlaca = selectedVehId;
+            }
+        }
+        
+        const rawObs = observacionesInput ? observacionesInput.value.trim() : '';
+        const obsFinal = rawObs || "Venta directa de mostrador";
+        
         db['43 Venta Rapida'] = db['43 Venta Rapida'] || [];
         
         if (editingVentaRapidaId) {
@@ -714,6 +807,12 @@ export function renderVentaRapida(container) {
                     UsuarioNombre: (getActiveUser() && getActiveUser().Nombre_Completo) || "",
                     Cliente: clientCode,
                     Nombre: client.Nombre || "Consumidor Final",
+                    ID_Vehiculo: selectedVehId || "",
+                    Placa: selectedPlaca || "",
+                    Placas: selectedPlaca || "",
+                    Vehiculo: selectedVehDesc ? `${selectedPlaca} - ${selectedVehDesc}` : (selectedPlaca || ""),
+                    Observaciones: obsFinal,
+                    " Observaciones": obsFinal,
                     "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
                     ID_Promocion: promoSelect.value || "",
                     productos: JSON.parse(JSON.stringify(tempProducts)),
@@ -725,6 +824,7 @@ export function renderVentaRapida(container) {
                     retencion: lastCalculatedRetention,
                     total: lastCalculatedGrandTotal
                 };
+                db.venta_rapida = db['43 Venta Rapida'];
                 saveDatabase(db);
                 showToast(`Venta Rápida ${editingVentaRapidaId} actualizada con éxito`, "success");
             } else {
@@ -743,11 +843,17 @@ export function renderVentaRapida(container) {
             const newVR = {
                 ID_Venta_Rapida: vrId,
                 "Marca Temporal": Date.now(),
+                Fecha: new Date().toISOString().slice(0, 10),
                 Usuario: (getActiveUser() && getActiveUser().Email) || "jjmunoz932@gmail.com",
                 UsuarioNombre: (getActiveUser() && getActiveUser().Nombre_Completo) || "",
                 Cliente: clientCode,
                 Nombre: client.Nombre || "Consumidor Final",
-                " Observaciones": "Venta directa de mostrador",
+                ID_Vehiculo: selectedVehId || "",
+                Placa: selectedPlaca || "",
+                Placas: selectedPlaca || "",
+                Vehiculo: selectedVehDesc ? `${selectedPlaca} - ${selectedVehDesc}` : (selectedPlaca || ""),
+                Observaciones: obsFinal,
+                " Observaciones": obsFinal,
                 "% Impuesto": 0.13,
                 Estado: "PENDIENTE",
                 "Tipo Doc": docTypeSelect.value === 'CCF' ? 'CREDITO FISCAL' : 'FACTURA',
@@ -762,6 +868,7 @@ export function renderVentaRapida(container) {
                 total: lastCalculatedGrandTotal
             };
             db['43 Venta Rapida'].unshift(newVR);
+            db.venta_rapida = db['43 Venta Rapida'];
             saveDatabase(db);
             showToast(`Venta Rápida ${vrId} creada con éxito y pendiente de facturación`, "success");
         }
@@ -770,6 +877,8 @@ export function renderVentaRapida(container) {
         tempProducts = [];
         tempLabor = [];
         promoSelect.value = '';
+        if (observacionesInput) observacionesInput.value = '';
+        populatePosVehicles(clientSelect.value);
         renderTempRows();
         calculateTotals();
         switchPosTab('pending');
@@ -780,6 +889,8 @@ export function renderVentaRapida(container) {
             tempProducts = [];
             tempLabor = [];
             promoSelect.value = '';
+            if (observacionesInput) observacionesInput.value = '';
+            populatePosVehicles(clientSelect.value);
             editingVentaRapidaId = null;
             
             // Reset button and tab
@@ -846,7 +957,10 @@ export function renderVentaRapida(container) {
         const list = (db['43 Venta Rapida'] || []).filter(vr => 
             vr.Estado === 'PENDIENTE' && 
             ((vr.ID_Venta_Rapida || '').toLowerCase().includes(filterText.toLowerCase()) ||
-             (vr.Nombre || '').toLowerCase().includes(filterText.toLowerCase()))
+             (vr.Nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Placas || vr.Placa || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Vehiculo || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Observaciones || vr[' Observaciones'] || '').toLowerCase().includes(filterText.toLowerCase()))
         );
         
         if (list.length === 0) {
@@ -860,10 +974,22 @@ export function renderVentaRapida(container) {
             const docLabel = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
             const userDisplayName = getUsuarioDisplayName(vr.UsuarioNombre || vr.Usuario);
             
+            const vehicleTag = (vr.Placas || vr.Placa || vr.Vehiculo) 
+                ? `<div style="font-size:0.75rem; color:var(--primary); margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.3rem; background:rgba(59, 130, 246, 0.1); padding:0.15rem 0.45rem; border-radius:4px; font-weight:600;"><i class="fa-solid fa-car"></i> ${escapeHtml(vr.Vehiculo || vr.Placas || vr.Placa)}</div>`
+                : `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.3rem;"><i class="fa-solid fa-store"></i> Mostrador</div>`;
+
+            const obsTag = (vr.Observaciones && vr.Observaciones !== 'Venta directa de mostrador')
+                ? `<div style="font-size:0.72rem; color:var(--text-secondary); margin-top:0.2rem; font-style:italic;"><i class="fa-regular fa-comment-dots"></i> ${escapeHtml(vr.Observaciones)}</div>`
+                : '';
+
             tr.innerHTML = html`
                 <td><strong style="font-family:monospace;">${escapeHtml(vr.ID_Venta_Rapida)}</strong></td>
                 <td>${dateStr}</td>
-                <td>${escapeHtml(vr.Nombre)}</td>
+                <td>
+                    <strong style="color:var(--text-primary);">${escapeHtml(vr.Nombre)}</strong>
+                    ${safe(vehicleTag)}
+                    ${safe(obsTag)}
+                </td>
                 <td><span class="badge-tag badge-secondary">${docLabel}</span></td>
                 <td><strong>$ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</strong></td>
                 <td><strong style="font-size:0.85rem; color:var(--text-primary);">${escapeHtml(userDisplayName)}</strong></td>
@@ -898,6 +1024,11 @@ export function renderVentaRapida(container) {
                     editingVentaRapidaId = vr.ID_Venta_Rapida;
                     
                     clientSelect.value = vr.Cliente || '';
+                    populatePosVehicles(clientSelect.value, vr.ID_Vehiculo || vr.Placas || vr.Placa || '');
+                    if (observacionesInput) {
+                        const obsText = vr.Observaciones || vr[' Observaciones'] || '';
+                        observacionesInput.value = (obsText === 'Venta directa de mostrador') ? '' : obsText;
+                    }
                     docTypeSelect.value = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'CCF' : 'FE';
                     promoSelect.value = vr.ID_Promocion || '';
                     
@@ -944,7 +1075,10 @@ export function renderVentaRapida(container) {
             ((vr.ID_Venta_Rapida || '').toLowerCase().includes(filterText.toLowerCase()) ||
              (vr.Nombre || '').toLowerCase().includes(filterText.toLowerCase()) ||
              (vr.controlNumber || '').toLowerCase().includes(filterText.toLowerCase()) ||
-             (vr.mhControlNumber || '').toLowerCase().includes(filterText.toLowerCase()))
+             (vr.mhControlNumber || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Placas || vr.Placa || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Vehiculo || '').toLowerCase().includes(filterText.toLowerCase()) ||
+             (vr.Observaciones || vr[' Observaciones'] || '').toLowerCase().includes(filterText.toLowerCase()))
         );
         
         if (list.length === 0) {
@@ -957,10 +1091,22 @@ export function renderVentaRapida(container) {
             const dateStr = vr.Fecha_Facturacion ? new Date(vr.Fecha_Facturacion).toLocaleString('es-SV') : new Date(vr['Marca Temporal']).toLocaleString('es-SV');
             const docLabel = vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)';
             
+            const vehicleTag = (vr.Placas || vr.Placa || vr.Vehiculo) 
+                ? `<div style="font-size:0.75rem; color:var(--primary); margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.3rem; background:rgba(59, 130, 246, 0.1); padding:0.15rem 0.45rem; border-radius:4px; font-weight:600;"><i class="fa-solid fa-car"></i> ${escapeHtml(vr.Vehiculo || vr.Placas || vr.Placa)}</div>`
+                : `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem; display:inline-flex; align-items:center; gap:0.3rem;"><i class="fa-solid fa-store"></i> Mostrador</div>`;
+
+            const obsTag = (vr.Observaciones && vr.Observaciones !== 'Venta directa de mostrador')
+                ? `<div style="font-size:0.72rem; color:var(--text-secondary); margin-top:0.2rem; font-style:italic;"><i class="fa-regular fa-comment-dots"></i> ${escapeHtml(vr.Observaciones)}</div>`
+                : '';
+
             tr.innerHTML = html`
                 <td><strong style="font-family:monospace;">${escapeHtml(vr.ID_Venta_Rapida)}</strong></td>
                 <td>${dateStr}</td>
-                <td>${escapeHtml(vr.Nombre)}</td>
+                <td>
+                    <strong style="color:var(--text-primary);">${escapeHtml(vr.Nombre)}</strong>
+                    ${safe(vehicleTag)}
+                    ${safe(obsTag)}
+                </td>
                 <td><span class="badge-tag badge-secondary">${docLabel}</span></td>
                 <td>
                     <strong style="font-family:monospace; font-size:0.8rem;">${escapeHtml(vr.mhControlNumber || vr.controlNumber || 'N/A')}</strong>
@@ -1001,11 +1147,15 @@ export function renderVentaRapida(container) {
         billingModal.classList.add('active');
         
         const client = db.clientes.find(c => c.Codigo_Cliente === vr.Cliente) || { Nombre: vr.Nombre };
+        const vehDisplay = vr.Vehiculo || vr.Placas || vr.Placa;
+        const obsDisplay = (vr.Observaciones && vr.Observaciones !== 'Venta directa de mostrador') ? vr.Observaciones : (vr[' Observaciones'] && vr[' Observaciones'] !== 'Venta directa de mostrador' ? vr[' Observaciones'] : '');
         
         billingBody.innerHTML = html`
             <div style="background-color:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; font-size:0.85rem; display:flex; flex-direction:column; gap:0.4rem;">
                 <p>Venta Rápida: <strong>${vrId}</strong></p>
                 <p>Cliente: <strong>${client.Nombre}</strong></p>
+                ${safe(vehDisplay ? `<p>Vehículo: <strong style="color:var(--primary);"><i class="fa-solid fa-car"></i> ${escapeHtml(vehDisplay)}</strong></p>` : '')}
+                ${safe(obsDisplay ? `<p>Observaciones: <span style="color:var(--text-secondary);">${escapeHtml(obsDisplay)}</span></p>` : '')}
                 <p>Documento a Emitir: <strong style="color:var(--primary);">${vr['Tipo Doc'] === 'CREDITO FISCAL' ? 'Crédito Fiscal (CCF)' : 'Factura (FE)'}</strong></p>
                 <p>Total a Facturar: <strong style="color:var(--cyan);">$ ${(parseFloat(vr.total || vr.Total || vr.Monto || 0)).toFixed(2)}</strong></p>
             </div>

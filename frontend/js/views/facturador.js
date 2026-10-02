@@ -1977,8 +1977,18 @@ export function printDteTicket(presId) {
             ` : '')}
             <tr>
                 <td class="label">Placa Auto:</td>
-                <td>${p.Placas || 'N/A'}</td>
+                <td>${p.Placas || p.Placa || 'N/A'}</td>
             </tr>
+            ${safe(p.Vehiculo ? `
+            <tr>
+                <td class="label">Vehículo:</td>
+                <td>${escapeHtml(p.Vehiculo)}</td>
+            </tr>` : '')}
+            ${safe(((p.Observaciones && p.Observaciones !== 'Venta directa de mostrador') || (p[' Observaciones'] && p[' Observaciones'] !== 'Venta directa de mostrador')) ? `
+            <tr>
+                <td class="label">Observaciones:</td>
+                <td>${escapeHtml(p.Observaciones || p[' Observaciones'])}</td>
+            </tr>` : '')}
         </table>
         <div class="divider"></div>
         <table class="items-table">
