@@ -841,7 +841,7 @@ export function renderBudgetEditor(container, budget) {
                     <label>Buscar en catálogo</label>
                     <input type="text" id="search-catalogo-prod" placeholder="Escribe descripción o código...">
                 </div>
-                <div class="scrollable-list" id="catalogo-prod-results" style="max-height: 300px;">
+                <div class="scrollable-list" id="catalogo-prod-results" style="max-height: 420px; overflow-y: auto;">
                     <!-- Results dynamic -->
                 </div>
             </div>
@@ -858,7 +858,7 @@ export function renderBudgetEditor(container, budget) {
                     <label>Buscar en catálogo</label>
                     <input type="text" id="search-catalogo-labor" placeholder="Escribe descripción de servicio...">
                 </div>
-                <div class="scrollable-list" id="catalogo-labor-results" style="max-height: 300px;">
+                <div class="scrollable-list" id="catalogo-labor-results" style="max-height: 420px; overflow-y: auto;">
                     <!-- Results dynamic -->
                 </div>
             </div>
@@ -1592,7 +1592,10 @@ export function renderBudgetEditor(container, budget) {
         const wsConfig = getWorkshopConfig(db);
         const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
-        filtered.slice(0, 10).forEach(p => {
+        const maxDisplay = filter.trim() ? 200 : 50;
+        const toShow = filtered.slice(0, maxDisplay);
+
+        toShow.forEach(p => {
             const item = document.createElement('div');
             item.className = 'list-item';
             
@@ -1637,6 +1640,13 @@ export function renderBudgetEditor(container, budget) {
             });
             prodResults.appendChild(item);
         });
+
+        if (filtered.length > maxDisplay) {
+            const moreInfo = document.createElement('div');
+            moreInfo.style = 'text-align:center; padding:0.6rem; font-size:0.75rem; color:var(--text-secondary); background:rgba(255,255,255,0.02); border-radius:4px; margin-top:0.4rem;';
+            moreInfo.textContent = `Mostrando los primeros ${maxDisplay} de ${filtered.length} repuestos encontrados. Escribe más letras para afinar la búsqueda.`;
+            prodResults.appendChild(moreInfo);
+        }
 
         // Fallback or Option to create a new product via modal if search term is provided
         if (filter.trim().length > 1) {
@@ -1712,7 +1722,10 @@ export function renderBudgetEditor(container, budget) {
         const wsConfig = getWorkshopConfig(db);
         const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
-        filtered.slice(0, 10).forEach(mo => {
+        const maxDisplay = filter.trim() ? 200 : 50;
+        const toShow = filtered.slice(0, maxDisplay);
+
+        toShow.forEach(mo => {
             const item = document.createElement('div');
             item.className = 'list-item';
             
@@ -1749,6 +1762,13 @@ export function renderBudgetEditor(container, budget) {
             });
             laborResults.appendChild(item);
         });
+
+        if (filtered.length > maxDisplay) {
+            const moreInfo = document.createElement('div');
+            moreInfo.style = 'text-align:center; padding:0.6rem; font-size:0.75rem; color:var(--text-secondary); background:rgba(255,255,255,0.02); border-radius:4px; margin-top:0.4rem;';
+            moreInfo.textContent = `Mostrando los primeros ${maxDisplay} de ${filtered.length} servicios encontrados. Escribe más letras para afinar la búsqueda.`;
+            laborResults.appendChild(moreInfo);
+        }
 
         // Fallback or Option to create a new labor service via modal if search term is provided
         if (filter.trim().length > 1) {
