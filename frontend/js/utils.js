@@ -396,9 +396,15 @@ export function downloadExcelReport(filename, jsonData) {
 // Tagged template literal for secure HTML escaping to prevent XSS
 export class SafeString {
     constructor(val) {
-        this.val = val;
+        this.val = val instanceof SafeString ? val.val : String(val);
     }
     toString() {
+        return this.val;
+    }
+    valueOf() {
+        return this.val;
+    }
+    [Symbol.toPrimitive](hint) {
         return this.val;
     }
 }
@@ -420,7 +426,7 @@ export function html(strings, ...values) {
             result += escapeHtml(val) + strings[i + 1];
         }
     }
-    return result;
+    return new SafeString(result);
 }
 
 export function saveDteLogToFirestore(action, workshopId, docType, requestPayload, responseStatus, responseBody, endpoint) {

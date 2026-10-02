@@ -685,15 +685,15 @@ export function renderVehiculos(container) {
                                     </div>
                                 </div>
 
-                                ${t.Fallas_Detectadas ? html`
+                                ${t.Fallas_Detectadas ? safe(html`
                                     <div style="background:rgba(0,0,0,0.2); border-radius:6px; padding:0.6rem 0.8rem; margin-bottom:0.75rem; font-size:0.82rem;">
                                         <span style="color:var(--text-muted); font-weight:600;"><i class="fa-solid fa-stethoscope"></i> Diagnóstico / Motivo:</span>
                                         <p style="margin:0.2rem 0 0 0; color:var(--text-secondary);">${escapeHtml(t.Fallas_Detectadas)}</p>
                                     </div>
-                                ` : ''}
+                                `) : ''}
 
                                 <!-- Services & Labor Performed -->
-                                ${pLabor.length > 0 ? html`
+                                ${pLabor.length > 0 ? safe(html`
                                     <div style="margin-bottom:0.6rem;">
                                         <h5 style="margin:0 0 0.35rem 0; font-size:0.75rem; text-transform:uppercase; color:#a855f7; letter-spacing:0.5px; font-weight:700;">
                                             <i class="fa-solid fa-screwdriver-wrench"></i> Mano de Obra y Servicios Realizados (${pLabor.length})
@@ -712,10 +712,10 @@ export function renderVehiculos(container) {
                                             </table>
                                         </div>
                                     </div>
-                                ` : ''}
+                                `) : ''}
 
                                 <!-- Parts and Products Installed -->
-                                ${pProducts.length > 0 ? html`
+                                ${pProducts.length > 0 ? safe(html`
                                     <div style="margin-bottom:0.75rem;">
                                         <h5 style="margin:0 0 0.35rem 0; font-size:0.75rem; text-transform:uppercase; color:var(--primary); letter-spacing:0.5px; font-weight:700;">
                                             <i class="fa-solid fa-box-open"></i> Repuestos e Insumos Instalados (${pProducts.length})
@@ -734,7 +734,7 @@ export function renderVehiculos(container) {
                                             </table>
                                         </div>
                                     </div>
-                                ` : ''}
+                                `) : ''}
 
                                 <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid var(--border-color); padding-top:0.65rem; margin-top:0.5rem;">
                                     <button class="btn btn-secondary btn-exp-pdf" data-id="${escapeHtml(code)}" style="padding:0.35rem 0.75rem; font-size:0.78rem; display:inline-flex; align-items:center; gap:0.35rem;">
