@@ -656,7 +656,7 @@ export function renderGastos(container) {
                 !term ||
                 (p.Descripcion || '').toLowerCase().includes(term) ||
                 (p['ID_ Producto'] || '').toLowerCase().includes(term)
-            ).slice(0, 12);
+            ).slice(0, 50);
 
             if (filtered.length === 0) {
                 resultsDiv.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.82rem;"><i class="fa-solid fa-circle-info"></i> No se encontraron productos</div>`;
@@ -676,7 +676,11 @@ export function renderGastos(container) {
                 div.addEventListener('mouseover', () => div.style.background = 'rgba(255,255,255,0.06)');
                 div.addEventListener('mouseout', () => div.style.background = isSelected ? 'rgba(110,68,255,0.15)' : 'transparent');
 
-                const costo = parseFloat(p['Precio Unit'] || p['Precio Venta'] || 0);
+                const costo = parseFloat(
+                    (p['Precio Compra'] !== undefined && p['Precio Compra'] !== null && p['Precio Compra'] !== '')
+                        ? p['Precio Compra']
+                        : (p['Precio Costo'] || p.Costo || 0)
+                );
                 div.innerHTML = `
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.Descripcion)}</div>
@@ -687,16 +691,14 @@ export function renderGastos(container) {
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
                         <div style="font-size:0.85rem; font-weight:700; color:var(--success);">$${costo.toFixed(2)}</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">costo unit.</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">precio compra</div>
                     </div>
                 `;
 
                 div.addEventListener('click', () => {
                     purchaseItems[idx].id_producto = p['ID_ Producto'];
                     purchaseItems[idx].nombre_display = p.Descripcion;
-                    if (purchaseItems[idx].precio_costo === 0) {
-                        purchaseItems[idx].precio_costo = costo;
-                    }
+                    purchaseItems[idx].precio_costo = costo;
                     dropdown.style.display = 'none';
                     renderRows();
                     updateTotals();
@@ -1219,7 +1221,10 @@ export function renderGastos(container) {
                                 <label style="display:block; font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:0.25rem;">Agregar Producto del Catálogo</label>
                                 <select id="edit-add-prod-select" style="width:100%; height:34px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:0.85rem;">
                                     <option value="">-- Seleccionar Repuesto / Insumo --</option>
-                                    ${safe(db.productos.map(p => `<option value="${p['ID_ Producto']}" data-cost="${p['Precio Unit'] || 0}">${escapeHtml(p.Descripcion)} ($ ${parseFloat(p['Precio Unit'] || 0).toFixed(2)})</option>`).join(''))}
+                                    ${safe(db.productos.map(p => {
+                                        const cost = parseFloat((p['Precio Compra'] !== undefined && p['Precio Compra'] !== null && p['Precio Compra'] !== '') ? p['Precio Compra'] : (p['Precio Costo'] || p.Costo || 0));
+                                        return `<option value="${p['ID_ Producto']}" data-cost="${cost}">${escapeHtml(p.Descripcion)} (Costo: $ ${cost.toFixed(2)})</option>`;
+                                    }).join(''))}
                                 </select>
                             </div>
                             <div style="width:80px;">
@@ -2429,13 +2434,15 @@ export function renderGastos(container) {
                     div.addEventListener('mouseover', () => div.style.background = isSelected ? 'rgba(167, 139, 250, 0.25)' : 'rgba(255,255,255,0.06)');
                     div.addEventListener('mouseout', () => div.style.background = isSelected ? 'rgba(167, 139, 250, 0.2)' : 'transparent');
 
+                    const pCost = parseFloat((p['Precio Compra'] !== undefined && p['Precio Compra'] !== null && p['Precio Compra'] !== '') ? p['Precio Compra'] : (p['Precio Costo'] || p.Costo || 0));
                     div.innerHTML = `
                         <div style="flex:1; min-width:0; margin-right:0.5rem;">
                             <div style="font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.Descripcion)}</div>
                             <div style="font-size:0.7rem; color:var(--text-muted);">Stock: <strong style="color:var(--text-primary);">${p.Minimos || 0}</strong> · ID: ${escapeHtml(p['ID_ Producto'])}</div>
                         </div>
                         <div style="text-align:right; font-size:0.75rem; font-weight:700; color:var(--success); flex-shrink:0;">
-                            $${parseFloat(p['Precio Unit'] || 0).toFixed(2)}
+                            $${pCost.toFixed(2)}
+                            <div style="font-size:0.65rem; color:var(--text-muted);">P. Compra</div>
                         </div>
                     `;
 
@@ -2600,9 +2607,12 @@ export function renderGastos(container) {
                         Descripcion: desc,
                         Marca: "Genérico (DTE)",
                         Cod_Barra: "",
-                        Precio: cost * 1.35, // 35% margin markup by default
-                        Minimos: cant,      // stock
-                        "Precio Unit": cost // cost
+                        "Precio Compra": cost,
+                        "Precio Venta": parseFloat((cost * 1.35).toFixed(2)),
+                        "Precio Unit": parseFloat((cost * 1.35).toFixed(2)),
+                        "Precio Venta Unit Iva Inc": parseFloat((cost * 1.35 * 1.13).toFixed(2)),
+                        "Precio Unit Iva Inc": parseFloat((cost * 1.35 * 1.13).toFixed(2)),
+                        Minimos: cant       // stock
                     };
                     db.productos.unshift(newProduct);
                     showToast(`Creado producto: "${desc}"`, "success");
@@ -2611,7 +2621,7 @@ export function renderGastos(container) {
                     const prod = db.productos.find(p => p['ID_ Producto'] === productId);
                     if (prod) {
                         prod.Minimos = (prod.Minimos || 0) + cant;
-                        prod['Precio Unit'] = cost; // update cost
+                        prod['Precio Compra'] = cost; // update purchase cost
                     }
                 }
 
