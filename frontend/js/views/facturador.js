@@ -1623,10 +1623,10 @@ export async function sendDteEmailToClient(genCode, budgetId) {
 export function printDteTicket(presId) {
     try {
         const db = getDatabase();
-        let p = db.presupuestos.find(pres => pres['ID Presupuesto'] === presId);
+        let p = db.presupuestos.find(pres => pres['ID Presupuesto'] === presId || pres.controlNumber === presId || pres.mhControlNumber === presId);
         let isQuickSale = false;
         if (!p) {
-            p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === presId);
+            p = (db['43 Venta Rapida'] || []).find(vr => vr.ID_Venta_Rapida === presId || vr.controlNumber === presId || vr.mhControlNumber === presId);
             if (!p) {
                 showToast("Error: Venta o Presupuesto no encontrado.", "danger");
                 return;
@@ -1634,15 +1634,29 @@ export function printDteTicket(presId) {
             isQuickSale = true;
         }
 
-        const client = db.clientes.find(c => c.Codigo_Cliente === (p.Codigo_Cliente || p.Cliente)) || { Nombre: p.Nombre };
+        const client = db.clientes.find(c => c.Codigo_Cliente === (p.Codigo_Cliente || p.Cliente)) || {
+            Nombre: p.Nombre,
+            NIT: p.NIT || p.DUI || p['Num Doc'],
+            NRC: p.NRC,
+            Giro: p.Giro,
+            Direccion: p.Direccion
+        };
         const wsConfig = getWorkshopConfig(db);
 
-        const prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
-        const laborItems = isQuickSale ? (p.mano_obra || []) : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
+        let prodItems = isQuickSale ? (p.productos || []) : (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
+        let laborItems = isQuickSale ? (p.mano_obra || []) : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
+
+        if (prodItems.length === 0 && Array.isArray(p.productos) && p.productos.length > 0) {
+            prodItems = p.productos;
+        }
+        if (laborItems.length === 0 && Array.isArray(p.mano_obra) && p.mano_obra.length > 0) {
+            laborItems = p.mano_obra;
+        }
 
         let subtotal = 0;
         let discount = 0;
         let netSubtotal = 0;
+        let subtotalConDescuento = 0;
         let iva = 0;
         let grandTotal = 0;
         let baseParaImpuestos = 0;
@@ -1664,6 +1678,7 @@ export function printDteTicket(presId) {
             subtotal = calc.totals.subtotal;
             discount = calc.totals.discount;
             netSubtotal = calc.totals.netSubtotal;
+            subtotalConDescuento = calc.totals.netSubtotal;
             iva = calc.totals.iva;
             retention = calc.totals.retVal;
             perception = calc.totals.percVal;
@@ -1674,7 +1689,7 @@ export function printDteTicket(presId) {
             prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
             laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
             discount = parseFloat(p.Descuento || 0);
-            const subtotalConDescuento = Math.max(0, subtotal - discount);
+            subtotalConDescuento = Math.max(0, subtotal - discount);
             netSubtotal = subtotalConDescuento;
             if (preciosConIva) {
                 grandTotal = subtotalConDescuento;
@@ -1695,7 +1710,12 @@ export function printDteTicket(presId) {
             grandTotal = grandTotal + perception - retention;
         }
 
-        const genCode = p.controlNumber || 'N/A';
+        const genCode = p.codigoGeneracion || p.generationCode || p.controlNumber || 'N/A';
+        const ctrlNum = p.mhControlNumber || p.Num_Control || p.controlNumber || 'N/A';
+        const seal = p.receptionSeal || p.selloRecepcion || 'APROBADO-MH';
+        const dteDateFormatted = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV');
+        const dteDateIso = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        const mhQrUrl = p.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${dteDateIso}`;
         
         const ticketWindow = window.open('', '_blank', 'width=400,height=600');
         if (!ticketWindow) {
@@ -1936,15 +1956,15 @@ export function printDteTicket(presId) {
             </tr>
             <tr>
                 <td class="label">Num Control:</td>
-                <td><strong>${p.mhControlNumber || p.controlNumber || 'N/A'}</strong></td>
+                <td><strong>${ctrlNum}</strong></td>
             </tr>
             <tr>
                 <td class="label">Sello Rec:</td>
-                <td><span class="code-box">${p.receptionSeal || 'APROBADO-MH'}</span></td>
+                <td><span class="code-box">${seal}</span></td>
             </tr>
             <tr>
                 <td class="label">Fecha Emisión:</td>
-                <td>${p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV')}</td>
+                <td>${dteDateFormatted}</td>
             </tr>
         </table>
         <div class="divider"></div>
@@ -2044,7 +2064,7 @@ export function printDteTicket(presId) {
             ` : `
             <tr>
                 <td>Subtotal:</td>
-                <td class="text-right">$ ${subtotalConDescuento.toFixed(2)}</td>
+                <td class="text-right">$ ${(discount > 0 ? subtotal : subtotalConDescuento).toFixed(2)}</td>
             </tr>
             ${safe(discount > 0 ? `
             <tr>
@@ -2070,7 +2090,7 @@ export function printDteTicket(presId) {
         <div class="divider"></div>
         
         <div class="qr-section">
-            <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('https://admin.facturallama.com/dte/validate/' + genCode)}" alt="QR DTE Verification" onerror="this.style.display='none'">
+            <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(mhQrUrl)}" alt="QR DTE Verification" onerror="this.style.display='none'">
             <div class="qr-label">Escanee para verificar el documento electrónico DTE ante el Ministerio de Hacienda</div>
         </div>
         
