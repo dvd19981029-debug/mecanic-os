@@ -2991,33 +2991,41 @@ export function renderConfiguracion(container, queryParams) {
     }
 }
 function renderChecklistConfig(container, db) {
-    if (!db.ingreso_config) {
-        db.ingreso_config = {
-            pilotos: [
-                { id: "Check_Engine", label: "Check Engine", color: "#f97316" },
-                { id: "TPMS", label: "TPMS", color: "#eab308" },
-                { id: "ABS", label: "ABS", color: "#f97316" },
-                { id: "Airbag", label: "Airbag", color: "#ef4444" },
-                { id: "Brakes", label: "Brakes", color: "#ef4444" },
-                { id: "Seatbelt", label: "Seatbelt", color: "#ef4444" }
-            ],
-            checklist: [
-                { id: "Enciende", label: "Enciende", default: "Y" },
-                { id: "Bateria", label: "Batería", default: "Y" },
-                { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y" },
-                { id: "Espejos", label: "Espejos", default: "Y" },
-                { id: "Cristales", label: "Cristales", default: "Y" },
-                { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N" },
-                { id: "Antena", label: "Antena", default: "Y" },
-                { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y" },
-                { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y" },
-                { id: "Triangulos", label: "Triángulos", default: "Y" },
-                { id: "Radio", label: "Radio", default: "Y" },
-                { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y" },
-                { id: "Emblemas", label: "Emblemas", default: "Y" },
-                { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y" }
-            ]
-        };
+    if (!db.ingreso_config || typeof db.ingreso_config !== 'object') {
+        db.ingreso_config = {};
+    }
+    let shouldSave = false;
+    if (!Array.isArray(db.ingreso_config.pilotos) || db.ingreso_config.pilotos.length === 0) {
+        db.ingreso_config.pilotos = [
+            { id: "Check_Engine", label: "Check Engine", color: "#f97316" },
+            { id: "TPMS", label: "TPMS", color: "#eab308" },
+            { id: "ABS", label: "ABS", color: "#f97316" },
+            { id: "Airbag", label: "Airbag", color: "#ef4444" },
+            { id: "Brakes", label: "Brakes", color: "#ef4444" },
+            { id: "Seatbelt", label: "Seatbelt", color: "#ef4444" }
+        ];
+        shouldSave = true;
+    }
+    if (!Array.isArray(db.ingreso_config.checklist) || db.ingreso_config.checklist.length === 0) {
+        db.ingreso_config.checklist = [
+            { id: "Enciende", label: "Enciende", default: "Y", tipo: "si_no" },
+            { id: "Bateria", label: "Batería", default: "Y", tipo: "bueno_detalle" },
+            { id: "Brazos_Escobillas", label: "Brazos Escobillas", default: "Y", tipo: "bueno_detalle" },
+            { id: "Espejos", label: "Espejos", default: "Y", tipo: "bueno_detalle" },
+            { id: "Cristales", label: "Cristales", default: "Y", tipo: "bueno_detalle" },
+            { id: "Vidrios_Dañados", label: "Vidrios Dañados", default: "N", tipo: "si_no" },
+            { id: "Antena", label: "Antena", default: "Y", tipo: "si_no" },
+            { id: "Tapon_Gas_Con_Llave", label: "Tapón Gas Con Llave", default: "Y", tipo: "si_no" },
+            { id: "Gato_y_Herramientas", label: "Gato y Herramientas", default: "Y", tipo: "si_no" },
+            { id: "Triangulos", label: "Triángulos", default: "Y", tipo: "si_no" },
+            { id: "Radio", label: "Radio", default: "Y", tipo: "bueno_detalle" },
+            { id: "Aire_Acondicionado", label: "Aire Acondicionado", default: "Y", tipo: "bueno_detalle" },
+            { id: "Emblemas", label: "Emblemas", default: "Y", tipo: "bueno_detalle" },
+            { id: "Estado_Tapiceria", label: "Estado Tapicería", default: "Y", tipo: "bueno_detalle" }
+        ];
+        shouldSave = true;
+    }
+    if (shouldSave) {
         saveDatabase(db);
     }
 
@@ -3032,7 +3040,7 @@ function renderChecklistConfig(container, db) {
                 </div>
 
                 <div style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:0.5rem;">
-                    ${safe(db.ingreso_config.pilotos.map(p => {
+                    ${safe(((db.ingreso_config && db.ingreso_config.pilotos) || []).map(p => {
                         return html`
                             <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px;">
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -3058,7 +3066,7 @@ function renderChecklistConfig(container, db) {
                 </div>
 
                 <div style="overflow-y:auto; max-height:480px; display:flex; flex-direction:column; gap:0.5rem;">
-                    ${safe(db.ingreso_config.checklist.map(c => {
+                    ${safe(((db.ingreso_config && db.ingreso_config.checklist) || []).map(c => {
                         return html`
                             <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:6px;">
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -3219,6 +3227,9 @@ function renderChecklistConfig(container, db) {
 
         if (!newId || !label) return;
 
+        db.ingreso_config = db.ingreso_config || {};
+        db.ingreso_config.pilotos = db.ingreso_config.pilotos || [];
+
         if (origId) {
             // Edit
             const item = db.ingreso_config.pilotos.find(x => x.id === origId);
@@ -3244,7 +3255,7 @@ function renderChecklistConfig(container, db) {
     container.querySelectorAll('.btn-cfg-edit-piloto').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');
-            const item = db.ingreso_config.pilotos.find(x => x.id === id);
+            const item = (db.ingreso_config?.pilotos || []).find(x => x.id === id);
             if (item) {
                 document.getElementById('cfg-piloto-modal-title').textContent = 'Editar Testigo';
                 document.getElementById('cfg-piloto-original-id').value = item.id;
@@ -3262,7 +3273,8 @@ function renderChecklistConfig(container, db) {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');
             if (confirm(`¿Eliminar testigo "${id}" de la lista?`)) {
-                db.ingreso_config.pilotos = db.ingreso_config.pilotos.filter(x => x.id !== id);
+                db.ingreso_config = db.ingreso_config || {};
+                db.ingreso_config.pilotos = (db.ingreso_config.pilotos || []).filter(x => x.id !== id);
                 saveDatabase(db);
                 showToast("Testigo eliminado", "success");
                 renderChecklistConfig(container, db);
@@ -3297,6 +3309,9 @@ function renderChecklistConfig(container, db) {
 
         if (!newId || !label) return;
 
+        db.ingreso_config = db.ingreso_config || {};
+        db.ingreso_config.checklist = db.ingreso_config.checklist || [];
+
         if (origId) {
             // Edit
             const item = db.ingreso_config.checklist.find(x => x.id === origId);
@@ -3323,7 +3338,7 @@ function renderChecklistConfig(container, db) {
     container.querySelectorAll('.btn-cfg-edit-checklist').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');
-            const item = db.ingreso_config.checklist.find(x => x.id === id);
+            const item = (db.ingreso_config?.checklist || []).find(x => x.id === id);
             if (item) {
                 document.getElementById('cfg-checklist-modal-title').textContent = 'Editar Punto de Inspección';
                 document.getElementById('cfg-checklist-original-id').value = item.id;
@@ -3341,7 +3356,8 @@ function renderChecklistConfig(container, db) {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-id');
             if (confirm(`¿Eliminar punto de inspección "${id}"?`)) {
-                db.ingreso_config.checklist = db.ingreso_config.checklist.filter(x => x.id !== id);
+                db.ingreso_config = db.ingreso_config || {};
+                db.ingreso_config.checklist = (db.ingreso_config.checklist || []).filter(x => x.id !== id);
                 saveDatabase(db);
                 showToast("Punto de inspección eliminado", "success");
                 renderChecklistConfig(container, db);
