@@ -1118,7 +1118,8 @@ function buildConfigFromWorkshopData(wsData) {
         departamento: wsData.departamento || '',
         municipio: wsData.municipio || '',
         logo: wsData.logo || '',
-        formato_presupuesto: wsData.formato_presupuesto || 'moderno_facturallama'
+        formato_presupuesto: wsData.formato_presupuesto || 'moderno_facturallama',
+        mostrar_iva_presupuesto: wsData.mostrar_iva_presupuesto || 'si'
     };
 }
 
@@ -1163,12 +1164,16 @@ function getWorkshopConfig(db) {
             departamento: '',
             municipio: '',
             logo: '',
-            formato_presupuesto: 'moderno_facturallama'
+            formato_presupuesto: 'moderno_facturallama',
+            mostrar_iva_presupuesto: 'si'
         };
     }
 
     if (!cfg.formato_presupuesto) {
         cfg.formato_presupuesto = 'moderno_facturallama';
+    }
+    if (!cfg.mostrar_iva_presupuesto) {
+        cfg.mostrar_iva_presupuesto = 'si';
     }
     if (wsData && wsData.features) {
         cfg.features = wsData.features;

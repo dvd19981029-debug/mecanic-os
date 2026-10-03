@@ -778,11 +778,13 @@ export function renderBudgetEditor(container, budget) {
                 <div style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
                     <div class="summary-row"><span>Suma Repuestos:</span><span id="sum-products">$0.00</span></div>
                     <div class="summary-row"><span>Suma Mano Obra:</span><span id="sum-labor">$0.00</span></div>
-                    <div class="summary-row"><span>Subtotal Neto:</span><span id="subtotal-neto" style="font-weight: 600;">$0.00</span></div>
+                    <div class="summary-row"><span>Subtotal:</span><span id="sum-subtotal" style="font-weight: 600;">$0.00</span></div>
                     
                     <div id="discount-section">
                         <!-- Shows discount if applicable -->
                     </div>
+
+                    <div class="summary-row" id="subtotal-neto-row" style="display: none;"><span>Subtotal Neto:</span><span id="subtotal-neto" style="font-weight: 600;">$0.00</span></div>
                     
                     <div class="summary-row"><span>IVA (13%):</span><span id="tax-iva">$0.00</span></div>
                     
@@ -1274,64 +1276,72 @@ export function renderBudgetEditor(container, budget) {
             }
         }
         discount = Math.min(discount, subtotal);
-        budget.Descuento = discount;
+        const wsConfig = getWorkshopConfig(db);
+        const selectedClientCode = isNew ? document.getElementById('editor-client-select').value : budget.Codigo_Cliente;
+        const selectedClient = db.clientes.find(c => c.Codigo_Cliente === selectedClientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
+
+        const calc = calculateBudgetTotals({
+            budget,
+            products: tempProducts,
+            labor: tempLabor,
+            ws: wsConfig,
+            client: selectedClient,
+            db
+        });
+
+        budget.Descuento = calc.totals.discount;
         if (promoSelect) {
             budget.ID_Promocion = selectedPromoId;
         }
-        
-        const subtotalConDescuento = subtotal - discount;
-        const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-        
-        const wsConfig = getWorkshopConfig(db);
-        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
-        let iva = 0;
-        let grandTotal = 0;
-        let subtotalNetoDisp = subtotal;
-
-        if (preciosConIva) {
-            grandTotal = subtotalConDescuento;
-            subtotalNetoDisp = grandTotal / 1.13;
-            iva = grandTotal - subtotalNetoDisp;
-        } else {
-            iva = subtotalConDescuento * taxRate;
-            grandTotal = subtotalConDescuento + iva;
-            subtotalNetoDisp = subtotal;
+        document.getElementById('sum-products').textContent = '$' + calc.totals.sumProducts.toFixed(2);
+        document.getElementById('sum-labor').textContent = '$' + calc.totals.sumLabor.toFixed(2);
+        const sumSubtotalEl = document.getElementById('sum-subtotal');
+        if (sumSubtotalEl) {
+            sumSubtotalEl.textContent = '$' + calc.totals.subtotal.toFixed(2);
         }
-        
-        const selectedClientCode = isNew ? document.getElementById('editor-client-select').value : budget.Codigo_Cliente;
-        const selectedClient = db.clientes.find(c => c.Codigo_Cliente === selectedClientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
-        
-        document.getElementById('sum-products').textContent = '$' + sumProd.toFixed(2);
-        document.getElementById('sum-labor').textContent = '$' + sumLab.toFixed(2);
-        document.getElementById('subtotal-neto').textContent = '$' + subtotalNetoDisp.toFixed(2);
-        
+
         const discountSection = document.getElementById('discount-section');
         if (discountSection) {
-            discountSection.innerHTML = promoRowHtml;
+            discountSection.innerHTML = calc.totals.discount > 0 
+                ? (promoRowHtml || `<div class="summary-row" style="color: var(--warning);"><span>Descuento:</span><span>- $ ${calc.totals.discount.toFixed(2)}</span></div>`)
+                : '';
         }
-        
-        document.getElementById('tax-iva').textContent = '$' + iva.toFixed(2);
+
+        const subtotalNetoRow = document.getElementById('subtotal-neto-row');
+        const subtotalNetoEl = document.getElementById('subtotal-neto');
+        if (subtotalNetoEl) {
+            subtotalNetoEl.textContent = '$' + calc.totals.netSubtotal.toFixed(2);
+        }
+        if (subtotalNetoRow) {
+            subtotalNetoRow.style.display = (calc.totals.discount > 0) ? 'flex' : 'none';
+        }
+
+        const taxIvaEl = document.getElementById('tax-iva');
+        if (taxIvaEl) {
+            const ivaRow = taxIvaEl.closest('.summary-row');
+            if (ivaRow) {
+                if (calc.config.mostrarIva) {
+                    ivaRow.style.display = 'flex';
+                    taxIvaEl.textContent = '$' + calc.totals.iva.toFixed(2);
+                } else {
+                    ivaRow.style.display = 'none';
+                    taxIvaEl.textContent = '$ 0.00';
+                }
+            }
+        }
 
         // Retention and Perception rules for El Salvador
         const retPerEl = document.getElementById('ret-per-section');
         retPerEl.innerHTML = '';
-        
-        const baseParaImpuestos = preciosConIva ? (subtotalConDescuento / 1.13) : subtotalConDescuento;
-
-        if (selectedClient.AplicaPercepcion > 0) {
-            const perc = baseParaImpuestos * parseFloat(selectedClient.AplicaPercepcion);
-            grandTotal += perc;
-            retPerEl.innerHTML += `<div class="summary-row"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${perc.toFixed(2)}</span></div>`;
+        if (calc.totals.percVal > 0) {
+            retPerEl.innerHTML += `<div class="summary-row"><span>Percepción (2%):</span><span style="color: var(--cyan);">+ $ ${calc.totals.percVal.toFixed(2)}</span></div>`;
         }
-        const isGranContrib = selectedClient['Categoría Contribuyente'] === 'GRANDE' || (selectedClient.AplicaRetencion > 0);
-        if (isGranContrib && baseParaImpuestos >= 100.00) {
-            const ret = baseParaImpuestos * 0.01;
-            grandTotal -= ret;
-            retPerEl.innerHTML += `<div class="summary-row"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${ret.toFixed(2)}</span></div>`;
+        if (calc.totals.retVal > 0) {
+            retPerEl.innerHTML += `<div class="summary-row"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${calc.totals.retVal.toFixed(2)}</span></div>`;
         }
 
-        document.getElementById('grand-total').textContent = '$' + grandTotal.toFixed(2);
+        document.getElementById('grand-total').textContent = '$' + calc.totals.grandTotal.toFixed(2);
     }
 
     // Product search modal triggers
@@ -2101,31 +2111,330 @@ function numeroALetras(num) {
     return `${letras.trim()} CON ${centavos}/100 DÓLARES`;
 }
 
+/**
+ * Motor Central Estandarizado de Totales e Impuestos - Mecanic OS
+ */
+export function calculateBudgetTotals({
+    budget = {},
+    products = [],
+    labor = [],
+    ws = {},
+    client = {},
+    db = {}
+}) {
+    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
+    const taxMultiplier = 1 + taxRate;
+    const mostrarIva = Boolean(!ws || ws.mostrar_iva_presupuesto !== 'no');
+    const preciosConIva = Boolean(ws && ws.features && ws.features.precios_con_iva === true);
+
+    const rawProducts = (products || []).map((p, idx) => {
+        const qty = parseFloat(p.Cantidad !== undefined ? p.Cantidad : (p.qty || 1)) || 1;
+        const rawUnitPrice = parseFloat(p.PrecioUnitario !== undefined ? p.PrecioUnitario : (p.unitPrice || 0)) || 0;
+        const rawLine = Math.round(qty * rawUnitPrice * 100) / 100;
+        const itemDisc = Math.min(parseFloat(p.Descuento || 0) || 0, rawLine);
+        const baseAfterItem = Math.round((rawLine - itemDisc) * 100) / 100;
+        const desc = p.Descripcion || p.description || 'Repuesto / Producto';
+        return {
+            ...p,
+            Descripcion: desc,
+            description: desc,
+            Cantidad: qty,
+            qty,
+            PrecioUnitario: rawUnitPrice,
+            rawUnitPrice,
+            source: p,
+            type: 'product',
+            index: idx,
+            id: p['ID_Producto DPP'] || p.DPP || `PROD-${idx}`,
+            unitMeasure: p.UnidadMedida || p.unidad || 'Pieza',
+            rawLine,
+            itemDisc,
+            baseAfterItem,
+            catDisc: 0,
+            globalDisc: 0,
+            totalDisc: 0,
+            effLine: 0
+        };
+    });
+
+    const rawLabor = (labor || []).map((l, idx) => {
+        const qty = parseFloat(l.Cantidad !== undefined ? l.Cantidad : (l.qty || 1)) || 1;
+        const rawUnitPrice = parseFloat(l.PrecioUnitario !== undefined ? l.PrecioUnitario : (l.unitPrice || 0)) || 0;
+        const rawLine = Math.round(qty * rawUnitPrice * 100) / 100;
+        const itemDisc = Math.min(parseFloat(l.Descuento || 0) || 0, rawLine);
+        const baseAfterItem = Math.round((rawLine - itemDisc) * 100) / 100;
+        const desc = l.Descripcion || l.description || 'Mano de Obra / Servicio';
+        return {
+            ...l,
+            Descripcion: desc,
+            description: desc,
+            Cantidad: qty,
+            qty,
+            PrecioUnitario: rawUnitPrice,
+            rawUnitPrice,
+            source: l,
+            type: 'labor',
+            index: idx,
+            id: l.ID_ManoObra || l.ID_DetalleMO || `MO-${idx}`,
+            unitMeasure: l.UnidadMedida || l.unidad || 'Servicio',
+            rawLine,
+            itemDisc,
+            baseAfterItem,
+            catDisc: 0,
+            globalDisc: 0,
+            totalDisc: 0,
+            effLine: 0
+        };
+    });
+
+    const allLines = [...rawProducts, ...rawLabor];
+    const sumProdRaw = Math.round(rawProducts.reduce((s, p) => s + p.rawLine, 0) * 100) / 100;
+    const sumLabRaw = Math.round(rawLabor.reduce((s, l) => s + l.rawLine, 0) * 100) / 100;
+    const rawSubtotal = Math.round((sumProdRaw + sumLabRaw) * 100) / 100;
+
+    const promoId = budget.ID_Promocion || '';
+    const promo = (db.promociones || []).find(pr => pr.ID_Promocion === promoId);
+
+    let promoInfo = {
+        applied: false,
+        id: promoId,
+        name: promo ? promo.Nombre : '',
+        type: promo ? promo.Tipo : '',
+        value: promo ? parseFloat(promo.Valor || 0) : 0,
+        label: ''
+    };
+
+    if (promo) {
+        promoInfo.applied = true;
+        if (promo.Tipo === 'desc_mano_obra') {
+            const pct = (parseFloat(promo.Valor || 0) || 0) / 100;
+            promoInfo.label = `Desc. MO (${promo.Valor}%)`;
+            rawLabor.forEach(l => {
+                l.catDisc = Math.round(l.baseAfterItem * pct * 100) / 100;
+            });
+        } else if (promo.Tipo === 'desc_productos') {
+            const pct = (parseFloat(promo.Valor || 0) || 0) / 100;
+            promoInfo.label = `Desc. Prod (${promo.Valor}%)`;
+            rawProducts.forEach(p => {
+                p.catDisc = Math.round(p.baseAfterItem * pct * 100) / 100;
+            });
+        } else if (promo.Tipo === 'monto_fijo') {
+            promoInfo.label = `Descuento Fijo ($${parseFloat(promo.Valor || 0).toFixed(2)})`;
+        }
+    }
+
+    allLines.forEach(l => {
+        l.baseAfterCat = Math.round(Math.max(0, l.baseAfterItem - l.catDisc) * 100) / 100;
+    });
+
+    const totalBaseAfterCat = Math.round(allLines.reduce((s, l) => s + l.baseAfterCat, 0) * 100) / 100;
+
+    let targetGlobalDisc = 0;
+    if (promo && promo.Tipo === 'monto_fijo') {
+        targetGlobalDisc = parseFloat(promo.Valor || 0) || 0;
+    } else if (!promo && budget.Descuento !== undefined) {
+        targetGlobalDisc = parseFloat(budget.Descuento || 0) || 0;
+    }
+    targetGlobalDisc = Math.min(targetGlobalDisc, totalBaseAfterCat);
+
+    // Prorrateo sin fuga de centavos (Largest Remainder)
+    if (targetGlobalDisc > 0 && totalBaseAfterCat > 0) {
+        const totalCentsToDistribute = Math.round(targetGlobalDisc * 100);
+        let sumBaseCents = 0;
+
+        const allocations = allLines.map((line, idx) => {
+            const exactCents = (line.baseAfterCat / totalBaseAfterCat) * totalCentsToDistribute;
+            const baseCents = Math.floor(exactCents);
+            const rem = exactCents - baseCents;
+            sumBaseCents += baseCents;
+            return { idx, baseCents, rem, allocatedCents: baseCents };
+        });
+
+        const deltaCents = totalCentsToDistribute - sumBaseCents;
+        const sortedByRem = [...allocations].sort((a, b) => b.rem - a.rem);
+        for (let i = 0; i < deltaCents; i++) {
+            sortedByRem[i].allocatedCents += 1;
+        }
+
+        allocations.forEach(alloc => {
+            allLines[alloc.idx].globalDisc = Math.round(alloc.allocatedCents) / 100;
+        });
+    }
+
+    allLines.forEach(line => {
+        line.totalDisc = Math.round((line.itemDisc + line.catDisc + line.globalDisc) * 100) / 100;
+        line.effLine = Math.round(Math.max(0, line.rawLine - line.totalDisc) * 100) / 100;
+    });
+
+    const nativeTotalDiscount = Math.round(allLines.reduce((s, l) => s + l.totalDisc, 0) * 100) / 100;
+    const nativeNetSubtotal = Math.round((rawSubtotal - nativeTotalDiscount) * 100) / 100;
+
+    let taxBase = 0;
+    let commercialGross = 0;
+
+    if (preciosConIva) {
+        taxBase = Math.round((nativeNetSubtotal / taxMultiplier) * 100) / 100;
+        commercialGross = nativeNetSubtotal;
+    } else {
+        taxBase = nativeNetSubtotal;
+        let rawGross = Math.round(nativeNetSubtotal * taxMultiplier * 100) / 100;
+        // Reconciliación de decimales periódicos al deflactar entre 1.13
+        // Detecta cuando el subtotal proviene de números redondos (ej. $100 / 1.13 = $88.50, $190 / 1.13 = $168.15)
+        const exactGross = nativeNetSubtotal * taxMultiplier;
+        for (const step of [1.0, 0.50, 0.25, 0.10]) {
+            const target = Math.round(exactGross / step) * step;
+            if (Math.abs(exactGross - target) < 0.012 && Math.abs(target - rawGross) >= 0.009) {
+                rawGross = Math.round(target * 100) / 100;
+                break;
+            }
+        }
+        commercialGross = rawGross;
+    }
+
+    let percVal = 0;
+    let retVal = 0;
+    if (client.AplicaPercepcion > 0) {
+        percVal = Math.round(taxBase * parseFloat(client.AplicaPercepcion) * 100) / 100;
+    }
+    const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
+    if (isGranContrib && taxBase >= 100.00) {
+        const retRate = parseFloat(client.AplicaRetencion || 0.01);
+        retVal = Math.round(taxBase * retRate * 100) / 100;
+    }
+
+    let displayFactor = 1;
+    if (preciosConIva && mostrarIva) {
+        displayFactor = 1 / taxMultiplier;
+    } else if (!preciosConIva && !mostrarIva) {
+        displayFactor = taxMultiplier;
+    } else {
+        displayFactor = 1;
+    }
+
+    function transformLineForDisplay(line) {
+        let dispUnitPrice, dispRawLine, dispLineDisc, dispEffLine;
+
+        if (displayFactor === 1) {
+            dispUnitPrice = line.rawUnitPrice;
+            dispRawLine = line.rawLine;
+            dispLineDisc = line.totalDisc;
+            dispEffLine = line.effLine;
+        } else {
+            dispUnitPrice = Math.round(line.rawUnitPrice * displayFactor * 100) / 100;
+            dispRawLine = Math.round(dispUnitPrice * line.qty * 100) / 100;
+            dispLineDisc = Math.round(line.totalDisc * displayFactor * 100) / 100;
+            dispEffLine = Math.round((dispRawLine - dispLineDisc) * 100) / 100;
+        }
+
+        return {
+            ...line,
+            Descripcion: line.Descripcion || line.description || '',
+            description: line.Descripcion || line.description || '',
+            Cantidad: line.qty,
+            qty: line.qty,
+            PrecioUnitario: dispUnitPrice,
+            unitPrice: dispUnitPrice,
+            rawLineTotal: dispRawLine,
+            discountAmount: dispLineDisc,
+            effectiveLineTotal: dispEffLine
+        };
+    }
+
+    const displayProducts = rawProducts.map(transformLineForDisplay);
+    const displayLabor = rawLabor.map(transformLineForDisplay);
+
+    const sumProducts = Math.round(displayProducts.reduce((s, p) => s + p.rawLineTotal, 0) * 100) / 100;
+    const sumLabor = Math.round(displayLabor.reduce((s, l) => s + l.rawLineTotal, 0) * 100) / 100;
+    const subtotal = Math.round((sumProducts + sumLabor) * 100) / 100;
+    const discount = Math.round((
+        displayProducts.reduce((s, p) => s + p.discountAmount, 0) +
+        displayLabor.reduce((s, l) => s + l.discountAmount, 0)
+    ) * 100) / 100;
+    const netSubtotal = Math.round((subtotal - discount) * 100) / 100;
+
+    let iva = 0;
+    let grandTotal = 0;
+
+    if (mostrarIva) {
+        iva = Math.round((commercialGross - netSubtotal) * 100) / 100;
+        grandTotal = Math.round((netSubtotal + iva + percVal - retVal) * 100) / 100;
+    } else {
+        iva = 0;
+        grandTotal = Math.round((netSubtotal + percVal - retVal) * 100) / 100;
+    }
+
+    return {
+        config: {
+            mostrarIva,
+            preciosConIva,
+            taxRate,
+            taxMultiplier,
+            displayFactor
+        },
+        items: {
+            products: displayProducts,
+            labor: displayLabor,
+            all: [...displayProducts, ...displayLabor]
+        },
+        totals: {
+            sumProducts,
+            sumLabor,
+            subtotal,
+            discount,
+            netSubtotal,
+            taxBase,
+            iva,
+            percVal,
+            retVal,
+            grandTotal,
+            commercialGross
+        },
+        promotion: promoInfo
+    };
+}
+
 // Format 1: Clásico Mecanic OS
 
 
-function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, options = {}) {
+    const mostrarIva = options.mostrarIva !== undefined ? options.mostrarIva : (ws && ws.mostrar_iva_presupuesto !== 'no');
+    const taxRate = options.taxRate !== undefined ? options.taxRate : parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
+
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 12px;">No se cotizan repuestos y lubricantes</td></tr>'
-        : products.map(p => `
+        : products.map(p => {
+            const unitPrice = p.unitPrice !== undefined ? p.unitPrice : parseFloat(p.PrecioUnitario || 0);
+            const lineTotal = p.rawLineTotal !== undefined ? p.rawLineTotal : (unitPrice * parseInt(p.Cantidad || 1));
+            const discNote = (p.discountAmount > 0 && p.effectiveLineTotal !== undefined)
+                ? `<br><small style="color: #16a34a; font-size: 0.75rem;">(Desc: -$${p.discountAmount.toFixed(2)} &rarr; Neto: $${p.effectiveLineTotal.toFixed(2)})</small>`
+                : '';
+            return `
             <tr>
                 <td style="text-align: center; width: 8%;">${p.Cantidad}</td>
-                <td style="width: 62%;">${p.Descripcion}</td>
-                <td style="text-align: right; width: 15%;">$ ${parseFloat(p.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; width: 15%;">$ ${(parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="width: 62%;">${p.Descripcion || p.description || ''}${discNote}</td>
+                <td style="text-align: right; width: 15%;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; width: 15%;">$ ${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
     const laborHTML = labor.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 12px;">No se cotiza mano de obra</td></tr>'
-        : labor.map(l => `
+        : labor.map(l => {
+            const unitPrice = l.unitPrice !== undefined ? l.unitPrice : parseFloat(l.PrecioUnitario || 0);
+            const lineTotal = l.rawLineTotal !== undefined ? l.rawLineTotal : (unitPrice * parseInt(l.Cantidad || 1));
+            const discNote = (l.discountAmount > 0 && l.effectiveLineTotal !== undefined)
+                ? `<br><small style="color: #16a34a; font-size: 0.75rem;">(Desc: -$${l.discountAmount.toFixed(2)} &rarr; Neto: $${l.effectiveLineTotal.toFixed(2)})</small>`
+                : '';
+            return `
             <tr>
                 <td style="text-align: center; width: 8%;">${l.Cantidad}</td>
-                <td style="width: 62%;">${l.Descripcion}</td>
-                <td style="text-align: right; width: 15%;">$ ${parseFloat(l.PrecioUnitario || 0).toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</td>
-                <td style="text-align: right; width: 15%;">$ ${(parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="width: 62%;">${l.Descripcion || l.description || ''}${discNote}</td>
+                <td style="text-align: right; width: 15%;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; width: 15%;">$ ${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
     let percRow = '';
     if (percVal > 0) {
@@ -2452,7 +2761,7 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                 <div class="company-info">
                     ${ws.nombre_comercial && ws.nombre_comercial !== ws.nombre ? `Razón Social: ${ws.nombre}<br>` : ''}
                     Dirección: ${ws.direccion || ''}${ws.municipio || ws.departamento || ws.pais ? `, ${[ws.municipio, ws.departamento, ws.pais].filter(Boolean).join(', ')}` : ''}<br>
-                    Tel: ${ws.telefono} | Correo: <a href="mailto:${ws.correo}" class="company-email">${ws.correo}</a><br>
+                    Tel: ${ws.telefono || ''} | Correo: <a href="mailto:${ws.correo || ''}" class="company-email">${ws.correo || ''}</a><br>
                     ${ws.tipo_documento || 'NIT'}: ${ws.num_documento || ws.nit || ''} ${ws.nrc ? ` | NRC: ${ws.nrc}` : ''}<br>
                     Giro: ${ws.actividad_economica || ws.giro || 'Servicios Automotrices'}
                 </div>
@@ -2620,11 +2929,17 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
                     <td class="totals-label">(-) Descuento</td>
                     <td class="totals-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
-                ` : '')}
                 <tr>
-                    <td class="totals-label">IVA</td>
+                    <td class="totals-label">Subtotal Neto</td>
+                    <td class="totals-val" style="font-weight: 700;">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ` : '')}
+                ${mostrarIva ? `
+                <tr>
+                    <td class="totals-label">IVA (${(taxRate * 100).toFixed(0)}%)</td>
                     <td class="totals-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
+                ` : ''}
                 ${percRow}
                 ${retRow}
 
@@ -2643,7 +2958,10 @@ function getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, s
 // Format 2: Moderno FacturaLlama DTE
 
 
-function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
+function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, options = {}) {
+    const mostrarIva = options.mostrarIva !== undefined ? options.mostrarIva : (ws && ws.mostrar_iva_presupuesto !== 'no');
+    const taxRate = options.taxRate !== undefined ? options.taxRate : parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
+
     const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
     const advisor = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || { Nombre_Completo: 'Sin Asignar' };
@@ -2701,30 +3019,30 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
 
     let items = [];
     products.forEach(p => {
-        const itemPrice = parseFloat(p.PrecioUnitario || 0);
-        const itemQty = parseInt(p.Cantidad || 1);
-        const itemSubtotal = itemPrice * itemQty;
-        const itemDiscount = itemSubtotal * prodDiscountPercent;
-        const itemTotal = itemSubtotal - itemDiscount;
+        const itemPrice = p.unitPrice !== undefined ? p.unitPrice : parseFloat(p.PrecioUnitario || 0);
+        const itemQty = parseFloat(p.Cantidad || 1);
+        const itemSubtotal = p.rawLineTotal !== undefined ? p.rawLineTotal : (itemPrice * itemQty);
+        const itemDiscount = p.discountAmount !== undefined ? p.discountAmount : (itemSubtotal * prodDiscountPercent);
+        const itemTotal = p.effectiveLineTotal !== undefined ? p.effectiveLineTotal : (itemSubtotal - itemDiscount);
         items.push({
-            cant: parseFloat(p.Cantidad || 1).toFixed(2),
-            unidad: 'Pieza',
-            desc: `${p.Descripcion}`,
+            cant: itemQty.toFixed(2),
+            unidad: p.UnidadMedida || 'Pieza',
+            desc: `${p.Descripcion || p.description || ''}`,
             precio: itemPrice,
             descItem: itemDiscount,
             total: itemTotal
         });
     });
     labor.forEach(l => {
-        const itemPrice = parseFloat(l.PrecioUnitario || 0);
-        const itemQty = parseInt(l.Cantidad || 1);
-        const itemSubtotal = itemPrice * itemQty;
-        const itemDiscount = itemSubtotal * laborDiscountPercent;
-        const itemTotal = itemSubtotal - itemDiscount;
+        const itemPrice = l.unitPrice !== undefined ? l.unitPrice : parseFloat(l.PrecioUnitario || 0);
+        const itemQty = parseFloat(l.Cantidad || 1);
+        const itemSubtotal = l.rawLineTotal !== undefined ? l.rawLineTotal : (itemPrice * itemQty);
+        const itemDiscount = l.discountAmount !== undefined ? l.discountAmount : (itemSubtotal * laborDiscountPercent);
+        const itemTotal = l.effectiveLineTotal !== undefined ? l.effectiveLineTotal : (itemSubtotal - itemDiscount);
         items.push({
-            cant: parseFloat(l.Cantidad || 1).toFixed(2),
-            unidad: 'Servicio',
-            desc: `${l.Descripcion}`,
+            cant: itemQty.toFixed(2),
+            unidad: l.UnidadMedida || 'Servicio',
+            desc: `${l.Descripcion || l.description || ''}`,
             precio: itemPrice,
             descItem: itemDiscount,
             total: itemTotal
@@ -3177,7 +3495,7 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                     <th>Descripción</th>
                     <th>Precio Unitario</th>
                     <th>Descuento</th>
-                    <th>Ventas Gravadas</th>
+                    <th>${mostrarIva ? 'Ventas Gravadas' : 'Total ($)'}</th>
                 </tr>
             </thead>
             <tbody>
@@ -3230,18 +3548,22 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
                         <td class="totals-label">Sumatoria de Ventas</td>
                         <td class="totals-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
+                    ${discount > 0 ? `
                     <tr>
                         <td class="totals-label">Monto Global de Descuento</td>
                         <td class="totals-val">$ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
+                    ` : ''}
                     <tr>
                         <td class="totals-label">Sub Total</td>
                         <td class="totals-val">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
+                    ${mostrarIva ? `
                     <tr>
-                        <td class="totals-label">(+) IVA (13%)</td>
+                        <td class="totals-label">(+) IVA (${(taxRate * 100).toFixed(0)}%)</td>
                         <td class="totals-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
+                    ` : ''}
                     ${percRow}
                     ${retRow}
 
@@ -3261,9 +3583,9 @@ function getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor
 // Format 3: Elegante / Ejecutivo
 
 
-function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0) {
-    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
-    const ivaMultiplier = 1 + taxRate;
+function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, options = {}) {
+    const mostrarIva = options.mostrarIva !== undefined ? options.mostrarIva : (ws && ws.mostrar_iva_presupuesto !== 'no');
+    const taxRate = options.taxRate !== undefined ? options.taxRate : parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
 
     const db = typeof getDatabase === 'function' ? getDatabase() : { promociones: [] };
     const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
@@ -3292,18 +3614,15 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
     const productsHTML = products.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin repuestos ni lubricantes cotizados</td></tr>'
         : products.map(p => {
-            const unitPriceWithIva = parseFloat(p.PrecioUnitario || 0) * ivaMultiplier;
+            const unitPrice = p.unitPrice !== undefined ? p.unitPrice : parseFloat(p.PrecioUnitario || 0);
             const qty = parseInt(p.Cantidad || 1);
-            const itemDiscWithIva = (parseFloat(p.Descuento || 0)) * ivaMultiplier;
-            const baseLineTotal = (unitPriceWithIva * qty) - itemDiscWithIva;
-            const linePromoDisc = baseLineTotal * prodDiscountPercent;
-            const effectiveLineTotal = baseLineTotal - linePromoDisc;
+            const lineTotal = p.effectiveLineTotal !== undefined ? p.effectiveLineTotal : (p.rawLineTotal !== undefined ? p.rawLineTotal : (unitPrice * qty));
             return `
                 <tr>
                     <td style="text-align: center; font-weight: 500;">${qty}</td>
-                    <td>${p.Descripcion}</td>
-                    <td style="text-align: right;">$ ${unitPriceWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>${p.Descripcion || p.description || ''}</td>
+                    <td style="text-align: right;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `;
         }).join('');
@@ -3311,18 +3630,15 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
     const laborHTML = labor.length === 0
         ? '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 12px; font-style:italic;">Sin mano de obra cotizada</td></tr>'
         : labor.map(l => {
-            const unitPriceWithIva = parseFloat(l.PrecioUnitario || 0) * ivaMultiplier;
+            const unitPrice = l.unitPrice !== undefined ? l.unitPrice : parseFloat(l.PrecioUnitario || 0);
             const qty = parseInt(l.Cantidad || 1);
-            const itemDiscWithIva = (parseFloat(l.Descuento || 0)) * ivaMultiplier;
-            const baseLineTotal = (unitPriceWithIva * qty) - itemDiscWithIva;
-            const linePromoDisc = baseLineTotal * laborDiscountPercent;
-            const effectiveLineTotal = baseLineTotal - linePromoDisc;
+            const lineTotal = l.effectiveLineTotal !== undefined ? l.effectiveLineTotal : (l.rawLineTotal !== undefined ? l.rawLineTotal : (unitPrice * qty));
             return `
                 <tr>
                     <td style="text-align: center; font-weight: 500;">${qty}</td>
-                    <td>${l.Descripcion}</td>
-                    <td style="text-align: right;">$ ${unitPriceWithIva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style="text-align: right; font-weight: 600;">$ ${effectiveLineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>${l.Descripcion || l.description || ''}</td>
+                    <td style="text-align: right;">$ ${unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: 600;">$ ${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `;
         }).join('');
@@ -3732,8 +4048,24 @@ function getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, 
             <table class="totals-subtable">
                 <tr>
                     <td class="total-label">Subtotal</td>
-                    <td class="total-val">$ ${((subtotal - discount) * ivaMultiplier).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="total-val">$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
+                ${discount > 0 ? `
+                <tr>
+                    <td class="total-label">(-) Descuento</td>
+                    <td class="total-val" style="color: #b91c1c;">- $ ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">Subtotal Neto</td>
+                    <td class="total-val" style="font-weight: 700;">$ ${(subtotal - discount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ` : ''}
+                ${mostrarIva ? `
+                <tr>
+                    <td class="total-label">(+) IVA (${(taxRate * 100).toFixed(0)}%)</td>
+                    <td class="total-val">$ ${iva.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                ` : ''}
                 ${percRow}
                 ${retRow}
                 <tr class="grand-total-row">
@@ -3791,76 +4123,48 @@ export function getBudgetFullHtml(budgetId) {
     });
     const labor = db.detalle_mano_obra.filter(dm => dm['ID_Presupuesto MO'] === budgetId);
 
-    const sumProd = products.reduce((sum, p) => sum + parseFloat(p.PrecioUnitario || 0) * parseInt(p.Cantidad || 1), 0);
-    const sumLab = labor.reduce((sum, l) => sum + parseFloat(l.PrecioUnitario || 0) * parseInt(l.Cantidad || 1), 0);
-    const rawSubtotal = sumProd + sumLab;
+    // Motor central estandarizado de totales e IVA
+    const calc = calculateBudgetTotals({
+        budget,
+        products,
+        labor,
+        ws,
+        client,
+        db
+    });
 
-    // Calculate promotion discount
-    const promo = (db.promociones || []).find(p => p.ID_Promocion === budget.ID_Promocion);
-    let discount = 0;
-    if (promo) {
-        if (promo.Tipo === 'desc_mano_obra') {
-            discount = sumLab * (parseFloat(promo.Valor || 0) / 100);
-        } else if (promo.Tipo === 'desc_productos') {
-            discount = sumProd * (parseFloat(promo.Valor || 0) / 100);
-        } else if (promo.Tipo === 'monto_fijo') {
-            discount = parseFloat(promo.Valor || 0);
-        }
-    }
-    discount = Math.min(discount, rawSubtotal);
+    const displayProducts = calc.items.products;
+    const displayLabor = calc.items.labor;
+    const sumProd = calc.totals.sumProducts;
+    const sumLab = calc.totals.sumLabor;
+    const subtotal = calc.totals.subtotal;
+    const discount = calc.totals.discount;
+    const iva = calc.totals.iva;
+    const retVal = calc.totals.retVal;
+    const percVal = calc.totals.percVal;
+    const grandTotal = calc.totals.grandTotal;
 
-    const subtotalConDescuento = rawSubtotal - discount;
-    const taxRate = parseFloat(budget['% Impuesto'] || 0.13);
-
-    const wsConfig = getWorkshopConfig(db);
-    const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
-
-    let iva = 0;
-    let subtotal = rawSubtotal;
-    let baseParaImpuestos = subtotalConDescuento;
-    let finalDiscount = discount;
-
-    if (preciosConIva) {
-        const totalSinImpuestos = subtotalConDescuento / 1.13;
-        iva = subtotalConDescuento - totalSinImpuestos;
-        subtotal = rawSubtotal / 1.13;
-        baseParaImpuestos = totalSinImpuestos;
-        finalDiscount = discount / 1.13;
-    } else {
-        iva = subtotalConDescuento * taxRate;
-        baseParaImpuestos = subtotalConDescuento;
-    }
-
-    let retVal = 0;
-    let percVal = 0;
-    const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || (client.AplicaRetencion > 0);
-    if (isGranContrib && baseParaImpuestos >= 100.00) {
-        retVal = baseParaImpuestos * 0.01;
-    }
-    if (client.AplicaPercepcion > 0) {
-        percVal = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
-    }
-
-    let grandTotal = 0;
-    if (preciosConIva) {
-        grandTotal = subtotalConDescuento + percVal - retVal;
-    } else {
-        grandTotal = subtotalConDescuento + iva + percVal - retVal;
-    }
-    const originalDiscount = discount;
-    discount = finalDiscount;
+    const templateOptions = {
+        mostrarIva: calc.config.mostrarIva,
+        preciosConIva: calc.config.preciosConIva,
+        taxRate: calc.config.taxRate,
+        factorIva: calc.config.displayFactor !== 1 ? (1 / calc.config.displayFactor) : 1,
+        rawSubtotal: subtotal,
+        originalDiscount: discount,
+        calc
+    };
 
     const format = ws.formato_presupuesto || 'moderno_facturallama';
     let pdfHTML = '';
 
     if (format === 'clasico_mecanicos') {
-        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
+        pdfHTML = getClasicoMecanicOSHTML(ws, budget, client, vehicle, displayProducts, displayLabor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, templateOptions);
     } else if (format === 'elegante_ejecutivo') {
-        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
+        pdfHTML = getEleganteEjecutivoHTML(ws, budget, client, vehicle, displayProducts, displayLabor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, templateOptions);
     } else if (format === 'compacto_orden') {
-        pdfHTML = getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, rawSubtotal, originalDiscount);
+        pdfHTML = getCompactoOrdenHTML(ws, budget, client, vehicle, displayProducts, displayLabor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, templateOptions);
     } else {
-        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount);
+        pdfHTML = getModernoFacturaLlamaHTML(ws, budget, client, vehicle, displayProducts, displayLabor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount, templateOptions);
     }
 
     return {
@@ -3868,10 +4172,11 @@ export function getBudgetFullHtml(budgetId) {
         budget,
         client,
         vehicle,
-        subtotal: (subtotal - discount),
+        subtotal: calc.totals.netSubtotal,
         iva,
         grandTotal,
-        discount
+        discount,
+        calc
     };
 }
 
@@ -4146,11 +4451,12 @@ export function openSendBudgetEmailModal(budgetId) {
     }
 }
 
-function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, rawSubtotal = null, originalDiscount = 0) {
-    const taxRate = parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
-    const mostrarIva = ws && ws.mostrar_iva_presupuesto !== 'no';
-    const preciosConIva = ws && ws.features && ws.features.precios_con_iva === true;
-    const factorIva = (mostrarIva && preciosConIva) ? (1 + taxRate) : 1;
+function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount = 0, options = {}) {
+    const opts = (typeof options === 'object' && options !== null) ? options : {};
+    const taxRate = opts.taxRate !== undefined ? opts.taxRate : parseFloat(budget['% Impuesto'] !== undefined ? budget['% Impuesto'] : 0.13);
+    const mostrarIva = opts.mostrarIva !== undefined ? opts.mostrarIva : (ws && ws.mostrar_iva_presupuesto !== 'no');
+    const preciosConIva = opts.preciosConIva !== undefined ? opts.preciosConIva : (ws && ws.features && ws.features.precios_con_iva === true);
+    const factorIva = opts.factorIva || ((mostrarIva && preciosConIva) ? (1 + taxRate) : 1);
 
     const db = typeof getDatabase === 'function' ? getDatabase() : { tecnicos: [], promociones: [] };
     const tech = (db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || { Nombre_Completo: 'Sin Asignar' };
@@ -4172,7 +4478,8 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
         }
     }
 
-    const rawTotal = rawSubtotal !== null ? rawSubtotal : (sumProd + sumLab);
+    const rawTotal = (opts.rawSubtotal !== undefined && opts.rawSubtotal !== null) ? opts.rawSubtotal : (sumProd + sumLab);
+    const originalDiscount = (typeof options === 'number') ? options : (opts.originalDiscount || 0);
     const activeDiscount = (mostrarIva && preciosConIva) ? discount : (originalDiscount > 0 ? originalDiscount : discount);
 
     if (isProportional) {
@@ -4183,21 +4490,24 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
 
     let totalNetLab = 0;
     const laborRows = labor.map(l => {
-        const rawUnitPrice = parseFloat(l.PrecioUnitario || 0);
+        const unitPrice = l.unitPrice !== undefined ? l.unitPrice : (parseFloat(l.PrecioUnitario || 0) / factorIva);
         const qty = parseInt(l.Cantidad || 1);
-        const itemDisc = parseFloat(l.Descuento || 0);
-        const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
-        const linePromoDisc = baseLineTotal * laborDiscountPercent;
-        const effectiveLineTotal = baseLineTotal - linePromoDisc;
-        const totalLineDisc = itemDisc + linePromoDisc;
-
-        const unitPrice = rawUnitPrice / factorIva;
-        const tot = effectiveLineTotal / factorIva;
+        let tot = 0;
+        if (l.effectiveLineTotal !== undefined) {
+            tot = l.effectiveLineTotal;
+        } else {
+            const rawUnitPrice = parseFloat(l.PrecioUnitario || 0);
+            const itemDisc = parseFloat(l.Descuento || 0);
+            const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
+            const linePromoDisc = baseLineTotal * laborDiscountPercent;
+            const effectiveLineTotal = baseLineTotal - linePromoDisc;
+            tot = effectiveLineTotal / factorIva;
+        }
         totalNetLab += tot;
 
         return `
             <tr>
-                <td>${l.Descripcion}</td>
+                <td>${l.Descripcion || l.description || ''}</td>
                 <td style="text-align: center;">${qty}</td>
                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
@@ -4207,20 +4517,24 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
 
     let totalNetProd = 0;
     const productsRows = products.map(p => {
-        const rawUnitPrice = parseFloat(p.PrecioUnitario || 0);
+        const unitPrice = p.unitPrice !== undefined ? p.unitPrice : (parseFloat(p.PrecioUnitario || 0) / factorIva);
         const qty = parseInt(p.Cantidad || 1);
-        const itemDisc = parseFloat(p.Descuento || 0);
-        const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
-        const linePromoDisc = baseLineTotal * prodDiscountPercent;
-        const effectiveLineTotal = baseLineTotal - linePromoDisc;
-
-        const unitPrice = rawUnitPrice / factorIva;
-        const tot = effectiveLineTotal / factorIva;
+        let tot = 0;
+        if (p.effectiveLineTotal !== undefined) {
+            tot = p.effectiveLineTotal;
+        } else {
+            const rawUnitPrice = parseFloat(p.PrecioUnitario || 0);
+            const itemDisc = parseFloat(p.Descuento || 0);
+            const baseLineTotal = (rawUnitPrice * qty) - itemDisc;
+            const linePromoDisc = baseLineTotal * prodDiscountPercent;
+            const effectiveLineTotal = baseLineTotal - linePromoDisc;
+            tot = effectiveLineTotal / factorIva;
+        }
         totalNetProd += tot;
 
         return `
             <tr>
-                <td>${p.Descripcion}</td>
+                <td>${p.Descripcion || p.description || ''}</td>
                 <td style="text-align: center;">${qty}</td>
                 <td style="text-align: right;">$ ${unitPrice.toFixed(2)}</td>
                 <td style="text-align: right; font-weight: 600;">$ ${tot.toFixed(2)}</td>
@@ -4228,21 +4542,15 @@ function getCompactoOrdenHTML(ws, budget, client, vehicle, products, labor, subt
         `;
     }).join('');
 
-    const grossSubtotal = (sumProd + sumLab) / factorIva;
-    const displayDiscount = activeDiscount / factorIva;
+    const grossSubtotal = subtotal;
+    const displayDiscount = discount;
     const netSubtotal = grossSubtotal - displayDiscount;
 
-    let subtotalFinal = 0;
-    let ivaFinal = 0;
-    let totalPagarFinal = 0;
+    let subtotalFinal = grossSubtotal;
+    let ivaFinal = iva;
+    let totalPagarFinal = grandTotal;
 
-    if (mostrarIva) {
-        subtotalFinal = grossSubtotal;
-        totalPagarFinal = grandTotal;
-        ivaFinal = totalPagarFinal - netSubtotal - percVal + retVal;
-    } else {
-        subtotalFinal = grossSubtotal;
-        totalPagarFinal = netSubtotal + percVal - retVal;
+    if (!mostrarIva) {
         ivaFinal = 0;
     }
 

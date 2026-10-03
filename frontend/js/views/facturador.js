@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF } from './presupuestos.js?v=120';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=136';
 
 // Expose functions globally for other views (like clientes_vehiculos)
 window.viewDtePdf = viewDtePdf;
@@ -815,71 +815,29 @@ export function renderInvoicingWorkspace(container, presId) {
     const emitBtn = document.getElementById('emit-dte-btn');
     const resultBox = document.getElementById('dte-emission-result');
     
-    // Load calculations
+    // Load calculations via unified calculateBudgetTotals
+    const wsConfig = getWorkshopConfig(db);
     const prodItems = (db.detalle_productos || db['21 Detalle Presupuesto Producto'] || []).filter(item => item['ID_Presupuesto DPP'] === presId);
     const laborItems = (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
 
-    const promo = (db.promociones || []).find(pr => pr.ID_Promocion === p.ID_Promocion);
-    
-    const totalNetBeforeDiscount = 
-        prodItems.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0) +
-        laborItems.reduce((acc, item) => acc + parseFloat(item.PrecioUnitario || 0) * parseInt(item.Cantidad || 1), 0);
-        
-    const flatDiscountFactor = (promo && promo.Tipo === 'monto_fijo' && totalNetBeforeDiscount > 0) 
-        ? Math.max(0, 1 - parseFloat(promo.Valor || 0) / totalNetBeforeDiscount)
-        : 1;
+    const calc = calculateBudgetTotals({
+        budget: p,
+        products: prodItems,
+        labor: laborItems,
+        ws: wsConfig,
+        client: client,
+        db: db
+    });
 
-    function getItemDiscountedPrice(item, isLabor) {
-        const rawPrice = parseFloat(item.PrecioUnitario || item.price || 0);
-        if (!promo) return rawPrice;
-        
-        if (promo.Tipo === 'monto_fijo') {
-            return parseFloat((rawPrice * flatDiscountFactor).toFixed(4));
-        }
-        if (isLabor && promo.Tipo === 'desc_mano_obra') {
-            return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
-        }
-        if (!isLabor && promo.Tipo === 'desc_productos') {
-            return parseFloat((rawPrice * (1 - parseFloat(promo.Valor || 0) / 100)).toFixed(4));
-        }
-        return rawPrice;
-    }
-
-    let subtotal = 0;
-    prodItems.forEach(item => subtotal += getItemDiscountedPrice(item, false) * parseInt(item.Cantidad || 1));
-    laborItems.forEach(item => subtotal += getItemDiscountedPrice(item, true) * parseInt(item.Cantidad || 1));
-    
-    const discount = parseFloat(p.Descuento || 0);
-    const subtotalConDescuento = Math.max(0, subtotal - discount);
-    
-    const wsConfig = getWorkshopConfig(db);
-    const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
-
-    let iva = 0;
-    let grandTotal = 0;
-    let baseParaImpuestos = subtotalConDescuento;
-
-    if (preciosConIva) {
-        grandTotal = subtotalConDescuento;
-        baseParaImpuestos = subtotalConDescuento / 1.13;
-        iva = subtotalConDescuento - baseParaImpuestos;
-    } else {
-        iva = subtotalConDescuento * 0.13;
-        grandTotal = subtotalConDescuento + iva;
-        baseParaImpuestos = subtotalConDescuento;
-    }
-    
-    let retention = 0;
-    let perception = 0;
-    if (client.AplicaPercepcion > 0) {
-        perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
-        grandTotal += perception;
-    }
-    const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-    if (isGranContrib && baseParaImpuestos >= 100.00) {
-        retention = baseParaImpuestos * 0.01;
-        grandTotal -= retention;
-    }
+    const subtotal = calc.totals.subtotal;
+    const discount = calc.totals.discount;
+    const netSubtotal = calc.totals.netSubtotal;
+    const iva = calc.totals.iva;
+    const perception = calc.totals.percVal;
+    const retention = calc.totals.retVal;
+    const grandTotal = calc.totals.grandTotal;
+    const baseParaImpuestos = calc.totals.taxBase;
+    const preciosConIva = calc.config.preciosConIva;
 
     // Auto select DTE document type based on client data
     if (client['Contribuyente?'] === 'SI') {
@@ -916,17 +874,18 @@ export function renderInvoicingWorkspace(container, presId) {
         <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
             <h5 style="margin-bottom:0.75rem;">Ítems a Emitir</h5>
             <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                ${safe(prodItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, false)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join(''))}
-                ${safe(laborItems.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${item.Descripcion}</span><span>$ ${(getItemDiscountedPrice(item, true)*parseInt(item.Cantidad)).toFixed(2)}</span></div>`).join(''))}
+                ${safe(calc.items.products.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${escapeHtml(item.Descripcion)}</span><span>$ ${item.effectiveLineTotal.toFixed(2)}</span></div>`).join(''))}
+                ${safe(calc.items.labor.map(item => `<div style="display:flex; justify-content:space-between; font-size:0.8rem;"><span>${item.Cantidad}x ${escapeHtml(item.Descripcion)}</span><span>$ ${item.effectiveLineTotal.toFixed(2)}</span></div>`).join(''))}
             </div>
         </div>
 
         <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem;">
-            <div style="display:flex; justify-content:space-between;"><span>Subtotal Neto:</span><span>$ ${subtotal.toFixed(2)}</span></div>
-            ${safe(discount > 0 ? `<div style="display:flex; justify-content:space-between; color: var(--warning);"><span>Descuento:</span><span>- $ ${discount.toFixed(2)}</span></div>` : '')}
+            <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>$ ${subtotal.toFixed(2)}</span></div>
+            ${safe(discount > 0 ? `<div style="display:flex; justify-content:space-between; color: var(--warning);"><span>(-) Descuento:</span><span>- $ ${discount.toFixed(2)}</span></div>` : '')}
+            ${safe(discount > 0 ? `<div style="display:flex; justify-content:space-between; font-weight:600;"><span>Subtotal Neto:</span><span>$ ${netSubtotal.toFixed(2)}</span></div>` : '')}
             <div style="display:flex; justify-content:space-between;"><span>IVA (13%):</span><span>$ ${iva.toFixed(2)}</span></div>
-            ${safe(perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción:</span><span>+ $ ${perception.toFixed(2)}</span></div>` : '')}
-            ${safe(retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención:</span><span>- $ ${retention.toFixed(2)}</span></div>` : '')}
+            ${safe(perception > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Percepción (2%):</span><span>+ $ ${perception.toFixed(2)}</span></div>` : '')}
+            ${safe(retention > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Retención (1%):</span><span>- $ ${retention.toFixed(2)}</span></div>` : '')}
             <div style="display:flex; justify-content:space-between; font-weight:700; margin-top:0.5rem; font-size:1.1rem; color:var(--cyan);"><span>TOTAL DTE:</span><span>$ ${grandTotal.toFixed(2)}</span></div>
         </div>
     `;
@@ -1029,27 +988,47 @@ export function renderInvoicingWorkspace(container, presId) {
             recipientPayload.nrc = (client.NRC || '').replace(/\D/g, '').slice(0, 8);
         }
 
+        function getLlamaItemUnitPrice(item) {
+            const qty = parseInt(item.Cantidad || item.qty || 1);
+            let lineGross = 0;
+            if (preciosConIva) {
+                lineGross = item.effectiveLineTotal;
+            } else {
+                const exactGross = item.effectiveLineTotal * 1.13;
+                lineGross = Math.round(exactGross * 100) / 100;
+                // Reconciliación de decimales periódicos al deflactar entre 1.13 (ej. $88.50 -> $100.00, $79.65 -> $90.00)
+                for (const step of [1.0, 0.50, 0.25, 0.10, 0.05]) {
+                    const target = Math.round(exactGross / step) * step;
+                    if (Math.abs(exactGross - target) < 0.012 && Math.abs(target - lineGross) >= 0.004) {
+                        lineGross = Math.round(target * 100) / 100;
+                        break;
+                    }
+                }
+            }
+            return parseFloat(((lineGross / qty) / 1.13).toFixed(4));
+        }
+
         const formattedItems = [
-            ...prodItems.map(item => {
-                const rawPrice = getItemDiscountedPrice(item, false);
-                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+            ...calc.items.products.map(item => {
+                const qty = parseInt(item.Cantidad || item.qty || 1);
+                const unitPrice = getLlamaItemUnitPrice(item);
                 return {
                     type: 'BIENES',
                     internalCode: String(item['ID_Producto DPP'] || item.id || '').trim(),
-                    description: item.Descripcion || item.desc || 'Producto',
-                    quantity: parseInt(item.Cantidad || item.qty || 1),
+                    description: item.Descripcion || item.description || 'Producto',
+                    quantity: qty,
                     unitPrice: unitPrice,
                     saleType: 'GRAVADA'
                 };
             }),
-            ...laborItems.map(item => {
-                const rawPrice = getItemDiscountedPrice(item, true);
-                const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
+            ...calc.items.labor.map(item => {
+                const qty = parseInt(item.Cantidad || item.qty || 1);
+                const unitPrice = getLlamaItemUnitPrice(item);
                 return {
                     type: 'SERVICIOS',
                     internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),
-                    description: item.Descripcion || item.desc || 'Mano de Obra',
-                    quantity: parseInt(item.Cantidad || item.qty || 1),
+                    description: item.Descripcion || item.description || 'Mano de Obra',
+                    quantity: qty,
                     unitPrice: unitPrice,
                     saleType: 'GRAVADA'
                 };
@@ -1060,8 +1039,7 @@ export function renderInvoicingWorkspace(container, presId) {
         const vehicleInfo = `${vehicle.Placas || 'n/a'} ${vehicle.Marca || ''} ${vehicle.Modelo || ''} ${vehicle.Año || vehicle.Anio || ''}`;
         const ws = (db.saas_state && db.saas_state.workshopData) || {};
 
-        const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        const dteRetention = (isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
+        const dteRetention = retention > 0 ? parseFloat(retention.toFixed(4)) : 0;
 
         const dtePayload = {
             id: generateUUID(),
@@ -1220,29 +1198,27 @@ export function renderInvoicingWorkspace(container, presId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${safe(prodItems.map(item => {
-                                const discPrice = getItemDiscountedPrice(item, false);
-                                const discPriceNeto = preciosConIva ? (discPrice / 1.13) : discPrice;
-                                const descName = item.Descripcion || item.desc || '';
+                            ${safe(calc.items.products.map(item => {
+                                const qty = parseInt(item.Cantidad || item.qty || 1);
+                                const unitPriceNeto = preciosConIva ? (item.effectiveLineTotal / qty / 1.13) : (item.effectiveLineTotal / qty);
                                 return `
                                     <tr>
-                                        <td>${descName.substring(0,25)}</td>
-                                        <td>${item.Cantidad || item.qty}</td>
-                                        <td>$${discPriceNeto.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPriceNeto * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
+                                        <td>${escapeHtml((item.Descripcion || '').substring(0,25))}</td>
+                                        <td>${qty}</td>
+                                        <td>$${unitPriceNeto.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${item.effectiveLineTotal.toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
-                            ${safe(laborItems.map(item => {
-                                const discPrice = getItemDiscountedPrice(item, true);
-                                const discPriceNeto = preciosConIva ? (discPrice / 1.13) : discPrice;
-                                const descName = item.Descripcion || item.desc || '';
+                            ${safe(calc.items.labor.map(item => {
+                                const qty = parseInt(item.Cantidad || item.qty || 1);
+                                const unitPriceNeto = preciosConIva ? (item.effectiveLineTotal / qty / 1.13) : (item.effectiveLineTotal / qty);
                                 return `
                                     <tr>
-                                        <td>${descName.substring(0,25)}</td>
-                                        <td>${item.Cantidad || item.qty}</td>
-                                        <td>$${discPriceNeto.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${(discPriceNeto * parseInt(item.Cantidad || item.qty)).toFixed(2)}</td>
+                                        <td>${escapeHtml((item.Descripcion || '').substring(0,25))}</td>
+                                        <td>${qty}</td>
+                                        <td>$${unitPriceNeto.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${item.effectiveLineTotal.toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}
@@ -1250,7 +1226,9 @@ export function renderInvoicingWorkspace(container, presId) {
                     </table>
                     <p>--------------------------------------------------</p>
                     <div style="text-align:right;">
-                        <p>Subtotal Neto: $ ${(preciosConIva ? baseParaImpuestos : subtotal).toFixed(2)}</p>
+                        <p>Subtotal: $ ${subtotal.toFixed(2)}</p>
+                        ${safe(discount > 0 ? `<p>(-) Descuento: - $ ${discount.toFixed(2)}</p>` : '')}
+                        ${safe(discount > 0 ? `<p>Subtotal Neto: $ ${netSubtotal.toFixed(2)}</p>` : '')}
                         <p>IVA (13%): $ ${iva.toFixed(2)}</p>
                         ${safe(perception > 0 ? `<p>Percepción (2%): $ ${perception.toFixed(2)}</p>` : '')}
                         ${safe(retention > 0 ? `<p>Retención (1%): $ ${retention.toFixed(2)}</p>` : '')}
@@ -1663,41 +1641,59 @@ export function printDteTicket(presId) {
         const laborItems = isQuickSale ? (p.mano_obra || []) : (db.detalle_mano_obra || db['11 Detalle Mano de Obra'] || []).filter(item => item['ID_Presupuesto MO'] === presId);
 
         let subtotal = 0;
-        prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
-        laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
-        
-        const discount = parseFloat(p.Descuento || 0);
-        const subtotalConDescuento = Math.max(0, subtotal - discount);
-
-        const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
-
-        const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
-        const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
-        
+        let discount = 0;
+        let netSubtotal = 0;
         let iva = 0;
         let grandTotal = 0;
-        let baseParaImpuestos = subtotalConDescuento;
-
-        if (preciosConIva) {
-            grandTotal = subtotalConDescuento;
-            baseParaImpuestos = subtotalConDescuento / 1.13;
-            iva = subtotalConDescuento - baseParaImpuestos;
-        } else {
-            iva = subtotalConDescuento * taxRate;
-            grandTotal = subtotalConDescuento + iva;
-            baseParaImpuestos = subtotalConDescuento;
-        }
-
+        let baseParaImpuestos = 0;
         let retention = 0;
         let perception = 0;
-        if (client.AplicaPercepcion > 0) {
-            perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
+        let preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+        const isCCF = p.Doc_a_Emitir === 'CREDITO FISCAL' || p['Tipo Doc'] === 'CREDITO FISCAL';
+        const taxRate = parseFloat(p['% Impuesto'] !== undefined ? p['% Impuesto'] : 0.13);
+
+        if (!isQuickSale) {
+            const calc = calculateBudgetTotals({
+                budget: p,
+                products: prodItems,
+                labor: laborItems,
+                ws: wsConfig,
+                client: client,
+                db: db
+            });
+            subtotal = calc.totals.subtotal;
+            discount = calc.totals.discount;
+            netSubtotal = calc.totals.netSubtotal;
+            iva = calc.totals.iva;
+            retention = calc.totals.retVal;
+            perception = calc.totals.percVal;
+            grandTotal = calc.totals.grandTotal;
+            baseParaImpuestos = calc.totals.taxBase;
+            preciosConIva = calc.config.preciosConIva;
+        } else {
+            prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
+            laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
+            discount = parseFloat(p.Descuento || 0);
+            const subtotalConDescuento = Math.max(0, subtotal - discount);
+            netSubtotal = subtotalConDescuento;
+            if (preciosConIva) {
+                grandTotal = subtotalConDescuento;
+                baseParaImpuestos = subtotalConDescuento / 1.13;
+                iva = subtotalConDescuento - baseParaImpuestos;
+            } else {
+                iva = subtotalConDescuento * taxRate;
+                grandTotal = subtotalConDescuento + iva;
+                baseParaImpuestos = subtotalConDescuento;
+            }
+            if (client.AplicaPercepcion > 0) {
+                perception = baseParaImpuestos * parseFloat(client.AplicaPercepcion);
+            }
+            const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
+            if (isGranContrib && baseParaImpuestos >= 100.00) {
+                retention = baseParaImpuestos * 0.01;
+            }
+            grandTotal = grandTotal + perception - retention;
         }
-        const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        if (isGranContrib && baseParaImpuestos >= 100.00) {
-            retention = baseParaImpuestos * 0.01;
-        }
-        grandTotal = grandTotal + perception - retention;
 
         const genCode = p.controlNumber || 'N/A';
         
