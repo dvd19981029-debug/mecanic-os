@@ -1394,7 +1394,7 @@ export function renderInvoicingWorkspace(container, presId) {
     });
 }
 
-async function viewDtePdf(dteId) {
+export async function viewDtePdf(dteId) {
     try {
         const db = getDatabase();
         const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
