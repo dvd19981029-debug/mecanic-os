@@ -2,7 +2,7 @@
  * Mecanic OS - Main Application Entry Point
  */
 
-import { initRouter } from './router.js?v=141';
+import { initRouter } from './router.js?v=142';
 import {
     initFirebase,
     initDatabase,

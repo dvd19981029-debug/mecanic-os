@@ -30,7 +30,7 @@ import {
     downloadExcelReport,
     matchesMultiFieldSearch
 } from '../utils.js?v=69';
-import { scanCirculationCards } from '../ocr_tarjeta.js?v=1';
+import { scanCirculationCards } from '../ocr_tarjeta.js?v=2';
 
 export function renderClientesVehiculos(container, queryParams) {
     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
