@@ -1688,7 +1688,7 @@ export function printDteTicket(presId) {
         } else {
             prodItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
             laborItems.forEach(item => subtotal += parseFloat(item.PrecioUnitario || item.price || 0) * parseInt(item.Cantidad || item.qty || 1));
-            discount = parseFloat(p.Descuento || 0);
+            discount = parseFloat(p.Descuento || p.descuento || 0);
             subtotalConDescuento = Math.max(0, subtotal - discount);
             netSubtotal = subtotalConDescuento;
             if (preciosConIva) {
@@ -1708,6 +1708,12 @@ export function printDteTicket(presId) {
                 retention = baseParaImpuestos * 0.01;
             }
             grandTotal = grandTotal + perception - retention;
+            if (p.total !== undefined || p.Total !== undefined) {
+                const storedTotal = parseFloat(p.total !== undefined ? p.total : p.Total);
+                if (storedTotal > 0 && Math.abs(grandTotal - storedTotal) < 0.05) {
+                    grandTotal = storedTotal;
+                }
+            }
         }
 
         const genCode = p.codigoGeneracion || p.generationCode || p.controlNumber || 'N/A';
