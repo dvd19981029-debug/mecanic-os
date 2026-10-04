@@ -805,6 +805,7 @@ export function renderGastos(container) {
 
             // 2. Affect Stock / Kardex (skip consumibles; NC subtracts)
             const dteLabelMap = { CCF: 'CCF', FAC: 'Factura', FSE: 'FSE', NC: 'Nota de Crédito' };
+            const costChanges = [];
             purchaseItems.forEach(item => {
                 const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
                 if (prod && !prod.Consumible) {
@@ -828,7 +829,10 @@ export function renderGastos(container) {
                     });
 
                     // Update cost price for normal purchases
-                    if (!isNC) prod['Precio Compra'] = item.precio_costo;
+                    if (!isNC) {
+                        costChanges.push({ prod, oldCost: parseFloat(prod['Precio Compra'] || 0), newCost: item.precio_costo });
+                        prod['Precio Compra'] = item.precio_costo;
+                    }
                 }
             });
 
@@ -871,10 +875,112 @@ export function renderGastos(container) {
             activeGastosTab = condicion === 'CONTADO' ? 'egresos' : 'cxp';
             purchaseItems = []; // Reset
             renderGastos(container);
+            suggestPriceUpdates(costChanges);
         });
 
 
         renderRows();
+    }
+
+    // After a purchase changes product costs, suggest new sale prices (keeping each product's % ganancia). Requires user confirmation.
+    function suggestPriceUpdates(changes) {
+        const ws = getWorkshopConfig(db);
+        const conIva = !!(ws.features && ws.features.precios_con_iva === true);
+        const r2 = v => parseFloat(v.toFixed(2));
+        const byProd = new Map();
+        (changes || []).forEach(ch => {
+            const key = ch.prod['ID_ Producto'];
+            if (byProd.has(key)) byProd.get(key).newCost = ch.newCost;
+            else byProd.set(key, { prod: ch.prod, oldCost: ch.oldCost, newCost: ch.newCost });
+        });
+        const rows = [];
+        byProd.forEach(ch => {
+            const prod = ch.prod;
+            if (Math.abs(ch.newCost - ch.oldCost) < 0.0001) return;
+            const curNet = parseFloat(prod['Precio Venta'] || prod['Precio Unit'] || 0);
+            let pct = parseFloat(prod['Ganancia Pct']);
+            if (isNaN(pct)) {
+                if (!(ch.oldCost > 0) || !(curNet > 0)) return;
+                pct = ((curNet - ch.oldCost) / ch.oldCost) * 100;
+            }
+            let sugNet = ch.newCost * (1 + pct / 100);
+            let sugIvaInc;
+            if (conIva) {
+                sugIvaInc = r2(sugNet * 1.13);
+                sugNet = parseFloat((sugIvaInc / 1.13).toFixed(4));
+            } else {
+                sugNet = r2(sugNet);
+                sugIvaInc = r2(sugNet * 1.13);
+            }
+            const curIvaInc = parseFloat(prod['Precio Unit Iva Inc'] || prod['Precio Venta Unit Iva Inc'] || r2(curNet * 1.13));
+            const curShown = conIva ? curIvaInc : curNet;
+            const sugShown = conIva ? sugIvaInc : sugNet;
+            if (Math.abs(sugShown - curShown) < 0.005) return;
+            rows.push({ prod, oldCost: ch.oldCost, newCost: ch.newCost, pct, curShown, sugShown, sugNet, sugIvaInc });
+        });
+        if (rows.length === 0) return;
+
+        const modalId = 'price-suggestion-modal';
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:100000; justify-content:center; align-items:center;';
+        modal.innerHTML = `
+            <div class="glass-card" style="max-width:820px; width:94%; max-height:90vh; overflow-y:auto; padding:1.5rem; border:1px solid var(--border-color); border-radius:12px; background:var(--bg-card, #111827);">
+                <h3 style="margin:0 0 0.4rem 0; color:var(--text-primary);">Actualizar precios de venta</h3>
+                <p style="margin:0 0 1rem 0; color:var(--text-secondary); font-size:0.85rem;">El costo de estos productos cambió. Se sugiere el precio de venta que mantiene su % de ganancia${conIva ? ' (precios con IVA)' : ' (precios sin IVA)'}.</p>
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border-color); color:var(--text-secondary); text-align:right;">
+                            <th style="padding:0.5rem; width:30px;"></th>
+                            <th style="padding:0.5rem; text-align:left;">Producto</th>
+                            <th style="padding:0.5rem;">Costo antes</th>
+                            <th style="padding:0.5rem;">Costo nuevo</th>
+                            <th style="padding:0.5rem;">% Gan.</th>
+                            <th style="padding:0.5rem;">Venta actual</th>
+                            <th style="padding:0.5rem;">Venta sugerida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((r, i) => `
+                            <tr style="border-bottom:1px solid var(--border-color); text-align:right;">
+                                <td style="padding:0.5rem;"><input type="checkbox" class="price-sug-chk" data-idx="${i}" checked></td>
+                                <td style="padding:0.5rem; text-align:left;">${escapeHtml(r.prod.Descripcion || r.prod['ID_ Producto'])}</td>
+                                <td style="padding:0.5rem;">$ ${r.oldCost.toFixed(2)}</td>
+                                <td style="padding:0.5rem;">$ ${r.newCost.toFixed(2)}</td>
+                                <td style="padding:0.5rem;">${r.pct.toFixed(1)}%</td>
+                                <td style="padding:0.5rem;">$ ${r.curShown.toFixed(2)}</td>
+                                <td style="padding:0.5rem; font-weight:700; color:var(--success);">$ ${r.sugShown.toFixed(2)}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+                <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.25rem;">
+                    <button type="button" class="btn btn-secondary" id="price-sug-skip">Dejar precios como están</button>
+                    <button type="button" class="btn btn-primary" id="price-sug-apply">Actualizar precios</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+
+        document.getElementById('price-sug-skip').onclick = () => modal.remove();
+        document.getElementById('price-sug-apply').onclick = () => {
+            let count = 0;
+            modal.querySelectorAll('.price-sug-chk').forEach(chk => {
+                if (!chk.checked) return;
+                const r = rows[parseInt(chk.dataset.idx)];
+                r.prod['Precio Venta'] = r.sugNet;
+                r.prod['Precio Unit'] = r.sugNet;
+                r.prod['Precio Venta Unit Iva Inc'] = r.sugIvaInc;
+                r.prod['Precio Unit Iva Inc'] = r.sugIvaInc;
+                r.prod['Ganancia Pct'] = r.pct;
+                count++;
+            });
+            if (count > 0) {
+                saveDatabase(db);
+                showToast(`${count} precio(s) de venta actualizado(s)`, 'success');
+            }
+            modal.remove();
+        };
     }
 
     // Modal to view complete purchase details, items, unit prices, costs, and payment history
@@ -1361,6 +1467,7 @@ export function renderGastos(container) {
 
             // 2. Apply New Stock & Cost for new items
             let netSum = 0;
+            const costChanges = [];
             const newMappedItems = editItems.map(item => {
                 const qty = parseFloat(item.cant || 0);
                 const cost = parseFloat(item.precio_costo || 0);
@@ -1369,6 +1476,7 @@ export function renderGastos(container) {
                 const prod = db.productos.find(p => p['ID_ Producto'] === item.id_producto);
                 if (prod && !prod.Consumible) {
                     prod.Minimos = (prod.Minimos || 0) + qty;
+                    costChanges.push({ prod, oldCost: parseFloat(prod['Precio Compra'] || 0), newCost: cost });
                     prod['Precio Compra'] = cost;
 
                     // Kardex adjustment entry
@@ -1432,6 +1540,7 @@ export function renderGastos(container) {
             if (detailModal) detailModal.remove();
 
             renderGastos(container);
+            suggestPriceUpdates(costChanges);
         };
     }
 

@@ -2179,6 +2179,7 @@ export function renderConfiguracion(container, queryParams) {
                     p['Notas Producto'] = notas;
                     p.Descuento = descuento;
                     p['Precio Compra'] = compra;
+                    p['Ganancia Pct'] = compra > 0 ? parseFloat((((finalPrecioBase - compra) / compra) * 100).toFixed(2)) : null;
                     p['Precio Venta'] = finalPrecioBase;
                     p['Precio Unit'] = finalPrecioBase;
                     p['Precio Venta Unit Iva Inc'] = finalPrecioIvaInc;
@@ -2199,6 +2200,7 @@ export function renderConfiguracion(container, queryParams) {
                     "Notas Producto": notas,
                     "Descuento": descuento,
                     "Precio Compra": compra,
+                    "Ganancia Pct": compra > 0 ? parseFloat((((finalPrecioBase - compra) / compra) * 100).toFixed(2)) : null,
                     "Precio Venta": finalPrecioBase,
                     "Precio Unit": finalPrecioBase,
                     "Precio Venta Unit Iva Inc": finalPrecioIvaInc,
