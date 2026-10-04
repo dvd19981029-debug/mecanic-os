@@ -602,8 +602,8 @@ export function renderConfiguracion(container, queryParams) {
                             <input type="number" id="producto-precio-compra" required min="0" step="0.01" value="0.00">
                         </div>
                         <div class="form-group">
-                            <label>% Ganancia (Estimado)</label>
-                            <input type="text" id="producto-ganancia-pct" readonly value="N/A" style="background:rgba(255,255,255,0.05); font-weight:bold; padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
+                            <label>% Ganancia</label>
+                            <input type="number" id="producto-ganancia-pct" min="0" step="0.1" placeholder="N/A" style="font-weight:bold; padding:0.6rem; border-radius:6px; border:1px solid var(--border-color);">
                         </div>
                     </div>
                     <div class="form-row">
@@ -1593,6 +1593,7 @@ export function renderConfiguracion(container, queryParams) {
                         document.getElementById('producto-consumible').checked = p.Consumible === true;
                         
                         // Update calculations inside modal
+                        window.__prodPctMode = false;
                         if (typeof window.updateProductCalculations === 'function') {
                             window.updateProductCalculations();
                         }
@@ -2015,10 +2016,18 @@ export function renderConfiguracion(container, queryParams) {
             if (!pCompraInput || !pVentaInput || !pIvaInput || !pGananciaInput) return;
 
             const pCompra = parseFloat(pCompraInput.value || 0);
-            const pVenta = parseFloat(pVentaInput.value || 0);
+            let pVenta = parseFloat(pVentaInput.value || 0);
             
             const wsConfig = getWorkshopConfig(db);
             const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
+
+            // Pct mode: user typed % ganancia -> calculate sale price from purchase price
+            const pctTyped = parseFloat(pGananciaInput.value);
+            if (window.__prodPctMode && !isNaN(pctTyped) && pCompra > 0) {
+                const netoCalc = pCompra * (1 + pctTyped / 100);
+                pVenta = preciosConIva ? netoCalc * 1.13 : netoCalc;
+                pVentaInput.value = pVenta.toFixed(2);
+            }
 
             let pVentaNeto = pVenta;
             if (preciosConIva) {
@@ -2030,11 +2039,13 @@ export function renderConfiguracion(container, queryParams) {
                 pIvaInput.value = '$ ' + parseFloat(pVenta * 1.13).toFixed(2);
             }
             
-            // 2. Calculate profit percentage
+            // 2. Calculate profit percentage (keep the typed % untouched in pct mode)
             if (pCompra > 0) {
                 const diff = pVentaNeto - pCompra;
                 const pct = (diff / pCompra) * 100;
-                pGananciaInput.value = pct.toFixed(1) + '%';
+                if (!window.__prodPctMode) {
+                    pGananciaInput.value = pct.toFixed(1);
+                }
                 
                 if (pct < 15) {
                     pGananciaInput.style.color = 'var(--danger)';
@@ -2044,7 +2055,7 @@ export function renderConfiguracion(container, queryParams) {
                     pGananciaInput.style.color = 'var(--success)';
                 }
             } else {
-                pGananciaInput.value = 'N/A';
+                pGananciaInput.value = '';
                 pGananciaInput.style.color = 'var(--text-muted)';
             }
         };
@@ -2067,6 +2078,8 @@ export function renderConfiguracion(container, queryParams) {
             document.getElementById('producto-consumible').checked = false;
             
             // Reset calculations inside modal
+            window.__prodPctMode = false;
+            document.getElementById('producto-ganancia-pct').value = '';
             updateProductCalculations();
             
             document.getElementById('producto-modal').classList.add('active');
@@ -2074,7 +2087,12 @@ export function renderConfiguracion(container, queryParams) {
 
         // Auto-calculate values on input
         document.getElementById('producto-precio-compra').addEventListener('input', updateProductCalculations);
-        document.getElementById('producto-precio-venta').addEventListener('input', updateProductCalculations);
+        document.getElementById('producto-precio-venta').addEventListener('input', () => { window.__prodPctMode = false; updateProductCalculations(); });
+        document.getElementById('producto-ganancia-pct').addEventListener('input', () => {
+            const pctVal = document.getElementById('producto-ganancia-pct').value;
+            window.__prodPctMode = pctVal !== '';
+            updateProductCalculations();
+        });
 
         // Bind Submit
         const prodForm = document.getElementById('producto-form');
