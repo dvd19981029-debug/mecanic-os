@@ -382,6 +382,7 @@ export function renderClientesVehiculos(container, queryParams) {
                 </div>
                 <form id="add-vehicle-form">
                     <input type="hidden" id="vehicle-client-code">
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 0.75rem;">Consejos para la foto: tarjeta recta y de cerca, ocupando casi toda la imagen, con buena luz y sin reflejos.</p>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tarjeta de Circulación (Frente)</label>
