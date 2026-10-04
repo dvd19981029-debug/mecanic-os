@@ -30,6 +30,7 @@ import {
     downloadExcelReport,
     matchesMultiFieldSearch
 } from '../utils.js?v=69';
+import { scanCirculationCards } from '../ocr_tarjeta.js?v=1';
 
 export function renderClientesVehiculos(container, queryParams) {
     const activeUser = typeof getActiveUser === 'function' ? getActiveUser() : null;
@@ -381,6 +382,20 @@ export function renderClientesVehiculos(container, queryParams) {
                 </div>
                 <form id="add-vehicle-form">
                     <input type="hidden" id="vehicle-client-code">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tarjeta de Circulación (Frente)</label>
+                            <input type="file" id="scan-card-front" accept="image/*">
+                        </div>
+                        <div class="form-group">
+                            <label>Tarjeta de Circulación (Reverso)</label>
+                            <input type="file" id="scan-card-back" accept="image/*">
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="btn-scan-card">Escanear y llenar datos</button>
+                        <span id="scan-card-status" style="font-size: 0.8rem; color: var(--text-secondary);"></span>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Número de Placas</label>
@@ -1586,6 +1601,44 @@ export function renderClientesVehiculos(container, queryParams) {
                 });
             }
         }
+    }
+
+    // Scan circulation card (local OCR, images are discarded after reading)
+    const scanBtn = document.getElementById('btn-scan-card');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', async () => {
+            const frontInput = document.getElementById('scan-card-front');
+            const backInput = document.getElementById('scan-card-back');
+            const status = document.getElementById('scan-card-status');
+            const frontFile = frontInput.files[0];
+            const backFile = backInput.files[0];
+            if (!frontFile && !backFile) {
+                status.textContent = 'Selecciona al menos una imagen.';
+                return;
+            }
+            scanBtn.disabled = true;
+            try {
+                const r = await scanCirculationCards(frontFile, backFile, (msg) => { status.textContent = msg; });
+                const map = {
+                    placa: 'new-veh-placa', marca: 'new-veh-marca', modelo: 'new-veh-modelo',
+                    year: 'new-veh-year', color: 'new-veh-color', motor: 'new-veh-motor', vin: 'new-veh-vin'
+                };
+                let filled = 0;
+                Object.keys(map).forEach(k => {
+                    if (r[k]) { document.getElementById(map[k]).value = r[k]; filled++; }
+                });
+                status.textContent = filled
+                    ? `Se llenaron ${filled} campos. Revisa los datos antes de registrar.` + (r.warnings.length ? ' ' + r.warnings.join(' ') : '')
+                    : 'No se pudo leer la tarjeta. Intenta con una foto más cercana, recta y sin reflejos.';
+            } catch (err) {
+                console.error('Error escaneando tarjeta:', err);
+                status.textContent = 'No se pudo escanear: ' + (err.message || 'error desconocido');
+            } finally {
+                frontInput.value = '';
+                backInput.value = '';
+                scanBtn.disabled = false;
+            }
+        });
     }
 
     // Handle Add Vehicle Submit
