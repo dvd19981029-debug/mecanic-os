@@ -8,9 +8,8 @@ export function renderLibrosIVA(container) {
     const db = getDatabase();
     
     container.innerHTML = html`
-        <div class="view-split" style="flex-direction: column;">
-            <div class="glass-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <div class="glass-card" style="width: 100%; max-width: 100%; overflow-x: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                     <div class="saas-tabs" style="display:flex; gap:0.5rem; overflow-x:auto;">
                         <button class="saas-tab-btn ${activeLibroTab === 'ventas' ? 'active' : ''}" data-tab="ventas" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-file-invoice-dollar"></i> Libro de Ventas</button>
                         <button class="saas-tab-btn ${activeLibroTab === 'compras' ? 'active' : ''}" data-tab="compras" style="padding:0.6rem 1.25rem; border:none; background:none; color:var(--text-secondary); cursor:pointer; font-weight:600; border-radius:6px; transition:all 0.2s;"><i class="fa-solid fa-cart-shopping"></i> Libro de Compras</button>
@@ -21,7 +20,6 @@ export function renderLibrosIVA(container) {
                     </div>
                 </div>
                 <div id="libro-content-area" class="table-container" style="overflow-x: auto;"></div>
-            </div>
         </div>
     `;
 
