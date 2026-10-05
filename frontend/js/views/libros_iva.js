@@ -64,14 +64,13 @@ function renderLibroVentas(parent, db) {
         if (!dateVal) return false;
         
         let dateStr = '';
-        if (typeof dateVal === 'number') {
-            dateStr = new Date(dateVal).toISOString();
+        const d = new Date(dateVal);
+        if (!isNaN(d.getTime())) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            dateStr = `${year}-${month}`;
         } else {
-            try {
-                dateStr = new Date(dateVal).toISOString();
-            } catch(e) {
-                dateStr = String(dateVal);
-            }
+            dateStr = String(dateVal);
         }
         return dateStr.startsWith(currentMonth);
     });
@@ -89,10 +88,14 @@ function renderLibroVentas(parent, db) {
         let dateVal = v.Fecha_Facturacion || v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
         let date = 'N/A';
         if (dateVal) {
-            if (typeof dateVal === 'number') date = new Date(dateVal).toISOString().split('T')[0];
-            else {
-                try { date = new Date(dateVal).toISOString().split('T')[0]; }
-                catch(e) { date = String(dateVal).split('T')[0]; }
+            const d = new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                date = `${year}-${month}-${day}`;
+            } else {
+                date = String(dateVal).split('T')[0];
             }
         }
         
