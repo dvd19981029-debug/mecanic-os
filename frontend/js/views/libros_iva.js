@@ -1,5 +1,5 @@
 import { getDatabase, getBudgetGrandTotal } from '../../app.js?v=88';
-import { html, safe, escapeHtml, showToast, downloadExcelReport } from '../utils.js?v=90';
+import { html, safe, escapeHtml, showToast, downloadExcelReport } from '../utils.js?v=91';
 
 let activeLibroTab = 'ventas';
 let currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM

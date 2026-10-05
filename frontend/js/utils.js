@@ -299,113 +299,67 @@ export function downloadExcelReport(filename, jsonData) {
 
         showToast("Generando reporte para Excel...", "info");
 
-        const headers = Object.keys(jsonData[0]);
-
-        const escapeHtmlCell = (val) => {
-            if (val === null || val === undefined) return '';
-            return String(val)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        };
-
-        let htmlTable = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<!--[if gte mso 9]>
-<xml>
- <x:ExcelWorkbook>
-  <x:ExcelWorksheets>
-   <x:ExcelWorksheet>
-    <x:Name>Reporte</x:Name>
-    <x:WorksheetOptions>
-     <x:DisplayGridlines/>
-    </x:WorksheetOptions>
-   </x:ExcelWorksheet>
-  </x:ExcelWorksheets>
- </x:ExcelWorkbook>
-</xml>
-<![endif]-->
-<style>
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
-  table { border-collapse: collapse; width: 100%; }
-  th { background-color: #1E293B; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; padding: 8px 12px; text-align: center; }
-  td { border: 1px solid #CBD5E1; padding: 6px 10px; vertical-align: middle; }
-  .text { mso-number-format:"\\@"; text-align: left; }
-  .num { mso-number-format:"\\$\\#\\,\\#\\#0\\.00"; text-align: right; font-weight: 600; }
-</style>
-</head>
-<body>
-<table>
-  <thead>
-    <tr>
-      ${headers.map(h => `<th>${escapeHtmlCell(h)}</th>`).join('')}
-    </tr>
-  </thead>
-  <tbody>
-`;
-
-        jsonData.forEach(row => {
-            htmlTable += '    <tr>\n';
-            headers.forEach(h => {
-                const val = row[h];
-                if (typeof val === 'number') {
-                    const numVal = Math.round(val * 100) / 100;
-                    htmlTable += `      <td class="num">$ ${numVal.toFixed(2)}</td>\n`;
-                } else {
-                    htmlTable += `      <td class="text">${escapeHtmlCell(val)}</td>\n`;
+        if (typeof XLSX !== 'undefined') {
+            const processedData = jsonData.map(row => {
+                const newRow = {};
+                for (let key in row) {
+                    let val = row[key];
+                    if (typeof val === 'string' && key.includes('($)')) {
+                        const parsed = parseFloat(val);
+                        if (!isNaN(parsed)) {
+                            val = parsed;
+                        }
+                    }
+                    newRow[key] = val;
                 }
+                return newRow;
             });
-            htmlTable += '    </tr>\n';
+
+            const worksheet = XLSX.utils.json_to_sheet(processedData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+            
+            let cleanFilename = filename || 'Reporte';
+            cleanFilename = cleanFilename.replace(/\.xlsx$/i, '').replace(/\.xls$/i, '').replace(/\.csv$/i, '');
+            
+            XLSX.writeFile(workbook, cleanFilename + '.xlsx');
+            return;
+        }
+
+        console.warn("SheetJS (XLSX) no disponible. Usando fallback CSV.");
+        const headers = Object.keys(jsonData[0]);
+        let csvContent = headers.join(",") + "\n";
+        
+        jsonData.forEach(row => {
+            const rowValues = headers.map(h => {
+                let cell = row[h] === null || row[h] === undefined ? "" : String(row[h]);
+                cell = cell.replace(/"/g, '""');
+                return `"${cell}"`;
+            });
+            csvContent += rowValues.join(",") + "\n";
         });
 
-        htmlTable += `  </tbody>
-</table>
-</body>
-</html>`;
-
-        const blob = new Blob(['\uFEFF' + htmlTable], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-
-        let cleanFilename = filename || 'Reporte.xls';
-        cleanFilename = cleanFilename.replace(/\.xlsx$/i, '.xls').replace(/\.csv$/i, '.xls');
-        if (!cleanFilename.endsWith('.xls')) {
-            cleanFilename += '.xls';
-        }
-
-        a.download = cleanFilename;
+        
+        let cleanFilename = filename || 'Reporte';
+        cleanFilename = cleanFilename.replace(/\.xlsx$/i, '').replace(/\.xls$/i, '').replace(/\.csv$/i, '');
+        a.download = cleanFilename + '.csv';
+        
         document.body.appendChild(a);
         a.click();
-
+        
         setTimeout(() => {
-            URL.revokeObjectURL(url);
-            a.remove();
-        }, 1000);
-
-        showToast("Reporte Excel descargado con éxito", "success");
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+        
     } catch (err) {
-        console.error("Client Excel Export Error:", err);
-        showToast("Error al exportar a Excel: " + err.message, "danger");
-    }
-}
-
-// Tagged template literal for secure HTML escaping to prevent XSS
-export class SafeString {
-    constructor(val) {
-        this.val = val instanceof SafeString ? val.val : String(val);
-    }
-    toString() {
-        return this.val;
-    }
-    valueOf() {
-        return this.val;
-    }
-    [Symbol.toPrimitive](hint) {
-        return this.val;
+        console.error("Error exporting to Excel:", err);
+        showToast("Error al exportar: " + err.message, "danger");
     }
 }
 
