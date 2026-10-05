@@ -569,8 +569,11 @@ export function renderCaja(container) {
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; text-align:center;">
                                                 <div style="display:flex; justify-content:center; gap:0.35rem;">
-                                                    <button class="btn btn-secondary btn-print-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Imprimir Ticket de Corte">
-                                                        <i class="fa-solid fa-print"></i> Imprimir Ticket
+                                                    <button class="btn btn-secondary btn-print-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Imprimir Ticket de Caja">
+                                                        <i class="fa-solid fa-print"></i> C. Caja
+                                                    </button>
+                                                    <button class="btn btn-primary btn-print-cortez" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Imprimir Corte Z (Fiscal)">
+                                                        <i class="fa-solid fa-file-invoice"></i> Corte Z
                                                     </button>
                                                     ${isAdmin ? `
                                                         <button class="btn btn-danger btn-delete-corte" data-session-id="${s.id_sesion}" style="padding:0.3rem 0.6rem; font-size:0.75rem; background:#e74c3c; border:none; color:#fff;" title="Eliminar Corte de Caja (Solo Administradores)">
@@ -590,10 +593,17 @@ export function renderCaja(container) {
         `;
         
         // Print ticket handlers
-        tabContent.querySelectorAll('.btn-print-corte').forEach(btn => {
+                tabContent.querySelectorAll('.btn-print-corte').forEach(btn => {
             btn.addEventListener('click', () => {
                 const sId = btn.getAttribute('data-session-id');
                 printCorteTicket(sId);
+            });
+        });
+        
+        tabContent.querySelectorAll('.btn-print-cortez').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const sId = btn.getAttribute('data-session-id');
+                printCorteZ(sId);
             });
         });
 
@@ -711,6 +721,162 @@ export function renderCaja(container) {
     }
     
     // Render ticket popup
+
+    function printCorteZ(sessionId) {
+        const s = db.cajas_sesiones.find(session => session.id_sesion === sessionId);
+        if (!s) return;
+        
+        const startTime = new Date(s.fecha_apertura).getTime();
+        const endTime = s.fecha_cierre ? new Date(s.fecha_cierre).getTime() : Date.now();
+        
+        const facturas = [
+            ...(db.presupuestos || []).filter(p => p.Estado == 3 || p.Estado === "FACTURADO" || p.controlNumber),
+            ...(db.venta_rapida || db['43 Venta Rapida'] || []).filter(vr => vr.Estado === "FACTURADO" || vr.controlNumber)
+        ].filter(doc => {
+            // Asegurarse de que la fecha esté en el rango de la sesión
+            let dTime = null;
+            if (doc.Fecha_Creacion) dTime = new Date(doc.Fecha_Creacion).getTime();
+            else if (doc.Fecha) dTime = new Date(doc.Fecha).getTime();
+            else return false;
+            
+            // Allow a small grace period for end time (e.g. 5 mins) just in case
+            return dTime >= startTime && dTime <= (endTime + 5*60000);
+        });
+
+        // Agrupar por tipo DTE
+        const dteGroups = {
+            '01': { label: 'Facturas Electrónicas (CF)', count: 0, total: 0, minCorr: null, maxCorr: null, anuladas: 0 },
+            '03': { label: 'Comprobantes Crédito Fiscal (CCF)', count: 0, total: 0, minCorr: null, maxCorr: null, anuladas: 0 },
+            '11': { label: 'Facturas Exportación', count: 0, total: 0, minCorr: null, maxCorr: null, anuladas: 0 },
+            '05': { label: 'Notas de Crédito', count: 0, total: 0, minCorr: null, maxCorr: null, anuladas: 0 },
+            'OTRO': { label: 'Comprobantes No Fiscales', count: 0, total: 0, minCorr: null, maxCorr: null, anuladas: 0 }
+        };
+
+        let totalVentasGravadas = 0;
+        let totalVentasExentas = 0;
+        let totalIvaCobrado = 0;
+        let totalRetencion = 0;
+        let totalPercepcion = 0;
+        
+        facturas.forEach(doc => {
+            const isAnulado = doc.estado === 'anulado' || doc.Estado === 'ANULADO';
+            const tDte = doc.dte_tipoDocumento || (doc.controlNumber ? doc.controlNumber.split('-')[1] : null);
+            const tipoKey = dteGroups[tDte] ? tDte : 'OTRO';
+            const group = dteGroups[tipoKey];
+            
+            // Extract correlative to find ranges (e.g., DTE-01-M001-000000000000015 -> 15)
+            const corrStr = doc.controlNumber ? doc.controlNumber.split('-').pop() : null;
+            if (corrStr) {
+                const corrNum = parseInt(corrStr, 10);
+                if (!isNaN(corrNum)) {
+                    if (group.minCorr === null || corrNum < group.minCorr) group.minCorr = corrNum;
+                    if (group.maxCorr === null || corrNum > group.maxCorr) group.maxCorr = corrNum;
+                }
+            }
+
+            if (isAnulado) {
+                group.anuladas++;
+                return; // No sumar al total monetario
+            }
+            
+            group.count++;
+            
+            const total = parseFloat(doc.Total || doc.totalAPagar || doc.Monto_Final || doc.Monto_Abono || 0);
+            const iva = parseFloat(doc.IVA || doc.iva || 0);
+            const exenta = parseFloat(doc.VentaExenta || 0);
+            const percepcion = parseFloat(doc.percepcion || 0);
+            const retencion = parseFloat(doc.retencion || 0);
+            
+            // Desglose
+            const gravada = (total - iva - percepcion + retencion) - exenta;
+            
+            group.total += total;
+            totalVentasGravadas += gravada;
+            totalVentasExentas += exenta;
+            totalIvaCobrado += iva;
+            totalPercepcion += percepcion;
+            totalRetencion += retencion;
+        });
+
+        const ws = (db.saas_state && db.saas_state.workshopData) || db.config_taller || {};
+        
+        const ticketWindow = window.open("", "Corte Z", "width=400,height=600");
+        ticketWindow.document.write(`
+            <html>
+            <head>
+                <title>Corte Z - ${s.id_sesion}</title>
+                <style>
+                    @page { size: 70mm auto; margin: 0; }
+                    body { font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #000; background: #fff; padding: 10px; width: 70mm; max-width: 70mm; margin: 0 auto; box-sizing: border-box; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .header { margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+                    .title { font-size: 14px; font-weight: bold; }
+                    .subtitle { font-size: 10px; }
+                    .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+                    .divider { border-bottom: 1px dashed #000; margin: 5px 0; }
+                    .bold { font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="header text-center">
+                    <div class="title">${ws.nombre || ws.name || 'Mecanic-OS'}</div>
+                    <div class="subtitle">NRC: ${ws.nrc || 'N/A'} | NIT: ${ws.nit || 'N/A'}</div>
+                    <div class="divider"></div>
+                    <div class="bold" style="font-size:14px;">CORTE Z (FISCAL)</div>
+                    <div>Caja: ${s.id_sesion}</div>
+                </div>
+                
+                <div class="row"><span>Apertura:</span><span>${new Date(s.fecha_apertura).toLocaleString('es-SV')}</span></div>
+                <div class="row"><span>Cierre:</span><span>${s.fecha_cierre ? new Date(s.fecha_cierre).toLocaleString('es-SV') : 'AÚN ABIERTA'}</span></div>
+                
+                <div class="divider"></div>
+                <div class="bold text-center">RESUMEN DE VENTAS DIARIAS</div>
+                <div class="divider"></div>
+                
+                <div class="row"><span>Ventas Gravadas:</span><span>$ ${Math.max(0, totalVentasGravadas).toFixed(2)}</span></div>
+                <div class="row"><span>Ventas Exentas:</span><span>$ ${Math.max(0, totalVentasExentas).toFixed(2)}</span></div>
+                <div class="row"><span>IVA Cobrado (13%):</span><span>$ ${totalIvaCobrado.toFixed(2)}</span></div>
+                ${totalPercepcion > 0 ? `<div class="row"><span>Percepción (1%):</span><span>$ ${totalPercepcion.toFixed(2)}</span></div>` : ''}
+                ${totalRetencion > 0 ? `<div class="row"><span>Retención (-1%):</span><span>$ -${totalRetencion.toFixed(2)}</span></div>` : ''}
+                <div class="divider"></div>
+                <div class="row bold" style="font-size:13px;"><span>TOTAL INGRESOS:</span><span>$ ${(totalVentasGravadas + totalVentasExentas + totalIvaCobrado + totalPercepcion - totalRetencion).toFixed(2)}</span></div>
+                
+                <div class="divider"></div>
+                <div class="bold text-center">DESGLOSE POR TIPO DTE</div>
+                <div class="divider"></div>
+                
+                ${Object.keys(dteGroups).map(k => {
+                    const g = dteGroups[k];
+                    if (g.count === 0 && g.anuladas === 0) return '';
+                    let r = `<div class="bold" style="margin-top:5px;">${g.label}</div>`;
+                    r += `<div class="row"><span>Documentos Validos:</span><span>${g.count}</span></div>`;
+                    if (g.anuladas > 0) r += `<div class="row"><span>Documentos Anulados:</span><span>${g.anuladas}</span></div>`;
+                    if (g.minCorr !== null && g.maxCorr !== null) {
+                        r += `<div class="row"><span>Correlativo Del:</span><span>${g.minCorr}</span></div>`;
+                        r += `<div class="row"><span>Correlativo Al:</span><span>${g.maxCorr}</span></div>`;
+                    }
+                    r += `<div class="row bold"><span>Total DTEs:</span><span>$ ${g.total.toFixed(2)}</span></div>`;
+                    return r;
+                }).join('')}
+                
+                <div class="divider"></div>
+                <div class="text-center subtitle" style="margin-top:20px;">
+                    <p>Firma Cajero: _________________</p>
+                    <p>Mecanic-OS - Facturación Electrónica</p>
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        ticketWindow.document.close();
+    }
+
     function printCorteTicket(sessionId) {
         const s = db.cajas_sesiones.find(session => session.id_sesion === sessionId);
         if (!s) return;
