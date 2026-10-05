@@ -130,35 +130,35 @@ function renderLibroVentas(parent, db) {
         sumPer += percepcion;
 
         return `
-            <tr>
-                <td>${escapeHtml(date)}</td>
+            <tr style="font-size: 0.8rem;">
+                <td style="white-space: nowrap;">${escapeHtml(date)}</td>
                 <td>${escapeHtml(tipoDte === '03' ? 'CCF' : 'FACT')}</td>
-                <td style="font-size:0.8rem; font-family:monospace;">${escapeHtml(numDoc)}</td>
-                <td>${escapeHtml(clientName)}</td>
-                <td style="text-align: right;">$${exentas.toFixed(2)}</td>
-                <td style="text-align: right;">$${gravadas.toFixed(2)}</td>
-                <td style="text-align: right;">$${iva.toFixed(2)}</td>
-                <td style="text-align: right;">$${retencion.toFixed(2)}</td>
-                <td style="text-align: right;">$${percepcion.toFixed(2)}</td>
-                <td style="text-align: right; font-weight: bold;">$${total.toFixed(2)}</td>
+                <td style="font-size:0.75rem; font-family:monospace; max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</td>
+                <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(clientName)}">${escapeHtml(clientName)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${exentas.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${gravadas.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${iva.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${retencion.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${percepcion.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold; white-space: nowrap;">$${total.toFixed(2)}</td>
             </tr>
         `;
     }).join('');
 
     parent.innerHTML = html`
-        <table style="width: 100%; min-width: 800px; border-collapse: collapse;">
+        <table style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 0.85rem;">
             <thead>
-                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                    <th style="padding: 0.5rem;">Fecha</th>
-                    <th style="padding: 0.5rem;">Tipo</th>
-                    <th style="padding: 0.5rem;">No. DTE / Control</th>
-                    <th style="padding: 0.5rem;">Cliente</th>
-                    <th style="padding: 0.5rem; text-align: right;">Ventas Exentas</th>
-                    <th style="padding: 0.5rem; text-align: right;">Ventas Gravadas</th>
-                    <th style="padding: 0.5rem; text-align: right;">IVA (13%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Retención (1%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Percepción (1%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Total</th>
+                <tr style="border-bottom: 1px solid var(--border-color); text-align: left; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">
+                    <th style="padding: 0.5rem; white-space: nowrap;">Fecha</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">Tipo</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">No. DTE / Control</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">Cliente</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Exentas</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Gravadas</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">IVA</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Retención</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Percepción</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -166,13 +166,13 @@ function renderLibroVentas(parent, db) {
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border-color);">
-                    <td colspan="4" style="text-align: right; padding: 0.5rem;">TOTALES</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumExentas.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumGravadas.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumIva.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumRet.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumPer.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--success);">$${sumTotal.toFixed(2)}</td>
+                    <td colspan="4" style="text-align: right; padding: 0.5rem; white-space: nowrap;">TOTALES</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumExentas.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumGravadas.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumIva.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumRet.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumPer.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--success); white-space: nowrap;">$${sumTotal.toFixed(2)}</td>
                 </tr>
             </tfoot>
         </table>
@@ -215,35 +215,35 @@ function renderLibroCompras(parent, db) {
         sumPer += percepcion;
 
         return `
-            <tr>
-                <td>${escapeHtml(date)}</td>
+            <tr style="font-size: 0.8rem;">
+                <td style="white-space: nowrap;">${escapeHtml(date)}</td>
                 <td>${escapeHtml(tipo)}</td>
-                <td style="font-size:0.8rem; font-family:monospace;">${escapeHtml(numDoc)}</td>
-                <td>${escapeHtml(provName)}</td>
-                <td style="text-align: right;">$${exentas.toFixed(2)}</td>
-                <td style="text-align: right;">$${gravadas.toFixed(2)}</td>
-                <td style="text-align: right;">$${iva.toFixed(2)}</td>
-                <td style="text-align: right;">$${retencion.toFixed(2)}</td>
-                <td style="text-align: right;">$${percepcion.toFixed(2)}</td>
-                <td style="text-align: right; font-weight: bold;">$${total.toFixed(2)}</td>
+                <td style="font-size:0.75rem; font-family:monospace; max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</td>
+                <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(provName)}">${escapeHtml(provName)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${exentas.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${gravadas.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${iva.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${retencion.toFixed(2)}</td>
+                <td style="text-align: right; white-space: nowrap;">$${percepcion.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: bold; white-space: nowrap;">$${total.toFixed(2)}</td>
             </tr>
         `;
     }).join('');
 
     parent.innerHTML = html`
-        <table style="width: 100%; min-width: 800px; border-collapse: collapse;">
+        <table style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 0.85rem;">
             <thead>
-                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                    <th style="padding: 0.5rem;">Fecha</th>
-                    <th style="padding: 0.5rem;">Tipo</th>
-                    <th style="padding: 0.5rem;">No. Documento</th>
-                    <th style="padding: 0.5rem;">Proveedor</th>
-                    <th style="padding: 0.5rem; text-align: right;">Compras Exentas</th>
-                    <th style="padding: 0.5rem; text-align: right;">Compras Gravadas</th>
-                    <th style="padding: 0.5rem; text-align: right;">IVA (13%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Retención (1%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Percepción (1%)</th>
-                    <th style="padding: 0.5rem; text-align: right;">Total</th>
+                <tr style="border-bottom: 1px solid var(--border-color); text-align: left; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">
+                    <th style="padding: 0.5rem; white-space: nowrap;">Fecha</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">Tipo</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">No. Documento</th>
+                    <th style="padding: 0.5rem; white-space: nowrap;">Proveedor</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Exentas</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Gravadas</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">IVA</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Retención</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Percepción</th>
+                    <th style="padding: 0.5rem; text-align: right; white-space: nowrap;">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -251,13 +251,13 @@ function renderLibroCompras(parent, db) {
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border-color);">
-                    <td colspan="4" style="text-align: right; padding: 0.5rem;">TOTALES</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumExentas.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumGravadas.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumIva.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumRet.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--primary);">$${sumPer.toFixed(2)}</td>
-                    <td style="text-align: right; padding: 0.5rem; color: var(--danger);">$${sumTotal.toFixed(2)}</td>
+                    <td colspan="4" style="text-align: right; padding: 0.5rem; white-space: nowrap;">TOTALES</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumExentas.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumGravadas.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumIva.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumRet.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--primary); white-space: nowrap;">$${sumPer.toFixed(2)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: var(--danger); white-space: nowrap;">$${sumTotal.toFixed(2)}</td>
                 </tr>
             </tfoot>
         </table>
