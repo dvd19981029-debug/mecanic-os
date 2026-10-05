@@ -797,6 +797,7 @@ export function renderInvoicingWorkspace(container, presId) {
                             <option value="03">03 - Transferencia / Depósito</option>
                         </select>
                     </div>
+                    <div id="dte-pay-extra"></div>
                     
                     <button class="btn btn-success" id="emit-dte-btn" style="width: 100%; margin-top: 1rem; padding: 0.75rem;"><i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH</button>
                 </div>
@@ -913,10 +914,62 @@ export function renderInvoicingWorkspace(container, presId) {
         }
     });
 
+    const payMethodSelect = document.getElementById('dte-pay-method');
+    const payExtraBox = document.getElementById('dte-pay-extra');
+    const renderPayExtra = () => {
+        const m = payMethodSelect.value;
+        if (!(dtePayCond.value === 'CONTADO')) { payExtraBox.innerHTML = ''; return; }
+        if (m === '02') {
+            payExtraBox.innerHTML = '<div class="form-group" style="margin-top:0.5rem;"><label>N° de Autorización (6 caracteres)</label><input type="text" id="dte-pay-auth" maxlength="6" autocomplete="off" style="padding:0.6rem; width:100%; text-transform:uppercase; font-family:inherit;" placeholder="Ej: A1B2C3"></div>';
+        } else if (m === '01') {
+            payExtraBox.innerHTML = '<div class="form-group" style="margin-top:0.5rem;"><label>Efectivo recibido ($)</label><input type="number" id="dte-pay-cash" step="0.01" min="0" style="padding:0.6rem; width:100%; font-family:inherit;"><div id="dte-pay-change" style="margin-top:0.4rem; font-weight:700; color:var(--success);"></div></div>';
+            document.getElementById('dte-pay-cash').addEventListener('input', (e) => {
+                const received = parseFloat(e.target.value);
+                const total = grandTotal;
+                const out = document.getElementById('dte-pay-change');
+                if (isNaN(received)) { out.textContent = ''; return; }
+                const change = received - total;
+                out.style.color = change < -0.005 ? 'var(--danger)' : 'var(--success)';
+                out.textContent = change < -0.005 ? 'Faltan: $ ' + Math.abs(change).toFixed(2) : 'Cambio a entregar: $ ' + Math.max(0, change).toFixed(2);
+            });
+        } else {
+            payExtraBox.innerHTML = '<div class="form-group" style="margin-top:0.5rem;"><label>Banco donde depositó</label><select id="dte-pay-bank" style="padding:0.6rem; width:100%; font-family:inherit;"><option value="">Seleccione el banco...</option><option value="Banco Agrícola">Banco Agrícola</option><option value="Banco Cuscatlán">Banco Cuscatlán</option><option value="Banco Davivienda">Banco Davivienda</option><option value="BAC Credomatic">BAC Credomatic</option><option value="Banco Promerica">Banco Promerica</option><option value="Banco Hipotecario">Banco Hipotecario</option><option value="Banco Industrial">Banco Industrial</option><option value="Banco Azul">Banco Azul</option><option value="Banco Atlántida">Banco Atlántida</option><option value="Banco de Fomento Agropecuario">Banco de Fomento Agropecuario</option></select></div>';
+        }
+    };
+    payMethodSelect.addEventListener('change', renderPayExtra);
+    dtePayCond.addEventListener('change', renderPayExtra);
+    renderPayExtra();
+
     emitBtn.addEventListener('click', () => {
         const type = dteType.value;
         const payCond = dtePayCond.value;
         const payMethod = document.getElementById('dte-pay-method').value;
+        let payExtra = {};
+        if (payCond === 'CONTADO') {
+            if (payMethod === '02') {
+                const auth = (document.getElementById('dte-pay-auth').value || '').trim().toUpperCase();
+                if (!/^[A-Z0-9]{6}$/.test(auth)) {
+                    showToast("La autorización de tarjeta debe tener exactamente 6 caracteres (letras o números).", "danger");
+                    return;
+                }
+                payExtra = { Autorizacion: auth };
+            } else if (payMethod === '01') {
+                const received = parseFloat(document.getElementById('dte-pay-cash').value);
+                const totalToPay = grandTotal;
+                if (isNaN(received) || received < totalToPay - 0.005) {
+                    showToast("Ingrese el efectivo recibido (debe cubrir el total a cobrar).", "danger");
+                    return;
+                }
+                payExtra = { "Efectivo Recibido": Number(received.toFixed(2)), Cambio: Number((received - totalToPay).toFixed(2)) };
+            } else {
+                const bank = document.getElementById('dte-pay-bank').value;
+                if (!bank) {
+                    showToast("Seleccione el banco donde el cliente depositó.", "danger");
+                    return;
+                }
+                payExtra = { Banco: bank };
+            }
+        }
 
         // Cash Session Validation
         const openSession = (db.cajas_sesiones || []).find(s => s.estado === 'ABIERTA');
@@ -1162,7 +1215,8 @@ export function renderInvoicingWorkspace(container, presId) {
                     "Estado Pago": "COMPLETADO",
                     User: getActiveUser().Email || "jjmunoz932@gmail.com",
                     Cliente: p.Codigo_Cliente,
-                    id_sesion: openSession.id_sesion
+                    id_sesion: openSession.id_sesion,
+                    ...payExtra
                 });
             } else {
                 showToast("Registrado en Cuentas por Cobrar del cliente", "warning");
