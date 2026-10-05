@@ -1152,6 +1152,13 @@ export function renderVentaRapida(container) {
         const vr = (db['43 Venta Rapida'] || []).find(v => v.ID_Venta_Rapida === vrId);
         if (!vr) return;
         
+        if (vr.Estado === "FACTURADO" || vr.estado === "anulado" || vr.Estado === "ANULADO") {
+            showToast("Esta venta rápida ya fue facturada o anulada.", "warning");
+            billingModal.classList.remove('active');
+            populatePendingList();
+            return;
+        }
+        
         billingModal.classList.add('active');
         
         const client = db.clientes.find(c => c.Codigo_Cliente === vr.Cliente) || { Nombre: vr.Nombre };
