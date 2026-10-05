@@ -3,24 +3,25 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=88';
+import { renderConfiguracion } from './views/configuracion.js?v=89';
 import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=97';
 import { renderVehiculos } from './views/vehiculos.js?v=92';
 import { renderRevision21 } from './views/revision21.js?v=80';
 import { renderPresupuestos } from './views/presupuestos.js?v=136';
 import { renderKanban } from './views/kanban.js?v=69';
-import { renderFacturador } from './views/facturador.js?v=140';
-import { renderVentaRapida } from './views/venta_rapida.js?v=105';
+import { renderFacturador } from './views/facturador.js?v=145';
+import { renderVentaRapida } from './views/venta_rapida.js?v=109';
 import { renderCaja } from './views/caja.js?v=69';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
-import { renderInventario } from './views/inventario.js?v=85';
-import { renderGastos } from './views/gastos.js?v=90';
+import { renderInventario } from './views/inventario.js?v=86';
+import { renderGastos } from './views/gastos.js?v=92';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
 import { renderTrabajosTaller } from './views/trabajos.js?v=71';
 import { renderIngresos } from './views/ingresos.js?v=87';
+import { renderLibrosIVA } from './views/libros_iva.js?v=3';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -61,6 +62,7 @@ const routes = {
     'comisiones': renderComisiones,
     'dashboard-bi': renderDashboardBI,
     'configuracion': renderConfiguracion,
+    'libros-iva': renderLibrosIVA,
     'ingresos': renderIngresos,
     'landing': renderLanding,
     'registro': renderRegistroSaaS,
@@ -272,7 +274,7 @@ export function handleRouting() {
         const appViews = [
             'taller-dashboard', 'clientes-vehiculos', 'vehiculos', 'ingresos', 'revision-21', 'presupuestos', 'kanban',
             'facturador', 'venta-rapida', 'caja', 'cuentas-cobrar', 'inventario', 'gastos', 'planilla',
-            'comisiones', 'dashboard-bi', 'configuracion'
+            'comisiones', 'dashboard-bi', 'configuracion', 'libros-iva'
         ];
         if (appViews.includes(routeName)) {
             const activeUser = getActiveUser();
@@ -358,6 +360,7 @@ export function handleRouting() {
                 'inventario': { title: 'Control de Inventario y Kárdex', subtitle: 'Saldos de repuestos, mínimos y movimientos' },
                 'gastos': { title: 'Compras y Gastos Operativos', subtitle: 'Registro de egresos y facturas de proveedores' },
                 'dashboard-bi': { title: 'Módulo de Inteligencia de Negocios (BI)', subtitle: 'KPIs financieros y de productividad' },
+                'libros-iva': { title: 'Reportes de Libros de IVA', subtitle: 'Libro de Ventas y Libro de Compras' },
                 'configuracion': { title: 'Configuración y Ajustes Maestros', subtitle: 'Administración de catálogos e integración DTE' },
                 'planilla': { title: 'Gestión de Planillas y Salarios', subtitle: 'Control de nómina, boletas de pago y deducciones de ley (El Salvador)' },
                 'comisiones': { title: 'Comisiones de Técnicos', subtitle: 'Seguimiento de mano de obra y comisiones por reparación' }

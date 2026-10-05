@@ -1025,6 +1025,7 @@ export function renderConfiguracion(container, queryParams) {
             { route: 'planilla', label: 'Planillas y Salarios', icon: 'fa-solid fa-calculator' },
             { route: 'comisiones', label: 'Comisiones de Técnicos', icon: 'fa-solid fa-percent' },
             { route: 'dashboard-bi', label: 'Dashboard BI', icon: 'fa-solid fa-chart-line' },
+            { route: 'libros-iva', label: 'Libros de IVA', icon: 'fa-solid fa-book-journal-whills' },
             { route: 'configuracion', label: 'Ajustes / Catálogos', icon: 'fa-solid fa-sliders' }
         ];
 

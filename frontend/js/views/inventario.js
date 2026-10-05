@@ -146,7 +146,7 @@ export function renderInventario(container) {
         const stockForm = document.getElementById('stock-form');
         const exportBtn = document.getElementById('btn-export-inv');
 
-        const getProductCost = (p) => parseFloat(p['Precio Compra'] || p['Precio Costo'] || p.Costo || 0);
+        const getProductCost = (p) => parseFloat(p.costo_promedio || p['Precio Compra'] || p['Precio Costo'] || p.Costo || 0);
         const getProductSalePrice = (p) => {
             const cost = getProductCost(p);
             return parseFloat(p['Precio Venta Unit Iva Inc'] || p['Precio Unit Iva Inc'] || p['Precio Venta'] || p['Precio Unit'] || (cost > 0 ? (cost * 1.3).toFixed(2) : 0));

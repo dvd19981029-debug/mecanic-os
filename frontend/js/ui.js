@@ -64,6 +64,9 @@ export function updateUserUI() {
                 if ((allowedRoutes.includes('planilla') || allowedRoutes.includes('gastos') || searchRole === "administrador" || searchRole === "tecnico") && !allowedRoutes.includes('comisiones')) {
                     allowedRoutes.push('comisiones');
                 }
+                if (searchRole === "administrador" && !allowedRoutes.includes('libros-iva')) {
+                    allowedRoutes.push('libros-iva');
+                }
                 foundPermissions = true;
             }
         }
@@ -75,7 +78,7 @@ export function updateUserUI() {
                 allowedRoutes = [
                     "taller-dashboard", "clientes-vehiculos", "ingresos", "revision-21", "presupuestos", "trabajos-taller", "kanban",
                     "facturador", "venta-rapida", "caja", "cuentas-cobrar", "inventario", "gastos", "planilla",
-                    "comisiones", "dashboard-bi", "configuracion"
+                    "comisiones", "dashboard-bi", "libros-iva", "configuracion"
                 ];
             } else if (searchRole === "recepcionista") {
                 allowedRoutes = [

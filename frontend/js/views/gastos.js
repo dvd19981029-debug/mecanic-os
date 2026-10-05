@@ -828,10 +828,21 @@ export function renderGastos(container) {
                         Observacion: `${dteLabelMap[tipoDte]} ${numDoc} (${prov.Nombre})`
                     });
 
-                    // Update cost price for normal purchases
+                    // Update cost price for normal purchases (Kardex: Costo Promedio Ponderado)
                     if (!isNC) {
-                        costChanges.push({ prod, oldCost: parseFloat(prod['Precio Compra'] || 0), newCost: item.precio_costo });
-                        prod['Precio Compra'] = item.precio_costo;
+                        const oldStock = Math.max(0, (prod.Minimos || 0) - item.cant);
+                        const oldCost = parseFloat(prod.costo_promedio || prod['Precio Compra'] || prod.Costo || 0);
+                        const newCant = parseFloat(item.cant);
+                        const newCost = parseFloat(item.precio_costo);
+                        
+                        let nuevoCostoProm = newCost;
+                        if (oldStock + newCant > 0) {
+                            nuevoCostoProm = ((oldStock * oldCost) + (newCant * newCost)) / (oldStock + newCant);
+                        }
+                        
+                        costChanges.push({ prod, oldCost: oldCost, newCost: nuevoCostoProm });
+                        prod.costo_promedio = parseFloat(nuevoCostoProm.toFixed(4));
+                        prod['Precio Compra'] = prod.costo_promedio;
                     }
                 }
             });
@@ -1569,6 +1580,16 @@ export function renderGastos(container) {
         // 1. Update purchase state and clear balance
         comp.Estado_Pago = 'ANULADA';
         comp.Saldo_Pendiente = 0;
+        
+        db.audit_logs = db.audit_logs || [];
+        const activeUser = typeof getActiveUser === 'function' ? (getActiveUser() || {}) : {};
+        db.audit_logs.push({
+            fecha: new Date().toISOString(),
+            usuario: activeUser.Nombre || activeUser.id || 'Desconocido',
+            documento_id: purchaseId,
+            tipo: 'compra',
+            razon: 'Anulación manual de compra'
+        });
 
         // 2. Revert Stock in Inventory & Add Output movement to Kardex
         const dteLabelMap = { CCF: 'CCF', FAC: 'Factura', FSE: 'FSE', NC: 'Nota de Crédito' };
@@ -2302,14 +2323,27 @@ export function renderGastos(container) {
                             const dteNum = dteData.numeroDte || dteId;
                             const emisor = dteData.emisor || 'Proveedor';
 
-                            if (confirm(`¿Está seguro de eliminar este DTE recibido (${dteNum} - ${emisor}) de la bandeja?\n\nEsta acción no se puede deshacer.`)) {
-                                dbFirestore.collection("workshops").doc(workshopUid).collection("dte_recibidos").doc(dteId).delete()
+                            if (confirm(`¿Está seguro de anular este DTE recibido (${dteNum} - ${emisor}) de la bandeja?`)) {
+                                dbFirestore.collection("workshops").doc(workshopUid).collection("dte_recibidos").doc(dteId).update({ estado: 'anulado' })
                                     .then(() => {
+                                        const db = typeof getDatabase === 'function' ? getDatabase() : null;
+                                        if (db) {
+                                            db.audit_logs = db.audit_logs || [];
+                                            const activeUser = typeof getActiveUser === 'function' ? (getActiveUser() || {}) : {};
+                                            db.audit_logs.push({
+                                                fecha: new Date().toISOString(),
+                                                usuario: activeUser.Nombre || activeUser.id || 'Desconocido',
+                                                documento_id: dteId,
+                                                tipo: 'compra',
+                                                razon: 'Anulación manual DTE recibido'
+                                            });
+                                            if (typeof saveDatabase === 'function') saveDatabase(db);
+                                        }
                                         loadDtes();
                                     })
                                     .catch(err => {
-                                        console.error("Error al eliminar DTE:", err);
-                                        alert("Error al eliminar el DTE: " + err.message);
+                                        console.error("Error al anular DTE:", err);
+                                        alert("Error al anular el DTE: " + err.message);
                                     });
                             }
                         });
