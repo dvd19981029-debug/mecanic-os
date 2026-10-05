@@ -978,8 +978,30 @@ export function renderCaja(container) {
                 <div class="divider"></div>
                 
                 <div class="bold">OTROS MEDIOS (NO EFECTIVO)</div>
-                <div class="row"><span>Tarjeta:</span><span>$ ${totalCardIn.toFixed(2)}</span></div>
-                <div class="row"><span>Transferencias:</span><span>$ ${totalTransfersIn.toFixed(2)}</span></div>
+                <div class="row"><span>Tarjeta (Total):</span><span>$ ${totalCardIn.toFixed(2)}</span></div>
+                <div class="row"><span>Transferencias (Total):</span><span>$ ${totalTransfersIn.toFixed(2)}</span></div>
+                
+                ${sPayments.filter(p => p["Metodo Pago"] === "TARJETA").length > 0 ? `
+                <div class="divider"></div>
+                <div class="bold text-center">DETALLE DE COBROS POR POS (TARJETA)</div>
+                <div class="divider"></div>
+                ${sPayments.filter(p => p["Metodo Pago"] === "TARJETA").map(p => `
+                <div class="row" style="font-size: 10px;">
+                    <span>${new Date(p.Fecha || p.Timestamp || p.timestamp || s.fecha_apertura).toLocaleTimeString('es-SV', {hour: '2-digit', minute:'2-digit'})} - ${p.Cliente ? p.Cliente.substring(0,10) : 'Cliente'}</span>
+                    <span>$ ${parseFloat(p["Monto Pago"]).toFixed(2)}</span>
+                </div>`).join('')}
+                ` : ''}
+                
+                ${sPayments.filter(p => p["Metodo Pago"] === "TRANSFERENCIA").length > 0 ? `
+                <div class="divider"></div>
+                <div class="bold text-center">DETALLE DE TRANSFERENCIAS</div>
+                <div class="divider"></div>
+                ${sPayments.filter(p => p["Metodo Pago"] === "TRANSFERENCIA").map(p => `
+                <div class="row" style="font-size: 10px;">
+                    <span>${new Date(p.Fecha || p.Timestamp || p.timestamp || s.fecha_apertura).toLocaleTimeString('es-SV', {hour: '2-digit', minute:'2-digit'})} - ${p.Cliente ? p.Cliente.substring(0,10) : 'Cliente'}</span>
+                    <span>$ ${parseFloat(p["Monto Pago"]).toFixed(2)}</span>
+                </div>`).join('')}
+                ` : ''}
                 
                 <div class="divider"></div>
                 
