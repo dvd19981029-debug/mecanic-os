@@ -458,7 +458,10 @@ export function renderVentaRapida(container) {
     });
     closeLaborModal.addEventListener('click', () => laborModal.classList.remove('active'));
     
-    closeBillingModal.addEventListener('click', () => billingModal.classList.remove('active'));
+    closeBillingModal.addEventListener('click', () => {
+        billingModal.classList.remove('active');
+        populatePendingList();
+    });
 
     // Search catalog items populating
     function populateProdList(filterText = '') {
@@ -1462,6 +1465,7 @@ export function renderVentaRapida(container) {
                 });
                 
                 saveDatabase(db);
+                populatePendingList();
                 showToast("DTE Generado y Aprobado por MH El Salvador!", "success");
                 
                 billingBody.innerHTML = html`
