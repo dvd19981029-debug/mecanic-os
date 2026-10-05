@@ -894,6 +894,7 @@ export function renderGastos(container) {
             else byProd.set(key, { prod: ch.prod, oldCost: ch.oldCost, newCost: ch.newCost });
         });
         const rows = [];
+        let pctPersisted = false;
         byProd.forEach(ch => {
             const prod = ch.prod;
             if (Math.abs(ch.newCost - ch.oldCost) < 0.0001) return;
@@ -902,6 +903,9 @@ export function renderGastos(container) {
             if (isNaN(pct)) {
                 if (!(ch.oldCost > 0) || !(curNet > 0)) return;
                 pct = ((curNet - ch.oldCost) / ch.oldCost) * 100;
+                // Persist the reference % so later suggestions keep the same target margin
+                prod['Ganancia Pct'] = parseFloat(pct.toFixed(2));
+                pctPersisted = true;
             }
             let sugNet = ch.newCost * (1 + pct / 100);
             let sugIvaInc;
@@ -918,6 +922,7 @@ export function renderGastos(container) {
             if (Math.abs(sugShown - curShown) < 0.005) return;
             rows.push({ prod, oldCost: ch.oldCost, newCost: ch.newCost, pct, curShown, sugShown, sugNet, sugIvaInc });
         });
+        if (pctPersisted) saveDatabase(db);
         if (rows.length === 0) return;
 
         const modalId = 'price-suggestion-modal';
