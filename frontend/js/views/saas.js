@@ -4724,6 +4724,11 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     <label for="terms-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído, comprendo y acepto los Términos y Condiciones de Uso</label>
                 </div>
                 
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                    <input type="checkbox" id="privacy-accept" required style="width:20px; height:20px; cursor:pointer;">
+                    <label for="privacy-accept" style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-primary);">He leído y acepto la <a href="#terminos-condiciones" target="_blank" style="color:var(--primary);">Política de Privacidad y Tratamiento de Datos</a>, y me comprometo a informar a mis clientes sobre el uso de sus datos</label>
+                </div>
+                
                 <div class="form-group">
                     <label>Contraseña de Acceso (Ingresa la contraseña que definiste al registrarte)</label>
                     <input type="password" id="terms-access-password" required placeholder="Tu contraseña" style="padding:0.6rem;">
@@ -4746,10 +4751,15 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
             
             const sigName = document.getElementById('terms-signature-name').value;
             const accepted = document.getElementById('terms-accept').checked;
+            const privacyAccepted = document.getElementById('privacy-accept').checked;
             const enteredPass = document.getElementById('terms-access-password').value;
             
             if (!accepted) {
                 alert("Debe aceptar los términos y condiciones marcando la casilla correspondiente.");
+                return;
+            }
+            if (!privacyAccepted) {
+                alert("Debe aceptar la Política de Privacidad marcando la casilla correspondiente.");
                 return;
             }
 
@@ -4765,6 +4775,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                     status: 'active',
                     workshopData: { ...saas.workshopData, status: 'active', uid },
                     termsSigned: true,
+                    privacyAccepted: true,
+                    privacyPolicyVersion: '2026-10-04',
                     signatureName: sigName,
                     signedAt: Date.now()
                 };
@@ -4852,6 +4864,8 @@ FIN DE LOS TÉRMINOS Y CONDICIONES DE USO</div>
                             await window.initSecureDteConfig();
                             await dataService.saas.updateRequestStatus(saas.workshopData.id, 'active', {
                                 termsSigned: true,
+                                privacyAccepted: true,
+                                privacyPolicyVersion: '2026-10-04',
                                 signatureName: sigName,
                                 signedAt: Date.now(),
                                 uid: user.uid,

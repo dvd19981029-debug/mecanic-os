@@ -28,8 +28,8 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=102';
-import { renderTerminosPublicos } from './views/terminos_publicos.js?v=3';
+} from './views/saas.js?v=103';
+import { renderTerminosPublicos } from './views/terminos_publicos.js?v=4';
 import {
     renderLockScreen,
     renderSaaSAdminLogin

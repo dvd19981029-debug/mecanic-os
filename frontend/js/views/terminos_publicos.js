@@ -130,49 +130,76 @@ Para cualquier divergencia o controversia derivada de la interpretación o ejecu
                 <!-- CONTENEDOR 2: POLITICA DE PRIVACIDAD -->
                 <div id="legal-content-privacy" style="display: none; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 10px; padding: 2.25rem 2rem; max-height: 65vh; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); font-family: 'Inter', sans-serif; white-space: pre-wrap; text-align: left;">POLÍTICA DE PRIVACIDAD, TRATAMIENTO DE DATOS Y CONFIDENCIALIDAD
 MECANIC OS (FORBIDDEN SOLUCIONES S.A. DE C.V.)
-Última actualización: 25 de Agosto de 2026
+Versión: 2026-10-04 · Última actualización: 4 de Octubre de 2026
 
-FORBIDDEN SOLUCIONES S.A. DE C.V., en cumplimiento de los principios de confidencialidad comercial, seguridad de la información y la legislación de la República de El Salvador sobre protección de la privacidad, emite la presente Política de Tratamiento de Datos.
+FORBIDDEN SOLUCIONES S.A. DE C.V. (en adelante, "EL PROVEEDOR"), en cumplimiento de la legislación de la República de El Salvador sobre protección de datos personales, emite la presente Política de Privacidad y Tratamiento de Datos. Esta política aplica al sitio web y a la aplicación Mecanic OS.
 
-1. INFORMACIÓN QUE RECOPILA LA PLATAFORMA
-Mecanic OS recopila y procesa exclusivamente los datos necesarios para la adecuada operatividad del taller automotriz y el cumplimiento fiscal, a saber:
-a) Datos de Identificación del Taller: Nombre comercial, razón social, NIT, NRC, giro económico, dirección fiscal, teléfono y correo electrónico.
-b) Datos de Clientes del Taller: Nombres, números de teléfono, correos, número de DUI/NIT/NRC para facturación y dirección.
-c) Datos de Vehículos: Número de placa, marca, modelo, año, kilometraje, VIN/chasis, fotografías de estado físico e historiales mecánicos.
-d) Datos Contables y de Nómina: Registros de ventas, presupuestos, egresos, salarios base y comisiones de empleados del taller.
+1. ROLES: RESPONSABLE Y ENCARGADO DEL TRATAMIENTO
+a) El Taller (CLIENTE) es el RESPONSABLE de los datos personales de sus propios clientes y de los propietarios de los vehículos que registra en la plataforma. El Taller decide qué datos registra y para qué los usa.
+b) FORBIDDEN SOLUCIONES S.A. DE C.V. actúa como ENCARGADO: trata esos datos únicamente por cuenta del Taller, para prestar el servicio contratado y según sus instrucciones.
+c) Respecto de los datos del propio Taller y de sus usuarios (registro, acceso, facturación del servicio), EL PROVEEDOR actúa como responsable.
+d) Obligación del Taller: informar a sus clientes sobre el registro y uso de sus datos (incluyendo DUI/NIT/NRC, teléfono, correo, placas, fotografías del vehículo y firma en pantalla) y obtener su consentimiento cuando la ley lo requiera.
 
-2. FINALIDAD Y USO DE LOS DATOS
-La información recopilada se utiliza con los siguientes propósitos exclusivos:
-1. Operación Técnica: Permitir la generación de presupuestos, órdenes de trabajo, control de inventario y expedientes de autos.
-2. Facturación Electrónica: Transmitir en tiempo real los comprobantes DTE hacia la Dirección General de Impuestos Internos (DGII) de El Salvador.
-3. Respaldo y Sincronización en la Nube: Proteger la base de datos del taller contra pérdidas locales mediante replicación cifrada en la nube (Firestore / Google Cloud).
-4. Asistencia y Soporte Técnico: Brindar soporte remoto únicamente cuando sea expresamente solicitado por el administrador del taller.
+2. INFORMACIÓN QUE RECOPILA LA PLATAFORMA
+Mecanic OS procesa los datos necesarios para la operación del taller y el cumplimiento fiscal:
+a) Datos del Taller: nombre comercial, razón social, NIT, NRC, giro económico, dirección fiscal, teléfono, correo electrónico y datos del representante.
+b) Datos de Clientes del Taller: nombres, teléfonos, correos, DUI/NIT/NRC para facturación y dirección.
+c) Datos de Vehículos: placa, marca, modelo, año, color, kilometraje, VIN/chasis, número de motor, fotografías de estado físico e historial mecánico. Al escanear una tarjeta de circulación, la lectura se realiza en el propio dispositivo y la plataforma extrae únicamente los datos del vehículo.
+d) Datos Contables y de Nómina: ventas, presupuestos, egresos, salarios base y comisiones de empleados del Taller.
+e) Datos de acceso y registros técnicos: usuario, registros de auditoría y transmisión de documentos tributarios, y datos técnicos del navegador.
 
-3. ESTRICTA NO COMERCIALIZACIÓN DE DATOS
-FORBIDDEN SOLUCIONES S.A. DE C.V. NO VENDE, NO ALQUILA, NO CEDE NI COMERCIALIZA bajo ningún concepto las bases de datos de clientes, vehículos, finanzas o proveedores de los talleres suscritos. Toda la información pertenece en todo momento y de forma inalienable al CLIENTE / TALLER.
+3. FINALIDAD Y USO DE LOS DATOS
+1. Operación técnica: presupuestos, órdenes de trabajo, inventario y expedientes de vehículos.
+2. Facturación electrónica: emisión y transmisión de Documentos Tributarios Electrónicos (DTE) hacia el Ministerio de Hacienda por medio de un proveedor autorizado de facturación.
+3. Respaldo y sincronización en la nube del Taller.
+4. Cobro de la suscripción del servicio.
+5. Soporte técnico, únicamente cuando lo solicite el administrador del Taller.
 
-4. MEDIDAS DE SEGURIDAD Y CIFRADO
-Aplicamos estándares de seguridad de nivel bancario y empresarial para salvaguardar la integridad de los datos:
-a) Cifrado de Credenciales DTE: Las contraseñas y llaves de Hacienda son cifradas mediante criptografía AES-256 antes de su almacenamiento.
-b) Aislamiento de Base de Datos (Multi-Tenant Seguro): Cada taller opera en un espacio de datos estrictamente aislado y protegido mediante reglas de seguridad criptográficas (ID único de taller).
-c) Cifrado en Tránsito: Todas las comunicaciones entre el navegador y la nube se realizan mediante protocolos seguros HTTPS / TLS 1.3 con certificados SSL oficiales.
+4. NO COMERCIALIZACIÓN DE DATOS
+EL PROVEEDOR no vende, no alquila ni comercializa las bases de datos de clientes, vehículos, finanzas o proveedores de los talleres. La información del Taller le pertenece al Taller.
 
-5. EJERCICIO DE DERECHOS ARCO-POL (ACCESO, RECTIFICACIÓN, CANCELACIÓN Y PORTABILIDAD)
-El titular de los datos o el administrador del taller tiene derecho en todo momento a:
-● Acceso y Rectificación: Modificar en tiempo real los datos de su perfil, clientes y catálogo de repuestos desde el módulo de Configuración.
-● Portabilidad: Exportar su información histórica en formatos estándar abiertos (Excel / JSON).
-● Eliminación / Desconexión: Solicitar el borrado definitivo de su cuenta y base de datos una vez concluida su relación de servicio.
+5. TERCEROS QUE INTERVIENEN EN EL SERVICIO
+Para prestar el servicio se utilizan los siguientes proveedores, que pueden tratar datos por cuenta nuestra:
+● Google (Firebase Authentication, Firestore, Google Fonts): autenticación, almacenamiento y sincronización en la nube.
+● Proveedor de facturación electrónica (FacturaLlama): firma y transmisión de DTE al Ministerio de Hacienda.
+● Wompi: procesamiento de pagos de la suscripción.
+● Servicios de red de distribución de contenido (CDN) para cargar librerías de la aplicación.
+EL PROVEEDOR no es responsable por el tratamiento que estos terceros realicen bajo sus propias políticas fuera de lo contratado.
 
-6. CONTACTO DEL OFICIAL DE PRIVACIDAD
-Para cualquier requerimiento, consulta o ejercicio de derechos sobre datos personales:
+6. TRANSFERENCIA INTERNACIONAL DE DATOS
+Los servicios en la nube mencionados pueden almacenar y procesar datos en servidores ubicados fuera de El Salvador. Al aceptar esta política, el Taller reconoce y autoriza esa transferencia, que se realiza únicamente para prestar el servicio.
+
+7. ALMACENAMIENTO LOCAL, CONSERVACIÓN Y ELIMINACIÓN
+a) La aplicación guarda una copia de trabajo en el almacenamiento local del navegador para operar sin conexión. Se recomienda no usar equipos compartidos o cerrar sesión al terminar.
+b) Si el Taller configura su propio proyecto de Firebase, el almacenamiento de sus datos se rige por la configuración de ese proyecto.
+c) Los datos se conservan mientras la cuenta esté activa. Concluida la relación de servicio, el Taller dispone del plazo indicado en los Términos y Condiciones para exportar su información; después, EL PROVEEDOR podrá eliminarla, salvo los datos que deban conservarse por obligaciones legales tributarias o mercantiles.
+d) Los documentos fiscales y contables deben conservarse por los plazos que establezcan las leyes aplicables. Es responsabilidad del Taller respaldarlos y conservarlos.
+
+8. MEDIDAS DE SEGURIDAD
+EL PROVEEDOR aplica medidas técnicas y organizativas razonables para proteger los datos, entre ellas:
+a) Cifrado de las credenciales de facturación electrónica antes de su almacenamiento.
+b) Separación de la información de cada taller mediante reglas de acceso por identificador único de taller.
+c) Comunicaciones entre el navegador y la nube mediante HTTPS/TLS.
+Ningún sistema es completamente invulnerable. El Taller es responsable de custodiar sus contraseñas y PIN, y de asignar los accesos a su personal.
+
+9. DERECHOS DE LOS TITULARES (ACCESO, RECTIFICACIÓN, CANCELACIÓN, OPOSICIÓN Y PORTABILIDAD)
+El titular de los datos puede solicitar en cualquier momento:
+● Acceso y Rectificación: conocer y corregir sus datos. El administrador del Taller puede modificar los datos de su perfil, clientes y catálogo desde el módulo de Configuración.
+● Cancelación (eliminación): solicitar la eliminación de sus datos, salvo los que deban conservarse por obligación legal.
+● Oposición: oponerse al tratamiento de sus datos para finalidades distintas de las necesarias para el servicio.
+● Portabilidad: obtener su información en formatos estándar (Excel / JSON).
+Cómo ejercerlos: enviar una solicitud al correo indicado abajo, identificándose y describiendo el derecho que desea ejercer. EL PROVEEDOR responderá dentro de los plazos que establezca la ley aplicable. Si el titular es cliente de un Taller, su solicitud se atiende por medio del Taller, que es el responsable de sus datos, con el apoyo de EL PROVEEDOR.
+
+10. CONTACTO
+Para consultas o ejercicio de derechos sobre datos personales:
 ● Responsable: Departamento de Seguridad y Privacidad - Forbidden Soluciones S.A. de C.V.
 ● Correo: privacidad@forbiddensoluciones.com / soporte@forbiddensoluciones.com
-● Domicilio: República de El Salvador.</div>
+● Domicilio: San Salvador, República de El Salvador.</div>
 
                 <!-- FOOTER DE ACCIONES -->
                 <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
-                        <i class="fa-solid fa-shield-check" style="color: var(--success);"></i> Plataforma Blindada y Certificada para El Salvador
+                        <i class="fa-solid fa-shield-check" style="color: var(--success);"></i> Plataforma diseñada para El Salvador
                     </div>
                     <a href="#landing" class="btn btn-primary" style="padding: 0.65rem 2rem; font-size: 0.9rem; font-weight: 700; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
                         <i class="fa-solid fa-arrow-left"></i> Volver a Mecanic OS
