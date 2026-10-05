@@ -702,6 +702,42 @@ const dataService = {
         }
     },
 
+    // Reintenta abrir los listeners tras un error de sincronización (una sola vez cada 5s, solo si la pantalla está visible)
+    _scheduleSyncRetry() {
+        if (this._syncRetryTimer) return;
+        this._syncRetryTimer = setTimeout(() => {
+            this._syncRetryTimer = null;
+            if (document.visibilityState === 'hidden') return;
+            if (this.workshopOwnerUid) this.startSync(this.workshopOwnerUid, this.readOnlyMode);
+        }, 5000);
+    },
+
+    // Reabre los listeners cuando el dispositivo vuelve a primer plano (tras 30s+ oculto) o recupera internet
+    _setupReconnectHandlers() {
+        if (this._reconnectHandlersSet) return;
+        this._reconnectHandlersSet = true;
+        let hiddenAt = null;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                hiddenAt = Date.now();
+            } else if (hiddenAt && Date.now() - hiddenAt > 30000) {
+                hiddenAt = null;
+                if (this.workshopOwnerUid) {
+                    console.log("Mecanic OS: Dispositivo de vuelta en primer plano. Reabriendo listeners de sincronización...");
+                    this.startSync(this.workshopOwnerUid, this.readOnlyMode);
+                }
+            } else {
+                hiddenAt = null;
+            }
+        });
+        window.addEventListener('online', () => {
+            if (!this.workshopOwnerUid) return;
+            console.log("Mecanic OS: Conexión a internet recuperada. Reabriendo listeners de sincronización...");
+            try { if (dbFirestore) dbFirestore.enableNetwork(); } catch (e) {}
+            this.startSync(this.workshopOwnerUid, this.readOnlyMode);
+        });
+    },
+
     // Firestore Collections Real-Time Sync Subscribers
     // uid: UID del taller (del dueño)
     // employeeMode: true cuando es un empleado sin Firebase Auth propio
@@ -735,7 +771,7 @@ const dataService = {
         const docRef = dbFirestore.collection("workshops").doc(uid);
 
         const handleSyncError = (error) => {
-            console.error("Mecanic OS: Firestore Sync Error:", error);
+            console.error("Mecanic OS: Firestore Sync Error [" + (error && error.code) + "]:", error);
             if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
                 if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
                     console.log("Mecanic OS: Auth session expired or permission denied. Refreshing token to reconnect...");
@@ -749,8 +785,15 @@ const dataService = {
                         console.error("Mecanic OS: Failed to refresh Firebase token:", err);
                     });
                 }
+            } else {
+                // Cualquier otro error termina el listener: se avisa en el indicador y se reintenta
+                if (typeof window.updateCloudStatusUI === 'function') {
+                    window.updateCloudStatusUI(false, "offline");
+                }
+                this._scheduleSyncRetry();
             }
         };
+        this._setupReconnectHandlers();
 
         // 1. Listen to Root document updates (Metadata & Configs)
         const rootListener = docRef.onSnapshot(async (doc) => {
