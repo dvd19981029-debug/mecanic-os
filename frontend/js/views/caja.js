@@ -988,11 +988,18 @@ export function renderCaja(container) {
                 <div class="divider"></div>
                 <div class="bold text-center">DETALLE DE COBROS POR POS (TARJETA)</div>
                 <div class="divider"></div>
-                ${sPayments.filter(p => p["Metodo Pago"] === "TARJETA").map(p => `
-                <div class="row" style="font-size: 10px;">
-                    <span>${new Date(p.Fecha || p.Timestamp || p.timestamp || s.fecha_apertura).toLocaleTimeString('es-SV', {hour: '2-digit', minute:'2-digit'})} - ${p.Cliente ? p.Cliente.substring(0,10) : 'Cliente'}</span>
-                    <span>$ ${parseFloat(p["Monto Pago"]).toFixed(2)}</span>
-                </div>`).join('')}
+                ${sPayments.filter(p => p["Metodo Pago"] === "TARJETA").map(p => {
+                    const cli = (db.clientes || []).find(c => c.Codigo_Cliente === p.Cliente);
+                    const cliNombre = (cli && cli.Nombre) || p.Cliente || 'Cliente';
+                    return `
+                <div style="font-size: 10px; margin-bottom: 6px;">
+                    <div class="row" style="margin-bottom: 1px;">
+                        <span>${new Date(p["Fecha Pago"] || s.fecha_apertura).toLocaleTimeString('es-SV', {hour: '2-digit', minute:'2-digit'})} - ${cliNombre}</span>
+                        <span class="bold">$ ${parseFloat(p["Monto Pago"]).toFixed(2)}</span>
+                    </div>
+                    <div>Aut: <span class="bold">${p.Autorizacion || 'N/D'}</span></div>
+                </div>`;
+                }).join('')}
                 ` : ''}
                 
                 ${sPayments.filter(p => p["Metodo Pago"] === "TRANSFERENCIA").length > 0 ? `
