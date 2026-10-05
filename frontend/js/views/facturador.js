@@ -1065,6 +1065,14 @@ export function renderInvoicingWorkspace(container, presId) {
             ];
         }
 
+        if (isCCF) {
+            const missingCcf = missingContributorFields(client);
+            if (missingCcf.length > 0) {
+                showToast(`Complete los datos del cliente antes de emitir el CCF. Falta: ${missingCcf.join(', ')}`, "danger");
+                return;
+            }
+        }
+
         emitBtn.disabled = true;
         emitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
 
@@ -1080,9 +1088,9 @@ export function renderInvoicingWorkspace(container, presId) {
 
         // Helper to process DTE emission success
         function processSuccess(resData) {
-            const genCode = resData.generationCode || resData.id || generateUUID();
-            const ctrlNum = resData.controlNumber || ("DTE-" + (type === 'CCF' ? '03' : '01') + "-M001P001-0000" + Math.floor(Math.random()*9000 + 1000));
-            const seal = resData.receptionSeal || (Math.floor(Math.random()*900000) + "-APPROVED");
+            const genCode = resData.generationCode || resData.id;
+            const ctrlNum = resData.controlNumber;
+            const seal = resData.receptionSeal;
             const mhUrl = resData.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${new Date().toISOString().split('T')[0]}`;
 
             p.Estado = 3;
@@ -1372,6 +1380,9 @@ export function renderInvoicingWorkspace(container, presId) {
                 resData,
                 endpoint
             );
+            if (!resData || (!resData.simulated && (!resData.controlNumber || !resData.receptionSeal || !(resData.generationCode || resData.id)))) {
+                throw { message: "Hacienda no confirmó el documento: la respuesta del servidor no incluye número de control, código de generación o sello de recepción. El documento NO fue marcado como facturado. Verifique el estado del DTE antes de reintentar." };
+            }
             processSuccess(resData);
         })
         .catch(err => {
@@ -1392,6 +1403,18 @@ export function renderInvoicingWorkspace(container, presId) {
             emitBtn.innerHTML = '<i class="fa-solid fa-signature"></i> Firmar y Transmitir a MH';
         });
     });
+}
+
+function missingContributorFields(c) {
+    c = c || {};
+    const miss = [];
+    if (!String(c.NRC || '').replace(/\D/g, '')) miss.push('NRC');
+    if (!String(c.NIT || c.DUI || c['Num Doc'] || c.Num_Documento || '').replace(/\D/g, '')) miss.push('NIT/DUI');
+    if (String(c.Codigo_Actividad || c.Giro || '').replace(/\D/g, '').length < 5) miss.push('Actividad económica (giro)');
+    if (!String(c.Direccion || '').trim()) miss.push('Dirección');
+    if (!(c.Departamento || c.Depto)) miss.push('Departamento');
+    if (!c.Municipio) miss.push('Municipio');
+    return miss;
 }
 
 export async function viewDtePdf(dteId) {
@@ -1718,7 +1741,7 @@ export function printDteTicket(presId) {
 
         const genCode = p.codigoGeneracion || p.generationCode || p.controlNumber || 'N/A';
         const ctrlNum = p.mhControlNumber || p.Num_Control || p.controlNumber || 'N/A';
-        const seal = p.receptionSeal || p.selloRecepcion || 'APROBADO-MH';
+        const seal = p.receptionSeal || p.selloRecepcion || '';
         const dteDateFormatted = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toLocaleString('es-SV') : new Date().toLocaleString('es-SV');
         const dteDateIso = p.Fecha_Facturacion ? new Date(p.Fecha_Facturacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
         const mhQrUrl = p.mhDteUrl || `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${dteDateIso}`;
@@ -2631,6 +2654,16 @@ function openEmitNcDteModal(dteId, presId) {
         const clientObj = isQuickSale 
             ? null 
             : (db.clientes || []).find(c => (p?.ID_Cliente && c.ID_Cliente === p.ID_Cliente) || (p?.Codigo_Cliente && c.Codigo_Cliente === p.Codigo_Cliente) || (p?.Nombre && c.Nombre === p.Nombre));
+
+        if (clientObj) {
+            const missingNc = missingContributorFields(clientObj);
+            if (missingNc.length > 0) {
+                showToast(`Complete los datos del cliente antes de emitir la Nota de Crédito. Falta: ${missingNc.join(', ')}`, "danger");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Transmitir Nota de Crédito';
+                return;
+            }
+        }
 
         const rawName = String(clientObj?.Nombre || p?.Nombre || p?.Cliente || "Cliente General").trim();
         const rawEmail = String(clientObj?.Correo || clientObj?.Email || p?.Correo || p?.Email || "cliente@taller.com").trim();

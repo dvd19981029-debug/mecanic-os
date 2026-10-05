@@ -33,7 +33,7 @@ import {
     showDteErrorModal,
     getNombreProducto
 } from '../utils.js?v=80';
-import { printDteTicket, viewDtePdf } from './facturador.js?v=139';
+import { printDteTicket, viewDtePdf } from './facturador.js?v=140';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();
@@ -1316,6 +1316,20 @@ export function renderVentaRapida(container) {
                 retentionIva: dteRetention
             };
             
+            if (isCCF) {
+                const missingCcf = [];
+                if (!String(client.NRC || '').replace(/\D/g, '')) missingCcf.push('NRC');
+                if (!String(client.NIT || client.DUI || client['Num Doc'] || client.Num_Documento || '').replace(/\D/g, '')) missingCcf.push('NIT/DUI');
+                if (String(client.Codigo_Actividad || client.Giro || '').replace(/\D/g, '').length < 5) missingCcf.push('Actividad económica (giro)');
+                if (!String(client.Direccion || '').trim()) missingCcf.push('Dirección');
+                if (!(client.Departamento || client.Depto)) missingCcf.push('Departamento');
+                if (!client.Municipio) missingCcf.push('Municipio');
+                if (missingCcf.length > 0) {
+                    showToast(`Complete los datos del cliente antes de emitir el CCF. Falta: ${missingCcf.join(', ')}`, "danger");
+                    return;
+                }
+            }
+            
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Transmitiendo...';
             
@@ -1331,9 +1345,9 @@ export function renderVentaRapida(container) {
             }
             
             function processVRSuccess(resData) {
-                const genCode = resData.generationCode || resData.id || generateUUID();
-                const ctrlNum = resData.controlNumber || ("DTE-" + (type === 'CCF' ? '03' : '01') + "-M001P001-0000" + Math.floor(Math.random()*9000 + 1000));
-                const seal = resData.receptionSeal || (Math.floor(Math.random()*900000) + "-APPROVED");
+                const genCode = resData.generationCode || resData.id;
+                const ctrlNum = resData.controlNumber;
+                const seal = resData.receptionSeal;
                 
                 vr.Estado = "FACTURADO";
                 vr.controlNumber = genCode;
@@ -1455,6 +1469,9 @@ export function renderVentaRapida(container) {
                 return response.json();
             })
             .then(resData => {
+                if (!resData || (!resData.simulated && (!resData.controlNumber || !resData.receptionSeal || !(resData.generationCode || resData.id)))) {
+                    throw { message: "Hacienda no confirmó el documento: la respuesta del servidor no incluye número de control, código de generación o sello de recepción. El documento NO fue marcado como facturado. Verifique el estado del DTE antes de reintentar." };
+                }
                 processVRSuccess(resData);
             })
             .catch(err => {

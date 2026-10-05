@@ -159,7 +159,7 @@ async function emitDte(req, res) {
                 receptionSeal: seal,
                 mhDteUrl: `https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=${genCode}&fechaEmi=${new Date().toISOString().split('T')[0]}`
             };
-            saveDteLog("Emisión DTE (Simulado)", req.body.workshopId, llamaDocType, payload, 200, mockRes, "MOCK / SIMULADO");
+            saveDteLog("Emisión DTE (Simulado)", req.body.workshopId, (docType || 'fc').toLowerCase(), payload, 200, mockRes, "MOCK / SIMULADO");
             return res.json(mockRes);
         }
         
