@@ -73,6 +73,12 @@ function renderLibroVentas(parent, db) {
             dateStr = String(dateVal);
         }
         return dateStr.startsWith(currentMonth);
+    }).sort((a, b) => {
+        let dateA = new Date(a.Fecha_Facturacion || a.fechaHoraTransaccion || a.fhProcesamiento || a.Fecha || 0).getTime();
+        let dateB = new Date(b.Fecha_Facturacion || b.fechaHoraTransaccion || b.fhProcesamiento || b.Fecha || 0).getTime();
+        if (isNaN(dateA)) dateA = 0;
+        if (isNaN(dateB)) dateB = 0;
+        return dateA - dateB; // Ascendente (1 al 31)
     });
 
     let sumTotal = 0;
@@ -186,6 +192,12 @@ function renderLibroCompras(parent, db) {
     const compras = (db.gastos || []).filter(g => {
         let dateStr = g['Fecha Gasto'] || '';
         return dateStr.startsWith(currentMonth);
+    }).sort((a, b) => {
+        let dateA = new Date(a['Fecha Gasto'] || 0).getTime();
+        let dateB = new Date(b['Fecha Gasto'] || 0).getTime();
+        if (isNaN(dateA)) dateA = 0;
+        if (isNaN(dateB)) dateB = 0;
+        return dateA - dateB;
     });
 
     let sumTotal = 0;
@@ -269,10 +281,31 @@ function renderLibroCompras(parent, db) {
 
 function exportToExcel(db) {
     if (activeLibroTab === 'ventas') {
-        const ventas = (db.ventas || []).filter(v => {
-            if (!v.fechaHoraTransaccion && !v.fhProcesamiento && !v.Fecha) return false;
-            let dateStr = v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
+        const allSales = [
+            ...(db.presupuestos || []).filter(p => p.Estado == 3 || p.Estado === "FACTURADO" || p.controlNumber),
+            ...(db.venta_rapida || db['43 Venta Rapida'] || []).filter(vr => vr.Estado === "FACTURADO" || vr.controlNumber)
+        ];
+
+        const ventas = allSales.filter(v => {
+            let dateVal = v.Fecha_Facturacion || v.fechaHoraTransaccion || v.fhProcesamiento || v.Fecha;
+            if (!dateVal) return false;
+            
+            let dateStr = '';
+            const d = new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                dateStr = `${year}-${month}`;
+            } else {
+                dateStr = String(dateVal);
+            }
             return dateStr.startsWith(currentMonth);
+        }).sort((a, b) => {
+            let dateA = new Date(a.Fecha_Facturacion || a.fechaHoraTransaccion || a.fhProcesamiento || a.Fecha || 0).getTime();
+            let dateB = new Date(b.Fecha_Facturacion || b.fechaHoraTransaccion || b.fhProcesamiento || b.Fecha || 0).getTime();
+            if (isNaN(dateA)) dateA = 0;
+            if (isNaN(dateB)) dateB = 0;
+            return dateA - dateB;
         });
         
         if (ventas.length === 0) {
@@ -281,13 +314,30 @@ function exportToExcel(db) {
         }
 
         const data = ventas.map(v => {
-            const tipoDte = v.tipoDte || (v.tipoDocumento === '03' ? '03' : '01');
-            let date = v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
-            date = date ? date.split('T')[0] : 'N/A';
-            const numDoc = v.codigoGeneracion || v.numDoc || 'N/A';
-            const clientName = v.cliente_nombre || v.nombreReceptor || v.Nombre || 'Consumidor Final';
+            const tipoDte = v.tipoDte || (v.Doc_a_Emitir === 'CREDITO FISCAL' || v.tipoDocumento === '03' ? '03' : '01');
+            
+            let dateVal = v.Fecha_Facturacion || v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
+            let date = 'N/A';
+            if (dateVal) {
+                const d = new Date(dateVal);
+                if (!isNaN(d.getTime())) {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    date = `${year}-${month}-${day}`;
+                } else {
+                    date = String(dateVal).split('T')[0];
+                }
+            }
+            
+            const numDoc = v.mhControlNumber || v.controlNumber || v.codigoGeneracion || v.numDoc || 'N/A';
+            const clientName = v.Nombre || v.cliente_nombre || v.nombreReceptor || 'Consumidor Final';
 
-            const total = parseFloat(v.montoTotalOperacion || v.totalPagar || v.Total || 0);
+            let total = parseFloat(v.montoTotalOperacion || v.totalPagar || v.Total || v.Monto_Total || 0);
+            if (total === 0 && v['ID Presupuesto']) {
+                total = getBudgetGrandTotal(v, db) || 0;
+            }
+            
             let iva = 0;
             let gravadas = 0;
             let exentas = 0;
@@ -295,8 +345,11 @@ function exportToExcel(db) {
             let percepcion = parseFloat(v.percepcion || v.ivaPercibido || 0);
 
             if (tipoDte === '03') {
-                if (v.totalGravada) gravadas = parseFloat(v.totalGravada);
-                else gravadas = total / 1.13;
+                if (v.totalGravada) {
+                    gravadas = parseFloat(v.totalGravada);
+                } else {
+                    gravadas = total / 1.13;
+                }
                 iva = parseFloat(v.totalIva || (gravadas * 0.13));
             } else if (tipoDte === '01') {
                 gravadas = total / 1.13;
@@ -322,6 +375,12 @@ function exportToExcel(db) {
         const compras = (db.gastos || []).filter(g => {
             let dateStr = g['Fecha Gasto'] || '';
             return dateStr.startsWith(currentMonth);
+        }).sort((a, b) => {
+            let dateA = new Date(a['Fecha Gasto'] || 0).getTime();
+            let dateB = new Date(b['Fecha Gasto'] || 0).getTime();
+            if (isNaN(dateA)) dateA = 0;
+            if (isNaN(dateB)) dateB = 0;
+            return dateA - dateB;
         });
 
         if (compras.length === 0) {
