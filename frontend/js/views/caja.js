@@ -144,7 +144,8 @@ export function renderCaja(container) {
                     id_sesion: newSessionId,
                     estado: "ABIERTA",
                     fecha_apertura: Date.now(),
-                    usuario_apertura: activeUser.Email || "jjmunoz932@gmail.com",
+                    usuario_apertura: activeUser.Email || activeUser.Nombre_Completo || "",
+                    nombre_apertura: activeUser.Nombre_Completo || "",
                     saldo_inicial: initBalance,
                     saldo_egresos: 0,
                     saldo_real: 0,
@@ -186,7 +187,7 @@ export function renderCaja(container) {
                         <div class="stat-info">
                             <span class="stat-label">Fondo de Apertura</span>
                             <span class="stat-value" style="color: var(--text-primary);">$ ${activeSession.saldo_inicial.toFixed(2)}</span>
-                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Por: ${activeSession.usuario_apertura.split('@')[0]}</span>
+                            <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Por: ${activeSession.nombre_apertura || activeSession.usuario_apertura.split('@')[0]}</span>
                         </div>
                         <div class="stat-icon" style="color: var(--primary); background-color: rgba(99, 102, 241, 0.15);"><i class="fa-solid fa-key"></i></div>
                     </div>
@@ -270,7 +271,7 @@ export function renderCaja(container) {
                                     <td style="padding:0.65rem 0.5rem;"><span class="badge" style="background:rgba(67,97,238,0.1); color:var(--primary); font-size:0.75rem;">Apertura</span></td>
                                     <td style="padding:0.65rem 0.5rem;">EFECTIVO</td>
                                     <td style="padding:0.65rem 0.5rem; color:var(--text-secondary); font-style:italic;">Saldo inicial de apertura</td>
-                                    <td style="padding:0.65rem 0.5rem;">${activeSession.usuario_apertura.split('@')[0]}</td>
+                                    <td style="padding:0.65rem 0.5rem;">${activeSession.nombre_apertura || activeSession.usuario_apertura.split('@')[0]}</td>
                                     <td style="padding:0.65rem 0.5rem; text-align:right; font-weight:600; color:var(--text-primary);">$ ${activeSession.saldo_inicial.toFixed(2)}</td>
                                 </tr>
                                 
@@ -282,7 +283,7 @@ export function renderCaja(container) {
                                             tipo: p.ID_Presupuesto.startsWith('VR-') ? 'Venta POS' : 'Factura Presupuesto',
                                             metodo: p["Metodo Pago"],
                                             detalle: `Cobro Ref: ${p.ID_Presupuesto} - Cliente: ${p.Cliente || 'N/A'}`,
-                                            responsable: p.User.split('@')[0],
+                                            responsable: p.UserNombre || p.User.split('@')[0],
                                             monto: parseFloat(p["Monto Pago"] || 0),
                                             isNegative: false
                                         })),
@@ -291,7 +292,7 @@ export function renderCaja(container) {
                                             tipo: m.tipo === 'ENTRADA' ? 'Ingreso Manual' : 'Retiro / Egreso',
                                             metodo: 'EFECTIVO',
                                             detalle: m.motivo || 'Movimiento de caja',
-                                            responsable: m.usuario.split('@')[0],
+                                            responsable: m.usuario_nombre || m.usuario.split('@')[0],
                                             monto: parseFloat(m.monto || 0),
                                             isNegative: m.tipo === 'SALIDA'
                                         }))
@@ -406,7 +407,8 @@ export function renderCaja(container) {
                 monto: monto,
                 motivo: motivo,
                 timestamp: Date.now(),
-                usuario: activeUser.Email || "jjmunoz932@gmail.com"
+                usuario: activeUser.Email || activeUser.Nombre_Completo || "",
+                usuario_nombre: activeUser.Nombre_Completo || ""
             };
             
             db.caja_movimientos.unshift(newMov);
@@ -487,7 +489,8 @@ export function renderCaja(container) {
             // Mutate activeSession to closed
             activeSession.estado = "CERRADA";
             activeSession.fecha_cierre = Date.now();
-            activeSession.usuario_cierre = activeUser.Email || "jjmunoz932@gmail.com";
+            activeSession.usuario_cierre = activeUser.Email || activeUser.Nombre_Completo || "";
+            activeSession.nombre_cierre = activeUser.Nombre_Completo || "";
             activeSession.saldo_real = realCash;
             activeSession.diferencia = diferencia;
             activeSession.comentarios = comentarios;
@@ -556,11 +559,11 @@ export function renderCaja(container) {
                                             <td style="padding:0.65rem 0.5rem; font-weight:600;"><code style="color:var(--cyan);">${s.id_sesion}</code></td>
                                             <td style="padding:0.65rem 0.5rem; font-size:0.8rem;">
                                                 <div>${new Date(s.fecha_apertura).toLocaleDateString('es-SV')}</div>
-                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${(s.usuario_apertura || 'Admin').split('@')[0]}</div>
+                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${s.nombre_apertura || (s.usuario_apertura || 'Admin').split('@')[0]}</div>
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; font-size:0.8rem;">
                                                 <div>${new Date(s.fecha_cierre).toLocaleDateString('es-SV')}</div>
-                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${(s.usuario_cierre || 'Admin').split('@')[0]}</div>
+                                                <div style="color:var(--text-secondary); font-size:0.7rem;">Por: ${s.nombre_cierre || (s.usuario_cierre || 'Admin').split('@')[0]}</div>
                                             </td>
                                             <td style="padding:0.65rem 0.5rem; text-align:right; font-weight:600;">$ ${s.saldo_inicial.toFixed(2)}</td>
                                             <td style="padding:0.65rem 0.5rem; text-align:right; font-weight:700; color:var(--cyan);">$ ${s.saldo_real.toFixed(2)}</td>
@@ -958,8 +961,8 @@ export function renderCaja(container) {
                 
                 <div class="row"><span>Fecha Apertura:</span><span>${new Date(s.fecha_apertura).toLocaleString('es-SV')}</span></div>
                 <div class="row"><span>Fecha Cierre:</span><span>${new Date(s.fecha_cierre).toLocaleString('es-SV')}</span></div>
-                <div class="row"><span>Cajero Apertura:</span><span>${s.usuario_apertura.split('@')[0]}</span></div>
-                <div class="row"><span>Cajero Cierre:</span><span>${s.usuario_cierre.split('@')[0]}</span></div>
+                <div class="row"><span>Cajero Apertura:</span><span>${s.nombre_apertura || s.usuario_apertura.split('@')[0]}</span></div>
+                <div class="row"><span>Cajero Cierre:</span><span>${s.nombre_cierre || s.usuario_cierre.split('@')[0]}</span></div>
                 
                 <div class="divider"></div>
                 

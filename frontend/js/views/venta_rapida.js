@@ -1458,7 +1458,8 @@ export function renderVentaRapida(container) {
                     "Monto Pago": vr.total,
                     "Metodo Pago": payMethod === '01' ? 'EFECTIVO' : payMethod === '02' ? 'TARJETA' : 'TRANSFERENCIA',
                     "Estado Pago": "COMPLETADO",
-                    User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                    User: getActiveUser().Email || getActiveUser().Nombre_Completo || "",
+                    UserNombre: getActiveUser().Nombre_Completo || "",
                     Cliente: vr.Cliente,
                     id_sesion: openSession.id_sesion,
                     ...payExtra

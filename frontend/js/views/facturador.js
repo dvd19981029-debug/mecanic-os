@@ -1213,7 +1213,8 @@ export function renderInvoicingWorkspace(container, presId) {
                     "Monto Pago": grandTotal,
                     "Metodo Pago": payMethod === '01' ? 'EFECTIVO' : payMethod === '02' ? 'TARJETA' : 'TRANSFERENCIA',
                     "Estado Pago": "COMPLETADO",
-                    User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                    User: getActiveUser().Email || getActiveUser().Nombre_Completo || "",
+                    UserNombre: getActiveUser().Nombre_Completo || "",
                     Cliente: p.Codigo_Cliente,
                     id_sesion: openSession.id_sesion,
                     ...payExtra
@@ -2581,7 +2582,8 @@ function openInvalidateDteModal(dteId, presId) {
                         "Monto Pago": -Math.abs(parseFloat(pay['Monto Pago'] || 0)),
                         "Metodo Pago": pay['Metodo Pago'],
                         "Estado Pago": "DEVOLUCION",
-                        User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                        User: getActiveUser().Email || getActiveUser().Nombre_Completo || "",
+                    UserNombre: getActiveUser().Nombre_Completo || "",
                         Cliente: pay.Cliente || p.Cliente || p.Nombre
                     });
                 });
@@ -2959,7 +2961,8 @@ function openEmitNcDteModal(dteId, presId) {
                         "Monto Pago": -Math.abs(parseFloat(pay['Monto Pago'] || 0)),
                         "Metodo Pago": pay['Metodo Pago'],
                         "Estado Pago": "REVERTIDO_NC",
-                        User: getActiveUser().Email || "jjmunoz932@gmail.com",
+                        User: getActiveUser().Email || getActiveUser().Nombre_Completo || "",
+                    UserNombre: getActiveUser().Nombre_Completo || "",
                         Cliente: pay.Cliente || p.Cliente || p.Nombre
                     });
                 });
