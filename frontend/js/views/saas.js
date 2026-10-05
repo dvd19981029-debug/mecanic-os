@@ -2635,6 +2635,11 @@ if (window.saasViewReceiptPaymentId) {
                     dataService.saas.deleteRequest(id)
                         .then(() => {
                             showToast("Solicitud eliminada exitosamente", "success");
+                            // Forzar que la fila desaparezca visualmente de inmediato
+                            const row = btn.closest('tr');
+                            if (row) row.remove();
+                            
+                            // Forzar re-render si no hay dbFirestore
                             if (typeof dbFirestore === 'undefined' || !dbFirestore) {
                                 renderAdminSolicitudes(container);
                             }

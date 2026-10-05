@@ -1,7 +1,12 @@
+const { initCronJobs } = require('./services/cronJobs');
 require('dotenv').config();
 const app = require('./app');
 
 const PORT = process.env.PORT || 3005;
+
+
+// Inicializar tareas en segundo plano (Vigilante de Cuotas Wompi)
+initCronJobs();
 
 app.listen(PORT, () => {
     console.log(`==================================================`);
