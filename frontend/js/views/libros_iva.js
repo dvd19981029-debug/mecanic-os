@@ -1,4 +1,4 @@
-import { getDatabase } from '../../app.js?v=88';
+import { getDatabase, getBudgetGrandTotal } from '../../app.js?v=88';
 import { html, safe, escapeHtml, showToast, downloadExcelReport } from '../utils.js?v=90';
 
 let activeLibroTab = 'ventas';
@@ -99,7 +99,11 @@ function renderLibroVentas(parent, db) {
         const numDoc = v.mhControlNumber || v.controlNumber || v.codigoGeneracion || v.numDoc || 'N/A';
         const clientName = v.Nombre || v.cliente_nombre || v.nombreReceptor || 'Consumidor Final';
 
-        const total = parseFloat(v.montoTotalOperacion || v.totalPagar || v.Total || 0);
+        let total = parseFloat(v.montoTotalOperacion || v.totalPagar || v.Total || v.Monto_Total || 0);
+        if (total === 0 && v['ID Presupuesto']) {
+            total = getBudgetGrandTotal(v, db) || 0;
+        }
+        
         let iva = 0;
         let gravadas = 0;
         let exentas = 0;
