@@ -56,9 +56,25 @@ function renderData(parent, db) {
 }
 
 function renderLibroVentas(parent, db) {
-    const ventas = (db.ventas || []).filter(v => {
-        if (!v.fechaHoraTransaccion && !v.fhProcesamiento && !v.Fecha) return false;
-        let dateStr = v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
+    const allSales = [
+        ...(db.presupuestos || []).filter(p => p.Estado == 3 || p.Estado === "FACTURADO" || p.controlNumber),
+        ...(db.venta_rapida || db['43 Venta Rapida'] || []).filter(vr => vr.Estado === "FACTURADO" || vr.controlNumber)
+    ];
+
+    const ventas = allSales.filter(v => {
+        let dateVal = v.Fecha_Facturacion || v.fechaHoraTransaccion || v.fhProcesamiento || v.Fecha;
+        if (!dateVal) return false;
+        
+        let dateStr = '';
+        if (typeof dateVal === 'number') {
+            dateStr = new Date(dateVal).toISOString();
+        } else {
+            try {
+                dateStr = new Date(dateVal).toISOString();
+            } catch(e) {
+                dateStr = String(dateVal);
+            }
+        }
         return dateStr.startsWith(currentMonth);
     });
 
@@ -70,11 +86,20 @@ function renderLibroVentas(parent, db) {
     let sumPer = 0;
 
     const rows = ventas.map(v => {
-        const tipoDte = v.tipoDte || (v.tipoDocumento === '03' ? '03' : '01');
-        let date = v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
-        date = date ? date.split('T')[0] : 'N/A';
-        const numDoc = v.codigoGeneracion || v.numDoc || 'N/A';
-        const clientName = v.cliente_nombre || v.nombreReceptor || v.Nombre || 'Consumidor Final';
+        const tipoDte = v.tipoDte || (v.Doc_a_Emitir === 'CREDITO FISCAL' || v.tipoDocumento === '03' ? '03' : '01');
+        
+        let dateVal = v.Fecha_Facturacion || v.fhProcesamiento || v.fechaHoraTransaccion || v.Fecha;
+        let date = 'N/A';
+        if (dateVal) {
+            if (typeof dateVal === 'number') date = new Date(dateVal).toISOString().split('T')[0];
+            else {
+                try { date = new Date(dateVal).toISOString().split('T')[0]; }
+                catch(e) { date = String(dateVal).split('T')[0]; }
+            }
+        }
+        
+        const numDoc = v.mhControlNumber || v.controlNumber || v.codigoGeneracion || v.numDoc || 'N/A';
+        const clientName = v.Nombre || v.cliente_nombre || v.nombreReceptor || 'Consumidor Final';
 
         const total = parseFloat(v.montoTotalOperacion || v.totalPagar || v.Total || 0);
         let iva = 0;
