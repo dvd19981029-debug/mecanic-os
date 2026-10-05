@@ -21,7 +21,7 @@ import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
 import { renderTrabajosTaller } from './views/trabajos.js?v=71';
 import { renderIngresos } from './views/ingresos.js?v=87';
-import { renderLibrosIVA } from './views/libros_iva.js?v=9';
+import { renderLibrosIVA } from './views/libros_iva.js?v=10';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,

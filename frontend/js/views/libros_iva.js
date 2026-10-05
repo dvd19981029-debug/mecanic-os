@@ -142,8 +142,12 @@ function renderLibroVentas(parent, db) {
             <tr style="font-size: 0.8rem;">
                 <td style="white-space: nowrap;">${escapeHtml(date)}</td>
                 <td>${escapeHtml(tipoDte === '03' ? 'CCF' : 'FACT')}</td>
-                <td style="font-size:0.75rem; font-family:monospace; max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</td>
-                <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(clientName)}">${escapeHtml(clientName)}</td>
+                <td style="font-size:0.75rem; font-family:monospace;">
+                    <div style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</div>
+                </td>
+                <td>
+                    <div style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(clientName)}">${escapeHtml(clientName)}</div>
+                </td>
                 <td style="text-align: right; white-space: nowrap;">$${exentas.toFixed(2)}</td>
                 <td style="text-align: right; white-space: nowrap;">$${gravadas.toFixed(2)}</td>
                 <td style="text-align: right; white-space: nowrap;">$${iva.toFixed(2)}</td>
@@ -233,8 +237,12 @@ function renderLibroCompras(parent, db) {
             <tr style="font-size: 0.8rem;">
                 <td style="white-space: nowrap;">${escapeHtml(date)}</td>
                 <td>${escapeHtml(tipo)}</td>
-                <td style="font-size:0.75rem; font-family:monospace; max-width:150px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</td>
-                <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(provName)}">${escapeHtml(provName)}</td>
+                <td style="font-size:0.75rem; font-family:monospace;">
+                    <div style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(numDoc)}">${escapeHtml(numDoc)}</div>
+                </td>
+                <td>
+                    <div style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(provName)}">${escapeHtml(provName)}</div>
+                </td>
                 <td style="text-align: right; white-space: nowrap;">$${exentas.toFixed(2)}</td>
                 <td style="text-align: right; white-space: nowrap;">$${gravadas.toFixed(2)}</td>
                 <td style="text-align: right; white-space: nowrap;">$${iva.toFixed(2)}</td>
