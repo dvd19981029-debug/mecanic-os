@@ -1262,23 +1262,16 @@ export function renderBudgetEditor(container, budget) {
         const promo = (db.promociones || []).find(p => p.ID_Promocion === selectedPromoId);
         
         let discount = 0;
-        let promoRowHtml = '';
-        if (promo) {
-            if (promo.Tipo === 'desc_mano_obra') {
-                discount = sumLab * (parseFloat(promo.Valor || 0) / 100);
-                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. MO (${promo.Valor}%):</span><span>- $ ${discount.toFixed(2)}</span></div>`;
-            } else if (promo.Tipo === 'desc_productos') {
-                discount = sumProd * (parseFloat(promo.Valor || 0) / 100);
-                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. Prod (${promo.Valor}%):</span><span>- $ ${discount.toFixed(2)}</span></div>`;
-            } else if (promo.Tipo === 'monto_fijo') {
-                discount = parseFloat(promo.Valor || 0);
-                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Descuento Fijo:</span><span>- $ ${discount.toFixed(2)}</span></div>`;
-            }
-        }
-        discount = Math.min(discount, subtotal);
         const wsConfig = getWorkshopConfig(db);
         const selectedClientCode = isNew ? document.getElementById('editor-client-select').value : budget.Codigo_Cliente;
         const selectedClient = db.clientes.find(c => c.Codigo_Cliente === selectedClientCode) || { AplicaPercepcion: 0, AplicaRetencion: 0 };
+
+        if (promoSelect) {
+            budget.ID_Promocion = selectedPromoId;
+            if (!selectedPromoId) {
+                budget.Descuento = 0; // Clear residual discount to prevent ghost global manual discounts
+            }
+        }
 
         const calc = calculateBudgetTotals({
             budget,
@@ -1288,6 +1281,17 @@ export function renderBudgetEditor(container, budget) {
             client: selectedClient,
             db
         });
+
+        let promoRowHtml = '';
+        if (promo) {
+            if (promo.Tipo === 'desc_mano_obra') {
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. MO (${promo.Valor}%):</span><span>- $ ${calc.totals.discount.toFixed(2)}</span></div>`;
+            } else if (promo.Tipo === 'desc_productos') {
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Desc. Prod (${promo.Valor}%):</span><span>- $ ${calc.totals.discount.toFixed(2)}</span></div>`;
+            } else if (promo.Tipo === 'monto_fijo') {
+                promoRowHtml = `<div class="summary-row" style="color: var(--warning);"><span>Descuento Fijo:</span><span>- $ ${calc.totals.discount.toFixed(2)}</span></div>`;
+            }
+        }
 
         budget.Descuento = calc.totals.discount;
         if (promoSelect) {
@@ -2131,7 +2135,12 @@ export function calculateBudgetTotals({
         const qty = parseFloat(p.Cantidad !== undefined ? p.Cantidad : (p.qty || 1)) || 1;
         const rawUnitPrice = parseFloat(p.PrecioUnitario !== undefined ? p.PrecioUnitario : (p.unitPrice || 0)) || 0;
         const rawLine = Math.round(qty * rawUnitPrice * 100) / 100;
-        const itemDisc = Math.min(parseFloat(p.Descuento || 0) || 0, rawLine);
+        
+        const id = p['ID_Producto DPP'] || p.DPP || `PROD-${idx}`;
+        const inventoryProd = db && db.productos ? db.productos.find(x => x['ID_ Producto'] === id) : null;
+        const allowDiscount = inventoryProd ? String(inventoryProd.Descuento || '').trim().toUpperCase() !== 'NO' : true;
+        
+        const itemDisc = allowDiscount ? Math.min(parseFloat(p.Descuento || 0) || 0, rawLine) : 0;
         const baseAfterItem = Math.round((rawLine - itemDisc) * 100) / 100;
         const desc = p.Descripcion || p.description || 'Repuesto / Producto';
         return {
@@ -2145,8 +2154,9 @@ export function calculateBudgetTotals({
             source: p,
             type: 'product',
             index: idx,
-            id: p['ID_Producto DPP'] || p.DPP || `PROD-${idx}`,
+            id,
             unitMeasure: p.UnidadMedida || p.unidad || 'Pieza',
+            allowDiscount,
             rawLine,
             itemDisc,
             baseAfterItem,
@@ -2177,6 +2187,7 @@ export function calculateBudgetTotals({
             index: idx,
             id: l.ID_ManoObra || l.ID_DetalleMO || `MO-${idx}`,
             unitMeasure: l.UnidadMedida || l.unidad || 'Servicio',
+            allowDiscount: true,
             rawLine,
             itemDisc,
             baseAfterItem,
@@ -2210,13 +2221,17 @@ export function calculateBudgetTotals({
             const pct = (parseFloat(promo.Valor || 0) || 0) / 100;
             promoInfo.label = `Desc. MO (${promo.Valor}%)`;
             rawLabor.forEach(l => {
-                l.catDisc = Math.round(l.baseAfterItem * pct * 100) / 100;
+                if (l.allowDiscount) {
+                    l.catDisc = Math.round(l.baseAfterItem * pct * 100) / 100;
+                }
             });
         } else if (promo.Tipo === 'desc_productos') {
             const pct = (parseFloat(promo.Valor || 0) || 0) / 100;
             promoInfo.label = `Desc. Prod (${promo.Valor}%)`;
             rawProducts.forEach(p => {
-                p.catDisc = Math.round(p.baseAfterItem * pct * 100) / 100;
+                if (p.allowDiscount) {
+                    p.catDisc = Math.round(p.baseAfterItem * pct * 100) / 100;
+                }
             });
         } else if (promo.Tipo === 'monto_fijo') {
             promoInfo.label = `Descuento Fijo ($${parseFloat(promo.Valor || 0).toFixed(2)})`;
@@ -2228,6 +2243,7 @@ export function calculateBudgetTotals({
     });
 
     const totalBaseAfterCat = Math.round(allLines.reduce((s, l) => s + l.baseAfterCat, 0) * 100) / 100;
+    const totalBaseAfterCatEligible = Math.round(allLines.reduce((s, l) => s + (l.allowDiscount ? l.baseAfterCat : 0), 0) * 100) / 100;
 
     let targetGlobalDisc = 0;
     if (promo && promo.Tipo === 'monto_fijo') {
@@ -2235,15 +2251,18 @@ export function calculateBudgetTotals({
     } else if (!promo && budget.Descuento !== undefined) {
         targetGlobalDisc = parseFloat(budget.Descuento || 0) || 0;
     }
-    targetGlobalDisc = Math.min(targetGlobalDisc, totalBaseAfterCat);
+    targetGlobalDisc = Math.min(targetGlobalDisc, totalBaseAfterCatEligible);
 
     // Prorrateo sin fuga de centavos (Largest Remainder)
-    if (targetGlobalDisc > 0 && totalBaseAfterCat > 0) {
+    if (targetGlobalDisc > 0 && totalBaseAfterCatEligible > 0) {
         const totalCentsToDistribute = Math.round(targetGlobalDisc * 100);
         let sumBaseCents = 0;
 
         const allocations = allLines.map((line, idx) => {
-            const exactCents = (line.baseAfterCat / totalBaseAfterCat) * totalCentsToDistribute;
+            if (!line.allowDiscount) {
+                return { idx, baseCents: 0, rem: 0, allocatedCents: 0 };
+            }
+            const exactCents = (line.baseAfterCat / totalBaseAfterCatEligible) * totalCentsToDistribute;
             const baseCents = Math.floor(exactCents);
             const rem = exactCents - baseCents;
             sumBaseCents += baseCents;

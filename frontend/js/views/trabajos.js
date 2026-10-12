@@ -9,7 +9,7 @@ import {
     escapeHtml,
     matchesMultiFieldSearch
 } from '../utils.js?v=69';
-import { exportBudgetPDF } from './presupuestos.js?v=136';
+import { exportBudgetPDF } from './presupuestos.js?v=139';
 
 export function renderTrabajosTaller(container) {
     const db = getDatabase();

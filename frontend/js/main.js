@@ -2,6 +2,7 @@
  * Mecanic OS - Main Application Entry Point
  */
 
+
 import { initRouter } from './router.js?v=96';
 import {
     initFirebase,

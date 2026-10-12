@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=136';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=139';
 
 // Expose functions globally for other views (like clientes_vehiculos)
 window.viewDtePdf = viewDtePdf;
@@ -1056,52 +1056,97 @@ export function renderInvoicingWorkspace(container, presId) {
             recipientPayload.nrc = (client.NRC || '').replace(/\D/g, '').slice(0, 8);
         }
 
-        function getLlamaItemUnitPrice(item) {
+        // FacturaLlama DTE Item Pricing:
+        // FC (Factura Consumidor Final, DTE-01): Requiere precios unitarios CON IVA (Bruto).
+        // CCF (Comprobante de Crédito Fiscal, DTE-03): Requiere precios unitarios SIN IVA (Neto). FacturaLlama aplica 13% de IVA sobre las ventas gravadas.
+        const allBudgetItems = [
+            ...calc.items.products.map(item => ({
+                ...item,
+                itemType: 'BIENES',
+                code: String(item['ID_Producto DPP'] || item.id || '').trim(),
+                desc: item.Descripcion || item.description || 'Producto'
+            })),
+            ...calc.items.labor.map(item => ({
+                ...item,
+                itemType: 'SERVICIOS',
+                code: String(item['ID_ManoObra'] || item.id || '').trim(),
+                desc: item.Descripcion || item.description || 'Mano de Obra'
+            }))
+        ];
+
+        const enrichedBudgetItems = allBudgetItems.map(item => {
             const qty = parseInt(item.Cantidad || item.qty || 1);
-            let lineGross = 0;
+            const effLine = (item.effLine !== undefined) ? item.effLine : (item.effectiveLineTotal || 0);
+
+            let grossLine = 0;
             if (preciosConIva) {
-                lineGross = item.effectiveLineTotal;
+                grossLine = effLine;
             } else {
-                const exactGross = item.effectiveLineTotal * 1.13;
-                lineGross = Math.round(exactGross * 100) / 100;
-                // Reconciliación de decimales periódicos al deflactar entre 1.13 (ej. $88.50 -> $100.00, $79.65 -> $90.00)
+                const exactGross = effLine * 1.13;
+                grossLine = Math.round(exactGross * 100) / 100;
                 for (const step of [1.0, 0.50, 0.25, 0.10, 0.05]) {
                     const target = Math.round(exactGross / step) * step;
-                    if (Math.abs(exactGross - target) < 0.012 && Math.abs(target - lineGross) >= 0.004) {
-                        lineGross = Math.round(target * 100) / 100;
+                    if (Math.abs(exactGross - target) < 0.012 && Math.abs(target - grossLine) >= 0.004) {
+                        grossLine = Math.round(target * 100) / 100;
                         break;
                     }
                 }
             }
-            return parseFloat(((lineGross / qty) / 1.13).toFixed(4));
-        }
+            return {
+                ...item,
+                qty,
+                effLine,
+                grossLine
+            };
+        });
 
-        const formattedItems = [
-            ...calc.items.products.map(item => {
-                const qty = parseInt(item.Cantidad || item.qty || 1);
-                const unitPrice = getLlamaItemUnitPrice(item);
+        let formattedItems = [];
+
+        if (!isCCF) {
+            // FC (DTE-01): FacturaLlama espera precio unitario CON IVA (Bruto)
+            formattedItems = enrichedBudgetItems.map(it => ({
+                type: it.itemType,
+                internalCode: it.code,
+                description: it.desc,
+                quantity: it.qty,
+                unitPrice: parseFloat((it.grossLine / it.qty).toFixed(4)),
+                saleType: 'GRAVADA'
+            }));
+        } else {
+            // CCF (DTE-03): FacturaLlama espera precio unitario NETO (SIN IVA)
+            // Se distribuye la base gravada neta con Largest Remainder para que la sumatoria + IVA (13%) cuadre exacto al centavo con el presupuesto
+            const targetCommercialGross = calc.totals.commercialGross || (calc.totals.netSubtotal + calc.totals.iva);
+            const targetNetBase = Math.round((targetCommercialGross / 1.13) * 100) / 100;
+            const totalCents = Math.round(targetNetBase * 100);
+            const sumGross = enrichedBudgetItems.reduce((s, it) => s + it.grossLine, 0) || 1;
+
+            let sumBaseCents = 0;
+            const alloc = enrichedBudgetItems.map((it, idx) => {
+                const exact = (it.grossLine / sumGross) * totalCents;
+                const base = Math.floor(exact);
+                const rem = exact - base;
+                sumBaseCents += base;
+                return { idx, it, base, rem, allocated: base };
+            });
+
+            const diff = totalCents - sumBaseCents;
+            const sorted = [...alloc].sort((a, b) => b.rem - a.rem);
+            for (let i = 0; i < diff; i++) {
+                sorted[i].allocated += 1;
+            }
+
+            formattedItems = alloc.map(a => {
+                const lineNet = a.allocated / 100;
                 return {
-                    type: 'BIENES',
-                    internalCode: String(item['ID_Producto DPP'] || item.id || '').trim(),
-                    description: item.Descripcion || item.description || 'Producto',
-                    quantity: qty,
-                    unitPrice: unitPrice,
+                    type: a.it.itemType,
+                    internalCode: a.it.code,
+                    description: a.it.desc,
+                    quantity: a.it.qty,
+                    unitPrice: parseFloat((lineNet / a.it.qty).toFixed(4)),
                     saleType: 'GRAVADA'
                 };
-            }),
-            ...calc.items.labor.map(item => {
-                const qty = parseInt(item.Cantidad || item.qty || 1);
-                const unitPrice = getLlamaItemUnitPrice(item);
-                return {
-                    type: 'SERVICIOS',
-                    internalCode: String(item['ID_ManoObra'] || item.id || '').trim(),
-                    description: item.Descripcion || item.description || 'Mano de Obra',
-                    quantity: qty,
-                    unitPrice: unitPrice,
-                    saleType: 'GRAVADA'
-                };
-            })
-        ];
+            });
+        }
 
         const vehicle = db.vehiculos.find(v => v.ID_Vehiculo === p.ID_Vehiculo) || { Placas: p.Placas || 'N/A' };
         const vehicleInfo = `${vehicle.Placas || 'n/a'} ${vehicle.Marca || ''} ${vehicle.Modelo || ''} ${vehicle.Año || vehicle.Anio || ''}`;
@@ -1280,27 +1325,14 @@ export function renderInvoicingWorkspace(container, presId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${safe(calc.items.products.map(item => {
-                                const qty = parseInt(item.Cantidad || item.qty || 1);
-                                const unitPriceNeto = preciosConIva ? (item.effectiveLineTotal / qty / 1.13) : (item.effectiveLineTotal / qty);
+                            ${safe(formattedItems.map(item => {
+                                const lineTotal = Math.round(item.quantity * item.unitPrice * 100) / 100;
                                 return `
                                     <tr>
-                                        <td>${escapeHtml((item.Descripcion || '').substring(0,25))}</td>
-                                        <td>${qty}</td>
-                                        <td>$${unitPriceNeto.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${item.effectiveLineTotal.toFixed(2)}</td>
-                                    </tr>
-                                `;
-                            }).join(''))}
-                            ${safe(calc.items.labor.map(item => {
-                                const qty = parseInt(item.Cantidad || item.qty || 1);
-                                const unitPriceNeto = preciosConIva ? (item.effectiveLineTotal / qty / 1.13) : (item.effectiveLineTotal / qty);
-                                return `
-                                    <tr>
-                                        <td>${escapeHtml((item.Descripcion || '').substring(0,25))}</td>
-                                        <td>${qty}</td>
-                                        <td>$${unitPriceNeto.toFixed(2)}</td>
-                                        <td style="text-align:right;">$${item.effectiveLineTotal.toFixed(2)}</td>
+                                        <td>${escapeHtml((item.description || '').substring(0,25))}</td>
+                                        <td>${item.quantity}</td>
+                                        <td>$${item.unitPrice.toFixed(2)}</td>
+                                        <td style="text-align:right;">$${lineTotal.toFixed(2)}</td>
                                     </tr>
                                 `;
                             }).join(''))}

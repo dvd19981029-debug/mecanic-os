@@ -1342,38 +1342,96 @@ export function renderVentaRapida(container) {
             const wsConfig = getWorkshopConfig(db);
             const preciosConIva = wsConfig.features && wsConfig.features.precios_con_iva === true;
 
-            const formattedItems = [
-                ...(vr.productos || []).map(item => {
-                    const rawPrice = getItemDiscountedPrice(item, false);
-                    const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
-                    return {
-                        type: 'BIENES',
-                        internalCode: String(item.id || '').trim(),
-                        description: item.desc || 'Producto',
-                        quantity: parseInt(item.qty || 1),
-                        unitPrice: unitPrice,
-                        saleType: 'GRAVADA'
-                    };
-                }),
-                ...(vr.mano_obra || []).map(item => {
-                    const rawPrice = getItemDiscountedPrice(item, true);
-                    const unitPrice = preciosConIva ? parseFloat((rawPrice / 1.13).toFixed(4)) : rawPrice;
-                    return {
-                        type: 'SERVICIOS',
-                        internalCode: String(item.id || '').trim(),
-                        description: item.desc || 'Servicio',
-                        quantity: parseInt(item.qty || 1),
-                        unitPrice: unitPrice,
-                        saleType: 'GRAVADA'
-                    };
-                })
+            const allVRItems = [
+                ...(vr.productos || []).map(item => ({
+                    ...item,
+                    itemType: 'BIENES',
+                    code: String(item.id || '').trim(),
+                    desc: item.desc || 'Producto',
+                    qty: parseInt(item.qty || 1),
+                    discountedPrice: getItemDiscountedPrice(item, false)
+                })),
+                ...(vr.mano_obra || []).map(item => ({
+                    ...item,
+                    itemType: 'SERVICIOS',
+                    code: String(item.id || '').trim(),
+                    desc: item.desc || 'Servicio',
+                    qty: parseInt(item.qty || 1),
+                    discountedPrice: getItemDiscountedPrice(item, true)
+                }))
             ];
-            
-            let discountedSubtotal = 0;
-            (vr.productos || []).forEach(item => discountedSubtotal += getItemDiscountedPrice(item, false) * parseInt(item.qty || 1));
-            (vr.mano_obra || []).forEach(item => discountedSubtotal += getItemDiscountedPrice(item, true) * parseInt(item.qty || 1));
-            
-            const baseParaImpuestos = preciosConIva ? (discountedSubtotal / 1.13) : discountedSubtotal;
+
+            const enrichedVRItems = allVRItems.map(item => {
+                const effLine = Math.round(item.qty * item.discountedPrice * 100) / 100;
+                let grossLine = 0;
+                if (preciosConIva) {
+                    grossLine = effLine;
+                } else {
+                    const exactGross = effLine * 1.13;
+                    grossLine = Math.round(exactGross * 100) / 100;
+                    for (const step of [1.0, 0.50, 0.25, 0.10, 0.05]) {
+                        const target = Math.round(exactGross / step) * step;
+                        if (Math.abs(exactGross - target) < 0.012 && Math.abs(target - grossLine) >= 0.004) {
+                            grossLine = Math.round(target * 100) / 100;
+                            break;
+                        }
+                    }
+                }
+                return {
+                    ...item,
+                    effLine,
+                    grossLine
+                };
+            });
+
+            let formattedItems = [];
+            const sumGross = Math.round(enrichedVRItems.reduce((s, it) => s + it.grossLine, 0) * 100) / 100;
+            const targetNetBase = Math.round((sumGross / 1.13) * 100) / 100;
+
+            if (!isCCF) {
+                // FC (Factura Consumidor Final DTE-01): FacturaLlama espera precio unitario CON IVA (Bruto)
+                formattedItems = enrichedVRItems.map(it => ({
+                    type: it.itemType,
+                    internalCode: it.code,
+                    description: it.desc,
+                    quantity: it.qty,
+                    unitPrice: parseFloat((it.grossLine / it.qty).toFixed(4)),
+                    saleType: 'GRAVADA'
+                }));
+            } else {
+                // CCF (Comprobante de Crédito Fiscal DTE-03): FacturaLlama espera precio unitario NETO (SIN IVA)
+                const totalCents = Math.round(targetNetBase * 100);
+                const safeSumGross = sumGross || 1;
+
+                let sumBaseCents = 0;
+                const alloc = enrichedVRItems.map((it, idx) => {
+                    const exact = (it.grossLine / safeSumGross) * totalCents;
+                    const base = Math.floor(exact);
+                    const rem = exact - base;
+                    sumBaseCents += base;
+                    return { idx, it, base, rem, allocated: base };
+                });
+
+                const diff = totalCents - sumBaseCents;
+                const sorted = [...alloc].sort((a, b) => b.rem - a.rem);
+                for (let i = 0; i < diff; i++) {
+                    sorted[i].allocated += 1;
+                }
+
+                formattedItems = alloc.map(a => {
+                    const lineNet = a.allocated / 100;
+                    return {
+                        type: a.it.itemType,
+                        internalCode: a.it.code,
+                        description: a.it.desc,
+                        quantity: a.it.qty,
+                        unitPrice: parseFloat((lineNet / a.it.qty).toFixed(4)),
+                        saleType: 'GRAVADA'
+                    };
+                });
+            }
+
+            const baseParaImpuestos = targetNetBase;
             const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
             const dteRetention = (isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
             

@@ -52,6 +52,14 @@
             if (e.target && e.target !== window && e.target.tagName !== 'SCRIPT') {
                 return;
             }
+            
+            // Ignore cross-origin / browser extension "Script error." which have no actionable stack trace
+            // These are false positives that shouldn't crash the entire application for the user.
+            if (e.message === 'Script error.' && (!e.filename || e.filename === '') && e.lineno === 0) {
+                console.warn("Ignored cross-origin or extension Script error.");
+                return;
+            }
+
             console.error("Global Error Interceptor:", e);
             const container = document.getElementById('view-container') || document.body;
             if (container) {
@@ -384,6 +392,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="catalogs.js?v=85"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+
     <script src="dataService.js?v=90"></script>
     <script type="module" src="js/main.js?v=166"></script>
 </body>
