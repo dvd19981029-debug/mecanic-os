@@ -100,7 +100,7 @@
                         Una operación asíncrona crítica del sistema falló y no pudo completarse:
                     </p>
                     <div style="background: rgba(0,0,0,0.5); padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; text-align: left; max-width: 800px; overflow-x: auto; margin-bottom: 2rem; width: 100%; border: 1px solid #ff7675; color: #ff7675; white-space: pre-wrap; word-break: break-all;">
-                        <strong>Detalle del fallo:</strong><br>${e.reason ? (e.reason.stack || e.reason.message || e.reason) : JSON.stringify(e)}
+                        <strong>Detalle del fallo:</strong><br>${e.reason ? ('<strong>Tipo:</strong> ' + (e.reason.name || 'Error') + (e.reason.code ? ' [' + e.reason.code + ']' : '') + '<br><strong>Mensaje:</strong> ' + String(e.reason.message || e.reason).replace(/</g, '&lt;') + '<br><br><strong>Origen (stack):</strong><br>' + String(e.reason.stack || 'Sin stack disponible').replace(/</g, '&lt;')) : JSON.stringify(e)}
                     </div>
                     <button onclick="window.location.reload(true)" style="background: #3498db; color: #fff; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s;">
                         <i class="fa-solid fa-rotate"></i> Forzar Recarga de Código
