@@ -6,12 +6,12 @@ import { renderTallerDashboard } from './views/dashboard.js?v=69';
 import { renderConfiguracion } from './views/configuracion.js?v=89';
 import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=97';
-import { renderVehiculos } from './views/vehiculos.js?v=92';
+import { renderVehiculos } from './views/vehiculos.js?v=93';
 import { renderRevision21 } from './views/revision21.js?v=80';
-import { renderPresupuestos } from './views/presupuestos.js?v=139';
+import { renderPresupuestos } from './views/presupuestos.js?v=140';
 import { renderKanban } from './views/kanban.js?v=69';
 
-import { renderFacturador } from './views/facturador.js?v=148';
+import { renderFacturador } from './views/facturador.js?v=149';
 import { renderVentaRapida } from './views/venta_rapida.js?v=96';
 import { renderCaja } from './views/caja.js?v=95';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
@@ -20,7 +20,7 @@ import { renderGastos } from './views/gastos.js?v=92';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
 import { renderComisiones } from './views/comisiones.js?v=69';
-import { renderTrabajosTaller } from './views/trabajos.js?v=71';
+import { renderTrabajosTaller } from './views/trabajos.js?v=72';
 import { renderIngresos } from './views/ingresos.js?v=87';
 import { renderLibrosIVA } from './views/libros_iva.js?v=11';
 import {

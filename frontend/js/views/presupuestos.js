@@ -4214,6 +4214,16 @@ export function exportBudgetPDF(budgetId) {
 
     printWindow.document.write(rendered.html);
     printWindow.document.close();
+
+    // En móvil/PWA/WebView window.close() puede ser ignorado: si la ventana sigue abierta, volver a la app
+    const originalClose = printWindow.close.bind(printWindow);
+    const appUrl = window.location.href;
+    printWindow.close = function () {
+        originalClose();
+        setTimeout(() => {
+            if (!printWindow.closed) printWindow.location.replace(appUrl);
+        }, 250);
+    };
 }
 
 /**
