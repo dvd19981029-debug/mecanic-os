@@ -11,7 +11,7 @@ import { renderRevision21 } from './views/revision21.js?v=80';
 import { renderPresupuestos } from './views/presupuestos.js?v=139';
 import { renderKanban } from './views/kanban.js?v=69';
 
-import { renderFacturador } from './views/facturador.js?v=147';
+import { renderFacturador } from './views/facturador.js?v=148';
 import { renderVentaRapida } from './views/venta_rapida.js?v=96';
 import { renderCaja } from './views/caja.js?v=95';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';

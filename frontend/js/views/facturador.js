@@ -1109,7 +1109,7 @@ export function renderInvoicingWorkspace(container, presId) {
                 internalCode: it.code,
                 description: it.desc,
                 quantity: it.qty,
-                unitPrice: parseFloat((it.grossLine / it.qty).toFixed(4)),
+                unitPrice: parseFloat(((it.grossLine / it.qty) / 1.13).toFixed(4)),
                 saleType: 'GRAVADA'
             }));
         } else {
@@ -1152,7 +1152,7 @@ export function renderInvoicingWorkspace(container, presId) {
         const vehicleInfo = `${vehicle.Placas || 'n/a'} ${vehicle.Marca || ''} ${vehicle.Modelo || ''} ${vehicle.Año || vehicle.Anio || ''}`;
         const ws = (db.saas_state && db.saas_state.workshopData) || {};
 
-        const dteRetention = retention > 0 ? parseFloat(retention.toFixed(4)) : 0;
+        const dteRetention = (isCCF && retention > 0) ? parseFloat(retention.toFixed(4)) : 0;
 
         const dtePayload = {
             id: generateUUID(),
