@@ -2479,7 +2479,7 @@ function queryDteStatusMH(dteId) {
     });
 }
 
-function openInvalidateDteModal(dteId, presId) {
+export function openInvalidateDteModal(dteId, presId) {
     const db = getDatabase();
     const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) ||
                    getSecureDteConfig();

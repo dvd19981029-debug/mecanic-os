@@ -33,7 +33,7 @@ import {
     showDteErrorModal,
     getNombreProducto
 } from '../utils.js?v=80';
-import { printDteTicket, viewDtePdf } from './facturador.js?v=145';
+import { printDteTicket, viewDtePdf, openInvalidateDteModal } from './facturador.js?v=150';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();
@@ -1128,6 +1128,7 @@ export function renderVentaRapida(container) {
                     <div style="display:flex; gap:0.5rem;">
                         <button class="btn btn-secondary btn-print-pos-ticket" data-id="${vr.ID_Venta_Rapida}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-receipt"></i> Ticket</button>
                         ${safe(vr.controlNumber ? `<button class="btn btn-primary btn-view-pos-pdf" data-id="${vr.controlNumber}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>` : '')}
+                        ${safe(vr.controlNumber ? `<button class="btn btn-danger btn-invalidate-pos-dte" data-id="${vr.controlNumber}" data-vrid="${vr.ID_Venta_Rapida}" style="padding:0.3rem 0.5rem; font-size:0.75rem; display:inline-flex; align-items:center; gap:0.25rem;"><i class="fa-solid fa-ban"></i> Anular</button>` : '')}
                     </div>
                 </td>
             `;
@@ -1144,6 +1145,12 @@ export function renderVentaRapida(container) {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 viewDtePdf(btn.getAttribute('data-id'));
+            });
+        });
+        rowsContainer.querySelectorAll('.btn-invalidate-pos-dte').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openInvalidateDteModal(btn.getAttribute('data-id'), btn.getAttribute('data-vrid'));
             });
         });
     }
