@@ -756,7 +756,7 @@ export function renderVentaRapida(container) {
         }
         
         const isGranContrib = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-        if (isGranContrib && baseParaImpuestos >= 100.00) {
+        if (isGranContrib && baseParaImpuestos >= 100.00 && docTypeSelect.value === 'CCF') {
             retention = baseParaImpuestos * 0.01;
             grandTotal -= retention;
             retPerSection.innerHTML += `<div class="summary-row" style="display:flex; justify-content:space-between;"><span>Retención (1%):</span><span style="color: var(--warning);">- $ ${retention.toFixed(2)}</span></div>`;
@@ -1396,13 +1396,13 @@ export function renderVentaRapida(container) {
             const targetNetBase = Math.round((sumGross / 1.13) * 100) / 100;
 
             if (!isCCF) {
-                // FC (Factura Consumidor Final DTE-01): FacturaLlama espera precio unitario CON IVA (Bruto)
+                // FC (Factura Consumidor Final DTE-01): FacturaLlama espera precio unitario NETO (SIN IVA) y le suma el 13%
                 formattedItems = enrichedVRItems.map(it => ({
                     type: it.itemType,
                     internalCode: it.code,
                     description: it.desc,
                     quantity: it.qty,
-                    unitPrice: parseFloat((it.grossLine / it.qty).toFixed(4)),
+                    unitPrice: parseFloat(((it.grossLine / it.qty) / 1.13).toFixed(4)),
                     saleType: 'GRAVADA'
                 }));
             } else {
@@ -1440,7 +1440,7 @@ export function renderVentaRapida(container) {
 
             const baseParaImpuestos = targetNetBase;
             const isGranContribValue = client['Categoría Contribuyente'] === 'GRANDE' || client.AplicaRetencion > 0;
-            const dteRetention = (isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
+            const dteRetention = (isCCF && isGranContribValue && baseParaImpuestos >= 100.00) ? parseFloat((baseParaImpuestos * 0.01).toFixed(4)) : 0;
             
             const dtePayload = {
                 id: generateUUID(),
