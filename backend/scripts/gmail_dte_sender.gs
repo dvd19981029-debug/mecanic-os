@@ -15,6 +15,28 @@ function doPost(e) {
     
     var contents = JSON.parse(e.postData.contents);
     
+    if (contents.action === "sendCustomEmail") {
+      // Correo de texto plano escrito por el usuario, con varios PDF adjuntos (uno por presupuesto)
+      var customAttachments = [];
+      (contents.attachments || []).forEach(function(att) {
+        var blob = Utilities.newBlob(att.html, 'text/html', 'presupuesto.html')
+                            .getAs('application/pdf')
+                            .setName(att.name || 'Presupuesto.pdf');
+        customAttachments.push(blob);
+      });
+
+      GmailApp.sendEmail(contents.recipients, contents.subject || "", contents.textBody || "", {
+        name: contents.senderName || "Taller",
+        replyTo: contents.replyTo || "ventas@forbiddensoluciones.com",
+        attachments: customAttachments
+      });
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Correo enviado exitosamente vía Apps Script"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (contents.action === "sendDteEmail" || contents.action === "sendBudgetEmail") {
       var recipient = contents.recipientEmail;
       var subject = contents.subject || (contents.action === "sendBudgetEmail" ? "Presupuesto de Reparación" : "Documento Tributario Electrónico");

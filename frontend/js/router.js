@@ -8,7 +8,7 @@ import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=97';
 import { renderVehiculos } from './views/vehiculos.js?v=94';
 import { renderRevision21 } from './views/revision21.js?v=81';
-import { renderPresupuestos } from './views/presupuestos.js?v=143';
+import { renderPresupuestos } from './views/presupuestos.js?v=144';
 import { renderKanban } from './views/kanban.js?v=69';
 
 import { renderFacturador } from './views/facturador.js?v=151';

@@ -1275,6 +1275,91 @@ async function sendBudgetEmail(req, res) {
     }
 }
 
+/**
+ * Envía UN correo con texto plano libre (escrito por el usuario) y varios presupuestos adjuntos en PDF.
+ * El mensaje se envía tal cual, sin plantilla. Canal: Google Apps Script (acción sendCustomEmail).
+ */
+async function sendCustomEmail(req, res) {
+    try {
+        const { recipients, subject, body, attachments, budgetIds, workshopId, workshopName } = req.body || {};
+        const MAX_ATTACHMENTS = 10;
+        const MAX_RECIPIENTS = 20;
+        const emailRegex = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
+        const list = Array.isArray(recipients)
+            ? [...new Set(recipients.map(r => String(r || '').trim().toLowerCase()).filter(Boolean))]
+            : [];
+        if (list.length === 0) {
+            return res.status(400).json({ success: false, message: "Debe indicar al menos un correo destinatario." });
+        }
+        if (list.length > MAX_RECIPIENTS) {
+            return res.status(400).json({ success: false, message: `Máximo ${MAX_RECIPIENTS} destinatarios por envío.` });
+        }
+        const badEmails = list.filter(r => !emailRegex.test(r));
+        if (badEmails.length > 0) {
+            return res.status(400).json({ success: false, message: `Correo(s) no válido(s): ${badEmails.join(', ')}` });
+        }
+
+        const cleanSubject = String(subject || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
+        if (!cleanSubject) {
+            return res.status(400).json({ success: false, message: "Debe escribir el asunto del correo." });
+        }
+        const textBody = String(body || '');
+        if (!textBody.trim()) {
+            return res.status(400).json({ success: false, message: "Debe escribir el mensaje del correo." });
+        }
+        if (textBody.length > 20000) {
+            return res.status(400).json({ success: false, message: "El mensaje es demasiado largo (máximo 20,000 caracteres)." });
+        }
+
+        const files = Array.isArray(attachments) ? attachments : [];
+        if (files.length === 0 || files.length > MAX_ATTACHMENTS) {
+            return res.status(400).json({ success: false, message: `Debe adjuntar entre 1 y ${MAX_ATTACHMENTS} presupuestos.` });
+        }
+        const cleanFiles = [];
+        for (const f of files) {
+            const html = f && typeof f.html === 'string' ? f.html : '';
+            if (!html.trim()) {
+                return res.status(400).json({ success: false, message: "Uno de los presupuestos adjuntos no tiene contenido." });
+            }
+            const baseName = String((f && f.name) || 'Presupuesto.pdf').replace(/[^0-9A-Za-z_.-]/g, '_').replace(/\.pdf$/i, '');
+            cleanFiles.push({ name: `${baseName || 'Presupuesto'}.pdf`, html });
+        }
+
+        const appScriptUrl = process.env.APPSCRIPT_SENDER_URL ||
+                             process.env.APPSCRIPT_URL ||
+                             "https://script.google.com/macros/s/AKfycbxgj9nPnoG-N-CkxnNExYVz_x405uxBkoxTXY8hwsQVNz4sGsei9wcEGIpQkHVLcvwXXw/exec";
+
+        const result = await postToAppsScript(appScriptUrl.trim(), {
+            action: 'sendCustomEmail',
+            recipients: list.join(','),
+            subject: cleanSubject,
+            textBody: textBody,
+            senderName: String(workshopName || 'Taller').slice(0, 100),
+            attachments: cleanFiles
+        });
+
+        if (!result || result.success === false) {
+            const detail = (result && (result.message || result.error)) || 'Sin respuesta del servicio de correo';
+            const needsUpdate = /acci[oó]n no v[aá]lida/i.test(String(detail));
+            console.warn("sendCustomEmail falló en Apps Script:", detail);
+            saveDteLog("Envío Correo Personalizado (Fallo)", workshopId, "PRESUPUESTO", { recipients: list, budgetIds, subject: cleanSubject }, 502, result || {}, "APPSCRIPT");
+            return res.status(502).json({
+                success: false,
+                message: needsUpdate
+                    ? "El servicio de correo (Apps Script) debe actualizarse para soportar este envío."
+                    : `El servicio de correo rechazó el envío: ${detail}`
+            });
+        }
+
+        saveDteLog("Envío Correo Personalizado (Apps Script)", workshopId, "PRESUPUESTO", { recipients: list, budgetIds, subject: cleanSubject, adjuntos: cleanFiles.length }, 200, result, "APPSCRIPT");
+        return res.json({ success: true, message: `Correo enviado a ${list.join(', ')}`, details: result });
+    } catch (err) {
+        console.error("Exception on sendCustomEmail:", err);
+        return res.status(500).json({ success: false, message: "Error al enviar el correo: " + err.message });
+    }
+}
+
 module.exports = {
     testConnection,
     emitDte,
@@ -1283,5 +1368,6 @@ module.exports = {
     downloadDtePdf,
     receiveIncomingDte,
     resendDteEmail,
-    sendBudgetEmail
+    sendBudgetEmail,
+    sendCustomEmail
 };

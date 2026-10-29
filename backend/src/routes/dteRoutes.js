@@ -9,6 +9,7 @@ router.post('/retrieve', dteController.retrieveDte);
 router.post('/pdf', dteController.downloadDtePdf);
 router.post('/resend-email', dteController.resendDteEmail);
 router.post('/send-budget-email', dteController.sendBudgetEmail);
+router.post('/send-custom-email', dteController.sendCustomEmail);
 router.post('/incoming-webhook', dteController.receiveIncomingDte);
 
 module.exports = router;

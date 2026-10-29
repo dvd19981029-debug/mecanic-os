@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=143';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=144';
 import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 // Expose functions globally for other views (like clientes_vehiculos)

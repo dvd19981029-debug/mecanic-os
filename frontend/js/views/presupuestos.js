@@ -73,6 +73,9 @@ export function renderPresupuestos(container, queryParams) {
                     <input type="text" id="budget-search" placeholder="Buscar por número o cliente...">
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="bulk-email-btn" style="display: none; color: #60a5fa;" disabled><i class="fa-regular fa-paper-plane"></i> Enviar por correo (0)</button>
+                    <button class="btn" id="bulk-approve-btn" style="display: none; background: #2ecc71; color: white; border: none;" disabled><i class="fa-regular fa-circle-check"></i> Aprobar (0)</button>
+                    <button class="btn btn-secondary" id="select-mode-btn"><i class="fa-regular fa-square-check"></i> Seleccionar</button>
                     <button class="btn btn-secondary" id="history-budget-btn" style="background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-clock-rotate-left"></i> Historial</button>
                     <button class="btn btn-primary" id="new-budget-direct-btn"><i class="fa-solid fa-file-circle-plus"></i> Nueva Cotización</button>
                 </div>
@@ -82,6 +85,7 @@ export function renderPresupuestos(container, queryParams) {
                 <table>
                     <thead>
                         <tr>
+                            <th class="sel-col" style="display: none; width: 36px;"></th>
                             <th>Correlativo</th>
                             <th>Código Presupuesto</th>
                             <th>Fecha</th>
@@ -182,6 +186,48 @@ export function renderPresupuestos(container, queryParams) {
     const rowsContainer = document.getElementById('budgets-list-rows');
     const searchInput = document.getElementById('budget-search');
 
+    // ---- Modo selección (aprobar / enviar por correo varios presupuestos del mismo cliente) ----
+    let selectionMode = false;
+    const selectedIds = new Set();
+    const budgetClientKey = (b) => String(b.Codigo_Cliente || b['Codigo Cliente'] || b.Nombre || '').trim();
+
+    function refreshSelectionUI() {
+        const firstSelected = selectedIds.size > 0
+            ? db.presupuestos.find(b => selectedIds.has(b['ID Presupuesto']))
+            : null;
+        const lockedClient = firstSelected ? budgetClientKey(firstSelected) : null;
+
+        rowsContainer.querySelectorAll('.sel-budget-cb').forEach(cb => {
+            const id = cb.getAttribute('data-id');
+            const b = db.presupuestos.find(x => x['ID Presupuesto'] === id);
+            cb.checked = selectedIds.has(id);
+            let blocked = '';
+            if (!b || b.Estado != 1) blocked = 'Solo se pueden seleccionar presupuestos en estado Creado';
+            else if (lockedClient && budgetClientKey(b) !== lockedClient) blocked = 'Solo se pueden seleccionar presupuestos del mismo cliente';
+            cb.disabled = Boolean(blocked) && !cb.checked;
+            cb.title = cb.disabled ? blocked : '';
+        });
+
+        document.querySelectorAll('.sel-col').forEach(el => { el.style.display = selectionMode ? '' : 'none'; });
+        const n = selectedIds.size;
+        const selectBtn = document.getElementById('select-mode-btn');
+        const approveBtn = document.getElementById('bulk-approve-btn');
+        const emailBtn = document.getElementById('bulk-email-btn');
+        if (selectBtn) selectBtn.innerHTML = selectionMode
+            ? '<i class="fa-solid fa-xmark"></i> Cancelar selección'
+            : '<i class="fa-regular fa-square-check"></i> Seleccionar';
+        if (approveBtn) {
+            approveBtn.style.display = selectionMode ? '' : 'none';
+            approveBtn.disabled = n === 0;
+            approveBtn.innerHTML = `<i class="fa-regular fa-circle-check"></i> Aprobar (${n})`;
+        }
+        if (emailBtn) {
+            emailBtn.style.display = selectionMode ? '' : 'none';
+            emailBtn.disabled = n === 0;
+            emailBtn.innerHTML = `<i class="fa-regular fa-paper-plane"></i> Enviar por correo (${n})`;
+        }
+    }
+
     function populateBudgetsList(filter = '') {
         if (!db.detalle_productos) db.detalle_productos = db['21 Detalle Presupuesto Producto'] || [];
         if (!db.detalle_mano_obra) db.detalle_mano_obra = db['11 Detalle Mano de Obra'] || [];
@@ -208,7 +254,7 @@ export function renderPresupuestos(container, queryParams) {
         });
 
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
+            rowsContainer.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
             return;
         }
 
@@ -235,6 +281,7 @@ export function renderPresupuestos(container, queryParams) {
 
             const tr = document.createElement('tr');
             tr.innerHTML = html`
+                <td class="sel-col" style="display: ${selectionMode ? '' : 'none'};"><input type="checkbox" class="sel-budget-cb" data-id="${escapeHtml(p['ID Presupuesto'])}"></td>
                 <td><strong style="font-family:monospace;">${escapeHtml(p.Correlativo ? String(p.Correlativo) : '—')}</strong></td>
                 <td><strong>${escapeHtml(p['ID Presupuesto'])}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
@@ -255,6 +302,7 @@ export function renderPresupuestos(container, queryParams) {
             `;
             rowsContainer.appendChild(tr);
         });
+        refreshSelectionUI();
 
         // Bind print PDF buttons
         rowsContainer.querySelectorAll('.btn-print-budget-pdf').forEach(btn => {
@@ -308,6 +356,46 @@ export function renderPresupuestos(container, queryParams) {
 
     searchInput.addEventListener('input', (e) => {
         populateBudgetsList(e.target.value);
+    });
+
+    rowsContainer.addEventListener('change', (e) => {
+        const cb = e.target.closest('.sel-budget-cb');
+        if (!cb) return;
+        const id = cb.getAttribute('data-id');
+        if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+        refreshSelectionUI();
+    });
+
+    document.getElementById('select-mode-btn').addEventListener('click', () => {
+        selectionMode = !selectionMode;
+        if (!selectionMode) selectedIds.clear();
+        refreshSelectionUI();
+    });
+
+    document.getElementById('bulk-approve-btn').addEventListener('click', () => {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+        if (!confirm(`¿Estás seguro de que deseas aprobar ${ids.length} presupuesto(s)? Los vehículos pasarán al estado de reparación activa en el taller (Kanban).`)) return;
+        let approved = 0;
+        ids.forEach(id => {
+            const b = db.presupuestos.find(x => x['ID Presupuesto'] === id);
+            if (b && b.Estado == 1) { b.Estado = 2; approved++; }
+        });
+        saveDatabase(db);
+        showToast(`${approved} presupuesto(s) aprobado(s) con éxito.`, "success");
+        selectedIds.clear();
+        selectionMode = false;
+        populateBudgetsList(searchInput.value || '');
+    });
+
+    document.getElementById('bulk-email-btn').addEventListener('click', () => {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+        openBulkBudgetEmailModal(ids, () => {
+            selectedIds.clear();
+            selectionMode = false;
+            populateBudgetsList(searchInput.value || '');
+        });
     });
 
     document.getElementById('new-budget-direct-btn').addEventListener('click', () => {
@@ -4231,6 +4319,184 @@ export function exportBudgetPDF(budgetId) {
             if (!printWindow.closed) printWindow.location.replace(appUrl);
         }, 250);
     };
+}
+
+/**
+ * Modal para enviar por correo VARIOS presupuestos (del mismo cliente) en un solo correo.
+ * El usuario escribe destinatarios, asunto y mensaje; el texto se envía tal cual (texto plano)
+ * y cada presupuesto va adjunto como PDF.
+ */
+export function openBulkBudgetEmailModal(budgetIds, onDone) {
+    try {
+        const db = getDatabase();
+        const MAX_ATTACHMENTS = 10;
+        const budgets = (budgetIds || []).map(id => db.presupuestos.find(b => b['ID Presupuesto'] === id)).filter(Boolean);
+        if (budgets.length === 0) {
+            showToast("No se encontraron presupuestos para enviar.", "danger");
+            return;
+        }
+        if (budgets.length > MAX_ATTACHMENTS) {
+            showToast(`Puedes enviar un máximo de ${MAX_ATTACHMENTS} presupuestos por correo.`, "warning");
+            return;
+        }
+        if (budgets.some(b => b.Estado != 1)) {
+            showToast("Solo se pueden enviar presupuestos en estado Creado.", "warning");
+            return;
+        }
+        const clientKey = (b) => String(b.Codigo_Cliente || b['Codigo Cliente'] || b.Nombre || '').trim();
+        if (new Set(budgets.map(clientKey)).size > 1) {
+            showToast("Solo se pueden enviar presupuestos del mismo cliente.", "warning");
+            return;
+        }
+
+        const first = budgets[0];
+        const client = db.clientes.find(c => c.Codigo_Cliente === first.Codigo_Cliente) || { Nombre: first.Nombre };
+        const clientName = client.Nombre || first.Nombre || 'Cliente';
+        const defaultEmail = client.Correo || client.Email || client.correo || first.Correo || first.Email || '';
+        const modalId = `modal-bulk-budget-email-${Date.now()}`;
+
+        const attachmentsHtml = budgets.map(b => {
+            const total = getBudgetGrandTotal(b, db);
+            return `<div style="display:flex; justify-content:space-between; gap:0.75rem; font-size:0.8rem; padding:0.3rem 0;">
+                        <span><i class="fa-regular fa-file-pdf" style="color:#f87171; margin-right:0.35rem;"></i>Presupuesto_${escapeHtml(b['ID Presupuesto'])}.pdf</span>
+                        <strong>$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                    </div>`;
+        }).join('');
+
+        const fieldStyle = "width:100%; padding:0.6rem 0.75rem; background:var(--bg-input, rgba(0,0,0,0.3)); border:1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius:6px; color:var(--text-primary); font-size:0.9rem; box-sizing:border-box; font-family:inherit;";
+        const labelStyle = "display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.4rem; color:var(--text-primary);";
+
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="modal-backdrop" id="${modalId}" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); backdrop-filter:blur(5px); z-index:99999; display:flex; align-items:center; justify-content:center;">
+                <div class="glass-card" style="width:92%; max-width:560px; max-height:92vh; overflow-y:auto; padding:1.6rem; border-radius:14px; background:var(--bg-surface, #1e293b); border:1px solid rgba(255,255,255,0.15); box-shadow:0 20px 45px rgba(0,0,0,0.6); color:var(--text-primary, #f8fafc);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-bottom:0.8rem; margin-bottom:1.1rem;">
+                        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem; font-weight:700;"><i class="fa-regular fa-paper-plane" style="color:#60a5fa;"></i> Enviar por correo (${budgets.length} presupuesto${budgets.length > 1 ? 's' : ''})</h3>
+                        <button type="button" id="close-bulk-email-modal" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; line-height:1;">&times;</button>
+                    </div>
+                    <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">Cliente: <strong style="color:var(--text-primary);">${escapeHtml(clientName)}</strong></div>
+                    <form id="form-bulk-budget-email">
+                        <div style="margin-bottom:1rem;">
+                            <label style="${labelStyle}">Para:</label>
+                            <input type="text" id="bulk-email-to" value="${escapeHtml(defaultEmail)}" placeholder="correo1@ejemplo.com, correo2@ejemplo.com" autocomplete="off" style="${fieldStyle}">
+                            <small style="display:block; margin-top:0.3rem; color:var(--text-muted); font-size:0.75rem;">Puedes escribir varios correos separados por coma, punto y coma o espacio.</small>
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <label style="${labelStyle}">Asunto:</label>
+                            <input type="text" id="bulk-email-subject" maxlength="200" autocomplete="off" style="${fieldStyle}">
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <label style="${labelStyle}">Mensaje:</label>
+                            <textarea id="bulk-email-body" rows="8" maxlength="20000" style="${fieldStyle} resize:vertical;"></textarea>
+                            <small style="display:block; margin-top:0.3rem; color:var(--text-muted); font-size:0.75rem;">Se envía exactamente lo que escribas, como texto plano.</small>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:0.6rem 0.9rem; margin-bottom:1.25rem;">
+                            <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.25rem; color:var(--text-muted);">Adjuntos (PDF):</div>
+                            ${attachmentsHtml}
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border-color, rgba(255,255,255,0.1)); padding-top:1.1rem;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-bulk-email" style="padding:0.55rem 1.1rem; font-size:0.85rem;">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btn-confirm-bulk-email" style="padding:0.55rem 1.4rem; font-size:0.85rem; background:#3b82f6; border:none; color:#ffffff; font-weight:700; display:inline-flex; align-items:center; gap:0.4rem;"><i class="fa-regular fa-paper-plane"></i> Enviar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `);
+
+        const modalEl = document.getElementById(modalId);
+        const closeModal = () => modalEl.remove();
+        document.getElementById('close-bulk-email-modal').addEventListener('click', closeModal);
+        document.getElementById('btn-cancel-bulk-email').addEventListener('click', closeModal);
+        setTimeout(() => { const el = document.getElementById(defaultEmail ? 'bulk-email-subject' : 'bulk-email-to'); if (el) el.focus(); }, 100);
+
+        const restoreBtn = (btn) => { btn.disabled = false; btn.innerHTML = '<i class="fa-regular fa-paper-plane"></i> Enviar'; };
+
+        document.getElementById('form-bulk-budget-email').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const emailRegex = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+            const rawList = document.getElementById('bulk-email-to').value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+            const recipients = [...new Set(rawList.map(x => x.toLowerCase()))];
+            const invalid = recipients.filter(x => !emailRegex.test(x));
+            if (recipients.length === 0) { showToast("Escribe al menos un correo destinatario.", "warning"); return; }
+            if (invalid.length > 0) { showToast(`Correo(s) no válido(s): ${invalid.join(', ')}`, "warning"); return; }
+            if (recipients.length > 20) { showToast("Puedes enviar a un máximo de 20 destinatarios.", "warning"); return; }
+
+            const subject = document.getElementById('bulk-email-subject').value.trim();
+            const body = document.getElementById('bulk-email-body').value;
+            if (!subject) { showToast("Escribe el asunto del correo.", "warning"); return; }
+            if (!body.trim()) { showToast("Escribe el mensaje del correo.", "warning"); return; }
+
+            const sendBtn = document.getElementById('btn-confirm-bulk-email');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Enviando...';
+
+            try {
+                const dteCfg = (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.dte_config) || getSecureDteConfig();
+                const baseUrl = sanitizeBackendUrl(dteCfg.backendUrl || getBackendUrl(db));
+                if (!baseUrl) {
+                    showToast("Error: URL del servidor backend no configurada.", "danger");
+                    restoreBtn(sendBtn);
+                    return;
+                }
+
+                const attachments = [];
+                for (const b of budgets) {
+                    const id = b['ID Presupuesto'];
+                    const rendered = getBudgetFullHtml(id);
+                    if (!rendered || !rendered.html) {
+                        showToast(`No se pudo generar el PDF del presupuesto ${id}.`, "danger");
+                        restoreBtn(sendBtn);
+                        return;
+                    }
+                    attachments.push({ name: `Presupuesto_${id.replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`, html: rendered.html });
+                }
+
+                const wsConfig = getWorkshopConfig(db);
+                const workshopName = (db.config_taller && (db.config_taller.nombre_comercial || db.config_taller.nombre || db.config_taller.alias)) ||
+                                     wsConfig.nombre_comercial || wsConfig.nombre || wsConfig.alias || 'Taller';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 90000);
+                let response;
+                try {
+                    response = await fetch(`${baseUrl}/api/dte/send-custom-email`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: controller.signal,
+                        body: JSON.stringify({
+                            workshopId: (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id) || 'desconocido',
+                            workshopName,
+                            recipients,
+                            subject,
+                            body,
+                            budgetIds: budgets.map(b => b['ID Presupuesto']),
+                            attachments
+                        })
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+
+                const resData = await response.json().catch(() => ({}));
+                if (response.ok && resData.success) {
+                    closeModal();
+                    showToast(`✅ Correo enviado a ${recipients.join(', ')} con ${attachments.length} presupuesto(s) adjunto(s)`, "success");
+                    if (typeof onDone === 'function') onDone();
+                } else {
+                    showToast(`No se pudo enviar el correo: ${resData.message || ('Error del servidor (' + response.status + ')')}`, "danger");
+                    restoreBtn(sendBtn);
+                }
+            } catch (err) {
+                console.error(err);
+                const isAbort = err.name === 'AbortError';
+                showToast(isAbort ? "El servidor tardó demasiado en responder. Revisa si el correo llegó antes de reintentar." : ("Error al enviar el correo: " + err.message), "danger");
+                restoreBtn(sendBtn);
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        showToast("Error al abrir el envío por correo: " + err.message, "danger");
+    }
 }
 
 /**
