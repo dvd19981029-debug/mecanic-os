@@ -223,11 +223,11 @@ export function renderPresupuestos(container, queryParams) {
             const isFacturado = p.Estado == 3;
             const isAnulado = p.Estado == 4;
             const isReadonly = isFacturado || isAnulado;
-            const actionText = isReadonly ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
+            const actionText = isReadonly ? '<i class="fa-regular fa-eye"></i> Ver' : '<i class="fa-regular fa-pen-to-square"></i> Editar';
             
             const deleteBtnHtml = isReadonly 
-                ? `<button class="btn" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
-                : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
+                ? `<button class="btn" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-regular fa-trash-can"></i> Eliminar</button>`
+                : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-regular fa-trash-can"></i> Eliminar</button>`;
             
             const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
             const numEquipo = vehicle.N_Equipo || 'N/A';
@@ -246,9 +246,9 @@ export function renderPresupuestos(container, queryParams) {
                 <td>
                     <div style="display: flex; gap: 0.3rem;">
                         <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;">${safe(actionText)}</a>
-                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>
-                        <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
+                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-regular fa-paper-plane"></i> Enviar por correo</button>
+                        <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-regular fa-circle-check"></i> Aprobar</button>
                         ${safe(deleteBtnHtml)}
                     </div>
                 </td>
