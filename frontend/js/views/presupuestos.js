@@ -82,6 +82,7 @@ export function renderPresupuestos(container, queryParams) {
                 <table>
                     <thead>
                         <tr>
+                            <th>Correlativo</th>
                             <th>Código Presupuesto</th>
                             <th>Fecha</th>
                             <th>Cliente</th>
@@ -207,7 +208,7 @@ export function renderPresupuestos(container, queryParams) {
         });
 
         if (filtered.length === 0) {
-            rowsContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
+            rowsContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Sin resultados</td></tr>';
             return;
         }
 
@@ -234,6 +235,7 @@ export function renderPresupuestos(container, queryParams) {
 
             const tr = document.createElement('tr');
             tr.innerHTML = html`
+                <td><strong style="font-family:monospace;">${escapeHtml(p.Correlativo ? String(p.Correlativo) : '—')}</strong></td>
                 <td><strong>${escapeHtml(p['ID Presupuesto'])}</strong></td>
                 <td>${p.Fecha ? new Date(p.Fecha).toLocaleDateString('es-SV') : 'N/A'}</td>
                 <td>${escapeHtml(p.Nombre)}</td>
