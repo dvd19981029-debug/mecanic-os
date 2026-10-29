@@ -3,7 +3,7 @@
  */
 
 
-import { initRouter } from './router.js?v=105';
+import { initRouter } from './router.js?v=106';
 import {
     initFirebase,
     initDatabase,

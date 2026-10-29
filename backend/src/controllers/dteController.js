@@ -1281,7 +1281,7 @@ async function sendBudgetEmail(req, res) {
  */
 async function sendCustomEmail(req, res) {
     try {
-        const { recipients, subject, body, attachments, budgetIds, workshopId, workshopName } = req.body || {};
+        const { recipients, subject, body, attachments, budgetIds, workshopId, workshopName, workshopEmail } = req.body || {};
         const MAX_ATTACHMENTS = 10;
         const MAX_RECIPIENTS = 20;
         const emailRegex = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
@@ -1330,14 +1330,24 @@ async function sendCustomEmail(req, res) {
                              process.env.APPSCRIPT_URL ||
                              "https://script.google.com/macros/s/AKfycbxgj9nPnoG-N-CkxnNExYVz_x405uxBkoxTXY8hwsQVNz4sGsei9wcEGIpQkHVLcvwXXw/exec";
 
-        const result = await postToAppsScript(appScriptUrl.trim(), {
+        // Copia y "responder a" hacia el correo del taller (si es válido): las respuestas del cliente le llegan al taller
+        const shopEmail = String(workshopEmail || '').trim().toLowerCase();
+        const shopEmailValid = emailRegex.test(shopEmail);
+
+        const mailPayload = {
             action: 'sendCustomEmail',
             recipients: list.join(','),
             subject: cleanSubject,
             textBody: textBody,
             senderName: String(workshopName || 'Taller').slice(0, 100),
             attachments: cleanFiles
-        });
+        };
+        if (shopEmailValid) {
+            mailPayload.replyTo = shopEmail;
+            if (!list.includes(shopEmail)) mailPayload.cc = shopEmail;
+        }
+
+        const result = await postToAppsScript(appScriptUrl.trim(), mailPayload);
 
         if (!result || result.success === false) {
             const detail = (result && (result.message || result.error)) || 'Sin respuesta del servicio de correo';
@@ -1352,7 +1362,7 @@ async function sendCustomEmail(req, res) {
             });
         }
 
-        saveDteLog("Envío Correo Personalizado (Apps Script)", workshopId, "PRESUPUESTO", { recipients: list, budgetIds, subject: cleanSubject, adjuntos: cleanFiles.length }, 200, result, "APPSCRIPT");
+        saveDteLog("Envío Correo Personalizado (Apps Script)", workshopId, "PRESUPUESTO", { recipients: list, cc: mailPayload.cc || null, replyTo: mailPayload.replyTo || null, budgetIds, subject: cleanSubject, adjuntos: cleanFiles.length }, 200, result, "APPSCRIPT");
         return res.json({ success: true, message: `Correo enviado a ${list.join(', ')}`, details: result });
     } catch (err) {
         console.error("Exception on sendCustomEmail:", err);

@@ -25,11 +25,14 @@ function doPost(e) {
         customAttachments.push(blob);
       });
 
-      GmailApp.sendEmail(contents.recipients, contents.subject || "", contents.textBody || "", {
+      var customOptions = {
         name: contents.senderName || "Taller",
         replyTo: contents.replyTo || "ventas@forbiddensoluciones.com",
         attachments: customAttachments
-      });
+      };
+      if (contents.cc) customOptions.cc = contents.cc;
+
+      GmailApp.sendEmail(contents.recipients, contents.subject || "", contents.textBody || "", customOptions);
 
       return ContentService.createTextOutput(JSON.stringify({
         success: true,

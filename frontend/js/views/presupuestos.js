@@ -4353,6 +4353,9 @@ export function openBulkBudgetEmailModal(budgetIds, onDone) {
         const client = db.clientes.find(c => c.Codigo_Cliente === first.Codigo_Cliente) || { Nombre: first.Nombre };
         const clientName = client.Nombre || first.Nombre || 'Cliente';
         const defaultEmail = client.Correo || client.Email || client.correo || first.Correo || first.Email || '';
+        const wsCfgForMail = getWorkshopConfig(db);
+        const workshopEmail = String((db.config_taller && db.config_taller.correo) || wsCfgForMail.correo || '').trim().toLowerCase();
+        const workshopEmailValid = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(workshopEmail);
         const modalId = `modal-bulk-budget-email-${Date.now()}`;
 
         const attachmentsHtml = budgets.map(b => {
@@ -4379,6 +4382,9 @@ export function openBulkBudgetEmailModal(budgetIds, onDone) {
                             <label style="${labelStyle}">Para:</label>
                             <input type="text" id="bulk-email-to" value="${escapeHtml(defaultEmail)}" placeholder="correo1@ejemplo.com, correo2@ejemplo.com" autocomplete="off" style="${fieldStyle}">
                             <small style="display:block; margin-top:0.3rem; color:var(--text-muted); font-size:0.75rem;">Puedes escribir varios correos separados por coma, punto y coma o espacio.</small>
+                            <small style="display:block; margin-top:0.3rem; color:var(--text-muted); font-size:0.75rem;">${workshopEmailValid
+                                ? `Se enviará copia a <strong>${escapeHtml(workshopEmail)}</strong> y las respuestas del cliente llegarán a ese correo.`
+                                : 'El taller no tiene correo configurado en Ajustes: no se enviará copia y las respuestas llegarán a ventas@forbiddensoluciones.com.'}</small>
                         </div>
                         <div style="margin-bottom:1rem;">
                             <label style="${labelStyle}">Asunto:</label>
@@ -4466,6 +4472,7 @@ export function openBulkBudgetEmailModal(budgetIds, onDone) {
                         body: JSON.stringify({
                             workshopId: (db.saas_state && db.saas_state.workshopData && db.saas_state.workshopData.id) || 'desconocido',
                             workshopName,
+                            workshopEmail: workshopEmailValid ? workshopEmail : '',
                             recipients,
                             subject,
                             body,
