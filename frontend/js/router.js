@@ -12,7 +12,7 @@ import { renderPresupuestos } from './views/presupuestos.js?v=143';
 import { renderKanban } from './views/kanban.js?v=69';
 
 import { renderFacturador } from './views/facturador.js?v=151';
-import { renderVentaRapida } from './views/venta_rapida.js?v=99';
+import { renderVentaRapida } from './views/venta_rapida.js?v=100';
 import { renderCaja } from './views/caja.js?v=95';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
 import { renderInventario } from './views/inventario.js?v=86';

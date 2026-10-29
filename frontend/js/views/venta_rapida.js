@@ -1483,11 +1483,17 @@ export function renderVentaRapida(container) {
                 const ctrlNum = resData.controlNumber || ("DTE-" + (tipoDte === 'CCF' ? '03' : '01') + "-M001P001-0000" + Math.floor(Math.random()*9000 + 1000));
                 const seal = resData.receptionSeal || (Math.floor(Math.random()*900000) + "-APPROVED");
                 
-                vr.Estado = "FACTURADO";
-                vr.controlNumber = genCode;
-                vr.mhControlNumber = ctrlNum;
-                vr.receptionSeal = seal;
-                vr.Fecha_Facturacion = Date.now();
+                // El sincronizador puede reemplazar el objeto de la venta en memoria mientras el modal está abierto.
+                // Se actualiza la versión vigente de la lista (la que se guarda en la nube) y también la del modal.
+                const liveVr = (db['43 Venta Rapida'] || db.venta_rapida || []).find(v => v.ID_Venta_Rapida === vrId);
+                [vr, liveVr].forEach(target => {
+                    if (!target) return;
+                    target.Estado = "FACTURADO";
+                    target.controlNumber = genCode;
+                    target.mhControlNumber = ctrlNum;
+                    target.receptionSeal = seal;
+                    target.Fecha_Facturacion = Date.now();
+                });
                 
                 // Inventory stock decrement & Kardex movements
                 (vr.productos || []).forEach(item => {
