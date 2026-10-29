@@ -4326,6 +4326,14 @@ export function exportBudgetPDF(budgetId) {
  * El usuario escribe destinatarios, asunto y mensaje; el texto se envía tal cual (texto plano)
  * y cada presupuesto va adjunto como PDF.
  */
+// Nombre del PDF: [Nº equipo]-[correlativo]-[código del presupuesto].pdf (equipo y correlativo solo si existen)
+function buildBudgetPdfName(db, budget) {
+    const clean = (v) => String(v == null ? '' : v).trim().replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
+    const vehicle = (db.vehiculos || []).find(v => (budget.ID_Vehiculo && v.ID_Vehiculo === budget.ID_Vehiculo) || (budget.Placas && v.Placas === budget.Placas)) || {};
+    const parts = [clean(vehicle.N_Equipo), clean(budget.Correlativo), clean(budget['ID Presupuesto'])].filter(Boolean);
+    return parts.join('-') + '.pdf';
+}
+
 export function openBulkBudgetEmailModal(budgetIds, onDone) {
     try {
         const db = getDatabase();
@@ -4361,7 +4369,7 @@ export function openBulkBudgetEmailModal(budgetIds, onDone) {
         const attachmentsHtml = budgets.map(b => {
             const total = getBudgetGrandTotal(b, db);
             return `<div style="display:flex; justify-content:space-between; gap:0.75rem; font-size:0.8rem; padding:0.3rem 0;">
-                        <span><i class="fa-regular fa-file-pdf" style="color:#f87171; margin-right:0.35rem;"></i>Presupuesto_${escapeHtml(b['ID Presupuesto'])}.pdf</span>
+                        <span><i class="fa-regular fa-file-pdf" style="color:#f87171; margin-right:0.35rem;"></i>${escapeHtml(buildBudgetPdfName(db, b))}</span>
                         <strong>$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                     </div>`;
         }).join('');
@@ -4454,7 +4462,7 @@ export function openBulkBudgetEmailModal(budgetIds, onDone) {
                         restoreBtn(sendBtn);
                         return;
                     }
-                    attachments.push({ name: `Presupuesto_${id.replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`, html: rendered.html });
+                    attachments.push({ name: buildBudgetPdfName(db, b), html: rendered.html });
                 }
 
                 const wsConfig = getWorkshopConfig(db);
