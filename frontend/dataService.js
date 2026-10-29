@@ -561,6 +561,11 @@ const dataService = {
                     updateObj.ingreso_config = db.ingreso_config;
                 }
 
+                // UN-NESTED: contadores (correlativos) syncs independently
+                if (db.contadores && JSON.stringify(oldCache.contadores) !== JSON.stringify(db.contadores)) {
+                    updateObj.contadores = db.contadores;
+                }
+
                 let activeUser = null;
                 try {
                     const userStr = sessionStorage.getItem('mecanic_os_active_user');
@@ -879,6 +884,18 @@ const dataService = {
                 this.cache.ingreso_config = data.ingreso_config; 
                 changed = true; 
             }
+            if (data.contadores) {
+                // Los correlativos nunca retroceden: se conserva el mayor entre local y nube
+                const localCounters = this.cache.contadores || {};
+                const mergedCounters = { ...localCounters };
+                Object.keys(data.contadores).forEach(k => {
+                    mergedCounters[k] = Math.max(parseInt(localCounters[k]) || 0, parseInt(data.contadores[k]) || 0);
+                });
+                if (JSON.stringify(mergedCounters) !== JSON.stringify(localCounters)) {
+                    this.cache.contadores = mergedCounters;
+                    changed = true;
+                }
+            }
             
             if (changed) {
                 await this.setStorageItem('mecanic_os_db', this.cache);
@@ -979,6 +996,7 @@ const dataService = {
             this.cache['45 Pagos VR'] = this.cache.pagos_vr;
             this.cache.config_taller = null;
             this.cache.ingreso_config = null;
+            this.cache.contadores = null;
             this.cache.saas_state = {
                 status: 'guest',
                 workshopData: null,
@@ -1021,6 +1039,7 @@ const dataService = {
         await docRef.set({
             config_taller: this.cache.config_taller || {},
             ingreso_config: this.cache.ingreso_config || {},
+            contadores: this.cache.contadores || {},
             saas_state: this.cache.saas_state || {},
             role_permissions: this.cache.role_permissions || {},
             saas_payments: this.cache.saas_payments || [],

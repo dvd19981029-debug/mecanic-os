@@ -33,7 +33,7 @@ import {
     showDteErrorModal,
     getNombreProducto
 } from '../utils.js?v=80';
-import { printDteTicket, viewDtePdf, openInvalidateDteModal } from './facturador.js?v=150';
+import { printDteTicket, viewDtePdf, openInvalidateDteModal } from './facturador.js?v=151';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();

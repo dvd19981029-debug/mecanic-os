@@ -12,6 +12,7 @@ import {
     renderPhotoPrintHtml,
     bindLightboxTriggers
 } from '../imageService.js';
+import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 const DEFAULT_INGRESO_CONFIG = {
     pilotos: [
@@ -216,6 +217,7 @@ function promoteCheckinToBudget(ing) {
     };
 
     if (!db.presupuestos) db.presupuestos = [];
+    assignBudgetCorrelativo(db, newBudget);
     db.presupuestos.unshift(newBudget);
     saveDatabase(db);
 

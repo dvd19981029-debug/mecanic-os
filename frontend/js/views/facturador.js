@@ -33,7 +33,8 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=140';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=141';
+import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 // Expose functions globally for other views (like clientes_vehiculos)
 window.viewDtePdf = viewDtePdf;
@@ -2293,6 +2294,8 @@ function reemitBudget(presId) {
     delete newBudget.Fecha_Facturacion;
     delete newBudget.Anulado;
     delete newBudget.Fecha_Anulacion;
+    delete newBudget.Correlativo;
+    assignBudgetCorrelativo(db, newBudget);
 
     db.presupuestos.unshift(newBudget);
 

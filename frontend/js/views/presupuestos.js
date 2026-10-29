@@ -31,6 +31,7 @@ import {
     matchesMultiFieldSearch,
     getNombreProducto
 } from '../utils.js?v=80';
+import { peekNextBudgetCorrelativo, assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 function stripProductApplication(desc, prod) {
     if (!desc || typeof desc !== 'string') return desc || '';
@@ -224,8 +225,8 @@ export function renderPresupuestos(container, queryParams) {
             const actionText = isReadonly ? '<i class="fa-solid fa-eye"></i> Ver' : '<i class="fa-solid fa-edit"></i> Editar';
             
             const deleteBtnHtml = isReadonly 
-                ? `<button class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
-                : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
+                ? `<button class="btn" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: rgba(255,255,255,0.05); color: var(--text-muted); border: none; cursor: not-allowed;" disabled title="No se puede eliminar un presupuesto facturado o anulado"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`
+                : `<button class="btn btn-delete-budget" data-id="${p['ID Presupuesto']}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #e74c3c; color: white; border: none; cursor: pointer;" title="Eliminar presupuesto"><i class="fa-solid fa-trash-can"></i> Eliminar</button>`;
             
             const vehicle = db.vehiculos.find(v => v.Placas === p.Placas || v.ID_Vehiculo === p.ID_Vehiculo) || {};
             const numEquipo = vehicle.N_Equipo || 'N/A';
@@ -241,11 +242,11 @@ export function renderPresupuestos(container, queryParams) {
                 <td><strong>$ ${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                 <td>${safe(statusBadge)}</td>
                 <td>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;">${safe(actionText)}</a>
-                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>
-                        <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
+                    <div style="display: flex; gap: 0.3rem;">
+                        <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;">${safe(actionText)}</a>
+                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>
+                        <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-solid fa-circle-check"></i> Aprobar</button>
                         ${safe(deleteBtnHtml)}
                     </div>
                 </td>
@@ -573,6 +574,7 @@ export function renderBudgetEditor(container, budget) {
     if (isNew) {
         headerHTML = `
             <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+                <button type="button" class="btn btn-secondary" style="cursor: default; padding: 0.3rem 0.7rem; font-size: 0.8rem; margin-bottom: 0.75rem; display: inline-flex; align-items: center; gap: 0.4rem;" title="Número correlativo de este presupuesto"><i class="fa-solid fa-hashtag"></i> Correlativo: <strong>${peekNextBudgetCorrelativo(db)}</strong></button>
                 <h3 style="margin-bottom: 1.25rem; color: var(--primary); font-family: var(--font-heading); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-file-invoice-dollar"></i> Crear Nueva Cotización</h3>
                 <div class="form-row">
                     <div class="form-group">
@@ -636,6 +638,7 @@ export function renderBudgetEditor(container, budget) {
             <div class="glass-card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
                     <div>
+                        ${budget.Correlativo ? `<button type="button" class="btn btn-secondary" style="cursor: default; padding: 0.3rem 0.7rem; font-size: 0.8rem; margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.4rem;" title="Número correlativo de este presupuesto"><i class="fa-solid fa-hashtag"></i> Correlativo: <strong>${escapeHtml(String(budget.Correlativo))}</strong></button>` : ''}
                         <span class="badge-tag badge-primary" style="font-family: var(--font-heading); font-size: 1rem;">${escapeHtml(budget['ID Presupuesto'])}</span>
                         <h2 style="margin-top: 0.5rem;">${escapeHtml(client.Nombre)}</h2>
                         <p style="color: var(--text-secondary); font-size: 0.85rem;">Vehículo: <strong>${escapeHtml(vehicle.Placas)} (${escapeHtml(vehicle.Marca)} ${escapeHtml(vehicle.Modelo)})</strong> • Nº Equipo: <strong>${escapeHtml(vehicle.N_Equipo || 'N/A')}</strong> • Odómetro: ${escapeHtml(budget.Kilometraje || '0')}</p>
@@ -940,6 +943,7 @@ export function renderBudgetEditor(container, budget) {
             if (isNew && budget.Codigo_Cliente && budget.ID_Vehiculo) {
                 const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
                 if (!exists) {
+                    assignBudgetCorrelativo(db, budget);
                     db.presupuestos.unshift(budget);
                 }
             }
@@ -1901,6 +1905,7 @@ export function renderBudgetEditor(container, budget) {
         if (isNew) {
             const exists = db.presupuestos.some(b => b['ID Presupuesto'] === budget['ID Presupuesto']);
             if (!exists) {
+                assignBudgetCorrelativo(db, budget);
                 db.presupuestos.unshift(budget);
             }
         }

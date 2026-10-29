@@ -35,6 +35,7 @@ import {
     renderPhotoPrintHtml,
     bindLightboxTriggers
 } from '../imageService.js';
+import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 export function renderRevision21(container, queryParams) {
     const db = getDatabase();
@@ -238,6 +239,7 @@ export function renderRevision21(container, queryParams) {
                 "Pagado?": "NO"
             };
 
+            assignBudgetCorrelativo(db, newBudget);
             db.presupuestos.unshift(newBudget);
             saveDatabase(db);
             
@@ -565,6 +567,7 @@ window.createBudgetFromInspection = function(revId) {
         "Pagado?": "NO"
     };
 
+    assignBudgetCorrelativo(db, newBudget);
     db.presupuestos.unshift(newBudget);
     saveDatabase(db);
     
