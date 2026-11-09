@@ -32,7 +32,7 @@ import {
     getNombreProducto,
     safe,
     html
-} from '../utils.js?v=69';
+} from '../utils.js?v=92';
 
 let activeInventarioTab = 'catalogo';
 
@@ -164,7 +164,10 @@ export function renderInventario(container) {
                 ], filter)
             );
 
-            filtered.forEach(p => {
+            const maxDisplay = filter.trim() ? 250 : 100;
+            const toShow = filtered.slice(0, maxDisplay);
+
+            toShow.forEach(p => {
                 const qty = p.Minimos || 0;
                 let alertTag = '<span class="badge-tag badge-success">OK</span>';
                 if (qty <= 0) alertTag = '<span class="badge-tag badge-danger">Agotado</span>';
@@ -192,6 +195,12 @@ export function renderInventario(container) {
                 `;
                 rowsEl.appendChild(tr);
             });
+
+            if (filtered.length > maxDisplay) {
+                const infoTr = document.createElement('tr');
+                infoTr.innerHTML = `<td colspan="7" style="text-align:center; color:var(--text-secondary); padding:0.85rem; font-size:0.8rem; background:rgba(255,255,255,0.02);">Mostrando los primeros ${maxDisplay} de ${filtered.length} repuestos. Usa el buscador para filtrar más resultados.</td>`;
+                rowsEl.appendChild(infoTr);
+            }
         }
 
         searchInput.addEventListener('input', (e) => populateInventoryList(e.target.value));

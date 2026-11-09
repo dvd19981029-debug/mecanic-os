@@ -3,19 +3,19 @@
  */
 
 import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=89';
+import { renderConfiguracion } from './views/configuracion.js?v=90';
 import { renderLanding } from './views/landing.js?v=77';
 import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=97';
 import { renderVehiculos } from './views/vehiculos.js?v=94';
 import { renderRevision21 } from './views/revision21.js?v=81';
-import { renderPresupuestos } from './views/presupuestos.js?v=146';
+import { renderPresupuestos } from './views/presupuestos.js?v=147';
 import { renderKanban } from './views/kanban.js?v=69';
 
 import { renderFacturador } from './views/facturador.js?v=151';
 import { renderVentaRapida } from './views/venta_rapida.js?v=100';
 import { renderCaja } from './views/caja.js?v=95';
 import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
-import { renderInventario } from './views/inventario.js?v=86';
+import { renderInventario } from './views/inventario.js?v=87';
 import { renderGastos } from './views/gastos.js?v=92';
 import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
 import { renderPlanilla } from './views/planilla.js?v=69';
@@ -43,7 +43,7 @@ import {
     setSecureDteConfig
 } from '../app.js?v=88';
 
-import { showToast } from './utils.js?v=90';
+import { showToast } from './utils.js?v=92';
 
 const routes = {
     'taller-dashboard': renderTallerDashboard,

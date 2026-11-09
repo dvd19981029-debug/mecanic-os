@@ -557,7 +557,10 @@ export function makeSelectSearchable(selectId, placeholderText) {
             return;
         }
         
-        filtered.forEach(opt => {
+        const maxOptions = filterText.trim() ? 200 : 100;
+        const toShow = filtered.slice(0, maxOptions);
+
+        toShow.forEach(opt => {
             const item = document.createElement('div');
             item.style.padding = '0.65rem 1rem';
             item.style.cursor = 'pointer';
@@ -577,6 +580,13 @@ export function makeSelectSearchable(selectId, placeholderText) {
             });
             dropdown.appendChild(item);
         });
+
+        if (filtered.length > maxOptions) {
+            const more = document.createElement('div');
+            more.style.cssText = 'padding:0.5rem 1rem; color:var(--text-muted); text-align:center; font-size:0.75rem;';
+            more.textContent = `Mostrando ${maxOptions} de ${filtered.length}. Escribe para filtrar...`;
+            dropdown.appendChild(more);
+        }
     }
     
     // Open on focus/click

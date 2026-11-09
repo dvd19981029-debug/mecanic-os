@@ -30,7 +30,7 @@ import {
     makeSelectSearchable,
     matchesMultiFieldSearch,
     getNombreProducto
-} from '../utils.js?v=80';
+} from '../utils.js?v=92';
 import { peekNextBudgetCorrelativo, assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 function stripProductApplication(desc, prod) {
@@ -1454,8 +1454,8 @@ export function renderBudgetEditor(container, budget) {
         const newProdId = "PROD-CS-" + Math.floor(Date.now() / 1000).toString().substring(3) + "-" + Math.floor(Math.random()*100);
 
         const modalHtml = html`
-            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
-                <div class="glass-card" style="width:480px; padding:2rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100dvh; background:rgba(0,0,0,0.6); display:flex; align-items:flex-start; justify-content:center; z-index:10000; backdrop-filter:blur(4px); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:1rem 0.75rem 3rem 0.75rem; box-sizing:border-box;">
+                <div class="glass-card" style="width:100%; max-width:480px; padding:1.5rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5); margin:auto; box-sizing:border-box;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
                         <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-plus-circle"></i> Registrar Nuevo Repuesto</h3>
                         <button id="close-create-prod-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
@@ -1589,8 +1589,8 @@ export function renderBudgetEditor(container, budget) {
         const newMoId = "MO-" + Math.floor(Date.now() / 1000).toString().substring(4) + "-" + Math.floor(Math.random()*10);
 
         const modalHtml = html`
-            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
-                <div class="glass-card" style="width:450px; padding:2rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100dvh; background:rgba(0,0,0,0.6); display:flex; align-items:flex-start; justify-content:center; z-index:10000; backdrop-filter:blur(4px); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:1rem 0.75rem 3rem 0.75rem; box-sizing:border-box;">
+                <div class="glass-card" style="width:100%; max-width:450px; padding:1.5rem; border:1px solid var(--border-color); box-shadow:0 20px 40px rgba(0,0,0,0.5); margin:auto; box-sizing:border-box;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
                         <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Mano de Obra</h3>
                         <button id="close-create-labor-modal" style="background:none; border:none; color:var(--text-secondary); font-size:1.5rem; cursor:pointer;">&times;</button>
@@ -4298,6 +4298,13 @@ export function exportBudgetPDF(budgetId) {
     const rendered = getBudgetFullHtml(budgetId);
     if (!rendered || !rendered.html) {
         showToast("Error: Presupuesto no encontrado", "danger");
+        return;
+    }
+
+    if (window.AndroidPrint && typeof window.AndroidPrint.printHtml === 'function') {
+        const db = getDatabase();
+        const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
+        window.AndroidPrint.printHtml(rendered.html, pdfName);
         return;
     }
 

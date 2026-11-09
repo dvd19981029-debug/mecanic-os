@@ -1664,15 +1664,19 @@ tr:hover td {
     .modal {
         align-items: flex-start !important;
         overflow-y: auto !important;
-        padding: 2rem 0;
+        padding: 1rem 0 3rem 0;
+        height: 100dvh;
+        box-sizing: border-box;
         -webkit-overflow-scrolling: touch;
     }
 
     .modal-content {
         width: 92% !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         padding: 1.25rem !important;
         border-radius: var(--radius-md);
-        margin: auto !important;
+        margin: 0 auto !important;
     }
 
     /* Checkpoint row styling for phone */

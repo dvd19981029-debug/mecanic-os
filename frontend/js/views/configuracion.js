@@ -1519,11 +1519,14 @@ export function renderConfiguracion(container, queryParams) {
             }
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = html`<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
+                tableBody.innerHTML = html`<tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No se encontraron productos o repuestos</td></tr>`;
                 return;
             }
 
-            filtered.forEach((p, idx) => {
+            const maxDisplay = filterText.trim() ? 250 : 100;
+            const toShow = filtered.slice(0, maxDisplay);
+
+            toShow.forEach((p, idx) => {
                 const pCompra = parseFloat(p['Precio Compra'] || 0);
                 const pVenta = parseFloat(p['Precio Venta'] || 0);
                 let pctText = 'N/A';
@@ -1569,6 +1572,12 @@ export function renderConfiguracion(container, queryParams) {
                 `;
                 tableBody.appendChild(tr);
             });
+
+            if (filtered.length > maxDisplay) {
+                const infoTr = document.createElement('tr');
+                infoTr.innerHTML = `<td colspan="11" style="text-align:center; color:var(--text-secondary); padding:0.85rem; font-size:0.8rem; background:rgba(255,255,255,0.02);">Mostrando los primeros ${maxDisplay} de ${filtered.length} productos. Usa el buscador para filtrar más resultados.</td>`;
+                tableBody.appendChild(infoTr);
+            }
 
             // Bind edits
             tableBody.querySelectorAll('.btn-edit-producto').forEach(btn => {
@@ -2221,7 +2230,7 @@ export function renderConfiguracion(container, queryParams) {
             }
             saveDatabase(currentDb);
             document.getElementById('producto-modal').classList.remove('active');
-            renderConfiguracion(container);
+            populateProductos(searchInput ? searchInput.value : '');
         });
 
         // Close triggers

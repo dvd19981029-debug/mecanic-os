@@ -634,12 +634,21 @@ const dataService = {
                     const oldItems = oldCache[config.name] || [];
                     const newItems = db[config.name] || [];
 
+                    const oldMap = new Map();
+                    for (const oldItem of oldItems) {
+                        const k = oldItem && oldItem[config.key];
+                        if (k) oldMap.set(k, oldItem);
+                    }
+
+                    const newKeys = new Set();
+
                     // Find added or modified items
                     for (const newItem of newItems) {
-                        const keyVal = newItem[config.key];
+                        const keyVal = newItem && newItem[config.key];
                         if (!keyVal) continue;
+                        newKeys.add(keyVal);
 
-                        const oldItem = oldItems.find(x => x[config.key] === keyVal);
+                        const oldItem = oldMap.get(keyVal);
                         if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
                             // Save single document
                             await docRef.collection(config.path).doc(keyVal.toString()).set(newItem);
@@ -669,12 +678,8 @@ const dataService = {
                         continue;
                     }
 
-                    for (const oldItem of oldItems) {
-                        const keyVal = oldItem[config.key];
-                        if (!keyVal) continue;
-
-                        const exists = newItems.some(x => x[config.key] === keyVal);
-                        if (!exists) {
+                    for (const [keyVal] of oldMap) {
+                        if (!newKeys.has(keyVal)) {
                             // Delete single document
                             await docRef.collection(config.path).doc(keyVal.toString()).delete();
                             this.saas.logOp('deletes', 1);
