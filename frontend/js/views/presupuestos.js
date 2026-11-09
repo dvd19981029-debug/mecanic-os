@@ -32,7 +32,6 @@ import {
     getNombreProducto
 } from '../utils.js?v=92';
 import { peekNextBudgetCorrelativo, assignBudgetCorrelativo } from '../correlativo.js?v=1';
-import { isSafariDesktop, downloadHtmlAsPdf } from '../pdfDownload.js?v=1';
 
 function stripProductApplication(desc, prod) {
     if (!desc || typeof desc !== 'string') return desc || '';
@@ -4314,35 +4313,14 @@ export function exportBudgetPDF(budgetId) {
         return;
     }
 
-    // Safari de escritorio guarda en blanco el PDF del cuadro de impresion: se genera y descarga el .pdf directamente
-    if (isSafariDesktop()) {
-        showToast("Generando PDF...", "info");
-        downloadHtmlAsPdf(rendered.html, pdfName).catch(err => {
-            console.error(err);
-            showToast("No se pudo generar el PDF: " + err.message, "danger");
-        });
-        return;
-    }
-
-    // Se abre como Blob (URL real) y no con document.write: Safari recarga la ventana al guardar/imprimir el PDF y una pagina escrita con document.write quedaba en blanco
-    const blobUrl = URL.createObjectURL(new Blob([rendered.html], { type: 'text/html;charset=utf-8' }));
-    const printWindow = window.open(blobUrl, '_blank');
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
-        URL.revokeObjectURL(blobUrl);
         showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
         return;
     }
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10 * 60 * 1000);
 
-    // En móvil/PWA/WebView window.close() puede ser ignorado: si la ventana sigue abierta, volver a la app
-    const originalClose = printWindow.close.bind(printWindow);
-    const appUrl = window.location.href;
-    printWindow.close = function () {
-        originalClose();
-        setTimeout(() => {
-            if (!printWindow.closed) printWindow.location.replace(appUrl);
-        }, 250);
-    };
+    printWindow.document.write(rendered.html);
+    printWindow.document.close();
 }
 
 /**
