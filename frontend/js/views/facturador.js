@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=147';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=148';
 import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 // Expose functions globally for other views (like clientes_vehiculos)
@@ -1557,6 +1557,22 @@ export async function viewDtePdf(dteId) {
         }
 
         const blob = await response.blob();
+        if ((window.AndroidPrint && typeof window.AndroidPrint.shareBase64Pdf === 'function') ||
+            (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AndroidPrint && typeof window.Capacitor.Plugins.AndroidPrint.shareBase64Pdf === 'function')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const res = String(reader.result || '');
+                const base64Data = res.includes(',') ? res.split(',')[1] : res;
+                const dteFileName = `DTE-${String(dteId || 'Documento').replace(/[^0-9A-Za-z_-]/g, '_')}.pdf`;
+                if (window.AndroidPrint && typeof window.AndroidPrint.shareBase64Pdf === 'function') {
+                    window.AndroidPrint.shareBase64Pdf(base64Data, dteFileName);
+                } else {
+                    window.Capacitor.Plugins.AndroidPrint.shareBase64Pdf({ base64: base64Data, fileName: dteFileName });
+                }
+            };
+            reader.readAsDataURL(blob);
+            return;
+        }
         const blobUrl = URL.createObjectURL(blob);
         const pdfWin = window.open(blobUrl, '_blank');
         if (pdfWin) {

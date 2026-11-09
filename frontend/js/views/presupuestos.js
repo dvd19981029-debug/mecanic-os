@@ -4301,10 +4301,15 @@ export function exportBudgetPDF(budgetId) {
         return;
     }
 
+    const db = getDatabase();
+    const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
+
     if (window.AndroidPrint && typeof window.AndroidPrint.printHtml === 'function') {
-        const db = getDatabase();
-        const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
         window.AndroidPrint.printHtml(rendered.html, pdfName);
+        return;
+    }
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AndroidPrint && typeof window.Capacitor.Plugins.AndroidPrint.printHtml === 'function') {
+        window.Capacitor.Plugins.AndroidPrint.printHtml({ html: rendered.html, jobName: pdfName });
         return;
     }
 
