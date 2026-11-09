@@ -4369,8 +4369,11 @@ export async function downloadBudgetPdf(budgetId) {
         showToast("Generando PDF...", "info");
         const db = getDatabase();
         const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
-        const core = await import('../pdf/pdfCore.js?v=1');
-        await core.downloadBudgetPdfFromCtx(rendered.pdfCtx, pdfName);
+        const core = await import('../pdf/pdfCore.js?v=2');
+        const result = await core.downloadBudgetPdfFromCtx(rendered.pdfCtx, pdfName);
+        if (result && result.logoFailed) {
+            showToast("El PDF se generó sin el logo: no se pudo descargar la imagen del logo desde su ubicación.", "warning");
+        }
     } catch (err) {
         console.error("Error generando PDF:", err);
         showToast("No se pudo generar el PDF: " + (err && err.message ? err.message : err), "danger");

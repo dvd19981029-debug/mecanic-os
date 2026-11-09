@@ -66,40 +66,74 @@ function hexToRgb(hex, fallback = [30, 41, 59]) {
     return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
-/** Carga una imagen (data URL, URL local o remota con CORS) -> { dataUrl, w, h, format } o null. */
+const failedImages = [];
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+    });
+}
+
+function loadHtmlImage(src, crossOrigin) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (crossOrigin) img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('imagen no valida'));
+        img.src = src;
+    });
+}
+
+/** Redibuja la imagen en un canvas y la devuelve como PNG limpio (jsPDF falla con PNG/JPEG poco comunes: entrelazados, 16 bits, CMYK, webp, svg...). */
+function normalizeToPng(img, maxSide = 1000) {
+    const w0 = img.naturalWidth || img.width || 300;
+    const h0 = img.naturalHeight || img.height || 150;
+    const k = Math.min(1, maxSide / Math.max(w0, h0));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w0 * k));
+    c.height = Math.max(1, Math.round(h0 * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return { dataUrl: c.toDataURL('image/png'), w: c.width, h: c.height, format: 'PNG' };
+}
+
+/**
+ * Carga una imagen (data URL, URL local o remota) -> { dataUrl, w, h, format } o null.
+ * Para URLs remotas sin CORS prueba, en orden: fetch, <img crossOrigin> y un proxy gratuito de imagenes con CORS.
+ */
 async function loadImage(src) {
-    try {
-        if (!src) return null;
-        let dataUrl = src;
-        if (!/^data:/i.test(src)) {
+    if (!src) return null;
+    const attempts = [];
+    if (/^data:/i.test(src)) {
+        attempts.push(() => loadHtmlImage(src));
+    } else {
+        attempts.push(async () => {
             const res = await fetch(src);
-            if (!res.ok) return null;
-            const blob = await res.blob();
-            dataUrl = await new Promise((resolve, reject) => {
-                const r = new FileReader();
-                r.onloadend = () => resolve(r.result);
-                r.onerror = reject;
-                r.readAsDataURL(blob);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return loadHtmlImage(await blobToDataUrl(await res.blob()));
+        });
+        attempts.push(() => loadHtmlImage(src, true));
+        if (/^https?:/i.test(src)) {
+            attempts.push(async () => {
+                const res = await fetch('https://images.weserv.nl/?output=png&url=' + encodeURIComponent(src));
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return loadHtmlImage(await blobToDataUrl(await res.blob()));
             });
         }
-        const dims = await new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-            img.onerror = reject;
-            img.src = dataUrl;
-        });
-        const fmt = /^data:image\/jpe?g/i.test(dataUrl) ? 'JPEG' : 'PNG';
-        // jsPDF solo admite PNG/JPEG: cualquier otro tipo (webp, svg, gif) se rasteriza a PNG
-        if (!/^data:image\/(png|jpe?g)/i.test(dataUrl)) {
-            const c = document.createElement('canvas');
-            c.width = dims.w || 300; c.height = dims.h || 150;
-            c.getContext('2d').drawImage(await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = dataUrl; }), 0, 0, c.width, c.height);
-            return { dataUrl: c.toDataURL('image/png'), ...dims, format: 'PNG' };
-        }
-        return { dataUrl, ...dims, format: fmt };
-    } catch (e) {
-        return null;
     }
+    let lastErr = null;
+    for (const attempt of attempts) {
+        try {
+            return normalizeToPng(await attempt());
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    console.warn('PDF: no se pudo cargar la imagen', String(src).slice(0, 120), lastErr && lastErr.message);
+    failedImages.push(src);
+    return null;
 }
 
 /** Mismo QR de WhatsApp que usan las plantillas HTML. Devuelve imagen cargada o null. */
@@ -159,12 +193,14 @@ function createHelpers(jspdf, ctx) {
 
 /** Arma el PDF del presupuesto segun el formato configurado por el taller. */
 export async function buildBudgetPdf(ctx) {
+    failedImages.length = 0;
     const jspdf = await loadPdfLibs();
     const doc = new jspdf.jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
     const key = (ctx.ws && ctx.ws.formato_presupuesto) || 'moderno_facturallama';
     const path = FORMATS[key] || FORMATS.moderno_facturallama;
     const mod = await import(path + '?v=' + V);
     await mod.draw(doc, ctx, createHelpers(jspdf, ctx));
+    doc.__logoFailed = Boolean(ctx.ws && ctx.ws.logo && failedImages.includes(ctx.ws.logo));
     return doc;
 }
 
@@ -185,4 +221,5 @@ export function downloadPdfDoc(doc, fileName) {
 export async function downloadBudgetPdfFromCtx(ctx, fileName) {
     const doc = await buildBudgetPdf(ctx);
     downloadPdfDoc(doc, fileName);
+    return { logoFailed: Boolean(doc.__logoFailed) };
 }
