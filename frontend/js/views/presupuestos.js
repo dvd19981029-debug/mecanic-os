@@ -293,7 +293,8 @@ export function renderPresupuestos(container, queryParams) {
                 <td>
                     <div style="display: flex; gap: 0.3rem;">
                         <a href="#presupuestos?id=${escapeHtml(p['ID Presupuesto'])}" class="btn btn-secondary" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;">${safe(actionText)}</a>
-                        <button class="btn btn-secondary btn-print-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+                        <button class="btn btn-secondary btn-view-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;" title="Ver el presupuesto"><i class="fa-regular fa-eye"></i> Ver</button>
+                        <button class="btn btn-secondary btn-download-budget-pdf" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap;" title="Descargar el PDF"><i class="fa-solid fa-download"></i> Descargar</button>
                         <button class="btn btn-secondary btn-send-budget-email-row" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; color:#60a5fa;" title="Enviar presupuesto por correo electrónico al cliente"><i class="fa-regular fa-paper-plane"></i> Enviar por correo</button>
                         <button class="btn btn-approve-budget-shortcut" data-id="${escapeHtml(p['ID Presupuesto'])}" style="padding: 0.2rem 0.45rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; background: #2ecc71; color: white; border: none; cursor: pointer;" title="Aprobar presupuesto"><i class="fa-regular fa-circle-check"></i> Aprobar</button>
                         ${safe(deleteBtnHtml)}
@@ -304,12 +305,17 @@ export function renderPresupuestos(container, queryParams) {
         });
         refreshSelectionUI();
 
-        // Bind print PDF buttons
-        rowsContainer.querySelectorAll('.btn-print-budget-pdf').forEach(btn => {
+        // Bind ver / descargar PDF buttons
+        rowsContainer.querySelectorAll('.btn-view-budget-pdf').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const id = btn.getAttribute('data-id');
-                exportBudgetPDF(id);
+                exportBudgetPDF(btn.getAttribute('data-id'));
+            });
+        });
+        rowsContainer.querySelectorAll('.btn-download-budget-pdf').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                downloadBudgetPdf(btn.getAttribute('data-id'));
             });
         });
 
@@ -916,7 +922,7 @@ export function renderBudgetEditor(container, budget) {
                     ` : '')}
                     ${safe((!isNew && budget.Estado == 4 && isAdmin) ? `<button class="btn btn-warning" id="recover-budget-btn" style="background: #f59e0b; color: white; font-weight: bold; border: none; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-rotate-left"></i> Recuperar Presupuesto</button>` : '')}
                     ${safe(!isNew ? `<button class="btn btn-secondary" id="send-budget-email-editor-btn" type="button" style="color: #60a5fa;"><i class="fa-solid fa-paper-plane"></i> Enviar por correo</button>` : '')}
-                    ${safe(!isNew ? `<button class="btn btn-secondary" id="print-budget-btn" type="button"><i class="fa-solid fa-file-pdf"></i> Compartir / PDF</button>` : '')}
+                    ${safe(!isNew ? `<button class="btn btn-secondary" id="view-budget-btn" type="button"><i class="fa-regular fa-eye"></i> Ver</button><button class="btn btn-secondary" id="download-budget-btn" type="button"><i class="fa-solid fa-download"></i> Descargar</button>` : '')}
                     <button class="btn btn-secondary" onclick="window.location.hash='${
                         (budget.Estado == 3 || budget.Estado == 5) ? '#facturador' : 
                         (budget.Estado == 2) ? '#kanban' : '#presupuestos'
@@ -2091,9 +2097,14 @@ export function renderBudgetEditor(container, budget) {
         });
     }
 
-    if (document.getElementById('print-budget-btn')) {
-        document.getElementById('print-budget-btn').addEventListener('click', () => {
+    if (document.getElementById('view-budget-btn')) {
+        document.getElementById('view-budget-btn').addEventListener('click', () => {
             exportBudgetPDF(budget['ID Presupuesto']);
+        });
+    }
+    if (document.getElementById('download-budget-btn')) {
+        document.getElementById('download-budget-btn').addEventListener('click', () => {
+            downloadBudgetPdf(budget['ID Presupuesto']);
         });
     }
 
@@ -4290,10 +4301,24 @@ export function getBudgetFullHtml(budgetId) {
         iva,
         grandTotal,
         discount,
-        calc
+        calc,
+        pdfCtx: {
+            ws, budget, client, vehicle,
+            products: displayProducts,
+            labor: displayLabor,
+            subtotal, iva, retVal, percVal, grandTotal, sumProd, sumLab, discount,
+            options: templateOptions,
+            numeroALetras,
+            techName: ((db.tecnicos || []).find(t => t.Tecnico_ID === budget.Tecnico_Asignado) || {}).Nombre_Completo || 'Sin Asignar',
+            advisorName: ((db.tecnicos || []).find(t => t.Tecnico_ID === budget.Asesor_Asignado) || {}).Nombre_Completo || 'Sin Asignar'
+        }
     };
 }
 
+/**
+ * "Ver": muestra el presupuesto tal como se ve en su plantilla HTML, dentro de un visor en la misma pagina
+ * (sin ventanas emergentes, que fallan en Safari y en el APK). Desde el visor tambien se puede descargar el PDF.
+ */
 export function exportBudgetPDF(budgetId) {
     const rendered = getBudgetFullHtml(budgetId);
     if (!rendered || !rendered.html) {
@@ -4301,26 +4326,55 @@ export function exportBudgetPDF(budgetId) {
         return;
     }
 
-    const db = getDatabase();
-    const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
+    const existing = document.getElementById('budget-viewer-overlay');
+    if (existing) existing.remove();
 
-    if (window.AndroidPrint && typeof window.AndroidPrint.printHtml === 'function') {
-        window.AndroidPrint.printHtml(rendered.html, pdfName);
+    const viewerCss = '<style>.no-print-toolbar{display:none!important;}</style>';
+    const srcdoc = rendered.html.includes('</head>') ? rendered.html.replace('</head>', viewerCss + '</head>') : (viewerCss + rendered.html);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'budget-viewer-overlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100dvh; z-index:10001; background:rgba(0,0,0,0.65); display:flex; flex-direction:column;';
+    overlay.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; padding:0.6rem 1rem; background:#1e293b; color:#fff; flex-wrap:wrap;">
+            <strong style="font-size:0.95rem;">Presupuesto ${escapeHtml(budgetId)}</strong>
+            <div style="display:flex; gap:0.5rem;">
+                <button type="button" id="budget-viewer-download" class="btn btn-primary" style="padding:0.4rem 0.9rem; font-size:0.85rem;"><i class="fa-solid fa-download"></i> Descargar PDF</button>
+                <button type="button" id="budget-viewer-close" class="btn btn-secondary" style="padding:0.4rem 0.9rem; font-size:0.85rem;"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+            </div>
+        </div>
+        <iframe id="budget-viewer-frame" style="flex:1; width:100%; border:0; background:#fff;"></iframe>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#budget-viewer-frame').srcdoc = srcdoc;
+
+    const close = () => { document.removeEventListener('keydown', onKey); overlay.remove(); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('#budget-viewer-close').addEventListener('click', close);
+    overlay.querySelector('#budget-viewer-download').addEventListener('click', () => downloadBudgetPdf(budgetId));
+}
+
+/**
+ * "Descargar": genera el PDF con jsPDF (igual que las cotizaciones de KODE) y lo descarga directo.
+ * En el APK lo guarda en Descargas y abre Compartir.
+ */
+export async function downloadBudgetPdf(budgetId) {
+    const rendered = getBudgetFullHtml(budgetId);
+    if (!rendered || !rendered.pdfCtx) {
+        showToast("Error: Presupuesto no encontrado", "danger");
         return;
     }
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AndroidPrint && typeof window.Capacitor.Plugins.AndroidPrint.printHtml === 'function') {
-        window.Capacitor.Plugins.AndroidPrint.printHtml({ html: rendered.html, jobName: pdfName });
-        return;
+    try {
+        showToast("Generando PDF...", "info");
+        const db = getDatabase();
+        const pdfName = buildBudgetPdfName(db, rendered.budget || { 'ID Presupuesto': budgetId }).replace(/\.pdf$/i, '');
+        const core = await import('../pdf/pdfCore.js?v=1');
+        await core.downloadBudgetPdfFromCtx(rendered.pdfCtx, pdfName);
+    } catch (err) {
+        console.error("Error generando PDF:", err);
+        showToast("No se pudo generar el PDF: " + (err && err.message ? err.message : err), "danger");
     }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
-        return;
-    }
-
-    printWindow.document.write(rendered.html);
-    printWindow.document.close();
 }
 
 /**
