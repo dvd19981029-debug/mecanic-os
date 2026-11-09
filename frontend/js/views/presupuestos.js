@@ -32,6 +32,7 @@ import {
     getNombreProducto
 } from '../utils.js?v=92';
 import { peekNextBudgetCorrelativo, assignBudgetCorrelativo } from '../correlativo.js?v=1';
+import { isSafariDesktop, downloadHtmlAsPdf } from '../pdfDownload.js?v=1';
 
 function stripProductApplication(desc, prod) {
     if (!desc || typeof desc !== 'string') return desc || '';
@@ -4310,6 +4311,16 @@ export function exportBudgetPDF(budgetId) {
     }
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AndroidPrint && typeof window.Capacitor.Plugins.AndroidPrint.printHtml === 'function') {
         window.Capacitor.Plugins.AndroidPrint.printHtml({ html: rendered.html, jobName: pdfName });
+        return;
+    }
+
+    // Safari de escritorio guarda en blanco el PDF del cuadro de impresion: se genera y descarga el .pdf directamente
+    if (isSafariDesktop()) {
+        showToast("Generando PDF...", "info");
+        downloadHtmlAsPdf(rendered.html, pdfName).catch(err => {
+            console.error(err);
+            showToast("No se pudo generar el PDF: " + err.message, "danger");
+        });
         return;
     }
 
