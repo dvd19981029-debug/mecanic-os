@@ -3,13 +3,13 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=69';
+} from '../../app.js?v=89';
 import {
     showToast,
     escapeHtml,
     matchesMultiFieldSearch
 } from '../utils.js?v=69';
-import { exportBudgetPDF } from './presupuestos.js?v=148';
+import { exportBudgetPDF } from './presupuestos.js?v=149';
 
 export function renderTrabajosTaller(container) {
     const db = getDatabase();

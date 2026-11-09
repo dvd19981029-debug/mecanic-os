@@ -1,4 +1,4 @@
-import { saveDatabase, setActiveUser } from '../../app.js?v=69';
+import { saveDatabase, setActiveUser } from '../../app.js?v=89';
 import { showToast, html, safe, escapeHtml } from '../utils.js?v=69';
 
 export function renderLanding(container) {

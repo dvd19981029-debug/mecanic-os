@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=69';
+} from '../../app.js?v=89';
 import {
     showToast,
     escapeHtml,
@@ -33,7 +33,7 @@ import {
     saveDteLogToFirestore,
     showDteErrorModal
 } from '../utils.js?v=69';
-import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=148';
+import { exportBudgetPDF, calculateBudgetTotals } from './presupuestos.js?v=149';
 import { assignBudgetCorrelativo } from '../correlativo.js?v=1';
 
 // Expose functions globally for other views (like clientes_vehiculos)

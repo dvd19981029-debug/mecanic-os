@@ -3,7 +3,7 @@
  */
 
 
-import { initRouter } from './router.js?v=109';
+import { initRouter } from './router.js?v=110';
 import {
     initFirebase,
     initDatabase,
@@ -12,8 +12,8 @@ import {
     updateUserUI,
     updateSidebarBrand,
     startClock
-} from '../app.js?v=88';
-import { initUserSwitcher } from './views/saas.js?v=97';
+} from '../app.js?v=89';
+import { initUserSwitcher } from './views/saas.js?v=104';
 
 async function startApp() {
     try {

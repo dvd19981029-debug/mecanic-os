@@ -2,27 +2,27 @@
  * Mecanic OS - Routing & Navigation Module
  */
 
-import { renderTallerDashboard } from './views/dashboard.js?v=69';
-import { renderConfiguracion } from './views/configuracion.js?v=90';
-import { renderLanding } from './views/landing.js?v=77';
-import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=97';
-import { renderVehiculos } from './views/vehiculos.js?v=95';
-import { renderRevision21 } from './views/revision21.js?v=81';
-import { renderPresupuestos } from './views/presupuestos.js?v=148';
-import { renderKanban } from './views/kanban.js?v=69';
+import { renderTallerDashboard } from './views/dashboard.js?v=70';
+import { renderConfiguracion } from './views/configuracion.js?v=91';
+import { renderLanding } from './views/landing.js?v=78';
+import { renderClientesVehiculos } from './views/clientes_vehiculos.js?v=98';
+import { renderVehiculos } from './views/vehiculos.js?v=96';
+import { renderRevision21 } from './views/revision21.js?v=82';
+import { renderPresupuestos } from './views/presupuestos.js?v=149';
+import { renderKanban } from './views/kanban.js?v=70';
 
-import { renderFacturador } from './views/facturador.js?v=152';
-import { renderVentaRapida } from './views/venta_rapida.js?v=101';
-import { renderCaja } from './views/caja.js?v=95';
-import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=69';
-import { renderInventario } from './views/inventario.js?v=87';
-import { renderGastos } from './views/gastos.js?v=92';
-import { renderDashboardBI } from './views/dashboard_bi.js?v=69';
-import { renderPlanilla } from './views/planilla.js?v=69';
-import { renderComisiones } from './views/comisiones.js?v=69';
-import { renderTrabajosTaller } from './views/trabajos.js?v=74';
-import { renderIngresos } from './views/ingresos.js?v=88';
-import { renderLibrosIVA } from './views/libros_iva.js?v=11';
+import { renderFacturador } from './views/facturador.js?v=153';
+import { renderVentaRapida } from './views/venta_rapida.js?v=102';
+import { renderCaja } from './views/caja.js?v=96';
+import { renderCuentasCobrar } from './views/cuentas_cobrar.js?v=70';
+import { renderInventario } from './views/inventario.js?v=88';
+import { renderGastos } from './views/gastos.js?v=93';
+import { renderDashboardBI } from './views/dashboard_bi.js?v=70';
+import { renderPlanilla } from './views/planilla.js?v=70';
+import { renderComisiones } from './views/comisiones.js?v=70';
+import { renderTrabajosTaller } from './views/trabajos.js?v=75';
+import { renderIngresos } from './views/ingresos.js?v=89';
+import { renderLibrosIVA } from './views/libros_iva.js?v=12';
 import {
     renderRegistroSaaS,
     renderTerminosSaaS,
@@ -30,18 +30,18 @@ import {
     renderPagoSuscripcionSaaS,
     renderPagoSuscripcionWompiCallback,
     renderAdminSolicitudes
-} from './views/saas.js?v=103';
+} from './views/saas.js?v=104';
 import { renderTerminosPublicos } from './views/terminos_publicos.js?v=4';
 import {
     renderLockScreen,
     renderSaaSAdminLogin
-} from './views/auth.js?v=82';
+} from './views/auth.js?v=83';
 
 import {
     getActiveUser,
     saveDatabase,
     setSecureDteConfig
-} from '../app.js?v=88';
+} from '../app.js?v=89';
 
 import { showToast } from './utils.js?v=92';
 

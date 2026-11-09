@@ -1,4 +1,4 @@
-import { getDatabase, getBudgetGrandTotal } from '../../app.js?v=88';
+import { getDatabase, getBudgetGrandTotal } from '../../app.js?v=89';
 import { html, safe, escapeHtml, showToast, downloadExcelReport } from '../utils.js?v=91';
 
 let activeLibroTab = 'ventas';

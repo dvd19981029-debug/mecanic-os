@@ -12,7 +12,7 @@ import {
     setSecureDteConfig,
     calculateElSalvadorPeriodPayroll,
     getActiveUser
-} from '../../app.js?v=69';
+} from '../../app.js?v=89';
 
 import { showToast, html, safe, hashPassword, getNombreProducto } from '../utils.js?v=69';
 import { compressImage, uploadImageToStorage } from '../imageService.js';

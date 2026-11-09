@@ -19,7 +19,7 @@ import {
     calculateElSalvadorPeriodPayroll,
     DEPARTAMENTOS_CODES,
     MUNICIPIOS_CODES
-} from '../../app.js?v=69';
+} from '../../app.js?v=89';
 import {
     showToast,
     escapeHtml,
@@ -33,7 +33,7 @@ import {
     showDteErrorModal,
     getNombreProducto
 } from '../utils.js?v=80';
-import { printDteTicket, viewDtePdf, openInvalidateDteModal } from './facturador.js?v=152';
+import { printDteTicket, viewDtePdf, openInvalidateDteModal } from './facturador.js?v=153';
 
 export function renderVentaRapida(container) {
     const db = getDatabase();

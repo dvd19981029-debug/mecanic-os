@@ -3,7 +3,7 @@ import {
     saveDatabase,
     getActiveUser,
     getWorkshopConfig
-} from '../../app.js?v=69';
+} from '../../app.js?v=89';
 
 import { html, safe, escapeHtml, showToast, makeSelectSearchable } from '../utils.js?v=69';
 import {

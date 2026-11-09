@@ -18,7 +18,7 @@ import {
     getValidEconomicActivityCode,
     calculateElSalvadorPeriodPayroll,
     performUnifiedLogin
-} from '../../app.js?v=88';
+} from '../../app.js?v=89';
 import {
     showToast,
     escapeHtml,
