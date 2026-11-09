@@ -4313,14 +4313,15 @@ export function exportBudgetPDF(budgetId) {
         return;
     }
 
-    const printWindow = window.open('', '_blank');
+    // Se abre como Blob (URL real) y no con document.write: Safari recarga la ventana al guardar/imprimir el PDF y una pagina escrita con document.write quedaba en blanco
+    const blobUrl = URL.createObjectURL(new Blob([rendered.html], { type: 'text/html;charset=utf-8' }));
+    const printWindow = window.open(blobUrl, '_blank');
     if (!printWindow) {
+        URL.revokeObjectURL(blobUrl);
         showToast("Error: Habilite las ventanas emergentes (popups) para imprimir el presupuesto", "danger");
         return;
     }
-
-    printWindow.document.write(rendered.html);
-    printWindow.document.close();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10 * 60 * 1000);
 
     // En móvil/PWA/WebView window.close() puede ser ignorado: si la ventana sigue abierta, volver a la app
     const originalClose = printWindow.close.bind(printWindow);
